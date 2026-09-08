@@ -1,4 +1,4 @@
-# IEM LMS Current Project Status Report
+# DIZITALADDA CRM Current Project Status Report
 
 Date: 30 June 2026
 
@@ -128,7 +128,7 @@ Leads:
 
 ## What This Project Currently Is
 
-Current project ko abhi "IEM LMS" bol sakte hain, but practical code status ke hisaab se ye:
+Current project ko abhi "DIZITALADDA CRM" bol sakte hain, but practical code status ke hisaab se ye:
 - A backend-heavy admissions CRM foundation hai
 - Lead/counsellor/course/department modules ke saath
 - Auth foundation partial hai

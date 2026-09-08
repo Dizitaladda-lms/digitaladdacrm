@@ -5,7 +5,7 @@ dotenv.config();
 /**
  * =====================================================
  * Environment Validation
- * Project : IEM Admissions CRM
+ * Project : DIZITALADDA CRM
  * =====================================================
  */
 

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: iem-lms-api
+    name: dizitaladda-crm-api
     runtime: node
     rootDir: server
     buildCommand: npm ci

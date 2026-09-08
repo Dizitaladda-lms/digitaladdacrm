@@ -11,7 +11,7 @@
 4. Deploy `frontend` as the Vercel project root. Set
    `VITE_API_URL=https://<render-service>.onrender.com/api` in Vercel.
 5. After Vercel gives you its production URL, set Render's `CLIENT_URL` to that
-   exact origin, for example `https://iem-lms.vercel.app`, and redeploy Render.
+   exact origin, for example `https://dizitaladda-crm.vercel.app`, and redeploy Render.
 
 Do not commit `DATABASE_URL`, Neon passwords, or JWT secrets. Add them only in
 the Render dashboard. `VITE_API_URL` is safe to expose because it only contains

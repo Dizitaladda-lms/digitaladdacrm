@@ -1,4 +1,4 @@
-# DizitalAdda / IEM LMS Production Architecture Report
+# DizitalAdda CRM Production Architecture Report
 
 Date: 30 June 2026
 

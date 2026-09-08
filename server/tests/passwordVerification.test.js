@@ -3,8 +3,8 @@ import bcrypt from 'bcryptjs';
 import { verifyStoredPassword } from '../utils/passwordUtils.js';
 
 test('verifies legacy plain-text passwords after trimming', async () => {
-  expect(await verifyStoredPassword('iem123', 'iem123')).toBe(true);
-  expect(await verifyStoredPassword('iem123', ' iem123 ')).toBe(true);
+  expect(await verifyStoredPassword('dizitaladda123', 'dizitaladda123')).toBe(true);
+  expect(await verifyStoredPassword('dizitaladda123', ' dizitaladda123 ')).toBe(true);
 });
 
 test('verifies bcrypt hashes', async () => {

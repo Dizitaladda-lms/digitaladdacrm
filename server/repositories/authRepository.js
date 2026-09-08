@@ -3,7 +3,7 @@ import pool from "../config/db.js";
 /**
  * =====================================================
  * Auth Repository
- * Project : IEM Admissions CRM
+ * Project : DIZITALADDA CRM
  * =====================================================
  */
 

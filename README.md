@@ -1,9 +1,8 @@
-# LEADMANAGEMNT_LMS
-# IEM Admissions CRM
+# DIZITALADDA CRM
 
 ## Overview
 
-IEM Admissions CRM is a production-ready backend built using Node.js, Express.js, and PostgreSQL. The project follows a clean layered architecture with Repository Pattern, Service Layer, JWT Authentication, RBAC, centralized error handling, and Docker support.
+DIZITALADDA CRM is a production-ready backend built using Node.js, Express.js, and PostgreSQL. The project follows a clean layered architecture with Repository Pattern, Service Layer, JWT Authentication, RBAC, centralized error handling, and Docker support.
 
 ---
 

@@ -6,7 +6,7 @@ import { findUserByIdRepository } from "../repositories/authRepository.js";
 /**
  * =====================================================
  * Authentication Middleware
- * Project : IEM Admissions CRM
+ * Project : DIZITALADDA CRM
  * Supports both httpOnly cookies (`accessToken`) and Bearer Authorization headers
  * =====================================================
  */

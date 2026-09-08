@@ -255,7 +255,7 @@ const AcademicInformationTab = ({
                 disabled={!canEdit}
                 value={formData.college_name || ""}
                 onChange={(e) => handleChange("college_name", e.target.value)}
-                placeholder="e.g. Delhi University / IEM Institute"
+                placeholder="e.g. Delhi University / DizitalAdda Institute"
                 className="crm-input"
                 style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "text" }}
               />

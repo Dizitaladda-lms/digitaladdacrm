@@ -2,7 +2,7 @@
  * =====================================================
  * Module : Department
  * Layer  : Service
- * Project: IEM LMS
+ * Project: DIZITALADDA CRM
  * =====================================================
  */
 
