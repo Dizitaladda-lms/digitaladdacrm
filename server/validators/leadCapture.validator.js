@@ -23,8 +23,7 @@ export const capturePublicLeadValidator = [
     .normalizeEmail(),
 
   body("campaign_id")
-    .notEmpty()
-    .withMessage("Campaign is required.")
+    .optional({ nullable: true })
     .isInt({ min: 1 })
     .withMessage("Invalid campaign id."),
 

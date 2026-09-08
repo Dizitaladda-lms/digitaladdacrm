@@ -37,21 +37,22 @@ export const capturePublicLeadService = async (
     await client.query("BEGIN");
 
     /**
-     * Campaign Validation
+     * Campaign Validation (Optional)
      */
+    if (leadData.campaign_id) {
+      const campaign =
+        await findCampaignByIdRepository(
+          leadData.campaign_id
+        );
 
-    const campaign =
-      await findCampaignByIdRepository(
-        leadData.campaign_id
-      );
-
-    if (!campaign) {
-
-      throw new ApiError(
-        404,
-        "Campaign not found."
-      );
-
+      if (!campaign) {
+        throw new ApiError(
+          404,
+          "Campaign not found."
+        );
+      }
+    } else {
+      leadData.campaign_id = null;
     }
 
     /**

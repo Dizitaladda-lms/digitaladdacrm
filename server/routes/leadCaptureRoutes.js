@@ -19,6 +19,10 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.mobile =
         req.body.phoneNumber || req.body.phone || req.body.mobileNumber || "";
     }
+    if (req.body.mobile) {
+      const cleaned = String(req.body.mobile).replace(/\D/g, "");
+      req.body.mobile = cleaned.length >= 10 ? cleaned.slice(-10) : cleaned;
+    }
     if (!req.body.interested_course) {
       req.body.interested_course =
         req.body.course || req.body.interestedCourse || "";
@@ -35,10 +39,12 @@ const normalizePublicLeadPayload = (req, res, next) => {
     }
     if (req.body.source) {
       req.body.source = String(req.body.source).toUpperCase();
+    } else {
+      req.body.source = "META";
     }
     if (!req.body.domain) {
       req.body.domain =
-        req.body.websiteDomain || req.body.sourceDomain || req.body.brand || req.body.domainName || null;
+        req.body.websiteDomain || req.body.sourceDomain || req.body.brand || req.body.domainName || "DizitalAdda";
     }
   }
   next();
