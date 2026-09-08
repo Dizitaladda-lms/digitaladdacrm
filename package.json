@@ -1,5 +1,14 @@
 {
-  "dependencies": {
-    "bcrypt": "^6.0.0"
+  "name": "dizitaladda-crm",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "db:init": "npm run db:init --prefix server",
+    "db:seed:test": "npm run db:seed:test --prefix server",
+    "server": "npm run dev --prefix server",
+    "server:start": "npm start --prefix server",
+    "frontend": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "test": "npm test --prefix server"
   }
 }
