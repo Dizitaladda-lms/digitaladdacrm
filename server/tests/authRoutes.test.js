@@ -73,6 +73,9 @@ test('GET /auth/me returns the logged in user profile', async () => {
 test('POST /auth/refresh-token returns new access and refresh tokens', async () => {
   assert.ok(refreshToken, 'Refresh token must be available');
 
+  // Small delay so token timestamps increment
+  await new Promise((r) => setTimeout(r, 100));
+
   const refreshResponse = await request(app)
     .post(`${API_PREFIX}/refresh-token`)
     .set('Cookie', [`refreshToken=${refreshToken}`])

@@ -13,6 +13,7 @@ export const generateAccessToken = (user) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      jti: crypto.randomUUID(),
     },
     process.env.JWT_SECRET,
     {

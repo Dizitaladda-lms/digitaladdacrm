@@ -10,8 +10,10 @@ async function seed() {
   try {
     await client.query('BEGIN');
 
-    // Ensure lead code sequence exists
-    await client.query(`CREATE SEQUENCE IF NOT EXISTS lead_code_seq START 1;`);
+    // Ensure code sequences exist
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS employee_code_seq START WITH 1001;`);
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS campaign_code_seq START WITH 1001;`);
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS lead_code_seq START WITH 1001;`);
 
     // Ensure admin user exists
     const { rows } = await client.query('SELECT id FROM users WHERE email = $1 AND is_deleted = FALSE', [ADMIN_EMAIL]);

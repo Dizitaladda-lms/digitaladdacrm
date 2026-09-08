@@ -34,6 +34,7 @@ test('POST /api/leads (ADMIN) creates a lead', async () => {
     full_name: 'Test Lead',
     mobile: `9${Math.floor(100000000 + Math.random() * 900000000)}`,
     email: `lead.${Date.now()}@example.com`,
+    source: 'MANUAL',
   };
 
   const res = await request(app)

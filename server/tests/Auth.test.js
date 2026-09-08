@@ -203,7 +203,3 @@ describe("Auth: role is reflected correctly on login", () => {
     expect(res.body.data.user.role).toBe(ROLES.ADMIN);
   });
 });
-
-afterAll(async () => {
-  await closeTestPool();
-});

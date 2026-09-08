@@ -40,6 +40,7 @@ test('POST /api/campaigns (ADMIN) creates a campaign', async () => {
     campaign_name: 'Test Campaign',
     platform: 'META',
     budget: 1000,
+    status: 'ACTIVE',
   };
 
   const res = await request(app)

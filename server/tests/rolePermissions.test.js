@@ -28,7 +28,7 @@ beforeAll(async () => {
 });
 
 test('COUNSELLOR cannot create lead (ADMIN only)', async () => {
-  const payload = { full_name: 'Forbidden Lead', mobile: `9${Math.floor(100000000 + Math.random() * 900000000)}` };
+  const payload = { full_name: 'Forbidden Lead', mobile: `9${Math.floor(100000000 + Math.random() * 900000000)}`, source: 'MANUAL' };
 
   await request(app)
     .post(API_LEADS)
@@ -38,7 +38,7 @@ test('COUNSELLOR cannot create lead (ADMIN only)', async () => {
 });
 
 test('ADMIN can create lead', async () => {
-  const payload = { full_name: 'Allowed Lead', mobile: `9${Math.floor(100000000 + Math.random() * 900000000)}` };
+  const payload = { full_name: 'Allowed Lead', mobile: `9${Math.floor(100000000 + Math.random() * 900000000)}`, source: 'MANUAL' };
 
   const res = await request(app)
     .post(API_LEADS)
