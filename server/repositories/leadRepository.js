@@ -335,6 +335,8 @@ export const getLeadsRepository = async (filters) => {
       values.push(Number(assigned_to));
       index++;
     }
+  }
+
   // Domain Filter
   if (domain && String(domain).toLowerCase() !== "all") {
     whereClause += `

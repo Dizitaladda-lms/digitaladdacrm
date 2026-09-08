@@ -2,6 +2,10 @@ import express from "express";
 import validate from "../middleware/validate.js";
 import { capturePublicLeadValidator } from "../validators/leadCapture.validator.js";
 import { capturePublicLead } from "../controllers/leadCaptureController.js";
+import {
+  verifyMetaWebhook,
+  receiveMetaWebhook,
+} from "../controllers/metaWebhookController.js";
 
 const router = express.Router();
 
@@ -52,7 +56,15 @@ const normalizePublicLeadPayload = (req, res, next) => {
 
 /**
  * =====================================================
- * Public Lead Capture Endpoint
+ * Meta (Facebook/Instagram) Lead Ads Webhook
+ * =====================================================
+ */
+router.get("/meta-webhook", verifyMetaWebhook);
+router.post("/meta-webhook", receiveMetaWebhook);
+
+/**
+ * =====================================================
+ * Public Lead Capture Endpoint (Forms / Webhooks / Zapier)
  * =====================================================
  */
 router.post(
