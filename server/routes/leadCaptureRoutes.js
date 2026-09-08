@@ -6,6 +6,7 @@ import {
   verifyMetaWebhook,
   receiveMetaWebhook,
 } from "../controllers/metaWebhookController.js";
+import { receiveGoogleWebhook } from "../controllers/googleWebhookController.js";
 
 const router = express.Router();
 
@@ -61,6 +62,13 @@ const normalizePublicLeadPayload = (req, res, next) => {
  */
 router.get("/meta-webhook", verifyMetaWebhook);
 router.post("/meta-webhook", receiveMetaWebhook);
+
+/**
+ * =====================================================
+ * Google Ads Lead Form Webhook
+ * =====================================================
+ */
+router.post("/google-webhook", receiveGoogleWebhook);
 
 /**
  * =====================================================
