@@ -6,6 +6,7 @@ import pool from "../config/db.js";
  * =====================================================
  */
 export const getNextLeadCodeRepository = async (client) => {
+  await client.query(`CREATE SEQUENCE IF NOT EXISTS lead_code_seq START WITH 1001;`);
   const result = await client.query(`
     SELECT nextval('lead_code_seq') AS sequence;
   `);
@@ -148,7 +149,7 @@ $27
 
     lead.lead_code,
 
-    lead.campaign_id,
+    lead.campaign_id || null,
 
     lead.full_name,
 
@@ -168,7 +169,7 @@ $27
 
     lead.preferred_centre || null,
 
-    lead.source,
+    lead.source || "MANUAL",
 
     lead.platform || null,
 
@@ -198,7 +199,7 @@ $27
 
     lead.captured_at || new Date(),
 
-    lead.created_by,
+    lead.created_by || null,
 
 ];
   const result =
@@ -746,9 +747,9 @@ RETURNING *;
 
     lead.preferred_centre || null,
 
-    lead.campaign_id,
+    lead.campaign_id || null,
 
-    lead.source,
+    lead.source || "MANUAL",
 
     lead.platform || null,
 
@@ -766,11 +767,11 @@ RETURNING *;
 
     lead.external_lead_id || null,
 
-    lead.status,
+    lead.status || "NEW",
 
-    lead.priority,
+    lead.priority || "MEDIUM",
 
-    lead.assigned_to,
+    lead.assigned_to || null,
 
     lead.remarks || null,
 
@@ -778,7 +779,7 @@ RETURNING *;
 
     lead.captured_at || null,
 
-    lead.updated_by,
+    lead.updated_by || null,
 
     id,
 

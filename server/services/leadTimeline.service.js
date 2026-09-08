@@ -16,7 +16,7 @@ export const addTimelineEventService = async ({
   description,
   oldValue,
   newValue,
-}) => {
+}, clientOrPool) => {
 
   if (!leadId) {
     throw new Error("Lead ID is required.");
@@ -38,7 +38,7 @@ export const addTimelineEventService = async ({
     description,
     oldValue,
     newValue,
-  });
+  }, clientOrPool);
 };
 
 /**

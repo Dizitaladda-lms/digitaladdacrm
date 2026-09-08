@@ -267,19 +267,13 @@ export const updateCampaignService = async (
 
     const updatedCampaign =
       await updateCampaignRepository(
-
         client,
-
         id,
-
         {
-
+          ...campaign,
           ...campaignData,
-
           updated_by: currentUser.id,
-
         }
-
       );
 
     auditLogger({

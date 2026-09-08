@@ -196,7 +196,7 @@ export const createLeadService = async (
       activityType: TIMELINE_ACTIVITY.LEAD_CREATED,
       title: "Lead Created",
       description: `Lead ${lead.full_name} created successfully.`,
-    });
+    }, client);
 
     auditLogger({
 
@@ -384,6 +384,7 @@ export const updateLeadService = async (
         client,
         id,
         {
+          ...lead,
           ...leadData,
           updated_by: currentUser.id,
         }
@@ -667,7 +668,7 @@ export const assignLeadService = async (
       activityType: TIMELINE_ACTIVITY.LEAD_ASSIGNED,
       title: "Lead Assigned",
       description: `Lead assigned to ${employee.full_name}.`,
-    });
+    }, client);
 
     auditLogger({
       action: "LEAD_ASSIGNED",
@@ -759,7 +760,7 @@ export const updateLeadStatusService = async (
           : `Status changed from ${lead.status} to ${status}.`,
       oldValue: lead.status,
       newValue: status,
-    });
+    }, client);
 
     auditLogger({
 
@@ -847,7 +848,7 @@ export const addLeadNoteService = async (
       activityType: TIMELINE_ACTIVITY.NOTE_ADDED,
       title: "Lead Note Added",
       description: note,
-    });
+    }, client);
 
     auditLogger({
 
@@ -1040,7 +1041,7 @@ export const assignBulkLeadsService = async (
           activityType: TIMELINE_ACTIVITY.LEAD_ASSIGNED,
           title: "Lead Assigned",
           description: `Lead assigned to employee ID ${employee_id}.`,
-        })
+        }, client)
       )
     );
 

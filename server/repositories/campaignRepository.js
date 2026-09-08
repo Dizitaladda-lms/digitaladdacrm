@@ -347,15 +347,15 @@ export const updateCampaignRepository = async (
   const values = [
 
     campaign.campaign_name,
-    campaign.platform,
-    campaign.source,
-    campaign.budget,
-    campaign.landing_page_url,
-    campaign.description,
-    campaign.start_date,
-    campaign.end_date,
-    campaign.status,
-    campaign.updated_by,
+    campaign.platform || "META",
+    campaign.source || null,
+    campaign.budget ?? 0,
+    campaign.landing_page_url || null,
+    campaign.description || null,
+    campaign.start_date || null,
+    campaign.end_date || null,
+    campaign.status || "ACTIVE",
+    campaign.updated_by || null,
     id,
 
   ];
