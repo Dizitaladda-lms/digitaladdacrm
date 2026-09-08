@@ -15,6 +15,8 @@ export const globalLimiter = rateLimit({
 
   legacyHeaders: false,
 
+  skip: () => process.env.NODE_ENV === "test",
+
   message: {
     success: false,
     message:
@@ -36,6 +38,8 @@ export const loginLimiter = rateLimit({
   standardHeaders: true,
 
   legacyHeaders: false,
+
+  skip: () => process.env.NODE_ENV === "test",
 
   message: {
     success: false,

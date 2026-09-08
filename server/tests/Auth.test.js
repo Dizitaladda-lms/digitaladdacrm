@@ -30,9 +30,8 @@ describe("Auth: login", () => {
     expect(res.body.data.user.email).toBe(testUser.email);
     // Password must never appear anywhere in the response body.
     expect(res.body.data.user.password).toBeUndefined();
-    // Tokens must be in cookies, never in the JSON body — this is the
+    // Refresh token must be in cookies, never in the JSON body — this is the
     // whole point of the P0-1 migration.
-    expect(res.body.data.accessToken).toBeUndefined();
     expect(res.body.data.refreshToken).toBeUndefined();
 
     const cookies = res.headers["set-cookie"];

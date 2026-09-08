@@ -74,6 +74,8 @@ export const rateLimiter = rateLimit({
 
   legacyHeaders: false,
 
+  skip: () => process.env.NODE_ENV === "test",
+
   message: {
     success: false,
     message:

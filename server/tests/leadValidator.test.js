@@ -2,6 +2,7 @@ import { test, beforeAll } from 'vitest';
 import request from 'supertest';
 import assert from 'node:assert/strict';
 import app from '../app.js';
+import pool from '../config/db.js';
 
 const API_AUTH = '/api/auth';
 const API_LEADS = '/api/leads';
@@ -12,6 +13,7 @@ let adminToken;
 
 beforeAll(async () => {
   await request(app).post(`${API_AUTH}/register`).send(ADMIN).expect(201);
+  await pool.query("UPDATE users SET role = 'ADMIN' WHERE email = $1", [ADMIN.email]);
   const a = await request(app).post(`${API_AUTH}/login`).send({ email: ADMIN.email, password: ADMIN.password }).expect(200);
   adminToken = a.body.data.accessToken;
 });

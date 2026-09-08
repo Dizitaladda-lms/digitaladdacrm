@@ -2,6 +2,7 @@ import { test, beforeAll } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../app.js';
+import pool from '../config/db.js';
 
 const API_PREFIX = '/api/auth';
 const randomEmail = `test.${Date.now()}@example.com`;
@@ -25,6 +26,8 @@ beforeAll(async () => {
   assert.equal(response.body.success, true);
   assert.equal(response.body.statusCode, 201);
   assert.equal(response.body.data.email, TEST_USER.email);
+
+  await pool.query("UPDATE users SET role = 'ADMIN' WHERE email = $1", [TEST_USER.email]);
 });
 
 test('POST /auth/login returns tokens for valid credentials', async () => {
@@ -38,6 +41,13 @@ test('POST /auth/login returns tokens for valid credentials', async () => {
 
   accessToken = loginResponse.body.data.accessToken;
   refreshToken = loginResponse.body.data.refreshToken;
+  if (!refreshToken) {
+    const cookies = loginResponse.headers['set-cookie'] || [];
+    const cookie = cookies.find((c) => c.startsWith('refreshToken='));
+    if (cookie) {
+      refreshToken = cookie.split(';')[0].split('=')[1];
+    }
+  }
 
   assert.equal(loginResponse.body.success, true);
   assert.equal(loginResponse.body.statusCode, 200);
@@ -63,25 +73,32 @@ test('GET /auth/me returns the logged in user profile', async () => {
 test('POST /auth/refresh-token returns new access and refresh tokens', async () => {
   assert.ok(refreshToken, 'Refresh token must be available');
 
-  // Small delay so token iat timestamp increments
-  await new Promise((r) => setTimeout(r, 1100));
-
   const refreshResponse = await request(app)
     .post(`${API_PREFIX}/refresh-token`)
+    .set('Cookie', [`refreshToken=${refreshToken}`])
     .send({ refreshToken })
     .expect(200);
 
   assert.equal(refreshResponse.body.success, true);
   assert.equal(refreshResponse.body.statusCode, 200);
   assert.ok(refreshResponse.body.data.accessToken);
-  assert.ok(refreshResponse.body.data.refreshToken);
+
+  let newRefreshToken = refreshResponse.body.data.refreshToken;
+  if (!newRefreshToken) {
+    const cookies = refreshResponse.headers['set-cookie'] || [];
+    const cookie = cookies.find((c) => c.startsWith('refreshToken='));
+    if (cookie) {
+      newRefreshToken = cookie.split(';')[0].split('=')[1];
+    }
+  }
+  assert.ok(newRefreshToken);
   assert.notEqual(
     refreshResponse.body.data.accessToken,
     accessToken
   );
 
   accessToken = refreshResponse.body.data.accessToken;
-  refreshToken = refreshResponse.body.data.refreshToken;
+  refreshToken = newRefreshToken;
 });
 
 test('POST /auth/logout revokes refresh token and prevents refresh', async () => {
@@ -91,12 +108,15 @@ test('POST /auth/logout revokes refresh token and prevents refresh', async () =>
   const logoutResponse = await request(app)
     .post(`${API_PREFIX}/logout`)
     .set('Authorization', `Bearer ${accessToken}`)
+    .set('Cookie', [`refreshToken=${refreshToken}`])
+    .send({ refreshToken })
     .expect(200);
 
   assert.equal(logoutResponse.body.success, true);
 
   await request(app)
     .post(`${API_PREFIX}/refresh-token`)
+    .set('Cookie', [`refreshToken=${refreshToken}`])
     .send({ refreshToken })
     .expect(401);
 });

@@ -143,12 +143,21 @@ export const resetPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "Password reset successfully."));
 });
 
+const getRefreshToken = (req) => {
+  if (req.cookies?.refreshToken) return req.cookies.refreshToken;
+  if (req.body?.refreshToken) return req.body.refreshToken;
+  if (req.headers?.cookie) {
+    const match = req.headers.cookie.match(/(?:^|[;,]\s*)refreshToken=([^;,]+)/);
+    if (match) return decodeURIComponent(match[1]);
+  }
+  return null;
+};
+
 /**
  * Refresh Access Token
  */
 export const refreshToken = asyncHandler(async (req, res) => {
-  const refreshTokenCookie =
-    req.cookies?.refreshToken || req.body?.refreshToken;
+  const refreshTokenCookie = getRefreshToken(req);
 
   if (!refreshTokenCookie) {
     throw new ApiError(401, "No refresh token provided.");
@@ -188,8 +197,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
  * Logout User
  */
 export const logout = asyncHandler(async (req, res) => {
-  const refreshTokenCookie =
-    req.cookies?.refreshToken || req.body?.refreshToken;
+  const refreshTokenCookie = getRefreshToken(req);
 
   const client = await pool.connect();
 
