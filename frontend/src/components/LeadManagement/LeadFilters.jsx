@@ -226,6 +226,98 @@ const LeadFilters = ({
 
         </div>
 
+        {/* Domain */}
+
+        <div className="filter-group">
+
+          <label>
+
+            Domain
+
+          </label>
+
+          <select
+
+            value={filters.domain || ""}
+
+            onChange={(e) =>
+
+              onChange(
+
+                "domain",
+
+                e.target.value
+
+              )
+
+            }
+
+          >
+
+            <option value="">
+
+              All Domains
+
+            </option>
+
+            <option value="DizitalAdda">
+
+              DizitalAdda
+
+            </option>
+
+            <option value="Nidads">
+
+              Nidads
+
+            </option>
+
+            <option value="Nigape">
+
+              Nigape
+
+            </option>
+
+            <option value="Nihacs">
+
+              Nihacs
+
+            </option>
+
+            <option value="HackingVidya">
+
+              HackingVidya
+
+            </option>
+
+            <option value="IIDAD">
+
+              IIDAD
+
+            </option>
+
+            <option value="Nifase">
+
+              Nifase
+
+            </option>
+
+            <option value="DesigningVidya">
+
+              DesigningVidya
+
+            </option>
+
+            <option value="LanguageVidya">
+
+              LanguageVidya
+
+            </option>
+
+          </select>
+
+        </div>
+
         {/* Campaign */}
 
         <div className="filter-group">

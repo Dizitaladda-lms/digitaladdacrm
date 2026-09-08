@@ -389,6 +389,8 @@ const LeadTable = ({
 
                 ["lead_code","Lead Code"],
 
+                ["domain","Domain"],
+
                 ["full_name","Student"],
 
                 ["mobile","Mobile"],
@@ -543,6 +545,19 @@ const LeadTable = ({
   </span>
 
 </td>
+
+        {/* Domain */}
+
+        <td className="px-4 py-4">
+
+          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
+
+            {lead.domain || "DizitalAdda"}
+
+          </span>
+
+        </td>
+
         {/* Student */}
 
         <td className="px-4 py-4">

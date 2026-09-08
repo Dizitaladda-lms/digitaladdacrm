@@ -1,5 +1,5 @@
 import React from "react";
-import { Building, Layers, Share2, Calendar, UserCheck } from "lucide-react";
+import { Building, Layers, Share2, Calendar, UserCheck, Globe } from "lucide-react";
 
 /**
  * LeadAcademicInfoCard Component
@@ -26,6 +26,11 @@ const LeadAcademicInfoCard = ({ lead }) => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <InfoRow
+          label="Domain / Brand"
+          value={lead.domain || "DizitalAdda"}
+          icon={<Globe size={15} className="text-slate-400" />}
+        />
         <InfoRow
           label="Interested Course"
           value={lead.course_name || lead.interested_course}

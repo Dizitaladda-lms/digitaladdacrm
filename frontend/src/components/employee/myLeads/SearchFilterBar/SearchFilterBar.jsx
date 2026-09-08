@@ -11,6 +11,8 @@ const SearchFilterBar = ({
   onPriorityChange = () => {},
   source = "ALL",
   onSourceChange = () => {},
+  domain = "ALL",
+  onDomainChange = () => {},
   onReset = () => {},
 }) => {
   return (
@@ -25,6 +27,24 @@ const SearchFilterBar = ({
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
+
+      {/* Domain Filter */}
+      <select
+        value={domain}
+        onChange={(e) => onDomainChange(e.target.value)}
+        className="filter-select"
+      >
+        <option value="ALL">All Domains</option>
+        <option value="DizitalAdda">DizitalAdda</option>
+        <option value="Nidads">Nidads</option>
+        <option value="Nigape">Nigape</option>
+        <option value="Nihacs">Nihacs</option>
+        <option value="HackingVidya">HackingVidya</option>
+        <option value="IIDAD">IIDAD</option>
+        <option value="Nifase">Nifase</option>
+        <option value="DesigningVidya">DesigningVidya</option>
+        <option value="LanguageVidya">LanguageVidya</option>
+      </select>
 
       {/* Standardized Status Filter */}
       <select

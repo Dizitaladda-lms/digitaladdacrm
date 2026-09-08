@@ -6,6 +6,7 @@ const initialForm = {
   mobile: "",
   email: "",
   course_name: "",
+  domain: "",
   status: "NEW",
   priority: "MEDIUM",
   remarks: "",
@@ -33,6 +34,8 @@ const EditLeadModal = ({
         email: lead.email || "",
 
         course_name: lead.course_name || "",
+
+        domain: lead.domain || "",
 
         status: lead.status || "NEW",
 
@@ -223,6 +226,50 @@ const EditLeadModal = ({
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
 
                 />
+
+              </div>
+
+              <div>
+
+                <label className="mb-2 block text-sm font-medium">
+
+                  Domain / Brand
+
+                </label>
+
+                <select
+
+                  name="domain"
+
+                  value={formData.domain}
+
+                  onChange={handleChange}
+
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3"
+
+                >
+
+                  <option value="">Select Domain</option>
+
+                  <option value="DizitalAdda">DizitalAdda</option>
+
+                  <option value="Nidads">Nidads</option>
+
+                  <option value="Nigape">Nigape</option>
+
+                  <option value="Nihacs">Nihacs</option>
+
+                  <option value="HackingVidya">HackingVidya</option>
+
+                  <option value="IIDAD">IIDAD</option>
+
+                  <option value="Nifase">Nifase</option>
+
+                  <option value="DesigningVidya">DesigningVidya</option>
+
+                  <option value="LanguageVidya">LanguageVidya</option>
+
+                </select>
 
               </div>
 

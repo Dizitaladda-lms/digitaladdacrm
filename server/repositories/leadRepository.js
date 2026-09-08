@@ -31,6 +31,8 @@ export const createLeadRepository = async (
 
     campaign_id,
 
+    domain,
+
     full_name,
 
     mobile,
@@ -86,59 +88,9 @@ export const createLeadRepository = async (
 
 VALUES (
 
-$1,
-
-$2,
-
-$3,
-
-$4,
-
-$5,
-
-$6,
-
-$7,
-
-$8,
-
-$9,
-
-$10,
-
-$11,
-
-$12,
-
-$13,
-
-$14,
-
-$15,
-
-$16,
-
-$17,
-
-$18,
-
-$19,
-
-$20,
-
-$21,
-
-$22,
-
-$23,
-
-$24,
-
-$25,
-
-$26,
-
-$27
+$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+$11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+$21, $22, $23, $24, $25, $26, $27, $28
 
 )
 
@@ -150,6 +102,8 @@ $27
     lead.lead_code,
 
     lead.campaign_id || null,
+
+    lead.domain || null,
 
     lead.full_name,
 
@@ -303,6 +257,7 @@ export const getLeadsRepository = async (filters) => {
     status,
     priority,
     assigned_to,
+    domain,
     sortBy = "created_at",
     order = "DESC",
   } = filters;
@@ -326,6 +281,7 @@ export const getLeadsRepository = async (filters) => {
         OR l.full_name ILIKE $${index}
         OR l.email ILIKE $${index}
         OR l.mobile ILIKE $${index}
+        OR l.domain ILIKE $${index}
       )
     `;
 
@@ -379,8 +335,14 @@ export const getLeadsRepository = async (filters) => {
       values.push(Number(assigned_to));
       index++;
     }
+  // Domain Filter
+  if (domain && String(domain).toLowerCase() !== "all") {
+    whereClause += `
+      AND UPPER(l.domain) = $${index}
+    `;
+    values.push(String(domain).toUpperCase());
+    index++;
   }
-
 
   // ==========================
   // Count Query
@@ -495,6 +457,7 @@ export const getMyLeadsRepository = async (filters = {}) => {
     search = "",
     status,
     priority,
+    domain,
     sortBy = "created_at",
     order = "DESC",
   } = filters;
@@ -533,6 +496,7 @@ export const getMyLeadsRepository = async (filters = {}) => {
         OR l.full_name ILIKE $${index}
         OR l.mobile ILIKE $${index}
         OR l.email ILIKE $${index}
+        OR l.domain ILIKE $${index}
       )
     `;
 
@@ -556,6 +520,15 @@ export const getMyLeadsRepository = async (filters = {}) => {
       AND UPPER(l.priority) = $${index}
     `;
     values.push(String(priority).toUpperCase());
+    index++;
+  }
+
+  // Domain
+  if (domain && String(domain).toLowerCase() !== "all") {
+    whereClause += `
+      AND UPPER(l.domain) = $${index}
+    `;
+    values.push(String(domain).toUpperCase());
     index++;
   }
 
@@ -720,9 +693,11 @@ captured_at = $25,
 
 updated_by = $26,
 
+domain = $27,
+
 updated_at = CURRENT_TIMESTAMP
 
-WHERE id = $27
+WHERE id = $28
 
 RETURNING *;
     `;
@@ -781,11 +756,11 @@ RETURNING *;
 
     lead.updated_by || null,
 
+    lead.domain || null,
+
     id,
 
 ];
-
-    console.log(values);
 
     const result = await client.query(query, values);
 

@@ -22,6 +22,12 @@ export const createLeadValidator = [
     .isLength({ max: 150 })
     .withMessage("Source cannot exceed 150 characters."),
 
+  body("domain")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 150 })
+    .withMessage("Domain name cannot exceed 150 characters."),
+
   body("campaign_id")
     .optional()
     .isInt()
@@ -123,6 +129,8 @@ export const createLeadValidator = [
 ];
 
 export const updateLeadValidator = [
+body("domain").optional({ nullable: true }).trim().isLength({ max: 150 }),
+
 body("alternate_mobile").optional(),
 
 body("country").optional(),

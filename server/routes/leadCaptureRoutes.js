@@ -36,6 +36,10 @@ const normalizePublicLeadPayload = (req, res, next) => {
     if (req.body.source) {
       req.body.source = String(req.body.source).toUpperCase();
     }
+    if (!req.body.domain) {
+      req.body.domain =
+        req.body.websiteDomain || req.body.sourceDomain || req.body.brand || req.body.domainName || null;
+    }
   }
   next();
 };

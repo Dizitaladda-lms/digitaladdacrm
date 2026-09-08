@@ -52,6 +52,7 @@
 
             <tr>
               <th>Lead</th>
+              <th>Domain</th>
               <th>Mobile</th>
               <th>Course</th>
               <th>Source</th>
@@ -92,6 +93,12 @@
 
                   </div>
 
+                </td>
+
+                <td>
+                  <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe' }}>
+                    {lead.domain || "DizitalAdda"}
+                  </span>
                 </td>
 
                 <td>{(lead.mobile)}</td>

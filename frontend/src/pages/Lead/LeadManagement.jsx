@@ -78,6 +78,8 @@ const [assignModal,setAssignModal]=useState(false);
 
     assigned_to: "",
 
+    domain: "",
+
   });
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -252,6 +254,8 @@ setEmployees(
       source: "",
 
       assigned_to: "",
+
+      domain: "",
 
     });
 
@@ -458,6 +462,7 @@ const openAssignModal = () => {
       `Dizital_Adda_Leads_${new Date().toISOString().slice(0, 10)}.csv`,
       [
         { header: "Lead Code", key: "lead_code" },
+        { header: "Domain", key: "domain" },
         { header: "Full Name", key: "full_name" },
         { header: "Mobile", key: "mobile" },
         { header: "Email", key: "email" },
