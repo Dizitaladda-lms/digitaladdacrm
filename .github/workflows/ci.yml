@@ -20,18 +20,18 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
+          POSTGRES_DB: dizitaladda_crm_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres" 
+          --health-cmd "pg_isready -U postgres -d dizitaladda_crm_test" 
           --health-interval 10s 
           --health-timeout 5s 
           --health-retries 5
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/dizitaladda_crm_test
       DB_SSL: "false"
       JWT_SECRET: ci_test_jwt_secret_key_1234567890
       JWT_EXPIRES_IN: 1d
@@ -55,7 +55,7 @@ jobs:
       - name: Wait for Postgres Readiness
         run: |
           for i in {1..15}; do
-            pg_isready -h 127.0.0.1 -p 5432 && break || sleep 2;
+            pg_isready -h 127.0.0.1 -p 5432 -U postgres -d dizitaladda_crm_test && break || sleep 2;
           done
 
       - name: Run Database Initializer (Enforce strict migration)

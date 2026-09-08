@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, beforeAll } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../app.js';
@@ -16,7 +16,7 @@ let loginResponse;
 let accessToken;
 let refreshToken;
 
-test.before(async () => {
+beforeAll(async () => {
   const response = await request(app)
     .post(`${API_PREFIX}/register`)
     .send(TEST_USER)

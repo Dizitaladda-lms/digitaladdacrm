@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, beforeAll } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../app.js';
@@ -15,7 +15,7 @@ const COUNSELLOR = { full_name: 'Role Counsellor', email: counsellorEmail, passw
 let adminToken;
 let counsellorToken;
 
-test.before(async () => {
+beforeAll(async () => {
   await request(app).post(`${API_AUTH}/register`).send(ADMIN).expect(201);
   const a = await request(app).post(`${API_AUTH}/login`).send({ email: ADMIN.email, password: ADMIN.password }).expect(200);
   adminToken = a.body.data.accessToken;

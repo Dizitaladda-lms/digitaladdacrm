@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, beforeAll } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../app.js';
@@ -17,7 +17,7 @@ const ADMIN_USER = {
 let accessToken;
 let campaignId;
 
-test.before(async () => {
+beforeAll(async () => {
   // register admin
   const res = await request(app).post(`${API_AUTH}/register`).send(ADMIN_USER).expect(201);
   assert.equal(res.body.success, true);
