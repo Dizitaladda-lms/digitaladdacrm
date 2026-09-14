@@ -6,15 +6,17 @@ import { handleMetaWebhookEvent } from "../services/metaWebhookService.js";
  * Verification endpoint required by Meta Developers Webhook configuration.
  */
 export const verifyMetaWebhook = (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+  const mode = req.query["hub.mode"] || req.query.mode;
+  const token = req.query["hub.verify_token"] || req.query.verify_token;
+  const challenge = req.query["hub.challenge"] || req.query.challenge;
 
-  const expectedToken =
-    process.env.META_VERIFY_TOKEN || "dizitaladda_meta_verify_token_2026";
+  const expectedToken = (
+    process.env.META_VERIFY_TOKEN || "dizitaladda_meta_verify_token_2026"
+  ).trim();
 
-  if (mode === "subscribe" && token === expectedToken) {
+  if (mode === "subscribe" && token && token.trim() === expectedToken) {
     console.log("✅ Meta Webhook Verified Successfully!");
+    res.setHeader("Content-Type", "text/plain");
     return res.status(200).send(challenge);
   } else {
     console.warn(
