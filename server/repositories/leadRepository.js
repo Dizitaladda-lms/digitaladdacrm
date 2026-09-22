@@ -81,7 +81,13 @@ export const createLeadRepository = async (
 
     captured_at,
 
-    created_by
+    created_by,
+
+    first_source,
+
+    received_count,
+
+    source_history
 
 )
   
@@ -90,12 +96,25 @@ VALUES (
 
 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-$21, $22, $23, $24, $25, $26, $27, $28
+$21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+$31
 
 )
 
     RETURNING *;
   `;
+
+ const sourceVal = lead.source || "MANUAL";
+ const initialHistory = JSON.stringify([
+   {
+     count: 1,
+     source: sourceVal,
+     domain: lead.domain || null,
+     course: lead.interested_course || null,
+     campaign_id: lead.campaign_id || null,
+     captured_at: lead.captured_at || new Date().toISOString(),
+   }
+ ]);
 
  const values = [
 
@@ -123,7 +142,7 @@ $21, $22, $23, $24, $25, $26, $27, $28
 
     lead.preferred_centre || null,
 
-    lead.source || "MANUAL",
+    sourceVal,
 
     lead.platform || null,
 
@@ -154,6 +173,12 @@ $21, $22, $23, $24, $25, $26, $27, $28
     lead.captured_at || new Date(),
 
     lead.created_by || null,
+
+    lead.first_source || sourceVal,
+
+    1,
+
+    initialHistory
 
 ];
   const result =

@@ -611,16 +611,30 @@ const LeadTable = ({
 
         <td className="px-4 py-4">
 
-          <span
-            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-              SOURCE_CONFIG[lead.source]?.className ||
-              "bg-slate-100 text-slate-700"
-            }`}
-          >
+          <div className="flex flex-col gap-1 items-start">
 
-            {SOURCE_CONFIG[lead.source]?.label || lead.source}
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                SOURCE_CONFIG[lead.source]?.className ||
+                "bg-slate-100 text-slate-700"
+              }`}
+            >
 
-          </span>
+              {SOURCE_CONFIG[lead.source]?.label || lead.source}
+
+            </span>
+
+            {Number(lead.received_count) > 1 && (
+              <span
+                className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200"
+                title={`Inquiry #${lead.received_count}. Originally from ${lead.first_source || lead.previous_source || lead.source}`}
+              >
+                <span className="font-bold">#{lead.received_count}</span>
+                <span>(1st: {lead.first_source || lead.previous_source || "Earlier"})</span>
+              </span>
+            )}
+
+          </div>
 
         </td>
 

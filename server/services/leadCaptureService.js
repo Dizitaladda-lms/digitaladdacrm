@@ -74,6 +74,42 @@ export const capturePublicLeadService = async (
 
     if (existingLead) {
 
+      const newCount = (Number(existingLead.received_count) || 1) + 1;
+      const firstSource = existingLead.first_source || existingLead.source || "UNKNOWN";
+      const previousSource = existingLead.source || "UNKNOWN";
+      const newSource = leadData.source || "UNKNOWN";
+
+      // Parse existing source_history
+      let history = [];
+      try {
+        if (typeof existingLead.source_history === "string") {
+          history = JSON.parse(existingLead.source_history);
+        } else if (Array.isArray(existingLead.source_history)) {
+          history = [...existingLead.source_history];
+        }
+      } catch {
+        history = [];
+      }
+
+      // If history was empty, seed the initial lead entry
+      if (history.length === 0) {
+        history.push({
+          count: 1,
+          source: firstSource,
+          domain: existingLead.domain || null,
+          course: existingLead.interested_course || null,
+          captured_at: existingLead.created_at || existingLead.captured_at || new Date().toISOString(),
+        });
+      }
+
+      history.push({
+        count: newCount,
+        source: newSource,
+        domain: leadData.domain || existingLead.domain || null,
+        course: leadData.interested_course || existingLead.interested_course || null,
+        captured_at: new Date().toISOString(),
+      });
+
       const updatedLead =
         await updateExistingLeadRepository(
 
@@ -85,11 +121,23 @@ export const capturePublicLeadService = async (
 
             ...leadData,
 
+            first_source: firstSource,
+
+            previous_source: previousSource,
+
+            source: newSource,
+
+            received_count: newCount,
+
+            source_history: JSON.stringify(history),
+
             updated_by: null,
 
           }
 
         );
+
+      const reinquiryDesc = `Re-inquiry #${newCount} received from ${newSource} (1st source: ${firstSource}${previousSource !== firstSource ? `, previous: ${previousSource}` : ""}).`;
 
       await createLeadActivityRepository(
 
@@ -99,10 +147,9 @@ export const capturePublicLeadService = async (
 
           lead_id: existingLead.id,
 
-          activity: "LEAD_UPDATED",
+          activity: "LEAD_REINQUIRY",
 
-          description:
-            "Existing lead updated from public source.",
+          description: reinquiryDesc,
 
           performed_by: null,
 

@@ -30,6 +30,19 @@ const AuditTimelineTab = ({
     }
   };
 
+  let parsedHistory = [];
+  try {
+    if (typeof lead?.source_history === "string") {
+      parsedHistory = JSON.parse(lead.source_history);
+    } else if (Array.isArray(lead?.source_history)) {
+      parsedHistory = lead.source_history;
+    }
+  } catch {
+    parsedHistory = [];
+  }
+
+  const initialSource = lead?.first_source || lead?.previous_source || lead?.source || "WEBSITE";
+
   return (
     <>
       {/* Quick Internal Notes Composer Card */}
@@ -74,25 +87,25 @@ const AuditTimelineTab = ({
           <Clock className="text-blue-600" size={20} />
           <div>
             <h3 className="crm-card-title">
-              Full Audit Timeline ({feedbackHistory.length + 1})
+              Full Audit Timeline ({feedbackHistory.length + 1 + (parsedHistory.length > 1 ? parsedHistory.length - 1 : 0)})
             </h3>
             <p className="crm-card-subtitle">
-              Chronological log of lead capture, status updates, calls, and discussions
+              Chronological log of lead capture, repeat inquiries, status updates, and discussions
             </p>
           </div>
         </div>
 
-        {/* Initial Lead Creation Event */}
+        {/* Initial Lead Creation Event & Re-inquiries */}
         <div className="crm-timeline" style={{ marginBottom: "20px" }}>
           <div className="crm-timeline-item">
             <div className="crm-timeline-dot" style={{ borderColor: "#16A34A" }} />
             <div className="crm-timeline-card">
               <div className="crm-timeline-header">
                 <span className="crm-badge crm-badge-status" style={{ backgroundColor: "#DCFCE7", color: "#15803D" }}>
-                  LEAD CAPTURED
+                  LEAD CAPTURED {parsedHistory.length > 1 ? "(1ST INQUIRY)" : ""}
                 </span>
                 <div className="crm-timeline-meta">
-                  <span>Source: {lead?.source || "WEBSITE"}</span>
+                  <span>Source: {initialSource}</span>
                   <span>
                     {lead?.created_at
                       ? new Date(lead.created_at).toLocaleDateString("en-IN", {
@@ -111,10 +124,47 @@ const AuditTimelineTab = ({
                 </div>
               </div>
               <div style={{ fontSize: "13px", color: "#334155", fontWeight: 500 }}>
-                Lead initially captured via {lead?.source || "WEBSITE"} form with Code <strong>{lead?.lead_code || "--"}</strong>.
+                Lead initially captured via <strong>{initialSource}</strong> form with Code <strong>{lead?.lead_code || "--"}</strong>.
               </div>
             </div>
           </div>
+
+          {/* Re-inquiries from source_history */}
+          {Array.isArray(parsedHistory) && parsedHistory.slice(1).map((inquiry, i) => (
+            <div key={i} className="crm-timeline-item" style={{ marginTop: "12px" }}>
+              <div className="crm-timeline-dot" style={{ borderColor: "#F59E0B" }} />
+              <div className="crm-timeline-card" style={{ borderLeft: "3px solid #F59E0B" }}>
+                <div className="crm-timeline-header">
+                  <span className="crm-badge" style={{ backgroundColor: "#FEF3C7", color: "#92400E", fontWeight: 700 }}>
+                    RE-INQUIRY #{inquiry.count || i + 2}
+                  </span>
+                  <div className="crm-timeline-meta">
+                    <span>Source: {inquiry.source || "UNKNOWN"}</span>
+                    <span>
+                      {inquiry.captured_at
+                        ? new Date(inquiry.captured_at).toLocaleDateString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          }) +
+                          " • " +
+                          new Date(inquiry.captured_at).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                        : "-"}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ fontSize: "13px", color: "#334155", fontWeight: 500 }}>
+                  Same student submitted another inquiry from <strong>{inquiry.source}</strong>
+                  {inquiry.domain ? ` (${inquiry.domain})` : ""}
+                  {inquiry.course ? ` for course "${inquiry.course}"` : ""}.
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {historyLoading ? (

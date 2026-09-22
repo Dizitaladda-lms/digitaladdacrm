@@ -116,6 +116,21 @@ const LeadSummaryHeader = ({ lead, onClose }) => {
           {priorityLabel} PRIORITY
         </span>
 
+        {Number(lead.received_count) > 1 && (
+          <span
+            className="crm-badge"
+            style={{
+              backgroundColor: "#FEF3C7",
+              color: "#92400E",
+              border: "1px solid #FDE68A",
+              fontWeight: 700,
+            }}
+            title={`Lead inquired ${lead.received_count} times. Originally from ${lead.first_source || lead.previous_source || lead.source}`}
+          >
+            #{lead.received_count} RE-INQUIRY
+          </span>
+        )}
+
         <span className="crm-badge crm-badge-status">
           <Tag size={13} />
           {lead.status || "NEW"}

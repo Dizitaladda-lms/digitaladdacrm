@@ -105,7 +105,19 @@
 
                 <td>{lead.campaign_name || "-"}</td>
 
-                <td>{lead.source || "-"}</td>
+                <td>
+                  <div className="flex flex-col gap-0.5 items-start">
+                    <span className="font-medium text-slate-700">{lead.source || "-"}</span>
+                    {Number(lead.received_count) > 1 && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200"
+                        title={`Inquiry #${lead.received_count}. Originally from ${lead.first_source || lead.previous_source || lead.source}`}
+                      >
+                        #{lead.received_count} (1st: {lead.first_source || lead.previous_source || "Earlier"})
+                      </span>
+                    )}
+                  </div>
+                </td>
 
                 <td>
 
