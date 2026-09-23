@@ -15,6 +15,7 @@ import {
   getLeads,
   getLeadStats,
   deleteLead,
+  deleteBulkLeads,
 } from "../../services/leadService";
 
 import {
@@ -104,6 +105,8 @@ const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 const [selectedDeleteLead, setSelectedDeleteLead] = useState(null);
 
 const [deleteLoading, setDeleteLoading] = useState(false);
+
+const [isBulkDelete, setIsBulkDelete] = useState(false);
 
   /*
   =====================================
@@ -393,49 +396,68 @@ Delete Lead
 */
 
 const handleDeleteClick = (lead) => {
-
+  setIsBulkDelete(false);
   setSelectedDeleteLead(lead);
-
   setDeleteModalOpen(true);
+};
 
+const handleBulkDeleteClick = () => {
+  if (selectedLeads.length === 0) return;
+  setIsBulkDelete(true);
+  setSelectedDeleteLead(null);
+  setDeleteModalOpen(true);
 };
 
 const handleCloseDeleteModal = () => {
-
   setDeleteModalOpen(false);
-
   setSelectedDeleteLead(null);
-
+  setIsBulkDelete(false);
 };
 
 const handleDeleteLead = async () => {
-
-  if (!selectedDeleteLead) return;
-
   try {
-
     setDeleteLoading(true);
 
-    await deleteLead(selectedDeleteLead.id);
-
-    alert("Lead deleted successfully.");
+    if (isBulkDelete) {
+      if (selectedLeads.length === 0) return;
+      const count = selectedLeads.length;
+      await deleteBulkLeads(selectedLeads);
+      alert(`${count} leads deleted successfully.`);
+      setSelectedLeads([]);
+    } else {
+      if (!selectedDeleteLead) return;
+      await deleteLead(selectedDeleteLead.id);
+      alert("Lead deleted successfully.");
+    }
 
     handleCloseDeleteModal();
-
     await loadLeads();
-
   } catch (error) {
-
     console.error(error);
-
-    alert("Failed to delete lead.");
-
+    alert(error?.response?.data?.message || "Failed to delete lead(s).");
   } finally {
-
     setDeleteLoading(false);
-
   }
+};
 
+const handleBulkExport = () => {
+  if (selectedLeads.length === 0) return;
+  const leadsToExport = leads.filter((l) => selectedLeads.includes(l.id));
+  if (leadsToExport.length === 0) return;
+
+  const columns = [
+    { header: "Lead Code", key: "lead_code" },
+    { header: "Full Name", key: "full_name" },
+    { header: "Mobile", key: "mobile" },
+    { header: "Email", key: "email" },
+    { header: "Status", key: "status" },
+    { header: "Source", key: "source" },
+    { header: "Domain", key: "domain" },
+    { header: "Interested Course", key: "interested_course" },
+    { header: "Assigned Employee", key: "assigned_employee" },
+  ];
+
+  exportToCsv(`selected_leads_${Date.now()}`, columns, leadsToExport);
 };
 
 const handleSingleAssign = (lead) => {
@@ -514,24 +536,15 @@ const openAssignModal = () => {
       />
 
       {
-
         selectedLeads.length > 0 && (
-
           <BulkActionBar
-
-    selectedLeads={selectedLeads}
-
-    onAssign={openAssignModal}
-
-    onExport={() => console.log("Export")}
-
-    onDelete={() => console.log("Delete")}
-
-    onClear={() => setSelectedLeads([])}
-
-/>
+            selectedLeads={selectedLeads}
+            onAssign={openAssignModal}
+            onExport={handleBulkExport}
+            onDelete={handleBulkDeleteClick}
+            onClear={() => setSelectedLeads([])}
+          />
         )
-
       }
 
   <LeadTable
@@ -546,17 +559,11 @@ const openAssignModal = () => {
 />
 
    <LeadPagination
-
         page={pagination.page}
-
         totalPages={pagination.totalPages}
-
         totalRecords={pagination.totalRecords}
-
         limit={pagination.limit}
-
         onPageChange={handlePageChange}
-
       />
 
 <LeadAssignmentModal
@@ -581,6 +588,8 @@ const openAssignModal = () => {
 <DeleteLeadModal
   open={deleteModalOpen}
   lead={selectedDeleteLead}
+  isBulk={isBulkDelete}
+  bulkCount={selectedLeads.length}
   loading={deleteLoading}
   onClose={handleCloseDeleteModal}
   onConfirm={handleDeleteLead}

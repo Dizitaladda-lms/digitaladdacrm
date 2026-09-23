@@ -297,3 +297,13 @@ export const assignLeadValidator = [
     .isIn(["LOW", "NORMAL", "HIGH"])
     .withMessage("Invalid priority."),
 ];
+
+export const deleteBulkLeadValidator = [
+  body("lead_ids")
+    .isArray({ min: 1 })
+    .withMessage("At least one lead must be selected for deletion."),
+
+  body("lead_ids.*")
+    .isInt()
+    .withMessage("Invalid lead id."),
+];

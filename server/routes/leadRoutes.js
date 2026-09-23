@@ -11,6 +11,7 @@ import {
   updateLeadValidator,
   assignLeadValidator,
   assignBulkLeadValidator,
+  deleteBulkLeadValidator,
   updateLeadStatusValidator,
   addLeadNoteValidator,
 } from "../validators/lead.validator.js";
@@ -21,6 +22,7 @@ import {
   getLeadById,
   updateLead,
   deleteLead,
+  deleteBulkLeads,
   restoreLead,
   getLeadStatistics,
   assignLead,
@@ -69,6 +71,15 @@ router.get(
   "/statistics",
   authMiddleware,
   getLeadStatistics
+);
+
+router.post(
+  "/bulk-delete",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  deleteBulkLeadValidator,
+  validate,
+  deleteBulkLeads
 );
 
 router.get(

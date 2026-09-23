@@ -7,6 +7,7 @@ import {
   getLeadByIdService,
   updateLeadService,
   deleteLeadService,
+  deleteBulkLeadsService,
   restoreLeadService,
 
   getLeadStatisticsService,
@@ -163,6 +164,32 @@ export const deleteLead = asyncHandler(async (req, res) => {
 
     )
 
+  );
+
+});
+
+/**
+ * =====================================================
+ * Soft Delete Bulk Leads
+ * =====================================================
+ */
+
+export const deleteBulkLeads = asyncHandler(async (req, res) => {
+
+  const leadIds = req.body.lead_ids || req.body.leadIds;
+
+  const result = await deleteBulkLeadsService(
+    leadIds,
+    req.user,
+    req
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      result,
+      `${result.deletedCount} leads deleted successfully.`
+    )
   );
 
 });

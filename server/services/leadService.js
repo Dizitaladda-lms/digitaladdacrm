@@ -13,6 +13,7 @@ import {
   getLeadsRepository,
   updateLeadRepository,
   deleteLeadRepository,
+  deleteBulkLeadsRepository,
   restoreLeadRepository,
 } from "../repositories/leadRepository.js";
 
@@ -557,6 +558,63 @@ export const deleteLeadService = async (
 
   }
 
+};
+
+/**
+ * =====================================================
+ * Soft Delete Bulk Leads
+ * =====================================================
+ */
+export const deleteBulkLeadsService = async (
+  leadIds,
+  currentUser,
+  req
+) => {
+  if (!Array.isArray(leadIds) || leadIds.length === 0) {
+    throw new ApiError(400, "Please provide an array of lead IDs to delete.");
+  }
+
+  const validIds = leadIds
+    .map((id) => Number(id))
+    .filter((id) => !isNaN(id) && id > 0);
+
+  if (validIds.length === 0) {
+    throw new ApiError(400, "No valid lead IDs provided.");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const deletedLeads = await deleteBulkLeadsRepository(
+      client,
+      validIds,
+      currentUser.id
+    );
+
+    auditLogger({
+      action: "LEADS_BULK_DELETED",
+      module: "LEAD",
+      userId: currentUser.id,
+      role: currentUser.role,
+      entityId: null,
+      requestId: req?.requestId || null,
+      ip: req?.ip || null,
+    });
+
+    await client.query("COMMIT");
+
+    return {
+      deletedCount: deletedLeads.length,
+      deletedLeads,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 /**

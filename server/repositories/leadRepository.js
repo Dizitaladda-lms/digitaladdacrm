@@ -845,6 +845,35 @@ export const deleteLeadRepository = async (
 
 /**
  * =====================================================
+ * Soft Delete Bulk Leads
+ * =====================================================
+ */
+export const deleteBulkLeadsRepository = async (
+  client,
+  leadIds,
+  updatedBy
+) => {
+  const query = `
+    UPDATE leads
+    SET
+      is_deleted = TRUE,
+      updated_by = $1,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ANY($2::bigint[])
+      AND is_deleted = FALSE
+    RETURNING id, lead_code, full_name;
+  `;
+
+  const result = await client.query(query, [
+    updatedBy,
+    leadIds,
+  ]);
+
+  return result.rows;
+};
+
+/**
+ * =====================================================
  * Restore Lead
  * =====================================================
  */

@@ -87,3 +87,13 @@ export const createLead = async (data) => {
   const response = await axiosInstance.post("/leads", data);
   return response.data;
 };
+
+// ===============================
+// Bulk Delete Leads
+// ===============================
+export const deleteBulkLeads = async (leadIds) => {
+  const response = await axiosInstance.post("/leads/bulk-delete", {
+    lead_ids: leadIds,
+  });
+  return response.data;
+};
