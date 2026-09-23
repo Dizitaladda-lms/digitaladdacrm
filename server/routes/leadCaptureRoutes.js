@@ -53,10 +53,30 @@ const normalizePublicLeadPayload = (req, res, next) => {
     } else {
       req.body.source = "LANDING_PAGE";
     }
-    if (!req.body.domain) {
-      req.body.domain =
-        req.body.websiteDomain || req.body.sourceDomain || req.body.brand || req.body.domainName || "DizitalAdda";
+    if (!req.body.landing_page_url) {
+      req.body.landing_page_url =
+        req.body.page_url || req.body.pageUrl || req.body.url || req.headers.referer || null;
     }
+
+    if (!req.body.domain) {
+      const explicitDomain =
+        req.body.websiteDomain || req.body.sourceDomain || req.body.brand || req.body.domainName || req.body.website;
+
+      if (explicitDomain) {
+        req.body.domain = explicitDomain;
+      } else if (req.headers.referer || req.headers.origin) {
+        try {
+          const urlObj = new URL(req.headers.referer || req.headers.origin);
+          const host = urlObj.hostname.replace(/^www\./i, "");
+          req.body.domain = host;
+        } catch {
+          req.body.domain = "DizitalAdda";
+        }
+      } else {
+        req.body.domain = "DizitalAdda";
+      }
+    }
+
     if (!req.body.redirect_url && req.body.redirect) {
       req.body.redirect_url = req.body.redirect;
     }

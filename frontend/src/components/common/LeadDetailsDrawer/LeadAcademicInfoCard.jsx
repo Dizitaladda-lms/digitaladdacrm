@@ -179,6 +179,25 @@ const LeadAcademicInfoCard = ({ lead }) => {
             value={lead.assigned_employee}
             icon={<UserCheck size={15} className="text-slate-400" />}
           />
+
+          {lead.landing_page_url && (
+            <div className="col-span-1 sm:col-span-2">
+              <InfoRow
+                label="Landing Page / Website URL"
+                value={
+                  <a
+                    href={lead.landing_page_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline break-all font-semibold hover:text-blue-800"
+                  >
+                    {lead.landing_page_url}
+                  </a>
+                }
+                icon={<Globe size={15} className="text-blue-500" />}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

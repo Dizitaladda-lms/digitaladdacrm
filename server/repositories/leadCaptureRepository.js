@@ -56,6 +56,7 @@ export const createPublicLeadRepository = async (client, lead) => {
       utm_term,
       external_lead_id,
       domain,
+      landing_page_url,
       interested_course,
       captured_at,
       status
@@ -64,7 +65,7 @@ export const createPublicLeadRepository = async (client, lead) => {
       $1, $2, $3, $4, $5, $6,
       $7, $8, $9, $10, $11,
       $12, $13, $14, $15, $16,
-      $17, $18, $19
+      $17, $18, $19, $20
     )
     RETURNING *;
   `;
@@ -86,6 +87,7 @@ export const createPublicLeadRepository = async (client, lead) => {
     lead.utm_term || null,
     lead.external_lead_id || null,
     lead.domain || null,
+    lead.landing_page_url || null,
     lead.interested_course || null,
     lead.captured_at || new Date(),
     "NEW"
@@ -133,11 +135,12 @@ export const updateExistingLeadRepository = async (client, id, lead) => {
       utm_term = COALESCE($11, utm_term),
       external_lead_id = COALESCE($12, external_lead_id),
       domain = COALESCE($13, domain),
-      interested_course = COALESCE($14, interested_course),
+      landing_page_url = COALESCE($14, landing_page_url),
+      interested_course = COALESCE($15, interested_course),
       is_duplicate = TRUE,
       last_received_at = CURRENT_TIMESTAMP,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $15
+    WHERE id = $16
     RETURNING *;
   `;
 
@@ -155,6 +158,7 @@ export const updateExistingLeadRepository = async (client, id, lead) => {
     lead.utm_term || null,
     lead.external_lead_id || null,
     lead.domain || null,
+    lead.landing_page_url || null,
     lead.interested_course || null,
     id
   ];
