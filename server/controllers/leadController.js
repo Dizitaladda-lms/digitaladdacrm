@@ -244,7 +244,7 @@ export const restoreLead = asyncHandler(async (req, res) => {
 export const getLeadStatistics = asyncHandler(async (req, res) => {
 
   const statistics =
-    await getLeadStatisticsService(req.user);
+    await getLeadStatisticsService(req.user, req.query);
 
   return res.status(200).json(
 

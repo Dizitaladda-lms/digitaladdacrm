@@ -701,10 +701,29 @@ export const restoreLeadService = async (
  * =====================================================
  */
 
-export const getLeadStatisticsService = async (currentUser) => {
+export const getLeadStatisticsService = async (currentUser, queryParams = {}) => {
+  const filterParams = {};
 
-  return await getLeadStatisticsRepository();
+  if (queryParams.domain && queryParams.domain !== "ALL") {
+    filterParams.domain = queryParams.domain;
+  }
+  if (queryParams.source && queryParams.source !== "ALL") {
+    filterParams.source = queryParams.source;
+  }
 
+  // Counsellor role: scope exclusively to their assigned employee ID
+  if (currentUser?.role === ROLES.COUNSELLOR) {
+    const employee = await findEmployeeByUserIdRepository(currentUser.id);
+    if (employee) {
+      filterParams.employeeId = employee.id;
+    }
+  } else if (currentUser?.role === ROLES.ADMIN && queryParams.assigned_to) {
+    if (queryParams.assigned_to !== "all" && !isNaN(Number(queryParams.assigned_to))) {
+      filterParams.employeeId = queryParams.assigned_to;
+    }
+  }
+
+  return await getLeadStatisticsRepository(filterParams);
 };
 
 /**

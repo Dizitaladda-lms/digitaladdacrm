@@ -30,10 +30,11 @@ export const getLeadById = async (id) => {
 // Get Lead Statistics
 // ===============================
 
-export const getLeadStats = async () => {
+export const getLeadStats = async (params = {}) => {
 
   const response = await axiosInstance.get(
-    "/leads/statistics"
+    "/leads/statistics",
+    { params }
   );
 
   return response.data;

@@ -143,49 +143,16 @@ setAssignModal(false);
         limit: pagination.limit,
 
         ...filters,
+      }),
+      getLeadStats(filters),
+      getEmployees(),
+    ]);
 
-    }),
-
-    getLeadStats(),
-
-    getEmployees(),
-
-]);
-
-setLeads(
-
-    leadResponse.data.leads || []
-
-);
-
-setPagination(
-
-    leadResponse.data.pagination
-
-);
-
-setStats(
-  
-  statsResponse.data.data || {
-
-});
-setEmployees(
-    employeeResponse.data.employees || []
-);
-
-      setLeads(
-        leadResponse.data.leads || []
-      );
-
-      setPagination(
-        leadResponse.data.pagination
-      );
-
-      setStats(
-        statsResponse.data || {}
-      );
-
-    } catch (error) {
+    setLeads(leadResponse?.data?.leads || leadResponse?.leads || []);
+    setPagination(leadResponse?.data?.pagination || pagination);
+    setStats(statsResponse?.data || {});
+    setEmployees(employeeResponse?.data?.employees || employeeResponse?.employees || []);
+  } catch (error) {
 
       console.error(error);
 

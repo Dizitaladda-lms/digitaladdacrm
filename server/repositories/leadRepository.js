@@ -1011,52 +1011,92 @@ RETURNING *;
  * =====================================================
  */
 
-export const getLeadStatisticsRepository = async () => {
+export const getLeadStatisticsRepository = async (filterParams = {}) => {
+  const { employeeId, domain, source } = filterParams;
+
+  const conditions = ["is_deleted = FALSE"];
+  const values = [];
+  let index = 1;
+
+  if (employeeId) {
+    conditions.push(`assigned_to = $${index}`);
+    values.push(Number(employeeId));
+    index++;
+  }
+
+  if (domain && String(domain).toLowerCase() !== "all") {
+    conditions.push(`UPPER(domain) = $${index}`);
+    values.push(String(domain).toUpperCase());
+    index++;
+  }
+
+  if (source && String(source).toLowerCase() !== "all") {
+    conditions.push(`UPPER(source) = $${index}`);
+    values.push(String(source).toUpperCase());
+    index++;
+  }
+
+  const baseWhere = conditions.join(" AND ");
 
   const query = `
     SELECT
+      COUNT(*) AS total_leads,
 
       COUNT(*) FILTER (
-        WHERE is_deleted = FALSE
-      ) AS total_leads,
+        WHERE (created_at >= CURRENT_DATE OR captured_at >= CURRENT_DATE)
+      ) AS today_leads,
 
       COUNT(*) FILTER (
-        WHERE status = 'NEW'
-        AND is_deleted = FALSE
+        WHERE assigned_to IS NOT NULL
+      ) AS assigned_leads,
+
+      COUNT(*) FILTER (
+        WHERE assigned_to IS NULL
+      ) AS unassigned_leads,
+
+      COUNT(*) FILTER (
+        WHERE is_duplicate = TRUE OR received_count > 1
+      ) AS duplicate_leads,
+
+      COALESCE(
+        ROUND(
+          (COUNT(*) FILTER (WHERE UPPER(status) IN ('ADMISSION', 'ADMISSION_DONE'))::numeric /
+          NULLIF(COUNT(*), 0)::numeric) * 100,
+          1
+        ),
+        0
+      ) AS conversion_rate,
+
+      COUNT(*) FILTER (
+        WHERE UPPER(status) = 'NEW'
       ) AS new_leads,
 
       COUNT(*) FILTER (
-        WHERE status = 'CONTACTED'
-        AND is_deleted = FALSE
+        WHERE UPPER(status) = 'CONTACTED'
       ) AS contacted_leads,
 
       COUNT(*) FILTER (
-        WHERE status = 'FOLLOW_UP'
-        AND is_deleted = FALSE
+        WHERE UPPER(status) = 'FOLLOW_UP'
       ) AS followup_leads,
 
       COUNT(*) FILTER (
-        WHERE status = 'QUALIFIED'
-        AND is_deleted = FALSE
+        WHERE UPPER(status) = 'QUALIFIED'
       ) AS qualified_leads,
 
       COUNT(*) FILTER (
-        WHERE status = 'ADMISSION_DONE'
-        AND is_deleted = FALSE
+        WHERE UPPER(status) IN ('ADMISSION', 'ADMISSION_DONE')
       ) AS admission_done,
 
       COUNT(*) FILTER (
-        WHERE status = 'LOST'
-        AND is_deleted = FALSE
+        WHERE UPPER(status) = 'LOST'
       ) AS lost_leads
 
-    FROM leads;
+    FROM leads
+    WHERE ${baseWhere};
   `;
 
-  const result = await pool.query(query);
-
+  const result = await pool.query(query, values);
   return result.rows[0];
-
 };
 
 /**

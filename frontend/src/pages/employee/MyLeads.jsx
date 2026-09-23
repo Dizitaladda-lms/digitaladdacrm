@@ -1,14 +1,24 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./MyLeads.css";
 import MyLeadsHeader from "../../components/employee/myLeads/MyLeadsHeader/MyLeadsHeader";
+import LeadStats from "../../components/LeadManagement/LeadStats";
 import SearchFilterBar from "../../components/employee/myLeads/SearchFilterBar/SearchFilterBar";
 import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable";
 import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 import { getMyLeads } from "../../services/employeeLeadService";
+import { getLeadStats } from "../../services/leadService";
 import { exportToCsv } from "../../utils/exportCsv";
 
 const MyLeads = () => {
   const [leads, setLeads] = useState([]);
+  const [stats, setStats] = useState({
+    total_leads: 0,
+    today_leads: 0,
+    assigned_leads: 0,
+    unassigned_leads: 0,
+    duplicate_leads: 0,
+    conversion_rate: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -29,9 +39,17 @@ const MyLeads = () => {
       if (priority !== "ALL") params.priority = priority;
       if (source !== "ALL") params.source = source;
 
-      const response = await getMyLeads(params);
+      const [response, statsResponse] = await Promise.all([
+        getMyLeads(params),
+        getLeadStats(params),
+      ]);
+
       const list = response?.data?.leads || response?.leads || response?.data || [];
       setLeads(Array.isArray(list) ? list : []);
+
+      if (statsResponse?.data) {
+        setStats(statsResponse.data);
+      }
     } catch (error) {
       console.error("Error fetching leads:", error);
     } finally {
@@ -76,6 +94,11 @@ const MyLeads = () => {
       <MyLeadsHeader
         onExport={handleExportCsv}
         onCreateLead={() => setCreateModalOpen(true)}
+      />
+
+      <LeadStats
+        loading={loading}
+        stats={stats}
       />
 
       <SearchFilterBar
