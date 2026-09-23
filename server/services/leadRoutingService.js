@@ -14,6 +14,7 @@ import {
   recordAutomaticAssignmentHistoryRepository,
   recordRoutingTimelineRepository,
   selectNextCounsellorRepository,
+  selectFallbackCounsellorRepository,
 } from "../repositories/leadRoutingRepository.js";
 
 export const getRoutingSetupService = () => withTransaction(async (client) => ({
@@ -46,16 +47,31 @@ export const removeRoutingAssignmentService = (id) => withTransaction(async (cli
 });
 
 export const autoAssignLeadService = async (client, lead) => {
-  if (!lead.domain || !lead.interested_course) return { assigned: false, reason: "Domain or course was not supplied." };
-  const route = await findDomainCourseRepository(client, lead.domain, lead.interested_course);
-  if (!route?.course_id) return { assigned: false, reason: "No active course routing rule was found." };
-  const nextCounsellor = await selectNextCounsellorRepository(client, { domainId: route.domain_id, courseId: route.course_id });
-  if (!nextCounsellor) return { assigned: false, reason: "No eligible active counsellor was found." };
+  // 1. Try specific domain + course routing rule
+  if (lead.domain && lead.interested_course) {
+    const route = await findDomainCourseRepository(client, lead.domain, lead.interested_course);
+    if (route?.course_id) {
+      const nextCounsellor = await selectNextCounsellorRepository(client, { domainId: route.domain_id, courseId: route.course_id });
+      if (nextCounsellor) {
+        const ruleDescription = `Auto-assigned by round robin: ${route.domain_name} → ${route.course_name}.`;
+        const assignedLead = await applyAutomaticAssignmentRepository(client, { leadId: lead.id, employeeId: nextCounsellor.employee_id, ruleDescription });
+        await markRoutingAssignmentUsedRepository(client, nextCounsellor.routing_assignment_id);
+        await recordAutomaticAssignmentHistoryRepository(client, { leadId: lead.id, employeeId: nextCounsellor.employee_id, remarks: ruleDescription });
+        await recordRoutingTimelineRepository(client, { leadId: lead.id, employeeId: nextCounsellor.employee_id, title: "Lead Auto-assigned", description: `${ruleDescription} Assigned to ${nextCounsellor.full_name}.` });
+        return { assigned: true, lead: assignedLead, employee: nextCounsellor };
+      }
+    }
+  }
 
-  const ruleDescription = `Auto-assigned by round robin: ${route.domain_name} → ${route.course_name}.`;
-  const assignedLead = await applyAutomaticAssignmentRepository(client, { leadId: lead.id, employeeId: nextCounsellor.employee_id, ruleDescription });
-  await markRoutingAssignmentUsedRepository(client, nextCounsellor.routing_assignment_id);
-  await recordAutomaticAssignmentHistoryRepository(client, { leadId: lead.id, employeeId: nextCounsellor.employee_id, remarks: ruleDescription });
-  await recordRoutingTimelineRepository(client, { leadId: lead.id, employeeId: nextCounsellor.employee_id, title: "Lead Auto-assigned", description: `${ruleDescription} Assigned to ${nextCounsellor.full_name}.` });
-  return { assigned: true, lead: assignedLead, employee: nextCounsellor };
+  // 2. Fallback: Balanced round-robin across any active counsellor so no lead is left unassigned
+  const fallbackCounsellor = await selectFallbackCounsellorRepository(client);
+  if (fallbackCounsellor) {
+    const ruleDescription = `Auto-assigned by general round-robin (Active Counsellor).`;
+    const assignedLead = await applyAutomaticAssignmentRepository(client, { leadId: lead.id, employeeId: fallbackCounsellor.id, ruleDescription });
+    await recordAutomaticAssignmentHistoryRepository(client, { leadId: lead.id, employeeId: fallbackCounsellor.id, remarks: ruleDescription });
+    await recordRoutingTimelineRepository(client, { leadId: lead.id, employeeId: fallbackCounsellor.id, title: "Lead Auto-assigned", description: `${ruleDescription} Assigned to ${fallbackCounsellor.full_name}.` });
+    return { assigned: true, lead: assignedLead, employee: fallbackCounsellor };
+  }
+
+  return { assigned: false, reason: "No eligible active counsellor was found." };
 };

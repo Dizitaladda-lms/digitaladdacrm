@@ -113,3 +113,16 @@ export const recordRoutingTimelineRepository = async (client, { leadId, employee
     VALUES ($1, $2, 'LEAD_AUTO_ASSIGNED', $3, $4);
   `, [leadId, employeeId, title, description]);
 };
+
+export const selectFallbackCounsellorRepository = async (client) => {
+  const { rows } = await client.query(`
+    SELECT e.id, e.id AS employee_id, e.full_name
+    FROM employees e
+    WHERE e.is_deleted = FALSE AND e.status = 'ACTIVE' AND e.role = 'COUNSELLOR'
+    ORDER BY (
+      SELECT COUNT(*) FROM leads l WHERE l.assigned_to = e.id AND l.is_deleted = FALSE
+    ) ASC, e.id ASC
+    LIMIT 1;
+  `);
+  return rows[0] || null;
+};
