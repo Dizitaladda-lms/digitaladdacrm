@@ -55,6 +55,18 @@ const SOURCE_CONFIG = {
     label: "Walk-In",
     className: "bg-amber-100 text-amber-700",
   },
+  WHATSAPP: {
+    label: "WhatsApp",
+    className: "bg-emerald-100 text-emerald-700",
+  },
+  CALL: {
+    label: "Direct Call",
+    className: "bg-teal-100 text-teal-700",
+  },
+  MANUAL: {
+    label: "Manual Entry",
+    className: "bg-slate-100 text-slate-700",
+  },
 };
 
 const PRIORITY_CONFIG = {

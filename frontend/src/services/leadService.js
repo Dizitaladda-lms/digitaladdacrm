@@ -79,3 +79,11 @@ export const updateLeadStatus = async (leadId, data) => {
 
   return response.data;
 };
+
+// ===============================
+// Create Lead (Manual Entry)
+// ===============================
+export const createLead = async (data) => {
+  const response = await axiosInstance.post("/leads", data);
+  return response.data;
+};

@@ -80,12 +80,14 @@ const SearchFilterBar = ({
         className="filter-select"
       >
         <option value="ALL">All Lead Sources</option>
+        <option value="WHATSAPP">WhatsApp Inquiry</option>
+        <option value="REFERRAL">Referral / Reference</option>
         <option value="WEBSITE">Website Form</option>
-        <option value="META_ADS">Meta / Facebook Ads</option>
-        <option value="GOOGLE_ADS">Google Ads</option>
+        <option value="META">Meta / Facebook Ads</option>
+        <option value="GOOGLE">Google Ads</option>
         <option value="WALK_IN">Walk-in Inquiry</option>
-        <option value="PHONE_CALL">Phone Inbound</option>
-        <option value="OTHER">Other Source</option>
+        <option value="CALL">Phone Inbound / Call</option>
+        <option value="MANUAL">Manual Entry</option>
       </select>
 
       {/* Reset Filter Button */}

@@ -39,13 +39,13 @@ export const createLeadValidator = [
     .withMessage("Assigned employee must be an integer."),
 
   body("email")
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .trim()
     .isEmail()
     .withMessage("Invalid email address."),
 
   body("alternate_mobile")
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .trim()
     .isLength({ min: 10, max: 15 })
     .withMessage("Alternate mobile is invalid."),
@@ -76,12 +76,15 @@ export const createLeadValidator = [
     .isLength({ max: 150 }),
 
   body("platform")
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .isIn([
       "GOOGLE",
       "META",
       "WEBSITE",
       "WHATSAPP",
+      "REFERRAL",
+      "WALK_IN",
+      "CALL",
       "IMPORT",
       "MANUAL",
     ])

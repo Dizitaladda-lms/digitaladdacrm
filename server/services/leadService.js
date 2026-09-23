@@ -17,6 +17,10 @@ import {
 } from "../repositories/leadRepository.js";
 
 import {
+  updateExistingLeadRepository,
+} from "../repositories/leadCaptureRepository.js";
+
+import {
   getLeadStatisticsRepository,
   assignLeadRepository,
   updateLeadStatusRepository,
@@ -130,40 +134,96 @@ export const createLeadService = async (
 
     await client.query("BEGIN");
 
-    /* Duplicate Email */
-
-    if (leadData.email) {
-
-      const existingEmail =
-        await findLeadByEmailRepository(
-          leadData.email
-        );
-
-      if (existingEmail) {
-
-        throw new ApiError(
-          409,
-          "Lead email already exists."
-        );
-
+    // If counsellor is creating and assigned_to is not specified, auto-assign to self
+    if (currentUser.role === ROLES.COUNSELLOR && !leadData.assigned_to) {
+      try {
+        const employeeId = await resolveEmployeeIdForCounsellor(currentUser);
+        if (employeeId) {
+          leadData.assigned_to = employeeId;
+        }
+      } catch (err) {
+        console.warn("Could not auto-assign counsellor employee ID:", err.message);
       }
-
     }
 
-    /* Duplicate Mobile */
+    /* Duplicate Lead Check (by Mobile or Email) */
+    const existingMobile = await findLeadByMobileRepository(leadData.mobile);
+    const existingEmail = leadData.email ? await findLeadByEmailRepository(leadData.email) : null;
+    const existingLead = existingMobile || existingEmail;
 
-    const existingMobile =
-      await findLeadByMobileRepository(
-        leadData.mobile
+    if (existingLead) {
+      const newCount = (Number(existingLead.received_count) || 1) + 1;
+      const firstSource = existingLead.first_source || existingLead.source || "UNKNOWN";
+      const previousSource = existingLead.source || "UNKNOWN";
+      const newSource = leadData.source || "MANUAL";
+
+      // Parse existing source_history
+      let history = [];
+      try {
+        if (typeof existingLead.source_history === "string") {
+          history = JSON.parse(existingLead.source_history);
+        } else if (Array.isArray(existingLead.source_history)) {
+          history = [...existingLead.source_history];
+        }
+      } catch {
+        history = [];
+      }
+
+      if (history.length === 0) {
+        history.push({
+          count: 1,
+          source: firstSource,
+          domain: existingLead.domain || null,
+          course: existingLead.interested_course || null,
+          captured_at: existingLead.created_at || existingLead.captured_at || new Date().toISOString(),
+        });
+      }
+
+      history.push({
+        count: newCount,
+        source: newSource,
+        domain: leadData.domain || existingLead.domain || null,
+        course: leadData.interested_course || existingLead.interested_course || null,
+        captured_at: new Date().toISOString(),
+      });
+
+      const updatedLead = await updateExistingLeadRepository(
+        client,
+        existingLead.id,
+        {
+          ...leadData,
+          first_source: firstSource,
+          previous_source: previousSource,
+          source: newSource,
+          received_count: newCount,
+          source_history: JSON.stringify(history),
+          updated_by: currentUser.id,
+        }
       );
 
-    if (existingMobile) {
+      const reinquiryDesc = `Manual Re-inquiry #${newCount} recorded from ${newSource} (${currentUser.role}). (1st source: ${firstSource}). Remarks: ${leadData.remarks || "Direct follow-up"}`;
 
-      throw new ApiError(
-        409,
-        "Lead mobile already exists."
-      );
+      await addTimelineEventService({
+        leadId: existingLead.id,
+        employeeId: updatedLead.assigned_to || null,
+        activityType: TIMELINE_ACTIVITY.LEAD_UPDATED,
+        title: `Re-inquiry #${newCount} (${newSource})`,
+        description: reinquiryDesc,
+      }, client);
 
+      auditLogger({
+        action: "MANUAL_LEAD_REINQUIRY",
+        module: "LEAD",
+        userId: currentUser.id,
+        role: currentUser.role,
+        entityId: existingLead.id,
+        requestId: req.requestId,
+        ip: req.ip,
+      });
+
+      await client.query("COMMIT");
+
+      return updatedLead;
     }
 
     /* Generate Lead Code */

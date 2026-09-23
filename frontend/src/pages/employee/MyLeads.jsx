@@ -3,12 +3,14 @@ import "./MyLeads.css";
 import MyLeadsHeader from "../../components/employee/myLeads/MyLeadsHeader/MyLeadsHeader";
 import SearchFilterBar from "../../components/employee/myLeads/SearchFilterBar/SearchFilterBar";
 import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable";
+import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 import { getMyLeads } from "../../services/employeeLeadService";
 import { exportToCsv } from "../../utils/exportCsv";
 
 const MyLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Live Active Filter State
   const [search, setSearch] = useState("");
@@ -71,7 +73,10 @@ const MyLeads = () => {
 
   return (
     <div className="my-leads-page">
-      <MyLeadsHeader onExport={handleExportCsv} />
+      <MyLeadsHeader
+        onExport={handleExportCsv}
+        onCreateLead={() => setCreateModalOpen(true)}
+      />
 
       <SearchFilterBar
         search={search}
@@ -91,6 +96,13 @@ const MyLeads = () => {
         leads={leads}
         loading={loading}
         onRefresh={fetchMyLeads}
+      />
+
+      <CreateLeadModal
+        open={createModalOpen}
+        currentUserRole="COUNSELLOR"
+        onClose={() => setCreateModalOpen(false)}
+        onSuccess={fetchMyLeads}
       />
     </div>
   );

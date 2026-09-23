@@ -212,13 +212,31 @@ const LeadFilters = ({
 
             <option value="REFERRAL">
 
-              Referral
+              Referral / Reference
+
+            </option>
+
+            <option value="WHATSAPP">
+
+              WhatsApp
 
             </option>
 
             <option value="WALK_IN">
 
               Walk In
+
+            </option>
+
+            <option value="CALL">
+
+              Direct Call
+
+            </option>
+
+            <option value="MANUAL">
+
+              Manual Entry
 
             </option>
 
