@@ -18,6 +18,10 @@ export const capturePublicLead = asyncHandler(async (req, res) => {
     req
   );
 
+  if (req.body.redirect_url) {
+    return res.redirect(req.body.redirect_url);
+  }
+
   return res.status(201).json(
 
     new ApiResponse(

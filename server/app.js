@@ -56,21 +56,43 @@ validateEnv();
 /**
  * Core Middlewares
  */
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || process.env.NODE_ENV !== "production") {
-      return callback(null, true);
-    }
+app.use(cors((req, callback) => {
+  const origin = req.header("Origin");
 
-    if (allowedOrigins.includes(origin.replace(/\/$/, ""))) {
-      return callback(null, true);
-    }
+  // Always allow public landing pages, forms, and webhooks to submit
+  const isPublicRoute =
+    req.path?.startsWith("/api/public") ||
+    req.url?.startsWith("/api/public") ||
+    req.originalUrl?.startsWith("/api/public");
 
-    return callback(new Error("Origin is not allowed by CORS."));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  if (isPublicRoute) {
+    return callback(null, {
+      origin: true,
+      credentials: false,
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    });
+  }
+
+  if (!origin || process.env.NODE_ENV !== "production") {
+    return callback(null, {
+      origin: true,
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    });
+  }
+
+  if (allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+    return callback(null, {
+      origin: true,
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    });
+  }
+
+  return callback(new Error("Origin is not allowed by CORS."));
 }));
 
 app.use(cookieParser());

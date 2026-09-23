@@ -38,7 +38,11 @@ export const capturePublicLeadValidator = [
       "INSTAGRAM",
       "WHATSAPP",
       "REFERRAL",
-      "OFFLINE"
+      "OFFLINE",
+      "CALL",
+      "MANUAL",
+      "DIRECT",
+      "OTHER"
     ])
     .withMessage("Invalid lead source."),
 

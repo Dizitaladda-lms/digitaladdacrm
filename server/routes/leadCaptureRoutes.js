@@ -17,12 +17,18 @@ const router = express.Router();
  */
 const normalizePublicLeadPayload = (req, res, next) => {
   if (req.body) {
+    if (!req.body.full_name && req.body.name) {
+      req.body.full_name = req.body.name;
+    }
     if (!req.body.full_name && req.body.fullName) {
       req.body.full_name = req.body.fullName;
     }
+    if (!req.body.email && req.body.email_id) {
+      req.body.email = req.body.email_id;
+    }
     if (!req.body.mobile) {
       req.body.mobile =
-        req.body.phoneNumber || req.body.phone || req.body.mobileNumber || "";
+        req.body.phoneNumber || req.body.phone || req.body.mobileNumber || req.body.contact || "";
     }
     if (req.body.mobile) {
       const cleaned = String(req.body.mobile).replace(/\D/g, "");
@@ -30,11 +36,11 @@ const normalizePublicLeadPayload = (req, res, next) => {
     }
     if (!req.body.interested_course) {
       req.body.interested_course =
-        req.body.course || req.body.interestedCourse || "";
+        req.body.course || req.body.interestedCourse || req.body.program || "";
     }
     if (!req.body.preferred_centre) {
       req.body.preferred_centre =
-        req.body.centre || req.body.preferredCentre || "";
+        req.body.centre || req.body.preferredCentre || req.body.campus || req.body.branch || "";
     }
     if (!req.body.campaign_id && req.body.campaignId) {
       req.body.campaign_id = req.body.campaignId;
@@ -45,11 +51,14 @@ const normalizePublicLeadPayload = (req, res, next) => {
     if (req.body.source) {
       req.body.source = String(req.body.source).toUpperCase();
     } else {
-      req.body.source = "META";
+      req.body.source = "LANDING_PAGE";
     }
     if (!req.body.domain) {
       req.body.domain =
         req.body.websiteDomain || req.body.sourceDomain || req.body.brand || req.body.domainName || "DizitalAdda";
+    }
+    if (!req.body.redirect_url && req.body.redirect) {
+      req.body.redirect_url = req.body.redirect;
     }
   }
   next();
