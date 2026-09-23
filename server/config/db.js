@@ -47,6 +47,7 @@ pool
         );
 
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS first_source VARCHAR(50);
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS previous_source VARCHAR(50);
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS source_history JSONB;
 
         CREATE TABLE IF NOT EXISTS admissions (
