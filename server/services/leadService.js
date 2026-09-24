@@ -127,6 +127,7 @@ export const createLeadService = async (
   leadData,
   currentUser,
   req
+) => {
   if (currentUser.role !== ROLES.ADMIN) {
     throw new ApiError(
       403,
@@ -1201,4 +1202,216 @@ export const assignBulkLeadsService = async (
 
   }
 
+};
+
+/**
+ * =====================================================
+ * Import Historical Leads Data (Bulk CSV / Excel)
+ * =====================================================
+ */
+export const importLeadsService = async (
+  importPayload,
+  currentUser,
+  req
+) => {
+  if (currentUser.role !== ROLES.ADMIN) {
+    throw new ApiError(403, "Only administrators are authorized to import leads.");
+  }
+
+  const {
+    leads = [],
+    default_assigned_to = null,
+    duplicate_action = "UPDATE",
+  } = importPayload || {};
+
+  if (!Array.isArray(leads) || leads.length === 0) {
+    throw new ApiError(400, "Please provide an array of leads to import.");
+  }
+
+  const client = await pool.connect();
+
+  let insertedCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
+  const errors = [];
+
+  try {
+    await client.query("BEGIN");
+
+    for (let i = 0; i < leads.length; i++) {
+      const row = leads[i];
+      const fullName = (row.full_name || row.fullName || row.name || "").trim();
+      const rawMobile = String(row.mobile || row.phone || row.mobileNumber || "").replace(/\D/g, "");
+      const cleanMobile = rawMobile.length >= 10 ? rawMobile.slice(-10) : rawMobile;
+      const cleanEmail = row.email && String(row.email).includes("@") ? String(row.email).trim().toLowerCase() : null;
+
+      if (!fullName) {
+        errors.push(`Row ${i + 1}: Missing name.`);
+        continue;
+      }
+      if (!cleanMobile || cleanMobile.length !== 10) {
+        errors.push(`Row ${i + 1} (${fullName}): Invalid phone number.`);
+        continue;
+      }
+
+      // Check if lead already exists
+      const existingRes = await client.query(
+        `SELECT id, lead_code, full_name, mobile, email, source, first_source, received_count, source_history
+         FROM leads
+         WHERE is_deleted = FALSE AND (mobile = $1 OR (email IS NOT NULL AND email = $2))
+         LIMIT 1;`,
+        [cleanMobile, cleanEmail]
+      );
+
+      const existingLead = existingRes.rows[0];
+
+      if (existingLead) {
+        if (duplicate_action === "SKIP") {
+          skippedCount++;
+          continue;
+        }
+
+        // UPDATE as Re-inquiry
+        const newCount = (Number(existingLead.received_count) || 1) + 1;
+        const firstSource = existingLead.first_source || existingLead.source || "IMPORT";
+        const newSource = row.source ? String(row.source).toUpperCase() : "IMPORT";
+
+        let history = [];
+        try {
+          if (typeof existingLead.source_history === "string") {
+            history = JSON.parse(existingLead.source_history);
+          } else if (Array.isArray(existingLead.source_history)) {
+            history = [...existingLead.source_history];
+          }
+        } catch {
+          history = [];
+        }
+
+        if (history.length === 0) {
+          history.push({
+            count: 1,
+            source: firstSource,
+            domain: existingLead.domain || null,
+            course: existingLead.interested_course || null,
+            captured_at: existingLead.created_at || new Date().toISOString(),
+          });
+        }
+
+        history.push({
+          count: newCount,
+          source: newSource,
+          domain: row.domain || existingLead.domain || null,
+          course: row.interested_course || existingLead.interested_course || null,
+          captured_at: new Date().toISOString(),
+        });
+
+        await client.query(
+          `UPDATE leads
+           SET
+             received_count = $1,
+             source = $2,
+             source_history = $3,
+             is_duplicate = TRUE,
+             last_received_at = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+           WHERE id = $4;`,
+          [newCount, newSource, JSON.stringify(history), existingLead.id]
+        );
+
+        updatedCount++;
+      } else {
+        // Create new lead with sequential code
+        const sequence = await getNextLeadCodeRepository(client);
+        const leadCode = `${process.env.LEAD_CODE_PREFIX || "LEAD"}${String(sequence).padStart(6, "0")}`;
+        const targetAssignedTo = row.assigned_to || default_assigned_to || null;
+        const sourceVal = row.source ? String(row.source).toUpperCase() : "IMPORT";
+        const statusVal = row.status ? String(row.status).toUpperCase() : "NEW";
+        const priorityVal = row.priority ? String(row.priority).toUpperCase() : "MEDIUM";
+        const domainVal = row.domain ? String(row.domain).trim() : "DizitalAdda";
+        const createdAtVal = row.created_at && !isNaN(new Date(row.created_at).getTime())
+          ? new Date(row.created_at)
+          : new Date();
+
+        const initialHistory = JSON.stringify([
+          {
+            count: 1,
+            source: sourceVal,
+            domain: domainVal,
+            course: row.interested_course || null,
+            captured_at: createdAtVal.toISOString(),
+          }
+        ]);
+
+        await client.query(
+          `INSERT INTO leads (
+             lead_code,
+             full_name,
+             mobile,
+             email,
+             interested_course,
+             preferred_centre,
+             domain,
+             source,
+             first_source,
+             status,
+             priority,
+             assigned_to,
+             remarks,
+             received_count,
+             source_history,
+             created_by,
+             created_at,
+             captured_at
+           ) VALUES (
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1, $14, $15, $16, $16
+           );`,
+          [
+            leadCode,
+            fullName,
+            cleanMobile,
+            cleanEmail,
+            row.interested_course || null,
+            row.preferred_centre || null,
+            domainVal,
+            sourceVal,
+            sourceVal,
+            statusVal,
+            priorityVal,
+            targetAssignedTo,
+            row.remarks || "Imported historical lead",
+            initialHistory,
+            currentUser.id,
+            createdAtVal,
+          ]
+        );
+
+        insertedCount++;
+      }
+    }
+
+    auditLogger({
+      action: "LEADS_IMPORTED",
+      module: "LEAD",
+      userId: currentUser.id,
+      role: currentUser.role,
+      entityId: null,
+      requestId: req?.requestId || null,
+      ip: req?.ip || null,
+    });
+
+    await client.query("COMMIT");
+
+    return {
+      total: leads.length,
+      inserted: insertedCount,
+      updated: updatedCount,
+      skipped: skippedCount,
+      errors,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };

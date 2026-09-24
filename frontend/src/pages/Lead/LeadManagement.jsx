@@ -25,6 +25,7 @@ import {
 import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDetailsDrawer";
 import DeleteLeadModal from "../../components/LeadManagement/DeleteLeadModal";
 import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
+import ImportLeadsModal from "../../components/LeadManagement/ImportLeadsModal";
 import { exportToCsv } from "../../utils/exportCsv";
 const LeadManagement = () => {
 
@@ -39,6 +40,7 @@ const [employees,setEmployees]=useState([]);
 const [assignModal,setAssignModal]=useState(false);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
 
@@ -480,6 +482,7 @@ const openAssignModal = () => {
 
         onRefresh={loadLeads}
         onExport={handleExportAdminLeadsCsv}
+        onImport={() => setImportModalOpen(true)}
         onCreateLead={() => setCreateModalOpen(true)}
 
       />
@@ -567,6 +570,13 @@ const openAssignModal = () => {
   employees={employees}
   currentUserRole="ADMIN"
   onClose={() => setCreateModalOpen(false)}
+  onSuccess={loadLeads}
+/>
+
+<ImportLeadsModal
+  open={importModalOpen}
+  employees={employees}
+  onClose={() => setImportModalOpen(false)}
   onSuccess={loadLeads}
 />
 

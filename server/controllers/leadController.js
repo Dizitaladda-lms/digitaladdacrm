@@ -20,6 +20,7 @@ import {
   addLeadNoteService,
   getLeadNotesService,
   getLeadTimelineService,
+  importLeadsService,
 
 } from "../services/leadService.js";
 
@@ -466,4 +467,25 @@ export const assignBulkLeads = asyncHandler(async (req, res) => {
 
   );
 
+});
+
+/**
+ * =====================================================
+ * Import Historical Leads Data
+ * =====================================================
+ */
+export const importLeads = asyncHandler(async (req, res) => {
+  const result = await importLeadsService(
+    req.body,
+    req.user,
+    req
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      result,
+      `Successfully imported ${result.inserted} new leads (${result.updated} updated, ${result.skipped} skipped).`
+    )
+  );
 });

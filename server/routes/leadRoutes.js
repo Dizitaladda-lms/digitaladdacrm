@@ -31,6 +31,7 @@ import {
   addLeadNote,
   getLeadNotes,
   getLeadTimeline,
+  importLeads,
 } from "../controllers/leadController.js";
 
 import {
@@ -80,6 +81,13 @@ router.post(
   deleteBulkLeadValidator,
   validate,
   deleteBulkLeads
+);
+
+router.post(
+  "/import",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  importLeads
 );
 
 router.get(

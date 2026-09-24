@@ -98,3 +98,11 @@ export const deleteBulkLeads = async (leadIds) => {
   });
   return response.data;
 };
+
+// ===============================
+// Import Historical Leads (CSV / Bulk)
+// ===============================
+export const importLeads = async (payload) => {
+  const response = await axiosInstance.post("/leads/import", payload);
+  return response.data;
+};

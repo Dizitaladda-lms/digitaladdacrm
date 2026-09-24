@@ -1,12 +1,13 @@
 import React from "react";
 import "../../styles/LeadManagement/LeadHeader.css";
-import { RefreshCw, Plus, CalendarDays, Download } from "lucide-react";
+import { RefreshCw, Plus, CalendarDays, Download, Upload } from "lucide-react";
 
 const LeadHeader = ({
   loading = false,
   onRefresh,
   onCreateLead,
   onExport,
+  onImport,
 }) => {
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -45,6 +46,19 @@ const LeadHeader = ({
             >
               <Download size={17} />
               Export CSV
+            </button>
+          )}
+
+          {onImport && (
+            <button
+              type="button"
+              className="refresh-btn"
+              onClick={onImport}
+              title="Feed / Import Old Data to DB"
+              style={{ backgroundColor: "#EEF2FF", color: "#4F46E5", borderColor: "#C7D2FE", fontWeight: 600 }}
+            >
+              <Upload size={17} />
+              Import Old Leads
             </button>
           )}
 
