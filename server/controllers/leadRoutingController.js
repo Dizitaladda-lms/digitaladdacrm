@@ -6,6 +6,7 @@ import {
   createRoutingAssignmentService,
   getRoutingSetupService,
   removeRoutingAssignmentService,
+  setEmployeeDomainsService,
 } from "../services/leadRoutingService.js";
 
 export const getRoutingSetup = asyncHandler(async (_req, res) => {
@@ -31,4 +32,15 @@ export const createRoutingAssignment = asyncHandler(async (req, res) => {
 export const removeRoutingAssignment = asyncHandler(async (req, res) => {
   const assignment = await removeRoutingAssignmentService(req.params.id);
   res.status(200).json(new ApiResponse(200, assignment, "Counsellor routing assignment removed successfully."));
+});
+
+export const setEmployeeDomains = asyncHandler(async (req, res) => {
+  const { employee_id, domain_ids, domain_names } = req.body;
+  const targetId = req.params.id || employee_id;
+  const result = await setEmployeeDomainsService({
+    employee_id: targetId,
+    domain_ids,
+    domain_names,
+  });
+  res.status(200).json(new ApiResponse(200, result, "Employee domains updated successfully."));
 });

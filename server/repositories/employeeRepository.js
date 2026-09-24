@@ -20,6 +20,8 @@ const EMPLOYEE_SELECT_COLUMNS = `
     e.mobile,
     e.department_id,
     d.department_name,
+    e.domain,
+    e.assigned_domains,
     e.designation,
     e.role,
     e.employment_type,

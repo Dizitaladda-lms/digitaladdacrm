@@ -10,11 +10,18 @@ import {
   UserCog,
   X,
   TrendingUp,
+  Building2,
+  Check,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createEmployee, getEmployees } from "../../services/employeeService";
 import { getDepartments } from "../../services/departmentService";
-import { createDomainCourse, createRoutingAssignment, getLeadRoutingSetup } from "../../services/leadRoutingService";
+import {
+  createDomainCourse,
+  createRoutingAssignment,
+  getLeadRoutingSetup,
+  setEmployeeDomains,
+} from "../../services/leadRoutingService";
 import EmployeePerformanceModal from "../../components/admin/employees/EmployeePerformanceModal";
 import "../../styles/LeadManagement/LeadHeader.css";
 import "../../styles/LeadManagement/LeadStats.css";
@@ -55,6 +62,12 @@ const Employees = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isPerfModalOpen, setIsPerfModalOpen] = useState(false);
 
+  // Domain Assignment Modal State
+  const [domainModalOpen, setDomainModalOpen] = useState(false);
+  const [selectedEmployeeForDomain, setSelectedEmployeeForDomain] = useState(null);
+  const [assignedDomainIds, setAssignedDomainIds] = useState([]);
+  const [domainSaving, setDomainSaving] = useState(false);
+
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -85,13 +98,25 @@ const Employees = () => {
     load();
   }, [load]);
 
-  const domainsFor = (id) => [
-    ...new Set(
-      routing.assignments
-        .filter((item) => Number(item.employee_id) === Number(id) && item.is_active)
-        .map((item) => item.domain_name)
-    ),
-  ];
+  const domainsFor = (employee) => {
+    if (!employee) return [];
+    const fromAssignments = routing.assignments
+      .filter((item) => Number(item.employee_id) === Number(employee.id) && item.is_active)
+      .map((item) => item.domain_name);
+
+    let fromAssignedDomains = [];
+    if (Array.isArray(employee.assigned_domains)) {
+      fromAssignedDomains = employee.assigned_domains;
+    } else if (typeof employee.assigned_domains === "string") {
+      try {
+        fromAssignedDomains = JSON.parse(employee.assigned_domains);
+      } catch {}
+    }
+
+    const fromDirect = employee.domain ? [employee.domain] : [];
+
+    return [...new Set([...fromAssignments, ...fromAssignedDomains, ...fromDirect].filter(Boolean))];
+  };
 
   const routedIds = new Set(
     routing.assignments.filter((item) => item.auto_assign && item.is_active).map((item) => item.employee_id)
@@ -119,6 +144,57 @@ const Employees = () => {
     setIsPerfModalOpen(true);
   };
 
+  const openDomainModal = (employee) => {
+    setSelectedEmployeeForDomain(employee);
+    // Get domain IDs currently assigned to this employee
+    const currentDomainIds = routing.assignments
+      .filter((item) => Number(item.employee_id) === Number(employee.id) && item.is_active)
+      .map((item) => Number(item.domain_id));
+
+    // Also match by employee.domain or assigned_domains if routing assignments were empty
+    let fallbackIds = [];
+    if (currentDomainIds.length === 0) {
+      const empDomains = domainsFor(employee);
+      fallbackIds = routing.domains
+        .filter((d) => empDomains.some((name) => name.toLowerCase() === d.name.toLowerCase()))
+        .map((d) => Number(d.id));
+    }
+
+    setAssignedDomainIds([...new Set([...currentDomainIds, ...fallbackIds])]);
+    setDomainModalOpen(true);
+  };
+
+  const toggleEmployeeDomain = (domainId) => {
+    setAssignedDomainIds((prev) =>
+      prev.includes(domainId) ? prev.filter((id) => id !== domainId) : [...prev, domainId]
+    );
+  };
+
+  const handleSaveDomains = async (e) => {
+    e.preventDefault();
+    if (!selectedEmployeeForDomain) return;
+    try {
+      setDomainSaving(true);
+      const domainNames = routing.domains
+        .filter((d) => assignedDomainIds.includes(Number(d.id)))
+        .map((d) => d.name);
+
+      await setEmployeeDomains(selectedEmployeeForDomain.id, {
+        domain_ids: assignedDomainIds,
+        domain_names: domainNames,
+      });
+
+      toast.success(`Domains updated successfully for ${selectedEmployeeForDomain.full_name}.`);
+      setDomainModalOpen(false);
+      await load();
+    } catch (err) {
+      console.error("Failed to update employee domains:", err);
+      toast.error(err?.response?.data?.message || "Could not update employee domains.");
+    } finally {
+      setDomainSaving(false);
+    }
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     if (!form.department_id) return toast.error("Please select a department.");
@@ -137,26 +213,41 @@ const Employees = () => {
       });
 
       const employee = result?.data;
-      const courses = form.courses.split(",").map((item) => item.trim()).filter(Boolean);
-      let setup = routing;
 
-      for (const domainId of form.domains) {
-        let domain = setup.domains.find((item) => Number(item.id) === Number(domainId));
-        for (const courseName of courses) {
-          let course = domain?.courses?.find((item) => item.name.toLowerCase() === courseName.toLowerCase());
-          if (!course) {
-            await createDomainCourse({ domain_id: domainId, name: courseName });
-            setup = (await getLeadRoutingSetup()).data;
-            domain = setup.domains.find((item) => Number(item.id) === Number(domainId));
-            course = domain?.courses?.find((item) => item.name.toLowerCase() === courseName.toLowerCase());
-          }
-          if (employee && course && form.auto_assign) {
-            await createRoutingAssignment({
-              employee_id: employee.id,
-              domain_id: domainId,
-              course_id: course.id,
-              auto_assign: true,
-            });
+      // Assign domains directly via setEmployeeDomains
+      if (employee && form.domains.length > 0) {
+        const domainNames = routing.domains
+          .filter((d) => form.domains.includes(Number(d.id)))
+          .map((d) => d.name);
+
+        await setEmployeeDomains(employee.id, {
+          domain_ids: form.domains,
+          domain_names: domainNames,
+        });
+      }
+
+      // Also create course-specific routing if courses specified
+      const courses = form.courses.split(",").map((item) => item.trim()).filter(Boolean);
+      if (employee && courses.length > 0 && form.domains.length > 0) {
+        let setup = (await getLeadRoutingSetup()).data;
+        for (const domainId of form.domains) {
+          let domain = setup.domains.find((item) => Number(item.id) === Number(domainId));
+          for (const courseName of courses) {
+            let course = domain?.courses?.find((item) => item.name.toLowerCase() === courseName.toLowerCase());
+            if (!course) {
+              await createDomainCourse({ domain_id: domainId, name: courseName });
+              setup = (await getLeadRoutingSetup()).data;
+              domain = setup.domains.find((item) => Number(item.id) === Number(domainId));
+              course = domain?.courses?.find((item) => item.name.toLowerCase() === courseName.toLowerCase());
+            }
+            if (course && form.auto_assign) {
+              await createRoutingAssignment({
+                employee_id: employee.id,
+                domain_id: domainId,
+                course_id: course.id,
+                auto_assign: true,
+              });
+            }
           }
         }
       }
@@ -180,7 +271,7 @@ const Employees = () => {
         <div className="lead-header-left">
           <span className="lead-badge">Team Management</span>
           <h1>Employees & Performance Scorecards</h1>
-          <p>Track counselling workload, conversion performance, week-wise & month-wise analytics.</p>
+          <p>Track counselling workload, conversion performance, domain routing & assignment.</p>
         </div>
         <div className="lead-header-right">
           <div className="lead-date-card">
@@ -224,7 +315,7 @@ const Employees = () => {
         <div className="employee-list-heading">
           <div>
             <h2>Employee Directory & Performance</h2>
-            <p>View counselling workload, assigned leads, and live conversion statistics.</p>
+            <p>View counselling workload, assigned domains, and live conversion statistics.</p>
           </div>
           <button type="button" onClick={() => setFormOpen(true)}>
             <Plus size={17} /> Add Employee
@@ -237,9 +328,9 @@ const Employees = () => {
               <tr>
                 <th>Employee</th>
                 <th>Status</th>
-                <th>Domains</th>
+                <th>Assigned Domains</th>
                 <th>Department</th>
-                <th style={{ textAlign: "right" }}>Performance Scorecard</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -261,22 +352,57 @@ const Employees = () => {
                   </td>
                   <td>
                     <div className="domain-tags">
-                      {domainsFor(employee.id).length
-                        ? domainsFor(employee.id).map((domain) => <span key={domain}>{domain}</span>)
-                        : "—"}
+                      {domainsFor(employee).length ? (
+                        domainsFor(employee).map((domain) => (
+                          <span
+                            key={domain}
+                            style={{
+                              backgroundColor: "#EEF2FF",
+                              color: "#4338CA",
+                              fontWeight: 600,
+                              borderRadius: "6px",
+                              padding: "4px 8px",
+                            }}
+                          >
+                            {domain}
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ color: "#94A3B8", fontStyle: "italic", fontSize: "12px" }}>
+                          No domain (General)
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td>{employee.department_name || "Admissions"}</td>
                   <td style={{ textAlign: "right" }}>
-                    <button
-                      className="view-more-btn"
-                      type="button"
-                      onClick={() => openPerformanceModal(employee)}
-                      style={{ backgroundColor: "#2563EB", color: "#FFFFFF" }}
-                    >
-                      <TrendingUp size={15} />
-                      <span>View Performance</span>
-                    </button>
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                      <button
+                        className="view-more-btn"
+                        type="button"
+                        onClick={() => openDomainModal(employee)}
+                        style={{
+                          backgroundColor: "#F0FDFA",
+                          color: "#0F766E",
+                          border: "1px solid #99F6E4",
+                          fontWeight: 600,
+                        }}
+                        title={`Assign domain (Nidads, Nigape, etc.) to ${employee.full_name}`}
+                      >
+                        <Route size={15} />
+                        <span>Assign Domain</span>
+                      </button>
+
+                      <button
+                        className="view-more-btn"
+                        type="button"
+                        onClick={() => openPerformanceModal(employee)}
+                        style={{ backgroundColor: "#2563EB", color: "#FFFFFF" }}
+                      >
+                        <TrendingUp size={15} />
+                        <span>Performance</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -378,7 +504,7 @@ const Employees = () => {
                   <Route size={19} />
                   <div>
                     <h3>Lead routing assignment</h3>
-                    <p>Matching leads are distributed equally among eligible active counsellors.</p>
+                    <p>Select which brand/domain leads (e.g. Nidads, Nigape) should route to this employee.</p>
                   </div>
                 </div>
                 <div className="domain-checklist">
@@ -394,13 +520,13 @@ const Employees = () => {
                   ))}
                 </div>
                 <label className="courses-field">
-                  Courses handled
+                  Courses handled (Optional)
                   <textarea
                     value={form.courses}
                     onChange={(event) => setForm({ ...form, courses: event.target.value })}
-                    placeholder="Digital Marketing, SEO, Data Analytics"
+                    placeholder="Data Science, Digital Marketing, Cyber Security"
                   />
-                  <small>Separate courses with commas.</small>
+                  <small>Leave empty to handle ALL courses under selected domains.</small>
                 </label>
               </section>
             </div>
@@ -411,6 +537,87 @@ const Employees = () => {
               <button type="submit" disabled={saving}>
                 {saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}
                 {saving ? "Saving..." : "Save Employee"}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+
+      {/* Assign Domain Modal for Existing Employees */}
+      {domainModalOpen && selectedEmployeeForDomain && (
+        <div className="employee-modal-overlay">
+          <form className="employee-modal" onSubmit={handleSaveDomains} style={{ maxWidth: "560px" }}>
+            <header>
+              <div>
+                <span>Domain Routing</span>
+                <h2>Assign Domains</h2>
+                <p>
+                  Assign leads from specific websites to <strong>{selectedEmployeeForDomain.full_name}</strong>.
+                </p>
+              </div>
+              <button type="button" onClick={() => setDomainModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </header>
+
+            <div className="employee-modal-body">
+              <div style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", padding: "14px 16px", borderRadius: "10px" }}>
+                <p style={{ margin: 0, fontSize: "13px", color: "#475569", lineHeight: "1.5" }}>
+                  💡 When a new lead is submitted on <strong>Nidads</strong>, it will automatically go to counsellors assigned to Nidads.
+                  When submitted on <strong>Nigape</strong>, it routes directly to Nigape counsellors via balanced round-robin.
+                </p>
+              </div>
+
+              <section>
+                <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#1E293B", marginBottom: "12px" }}>
+                  Select Brand / Website Domains:
+                </h3>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+                  {routing.domains.map((domain) => {
+                    const isChecked = assignedDomainIds.includes(Number(domain.id));
+                    return (
+                      <label
+                        key={domain.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          border: isChecked ? "2px solid #0D9488" : "1px solid #E2E8F0",
+                          backgroundColor: isChecked ? "#F0FDFA" : "#FFFFFF",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleEmployeeDomain(Number(domain.id))}
+                          style={{ width: "16px", height: "16px", accentColor: "#0D9488" }}
+                        />
+                        <span style={{ fontWeight: isChecked ? 700 : 500, fontSize: "13px", color: isChecked ? "#0F766E" : "#334155" }}>
+                          {domain.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
+
+            <footer>
+              <button type="button" onClick={() => setDomainModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={domainSaving}
+                style={{ backgroundColor: "#0D9488", borderColor: "#0D9488", color: "#FFFFFF" }}
+              >
+                {domainSaving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}
+                {domainSaving ? "Saving..." : "Save Domains"}
               </button>
             </footer>
           </form>

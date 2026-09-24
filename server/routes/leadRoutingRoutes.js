@@ -8,6 +8,7 @@ import {
   createRoutingAssignment,
   getRoutingSetup,
   removeRoutingAssignment,
+  setEmployeeDomains,
 } from "../controllers/leadRoutingController.js";
 
 const router = Router();
@@ -17,4 +18,5 @@ router.post("/domains", createDomain);
 router.post("/courses", createCourse);
 router.post("/assignments", createRoutingAssignment);
 router.delete("/assignments/:id", removeRoutingAssignment);
+router.put("/employee/:id/domains", setEmployeeDomains);
 export default router;
