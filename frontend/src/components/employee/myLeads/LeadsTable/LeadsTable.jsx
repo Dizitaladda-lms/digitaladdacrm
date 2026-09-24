@@ -45,8 +45,8 @@
 
     return (
       <div className="leads-table-card">
-
-        <table className="leads-table">
+        <div className="leads-table-scroll">
+          <table className="leads-table">
 
           <thead>
 
@@ -201,6 +201,7 @@
             ))}
           </tbody>
         </table>
+        </div>
 
         <LeadDetailsDrawer
           open={isDrawerOpen}

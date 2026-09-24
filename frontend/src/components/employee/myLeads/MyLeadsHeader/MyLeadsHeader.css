@@ -85,6 +85,19 @@
     flex-direction:column;
     align-items:flex-start;
     gap:16px;
+    padding:18px;
+
+}
+
+.header-left h2{
+
+    font-size:22px;
+
+}
+
+.header-left p{
+
+    font-size:13px;
 
 }
 
@@ -93,13 +106,26 @@
     width:100%;
     display:grid;
     grid-template-columns:1fr 1fr;
+    gap:8px;
 
 }
 
 .export-btn,
 .followup-btn{
 
+    padding:10px 12px;
+    font-size:12px;
     justify-content:center;
+
+}
+
+}
+
+@media(max-width:480px){
+
+.header-right{
+
+    grid-template-columns:1fr;
 
 }
 

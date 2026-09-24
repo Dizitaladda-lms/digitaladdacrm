@@ -19,15 +19,7 @@ const MainLayout = () => {
       />
 
       {/* Main Content */}
-      <div
-        className="flex min-h-screen flex-col transition-all duration-300"
-        style={{
-          marginLeft:
-            typeof window !== "undefined" && window.innerWidth >= 768
-              ? `${SIDEBAR_WIDTH}px`
-              : "0px",
-        }}
-      >
+      <div className="flex min-h-screen flex-col transition-all duration-300 md:ml-[280px] ml-0">
         {/* Topbar */}
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
 

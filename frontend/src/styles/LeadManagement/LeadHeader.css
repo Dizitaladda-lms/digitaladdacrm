@@ -240,19 +240,59 @@ justify-content:center;
 
 .lead-header{
 
-padding:20px;
+padding:18px;
+gap:16px;
 
 }
 
 .lead-header-left h1{
 
-font-size:28px;
+font-size:24px;
+margin-top:10px;
+
+}
+
+.lead-header-left p{
+
+font-size:13px;
+line-height:1.5;
+
+}
+
+.lead-date-card{
+
+width:100%;
+justify-content:center;
+padding:10px 14px;
 
 }
 
 .lead-header-actions{
 
-flex-direction:column;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:8px;
+width:100%;
+
+}
+
+.refresh-btn,
+
+.create-btn{
+
+padding:10px 12px;
+font-size:13px;
+justify-content:center;
+
+}
+
+}
+
+@media(max-width:480px){
+
+.lead-header-actions{
+
+grid-template-columns:1fr;
 
 }
 

@@ -166,21 +166,49 @@
 
 @media(max-width:768px){
 
-.modal-container{
+.modal-overlay{
 
-    width:100%;
+    padding:10px;
 
 }
 
-.modal-body{
+.modal-container{
 
-    padding:18px;
+    width:100%;
+    max-height:92vh;
+    border-radius:16px;
 
 }
 
 .modal-header{
 
-    padding:18px;
+    padding:16px;
+
+}
+
+.modal-header-content h2{
+
+    font-size:20px;
+
+}
+
+.modal-header-content p{
+
+    font-size:12px;
+
+}
+
+.modal-close-btn{
+
+    width:36px;
+    height:36px;
+
+}
+
+.modal-body{
+
+    padding:16px;
+    max-height:calc(92vh - 80px);
 
 }
 

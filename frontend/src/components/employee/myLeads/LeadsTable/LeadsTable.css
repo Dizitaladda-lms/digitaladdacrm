@@ -8,9 +8,16 @@
 
 }
 
+.leads-table-scroll{
+    width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+}
+
 .leads-table{
 
     width:100%;
+    min-width:860px;
     border-collapse:collapse;
 
 }
@@ -149,18 +156,6 @@
 
     background:#2563eb;
     color:#ffffff;
-
-}
-
-@media(max-width:1024px){
-
-    .leads-table{
-
-        display:block;
-        overflow-x:auto;
-        white-space:nowrap;
-
-    }
 
 }
 

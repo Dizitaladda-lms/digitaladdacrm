@@ -11,7 +11,7 @@ const Topbar = ({ onMenuClick }) => {
         <button
           type="button"
           onClick={onMenuClick}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 lg:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 md:hidden"
           aria-label="Open menu"
         >
           <Menu size={18} />
