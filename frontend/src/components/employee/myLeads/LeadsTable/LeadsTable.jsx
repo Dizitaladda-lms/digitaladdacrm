@@ -67,13 +67,17 @@
           <tbody>
 
             {leads.map((lead) => (
-
               <tr key={lead.id}>
-
                 <td>
-
-                  <div className="lead-info">
-
+                  <div
+                    className="lead-info"
+                    onClick={() => {
+                      setSelectedLead(lead);
+                      setIsDrawerOpen(true);
+                    }}
+                    title="Click to view full lead details"
+                    style={{ cursor: "pointer" }}
+                  >
                     <div className="lead-avatar">
                       {lead.full_name
                         ?.split(" ")
@@ -84,15 +88,14 @@
                     </div>
 
                     <div>
-
-                      <h5>{lead.full_name}</h5>
-
-                      <span>{lead.email || "-"}</span>
-
+                      <h5 style={{ color: "#1d4ed8", textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                        {lead.full_name}
+                      </h5>
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>
+                        {lead.lead_code || lead.email || "-"}
+                      </span>
                     </div>
-
                   </div>
-
                 </td>
 
                 <td>
@@ -101,9 +104,17 @@
                   </span>
                 </td>
 
-                <td>{(lead.mobile)}</td>
+                <td style={{ fontWeight: 600, color: "#1e293b" }}>
+                  <a href={`tel:${lead.mobile}`} style={{ color: "inherit", textDecoration: "none" }}>
+                    {lead.mobile}
+                  </a>
+                </td>
 
-                <td>{lead.campaign_name || "-"}</td>
+                <td>
+                  <span style={{ fontSize: "13px", color: "#334155" }}>
+                    {lead.interested_course || lead.campaign_name || "-"}
+                  </span>
+                </td>
 
                 <td>
                   <div className="flex flex-col gap-0.5 items-start">
@@ -120,19 +131,16 @@
                 </td>
 
                 <td>
-
                   <span
                     className={`status ${String(
                       lead.status || ""
-                    ).toLowerCase()}`}
+                    ).toLowerCase().replace(/_/g, "-")}`}
                   >
                     {lead.status || "-"}
                   </span>
-
                 </td>
 
                 <td>
-
                   <span
                     className={`priority ${String(
                       lead.priority || ""
@@ -140,54 +148,53 @@
                   >
                     {lead.priority || "-"}
                   </span>
-
                 </td>
 
-                <td>{lead.next_followup || "-"}</td>
+                <td style={{ fontSize: "12px", color: "#64748b" }}>
+                  {lead.next_followup
+                    ? new Date(lead.next_followup).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "-"}
+                </td>
 
                 <td>
-
-                  <div className="action-buttons">
-
-                  {isMobile && (
-    <a
-      href={`tel:${lead.mobile}`}
-      className="action-btn call-btn"
-      title={`Call ${lead.full_name}`}
-    >
-      <Phone size={16} />
-    </a>
-  )}
-
-                    <a
-    href={`https://wa.me/91${lead.mobile}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="action-btn whatsapp-btn"
-    title={`WhatsApp ${lead.full_name}`}
-  >
-    <MessageCircle size={16} />
-  </a>
-
+                  <div className="action-buttons" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <button
-    title="View Lead"
-    onClick={() => {
-      setSelectedLead(lead);
-      setIsDrawerOpen(true);
-    }}
-  >
-    <Eye size={16} />
-  </button>
-
-                    <button
-                      title="Add Follow-up"
+                      type="button"
+                      className="view-more-btn"
+                      title="View full lead details, feedback and timeline"
                       onClick={() => {
                         setSelectedLead(lead);
                         setIsDrawerOpen(true);
                       }}
                     >
-                      <CalendarPlus size={16} />
+                      <Eye size={15} />
+                      <span>View More</span>
                     </button>
+
+                    <a
+                      href={`https://wa.me/91${lead.mobile}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="action-btn whatsapp-btn"
+                      title={`WhatsApp ${lead.full_name}`}
+                    >
+                      <MessageCircle size={16} />
+                    </a>
+
+                    {isMobile && (
+                      <a
+                        href={`tel:${lead.mobile}`}
+                        className="action-btn call-btn"
+                        title={`Call ${lead.full_name}`}
+                      >
+                        <Phone size={16} />
+                      </a>
+                    )}
                   </div>
                 </td>
               </tr>

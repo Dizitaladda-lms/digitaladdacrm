@@ -49,7 +49,7 @@ const router = express.Router();
 router.post(
   "/",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(ROLES.ADMIN),
   createLeadValidator,
   validate,
   createLead

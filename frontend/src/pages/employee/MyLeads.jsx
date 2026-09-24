@@ -4,7 +4,6 @@ import MyLeadsHeader from "../../components/employee/myLeads/MyLeadsHeader/MyLea
 import LeadStats from "../../components/LeadManagement/LeadStats";
 import SearchFilterBar from "../../components/employee/myLeads/SearchFilterBar/SearchFilterBar";
 import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable";
-import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 import { getMyLeads } from "../../services/employeeLeadService";
 import { getLeadStats } from "../../services/leadService";
 import { exportToCsv } from "../../utils/exportCsv";
@@ -20,7 +19,6 @@ const MyLeads = () => {
     conversion_rate: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Live Active Filter State
   const [search, setSearch] = useState("");
@@ -93,7 +91,6 @@ const MyLeads = () => {
     <div className="my-leads-page">
       <MyLeadsHeader
         onExport={handleExportCsv}
-        onCreateLead={() => setCreateModalOpen(true)}
       />
 
       <LeadStats
@@ -119,13 +116,6 @@ const MyLeads = () => {
         leads={leads}
         loading={loading}
         onRefresh={fetchMyLeads}
-      />
-
-      <CreateLeadModal
-        open={createModalOpen}
-        currentUserRole="COUNSELLOR"
-        onClose={() => setCreateModalOpen(false)}
-        onSuccess={fetchMyLeads}
       />
     </div>
   );

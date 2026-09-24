@@ -127,25 +127,18 @@ export const createLeadService = async (
   leadData,
   currentUser,
   req
-) => {
+  if (currentUser.role !== ROLES.ADMIN) {
+    throw new ApiError(
+      403,
+      "Only administrators are authorized to manually create new leads."
+    );
+  }
 
   const client = await pool.connect();
 
   try {
 
     await client.query("BEGIN");
-
-    // If counsellor is creating and assigned_to is not specified, auto-assign to self
-    if (currentUser.role === ROLES.COUNSELLOR && !leadData.assigned_to) {
-      try {
-        const employeeId = await resolveEmployeeIdForCounsellor(currentUser);
-        if (employeeId) {
-          leadData.assigned_to = employeeId;
-        }
-      } catch (err) {
-        console.warn("Could not auto-assign counsellor employee ID:", err.message);
-      }
-    }
 
     /* Duplicate Lead Check (by Mobile or Email) */
     const existingMobile = await findLeadByMobileRepository(leadData.mobile);

@@ -78,25 +78,52 @@
 .status,
 .priority{
 
-    padding:6px 12px;
+    padding:5px 10px;
     border-radius:20px;
-    font-size:12px;
+    font-size:11px;
     font-weight:600;
+    display:inline-block;
+    text-align:center;
 
 }
 
-.status.hot{
+.status.new { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+.status.contacted { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+.status.follow-up { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+.status.qualified { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.status.admission,
+.status.admission-done,
+.status.enrolled { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+.status.lost,
+.status.not-interested,
+.status.rejected { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
-    background:#fee2e2;
-    color:#dc2626;
+.priority.high { background: #fee2e2; color: #dc2626; }
+.priority.medium { background: #ffedd5; color: #c2410c; }
+.priority.low { background: #f1f5f9; color: #475569; }
 
+.view-more-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  height: 34px !important;
+  padding: 0 12px !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border: 1px solid #bfdbfe !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
 }
 
-.priority.high{
-
-    background:#dbeafe;
-    color:#2563eb;
-
+.view-more-btn:hover {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
 }
 
 .action-buttons{
