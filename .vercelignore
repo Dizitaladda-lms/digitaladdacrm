@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+logs
+reports
+docs
+*.log
+docker-compose.yml
+NEON_DEPLOYMENT.md
+README.md
+render.yaml

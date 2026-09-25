@@ -2,7 +2,7 @@ import { withTransaction } from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
 import auditLogger from "../utils/auditLogger.js";
 import { isValidRole } from "../constants/roles.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 import {
     createUserRepository,

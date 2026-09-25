@@ -1,11 +1,12 @@
 import axios from "axios";
 
-const apiBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000/api")
-  .trim();
+const envApiUrl = (import.meta.env.VITE_API_URL || "").trim();
 
-const normalizedBaseURL = apiBaseUrl
-  .replace(/\/api\/?$/, "")
-  .replace(/\/$/, "");
+const normalizedBaseURL = envApiUrl
+  ? envApiUrl.replace(/\/api\/?$/, "").replace(/\/$/, "")
+  : import.meta.env.DEV
+  ? "http://localhost:5000"
+  : "";
 
 const axiosInstance = axios.create({
   baseURL: normalizedBaseURL,

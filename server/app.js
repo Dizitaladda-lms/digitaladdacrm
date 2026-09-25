@@ -74,7 +74,7 @@ app.use(cors((req, callback) => {
     });
   }
 
-  if (!origin || process.env.NODE_ENV !== "production") {
+  if (!origin || (origin && origin.endsWith(".vercel.app")) || process.env.NODE_ENV !== "production") {
     return callback(null, {
       origin: true,
       credentials: true,

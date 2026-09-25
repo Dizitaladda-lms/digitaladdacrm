@@ -53,7 +53,13 @@ const validateEnv = () => {
 
   }
 
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.VERCEL) {
+    if (!process.env.CLIENT_URL && process.env.VERCEL_URL) {
+      process.env.CLIENT_URL = `https://${process.env.VERCEL_URL}`;
+    }
+  }
+
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
     required.push("CLIENT_URL");
   }
 
@@ -75,9 +81,13 @@ const validateEnv = () => {
       console.error(`• ${key}`);
     });
 
-    console.error("\nPlease update your .env file.\n");
+    console.error("\nPlease update your .env file or Vercel Environment Variables.\n");
 
-    process.exit(1);
+    if (process.env.VERCEL === "1") {
+      throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+    } else {
+      process.exit(1);
+    }
 
   }
 

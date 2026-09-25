@@ -84,7 +84,9 @@ pool
   })
   .catch((err) => {
     console.error("❌ PostgreSQL Connection Error:", err.message);
-    process.exit(1);
+    if (process.env.VERCEL !== "1") {
+      process.exit(1);
+    }
   });
 
 export async function query(text, params) {
