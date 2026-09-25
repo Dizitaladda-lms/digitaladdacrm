@@ -1,31 +1,26 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 
-const ThemeContext = createContext(null);
-const STORAGE_KEY = "dizitaladda-theme";
-
-const getInitialTheme = () => {
-  const savedTheme = localStorage.getItem(STORAGE_KEY);
-  if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
-
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-};
+const ThemeContext = createContext({
+  theme: "light",
+  toggleTheme: () => {},
+});
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(getInitialTheme);
-
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+    document.documentElement.dataset.theme = "light";
+    try {
+      localStorage.removeItem("dizitaladda-theme");
+    } catch {
+      // ignore in sandboxed environments
+    }
+  }, []);
 
   const value = useMemo(
     () => ({
-      theme,
-      toggleTheme: () => setTheme((currentTheme) => currentTheme === "dark" ? "light" : "dark"),
+      theme: "light",
+      toggleTheme: () => {},
     }),
-    [theme]
+    []
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

@@ -2,7 +2,6 @@ import { Menu } from "lucide-react";
 import SearchBox from "./SearchBox";
 import Notification from "./Notification";
 import UserMenu from "./UserMenu";
-import ThemeToggle from "../../ThemeToggle";
 
 const Topbar = ({ onMenuClick }) => {
   return (
@@ -26,7 +25,6 @@ const Topbar = ({ onMenuClick }) => {
         <div className="hidden sm:block">
           <SearchBox />
         </div>
-        <ThemeToggle />
         <Notification />
         <UserMenu />
       </div>

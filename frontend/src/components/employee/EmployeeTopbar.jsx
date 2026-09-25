@@ -4,7 +4,6 @@ import {
   Search,
   Bell,
 } from "lucide-react";
-import ThemeToggle from "../ThemeToggle";
 import ProfileMenu from "../profile/ProfileMenu";
 
 const EmployeeTopbar = ({ onMenuClick }) => {
@@ -41,8 +40,6 @@ const EmployeeTopbar = ({ onMenuClick }) => {
         <div className="topbar-date">
           {today}
         </div>
-
-        <ThemeToggle />
 
         <button className="notification-btn">
           <Bell size={21} />
