@@ -9,6 +9,7 @@
     "dev": "nodemon server.js",
     "db:init": "node scripts/init-db.js",
     "db:seed:test": "node scripts/seed-test-db.js",
+    "create:admin": "node scripts/create-admin.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "ci": "vitest run"

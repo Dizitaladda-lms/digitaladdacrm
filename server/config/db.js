@@ -1,5 +1,12 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+
 dotenv.config();
+if (!process.env.DATABASE_URL) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  dotenv.config({ path: path.resolve(__dirname, "../.env") });
+}
 
 import pkg from "pg";
 import logger from "../utils/logger.js";
