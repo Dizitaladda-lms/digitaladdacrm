@@ -277,12 +277,12 @@
 .auth-input-wrap input {
   width: 100%;
   height: 56px;
-  border: 1px solid #dbe6f7;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 16px;
   padding: 0 48px 0 48px;
   font-size: 0.96rem;
-  color: #0f172a;
-  background: #f8fbff;
+  color: #0f172a !important;
+  background: #ffffff !important;
   transition: all 0.25s ease;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }

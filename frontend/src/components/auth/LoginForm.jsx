@@ -14,83 +14,65 @@ import { useAuth } from "../../context/AuthContext";
 import "./auth.css";
 
 const LoginForm = () => {
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
-const { login } = useAuth();
+  const { login } = useAuth();
 
-const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-const {
-  register,
-  handleSubmit,
-  formState: { errors },
-} = useForm({
-  mode: "onTouched",
-});
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    mode: "onTouched",
+  });
 
+  const onSubmit = async (formData) => {
+    try {
+      setLoading(true);
+      const response = await login(formData);
 
-const onSubmit = async (formData) => {
+      if (response.success) {
+        toast.success("Welcome Back 👋");
 
-  try {
+        const role = response?.data?.user?.role || response?.user?.role;
 
-    setLoading(true);
-  const response = await login(formData);
+        switch (role) {
+          case "ADMIN":
+            navigate("/dashboard", { replace: true });
+            break;
 
-if (response.success) {
+          case "COUNSELLOR":
+            navigate("/employee/dashboard", { replace: true });
+            break;
 
-  toast.success("Welcome Back 👋");
-
-  const role = response?.data?.user?.role || response?.user?.role;
-
-  switch (role) {
-
-    case "ADMIN":
-      navigate("/dashboard", { replace: true });
-      break;
-
-    case "COUNSELLOR":
-      navigate("/employee/dashboard", { replace: true });
-      break;
-
-    default:
-      toast.error("Unauthorized Role");
-      navigate("/", { replace: true });
-  }
-}
-
-  } catch (error) {
-
-    toast.error(
-
-      error?.response?.data?.message ||
-
-      "Login Failed"
-
-    );
-
-  } finally {
-
-    setLoading(false);
-
-  }
-
-};
+          default:
+            toast.error("Unauthorized Role");
+            navigate("/", { replace: true });
+        }
+      }
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Login Failed"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
       <div className="auth-input-wrap">
         <Mail size={18} className="auth-input-icon" />
         <input
-          type="email"
-          placeholder="admin@dizitaladda.com"
+          type="text"
+          placeholder="admin@dizitaladda.com or username"
+          autoComplete="username"
           {...register("email", {
-            required: "Email is required",
-            pattern: {
-              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: "Please enter a valid email",
-            },
+            required: "Email or username is required",
           })}
         />
         {errors.email && <p className="auth-error">{errors.email.message}</p>}
@@ -101,6 +83,7 @@ if (response.success) {
         <input
           type={showPassword ? "text" : "password"}
           placeholder="Enter your password"
+          autoComplete="current-password"
           {...register("password", {
             required: "Password is required",
             minLength: {
@@ -141,7 +124,6 @@ if (response.success) {
       </div>
     </form>
   );
-
 };
 
 export default LoginForm;

@@ -84,7 +84,7 @@ async (email) => {
       created_at,
       updated_at
     FROM users
-    WHERE email = $1
+    WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
       AND is_deleted = FALSE;
   `;
 
@@ -110,7 +110,7 @@ async (email) => {
   const query = `
     SELECT *
     FROM users
-    WHERE email = $1
+    WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
       AND is_deleted = FALSE;
   `;
 
