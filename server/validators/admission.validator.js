@@ -33,8 +33,7 @@ export const createAdmissionValidator = [
 
   body("email")
     .optional({ nullable: true, checkFalsy: true })
-    .isEmail()
-    .withMessage("Invalid email address."),
+    .trim(),
 
   body("centre")
     .optional({ nullable: true, checkFalsy: true })

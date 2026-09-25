@@ -120,19 +120,18 @@ const PersonalInformationTab = ({
         {/* Email Address */}
         <div className="crm-field">
           <label className="crm-label">
-            Email Address <span className="crm-required">*</span>
+            Email Address
           </label>
           <div className="crm-input-wrapper">
             <Mail size={16} className="crm-input-icon" />
             <input
-              type="email"
+              type="text"
               disabled={!canEdit}
               value={formData.email || ""}
               onChange={(e) => handleChange("email", e.target.value)}
-              placeholder="student@example.com"
+              placeholder="student@example.com or any text"
               className="crm-input has-icon"
               style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "text" }}
-              required
             />
           </div>
         </div>

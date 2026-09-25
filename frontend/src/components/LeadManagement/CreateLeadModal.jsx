@@ -256,9 +256,9 @@ const CreateLeadModal = ({
                 <Mail size={16} />
               </div>
               <input
-                type="email"
+                type="text"
                 name="email"
-                placeholder="e.g. student@gmail.com"
+                placeholder="e.g. student@gmail.com or any text"
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"

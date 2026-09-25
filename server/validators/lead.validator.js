@@ -40,9 +40,7 @@ export const createLeadValidator = [
 
   body("email")
     .optional({ nullable: true, checkFalsy: true })
-    .trim()
-    .isEmail()
-    .withMessage("Invalid email address."),
+    .trim(),
 
   body("alternate_mobile")
     .optional({ nullable: true, checkFalsy: true })

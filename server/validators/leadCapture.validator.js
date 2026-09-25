@@ -18,9 +18,7 @@ export const capturePublicLeadValidator = [
 
   body("email")
     .optional({ nullable: true, checkFalsy: true })
-    .isEmail()
-    .withMessage("Invalid email address.")
-    .normalizeEmail(),
+    .trim(),
 
   body("campaign_id")
     .optional({ nullable: true })
