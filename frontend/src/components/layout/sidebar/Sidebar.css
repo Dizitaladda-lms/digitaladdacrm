@@ -60,13 +60,13 @@
     pointer-events:auto;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 769px) {
     .sidebar {
-        transform:translateX(0);
+        transform: translateX(0) !important;
+        width: 280px;
     }
-
     .sidebar-overlay {
-        display:none;
+        display: none !important;
     }
 }
 
@@ -517,13 +517,12 @@
    RESPONSIVE
 ========================================================== */
 
-@media (min-width: 1024px) {
+@media (min-width: 769px) {
     .sidebar {
-        transform: translateX(0);
+        transform: translateX(0) !important;
     }
-
     .sidebar-overlay {
-        display: none;
+        display: none !important;
     }
 }
 
