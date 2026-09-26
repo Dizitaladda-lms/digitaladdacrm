@@ -6,15 +6,15 @@ export const capturePublicLeadValidator = [
     .trim()
     .notEmpty()
     .withMessage("Full name is required.")
-    .isLength({ min: 3, max: 100 })
-    .withMessage("Full name must be between 3 and 100 characters."),
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Full name must be between 2 and 100 characters."),
 
   body("mobile")
     .trim()
     .notEmpty()
     .withMessage("Mobile number is required.")
-    .matches(/^[6-9]\d{9}$/)
-    .withMessage("Invalid mobile number."),
+    .isLength({ min: 10, max: 15 })
+    .withMessage("Mobile number must be at least 10 digits."),
 
   body("email")
     .optional({ nullable: true, checkFalsy: true })

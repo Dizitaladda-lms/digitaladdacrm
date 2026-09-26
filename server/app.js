@@ -37,6 +37,8 @@ const app = express();
 const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 const vercelOriginRegex = /\.vercel\.app$/i;
 const dizitalAddaOriginRegex = /(^|\.)dizitaladda\.com$/i;
+const nigapeOriginRegex = /(^|\.)nigape\.com$/i;
+const nidadsOriginRegex = /(^|\.)nidads\.com$/i;
 
 const explicitOrigins = (process.env.CLIENT_URL || "")
   .split(",")
@@ -48,6 +50,8 @@ const isOriginAllowed = (origin) => {
   if (localOriginRegex.test(origin)) return true;
   if (vercelOriginRegex.test(origin)) return true;
   if (dizitalAddaOriginRegex.test(origin)) return true;
+  if (nigapeOriginRegex.test(origin)) return true;
+  if (nidadsOriginRegex.test(origin)) return true;
   if (explicitOrigins.includes(origin.replace(/\/$/, ""))) return true;
   if (process.env.NODE_ENV !== "production") return true;
   return false;
@@ -142,6 +146,8 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/employee", employeePortalRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/public", leadCaptureRoutes);
+app.use("/api/public/leads", leadCaptureRoutes);
+app.use("/api/public/lead", leadCaptureRoutes);
 app.use("/api/lead-assignments", leadAssignmentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/followups", followupRoutes);
