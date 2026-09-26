@@ -225,3 +225,10 @@ gap:10px;
 }
 
 }
+.whatsapp-btn{
+    background:#16A34A;
+    color:#fff;
+}
+.whatsapp-btn:hover{
+    background:#15803D;
+}

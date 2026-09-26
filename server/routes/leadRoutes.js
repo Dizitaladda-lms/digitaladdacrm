@@ -38,8 +38,15 @@ import {
   addLeadFeedback,
   getLeadFeedbackHistory,
 } from "../controllers/leadFeedback.controller.js";
+import { handleBulkWhatsAppBroadcast } from "../controllers/whatsappController.js";
 
 const router = express.Router();
+
+router.post(
+  "/bulk-whatsapp",
+  authMiddleware,
+  handleBulkWhatsAppBroadcast
+);
 
 /**
  * =====================================================

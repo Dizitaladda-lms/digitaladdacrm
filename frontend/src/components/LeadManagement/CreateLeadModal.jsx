@@ -51,11 +51,9 @@ const POPULAR_COURSES = [
 ];
 
 const BATCH_OPTIONS = [
-  "Morning Batch (9:00 AM - 12:00 PM)",
-  "Afternoon Batch (12:00 PM - 3:00 PM)",
-  "Evening Batch (4:00 PM - 7:00 PM)",
   "Weekend Batch (Saturday - Sunday)",
-  "Online Live Batch",
+  "Online  Batch",
+  "Offline Batch",
   "Flexible / Immediate",
 ];
 
@@ -403,7 +401,7 @@ const CreateLeadModal = ({
                   onChange={handleChange}
                   className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
-                  <option value="HIGH">High Priority 🔥</option>
+                  <option value="HIGH">High Priority </option>
                   <option value="MEDIUM">Medium Priority</option>
                   <option value="LOW">Low Priority</option>
                 </select>

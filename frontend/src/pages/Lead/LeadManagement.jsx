@@ -26,8 +26,12 @@ import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDet
 import DeleteLeadModal from "../../components/LeadManagement/DeleteLeadModal";
 import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 import ImportLeadsModal from "../../components/LeadManagement/ImportLeadsModal";
+import BulkWhatsAppModal from "../../components/LeadManagement/BulkWhatsAppModal";
+import { useAuth } from "../../context/AuthContext";
 import { exportToCsv } from "../../utils/exportCsv";
 const LeadManagement = () => {
+  const { user } = useAuth();
+  const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
 
   /*
   =====================================
@@ -461,7 +465,7 @@ const openAssignModal = () => {
         { header: "Mobile", key: "mobile" },
         { header: "Email", key: "email" },
         { header: "Course", key: "interested_course" },
-        { header: "Preferred Batch", key: "preferred_centre" },
+        { header: "Preferred Batch", key: "preferred_Batch" },
         { header: "Source", key: "source" },
         { header: "Status", key: "status" },
         { header: "Priority", key: "priority" },
@@ -509,6 +513,7 @@ const openAssignModal = () => {
         selectedLeads.length > 0 && (
           <BulkActionBar
             selectedLeads={selectedLeads}
+            onWhatsApp={() => setWhatsAppModalOpen(true)}
             onAssign={openAssignModal}
             onExport={handleBulkExport}
             onDelete={handleBulkDeleteClick}
@@ -578,6 +583,14 @@ const openAssignModal = () => {
   employees={employees}
   onClose={() => setImportModalOpen(false)}
   onSuccess={loadLeads}
+/>
+
+<BulkWhatsAppModal
+  open={whatsAppModalOpen}
+  leads={leads.filter((l) => selectedLeads.includes(l.id))}
+  onClose={() => setWhatsAppModalOpen(false)}
+  onSuccess={loadLeads}
+  currentUser={user}
 />
 
     </div>
