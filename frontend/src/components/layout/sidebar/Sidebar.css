@@ -62,8 +62,11 @@
 
 @media (min-width: 769px) {
     .sidebar {
-        transform: translateX(0) !important;
+        transform: translateX(-100%);
         width: 280px;
+    }
+    .sidebar.open {
+        transform: translateX(0);
     }
     .sidebar-overlay {
         display: none !important;
@@ -91,13 +94,31 @@
 ========================================================== */
 
 .sidebar-brand{
-
     display:flex;
-
     align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    width:100%;
+}
 
-    gap:14px;
+.sidebar-collapse-btn{
+    width:32px;
+    height:32px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:#f8fafc;
+    color:#64748b;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:all .2s ease;
+    flex-shrink:0;
+}
 
+.sidebar-collapse-btn:hover{
+    background:#e2e8f0;
+    color:#0f172a;
 }
 
 .brand-logo{

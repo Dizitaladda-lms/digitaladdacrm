@@ -7,6 +7,7 @@ import {
   User,
   Settings,
   LogOut,
+  PanelLeftClose,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import "./EmployeeSidebar.css";
@@ -66,7 +67,17 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
           <img
             src={logo}
             alt="DizitalAdda — India's Most Recommended Digital Marketing Institute"
+            style={{ maxWidth: "170px" }}
           />
+          <button
+            type="button"
+            onClick={onToggle}
+            className="sidebar-collapse-btn"
+            style={{ background: "#1e293b", borderColor: "#334155", color: "#94a3b8" }}
+            title="Close sidebar"
+          >
+            <PanelLeftClose size={18} />
+          </button>
         </div>
 
         <nav className="employee-sidebar-menu">

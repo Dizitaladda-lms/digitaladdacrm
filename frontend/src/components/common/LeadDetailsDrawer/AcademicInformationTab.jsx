@@ -82,15 +82,15 @@ const AcademicInformationTab = ({
             </select>
           </div>
 
-          {/* Preferred Campus Centre */}
+          {/* Preferred Batch */}
           <div className="crm-field">
-            <label className="crm-label">Preferred Campus Centre</label>
+            <label className="crm-label">Preferred Batch</label>
             <input
               type="text"
               disabled={!canEdit}
               value={formData.preferred_centre || lead?.preferred_centre || ""}
               onChange={(e) => handleChange("preferred_centre", e.target.value)}
-              placeholder="e.g. Main Campus / Lucknow"
+              placeholder="e.g. Morning Batch / Weekend Batch"
               className="crm-input"
               style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "text" }}
             />

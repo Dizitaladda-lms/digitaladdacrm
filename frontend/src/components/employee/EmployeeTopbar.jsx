@@ -1,13 +1,13 @@
 import "./EmployeeTopbar.css";
 import {
-  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Bell,
 } from "lucide-react";
 import ProfileMenu from "../profile/ProfileMenu";
 
-const EmployeeTopbar = ({ onMenuClick }) => {
-
+const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -17,11 +17,15 @@ const EmployeeTopbar = ({ onMenuClick }) => {
 
   return (
     <header className="employee-topbar">
-
       <div className="topbar-left">
-
-        <button className="menu-toggle" onClick={onMenuClick}>
-          <Menu size={22} />
+        <button
+          className="menu-toggle"
+          onClick={onMenuClick}
+          title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
 
         <div className="topbar-search">
@@ -32,14 +36,10 @@ const EmployeeTopbar = ({ onMenuClick }) => {
             placeholder="Search leads, admissions, follow-ups..."
           />
         </div>
-
       </div>
 
       <div className="topbar-right">
-
-        <div className="topbar-date">
-          {today}
-        </div>
+        <div className="topbar-date">{today}</div>
 
         <button className="notification-btn">
           <Bell size={21} />
@@ -47,9 +47,7 @@ const EmployeeTopbar = ({ onMenuClick }) => {
         </button>
 
         <ProfileMenu />
-
       </div>
-
     </header>
   );
 };

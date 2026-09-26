@@ -461,7 +461,7 @@ const openAssignModal = () => {
         { header: "Mobile", key: "mobile" },
         { header: "Email", key: "email" },
         { header: "Course", key: "interested_course" },
-        { header: "Campus", key: "preferred_centre" },
+        { header: "Preferred Batch", key: "preferred_centre" },
         { header: "Source", key: "source" },
         { header: "Status", key: "status" },
         { header: "Priority", key: "priority" },

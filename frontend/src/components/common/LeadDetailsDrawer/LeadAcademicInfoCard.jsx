@@ -165,9 +165,9 @@ const LeadAcademicInfoCard = ({ lead }) => {
             icon={<RefreshCw size={15} className={isRepeat ? "text-amber-500" : "text-slate-400"} />}
           />
           <InfoRow
-            label="Preferred Centre"
+            label="Preferred Batch"
             value={lead.preferred_centre}
-            icon={<Building size={15} className="text-slate-400" />}
+            icon={<Clock size={15} className="text-slate-400" />}
           />
           <InfoRow
             label="Created Date"

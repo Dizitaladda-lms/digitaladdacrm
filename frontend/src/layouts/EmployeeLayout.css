@@ -74,3 +74,6 @@
     padding: 12px;
   }
 }
+.employee-layout.sidebar-collapsed .employee-main {
+  margin-left: 0;
+}

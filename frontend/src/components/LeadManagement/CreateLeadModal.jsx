@@ -1,6 +1,19 @@
 import React, { useState } from "react";
 import Modal from "../common/Modal/Modal";
-import { User, Phone, Mail, Building, Globe, Share2, Tag, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  User,
+  Phone,
+  Mail,
+  Building,
+  Globe,
+  Share2,
+  Tag,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  UserCheck,
+} from "lucide-react";
 import { createLead } from "../../services/leadService";
 
 const DOMAINS = [
@@ -12,7 +25,7 @@ const DOMAINS = [
   "IIDAD",
   "Nifase",
   "DesigningVidya",
-  "LanguageVidya"
+  "LanguageVidya",
 ];
 
 const SOURCES = [
@@ -34,7 +47,16 @@ const POPULAR_COURSES = [
   "Data Analytics / Data Science",
   "Python Programming",
   "Video Editing",
-  "BCA / MCA"
+  "BCA / MCA",
+];
+
+const BATCH_OPTIONS = [
+  "Morning Batch (9:00 AM - 12:00 PM)",
+  "Afternoon Batch (12:00 PM - 3:00 PM)",
+  "Evening Batch (4:00 PM - 7:00 PM)",
+  "Weekend Batch (Saturday - Sunday)",
+  "Online Live Batch",
+  "Flexible / Immediate",
 ];
 
 const CreateLeadModal = ({
@@ -52,7 +74,7 @@ const CreateLeadModal = ({
     source: "WHATSAPP",
     domain: "DizitalAdda",
     interested_course: "Digital Marketing",
-    preferred_centre: "Online",
+    preferred_centre: "Morning Batch (9:00 AM - 12:00 PM)",
     priority: "MEDIUM",
     assigned_to: "",
     remarks: "",
@@ -108,7 +130,7 @@ const CreateLeadModal = ({
 
       setSuccessMsg(
         res?.message ||
-        `Lead for ${formData.full_name} captured successfully from ${formData.source}!`
+          `Lead for ${formData.full_name} captured successfully from ${formData.source}!`
       );
 
       setTimeout(() => {
@@ -122,8 +144,8 @@ const CreateLeadModal = ({
       console.error("Create lead error:", err);
       setError(
         err?.response?.data?.message ||
-        err?.message ||
-        "Failed to create lead. Please check details and try again."
+          err?.message ||
+          "Failed to create lead. Please check details and try again."
       );
     } finally {
       setLoading(false);
@@ -133,288 +155,326 @@ const CreateLeadModal = ({
   return (
     <Modal
       open={open}
-      title="Create Manual Lead"
-      subtitle="Add enquiry from WhatsApp, Referral, Direct Call, or Campus Walk-in."
+      title="Create New Lead"
+      subtitle="Add direct enquiry from WhatsApp, Referral, Call, or Walk-in."
       size="lg"
       onClose={onClose}
       loading={loading}
     >
-      <form onSubmit={handleSubmit} className="space-y-4 py-2">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700 border border-red-200">
-            <AlertCircle size={18} />
+          <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 border border-red-200">
+            <AlertCircle size={15} />
             <span>{error}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 border border-emerald-200">
-            <CheckCircle2 size={18} />
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 border border-emerald-200">
+            <CheckCircle2 size={15} />
             <span>{successMsg}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Full Name */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Student Full Name <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <User size={16} />
-              </div>
-              <input
-                type="text"
-                name="full_name"
-                required
-                placeholder="e.g. Rahul Sharma"
-                value={formData.full_name}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
+        {/* Section 1: Student Contact Details */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <User size={14} className="text-blue-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Student Details
+            </span>
           </div>
-
-          {/* Mobile */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Mobile Number (10 Digits) <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Phone size={16} />
-              </div>
-              <input
-                type="tel"
-                name="mobile"
-                required
-                maxLength={15}
-                placeholder="e.g. 9876543210"
-                value={formData.mobile}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Lead Source */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Enquiry Source <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Share2 size={16} />
-              </div>
-              <select
-                name="source"
-                value={formData.source}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                {SOURCES.map((src) => (
-                  <option key={src.value} value={src.value}>
-                    {src.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Domain / Brand */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Domain / Brand <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Globe size={16} />
-              </div>
-              <select
-                name="domain"
-                value={formData.domain}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                {DOMAINS.map((dom) => (
-                  <option key={dom} value={dom}>
-                    {dom}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Email Address (Optional)
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Mail size={16} />
-              </div>
-              <input
-                type="text"
-                name="email"
-                placeholder="e.g. student@gmail.com or any text"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Alternate Mobile */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Alternate Phone (Optional)
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Phone size={16} />
-              </div>
-              <input
-                type="tel"
-                name="alternate_mobile"
-                placeholder="Parent / Secondary mobile"
-                value={formData.alternate_mobile}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Interested Course */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Interested Course
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Building size={16} />
-              </div>
-              <input
-                type="text"
-                list="popular-courses-list"
-                name="interested_course"
-                placeholder="e.g. Digital Marketing"
-                value={formData.interested_course}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-              <datalist id="popular-courses-list">
-                {POPULAR_COURSES.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-
-          {/* Preferred Centre / Campus */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Campus / Centre
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Building size={16} />
-              </div>
-              <select
-                name="preferred_centre"
-                value={formData.preferred_centre}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="Online">Online Batch</option>
-                <option value="Janakpuri">Janakpuri Campus</option>
-                <option value="Pitampura">Pitampura Campus</option>
-                <option value="Laxmi Nagar">Laxmi Nagar Campus</option>
-                <option value="Noida">Noida Campus</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Priority */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Lead Priority
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <Tag size={16} />
-              </div>
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="HIGH">High Priority 🔥</option>
-                <option value="MEDIUM">Medium Priority</option>
-                <option value="LOW">Low Priority</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Assign To (for Admin) */}
-          {currentUserRole === "ADMIN" && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Full Name */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Assign To Counsellor (Optional)
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Student Full Name <span className="text-red-500">*</span>
               </label>
-              <select
-                name="assigned_to"
-                value={formData.assigned_to}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 px-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">Auto-Assign / Keep Unassigned</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.full_name} ({emp.designation || "Counsellor"})
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <User size={14} />
+                </div>
+                <input
+                  type="text"
+                  name="full_name"
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  value={formData.full_name}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
             </div>
-          )}
+
+            {/* Mobile */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Mobile Number (10 Digits) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Phone size={14} />
+                </div>
+                <input
+                  type="tel"
+                  name="mobile"
+                  required
+                  maxLength={15}
+                  placeholder="e.g. 9876543210"
+                  value={formData.mobile}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Email Address (Optional)
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Mail size={14} />
+                </div>
+                <input
+                  type="text"
+                  name="email"
+                  placeholder="e.g. student@gmail.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Alternate Mobile */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Alternate Phone (Optional)
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Phone size={14} />
+                </div>
+                <input
+                  type="tel"
+                  name="alternate_mobile"
+                  placeholder="Parent / Secondary mobile"
+                  value={formData.alternate_mobile}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Course & Batch Preference */}
+        <div className="pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <Building size={14} className="text-blue-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Course & Batch Preference
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Interested Course */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Interested Course
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Building size={14} />
+                </div>
+                <input
+                  type="text"
+                  list="popular-courses-list"
+                  name="interested_course"
+                  placeholder="e.g. Digital Marketing"
+                  value={formData.interested_course}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <datalist id="popular-courses-list">
+                  {POPULAR_COURSES.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            {/* Preferred Batch */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Preferred Batch
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Clock size={14} />
+                </div>
+                <select
+                  name="preferred_centre"
+                  value={formData.preferred_centre}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  {BATCH_OPTIONS.map((batch) => (
+                    <option key={batch} value={batch}>
+                      {batch}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Domain / Brand */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Domain / Brand <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Globe size={14} />
+                </div>
+                <select
+                  name="domain"
+                  value={formData.domain}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  {DOMAINS.map((dom) => (
+                    <option key={dom} value={dom}>
+                      {dom}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Source, Priority & Assignment */}
+        <div className="pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <Share2 size={14} className="text-blue-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Source & Assignment
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Lead Source */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Enquiry Source <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Share2 size={14} />
+                </div>
+                <select
+                  name="source"
+                  value={formData.source}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  {SOURCES.map((src) => (
+                    <option key={src.value} value={src.value}>
+                      {src.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Priority */}
+            <div>
+              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                Lead Priority
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Tag size={14} />
+                </div>
+                <select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="HIGH">High Priority 🔥</option>
+                  <option value="MEDIUM">Medium Priority</option>
+                  <option value="LOW">Low Priority</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Assign To (for Admin) */}
+            {currentUserRole === "ADMIN" ? (
+              <div>
+                <label className="block text-[12px] font-medium text-slate-700 mb-1">
+                  Assign Counsellor
+                </label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                    <UserCheck size={14} />
+                  </div>
+                  <select
+                    name="assigned_to"
+                    value={formData.assigned_to}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">Auto-Assign / Unassigned</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name} ({emp.designation || "Counsellor"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div className="hidden sm:block" />
+            )}
+          </div>
         </div>
 
         {/* Remarks / Reference Notes */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Reference / Inquiry Remarks
+          <label className="block text-[12px] font-medium text-slate-700 mb-1">
+            Reference / Inquiry Remarks (Optional)
           </label>
           <div className="relative">
-            <div className="pointer-events-none absolute top-3 left-3 text-slate-400">
-              <FileText size={16} />
+            <div className="pointer-events-none absolute top-2 left-2.5 text-slate-400">
+              <FileText size={14} />
             </div>
             <textarea
               name="remarks"
               rows={2}
-              placeholder="e.g. Referred by friend Aman; student inquired on WhatsApp regarding syllabus and fees..."
+              placeholder="e.g. Referred by friend; student inquired regarding weekend batch and fees..."
               value={formData.remarks}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-1.5 text-[13px] font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {loading ? "Saving Lead..." : "Save & Add Lead"}
           </button>

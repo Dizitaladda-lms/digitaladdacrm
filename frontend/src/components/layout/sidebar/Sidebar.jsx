@@ -4,13 +4,15 @@ import SidebarNavigation from "./SidebarNavigation";
 import SidebarFooter from "./SidebarFooter";
 import "./Sidebar.css";
 
-const Sidebar = ({ isOpen = false, onToggle = () => {} }) => {
+const Sidebar = ({ isOpen = false, onToggle = () => {}, onClose = () => {} }) => {
+  const handleClose = onClose || onToggle;
+
   return (
     <>
-      <div className={`sidebar-overlay ${isOpen ? "show" : ""}`} onClick={onToggle} />
+      <div className={`sidebar-overlay ${isOpen ? "show" : ""}`} onClick={handleClose} />
       <aside className={`sidebar ${isOpen ? "open" : ""}`}>
         <div className="sidebar-header">
-          <SidebarHeader />
+          <SidebarHeader onClose={handleClose} />
         </div>
 
         <div className="sidebar-profile">

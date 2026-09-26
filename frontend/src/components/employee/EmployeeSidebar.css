@@ -111,6 +111,9 @@
 
 @media (min-width: 1024px) {
   .employee-sidebar {
+    transform: translateX(-100%);
+  }
+  .employee-sidebar.open {
     transform: translateX(0);
   }
 
