@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { sendBulkBroadcast } from "../../services/communicationService";
+import "./BulkOutreachModal.css";
 
 // Standard Institute Graphic Presets
 const GRAPHIC_PRESETS = [
@@ -269,19 +270,13 @@ const BulkOutreachModal = ({
     const domain = currentLead.domain || "DizitalAdda";
     const counsellor = currentUser.full_name || "Admissions Team";
 
-    let text = (messageText || "")
+    return (messageText || "")
       .replace(/\{\{\s*name\s*\}\}/gi, name)
       .replace(/\{\{\s*course\s*\}\}/gi, course)
       .replace(/\{\{\s*batch\s*\}\}/gi, batch)
       .replace(/\{\{\s*domain\s*\}\}/gi, domain)
       .replace(/\{\{\s*counsellor\s*\}\}/gi, counsellor);
-
-    if (activeChannel === "WHATSAPP" && attachGraphic && graphicUrl.trim()) {
-      text += `\n\n📎 *Graphic Flyer:* ${graphicUrl.trim()}`;
-    }
-
-    return text;
-  }, [messageText, currentLead, currentUser, activeChannel, attachGraphic, graphicUrl]);
+  }, [messageText, currentLead, currentUser]);
 
   // Clean 10-digit mobile
   const getLeadPhone = (lead) => {
@@ -297,7 +292,11 @@ const BulkOutreachModal = ({
     const phone = getLeadPhone(target);
 
     if (activeChannel === "WHATSAPP") {
-      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(renderedBody)}`;
+      let waText = renderedBody;
+      if (attachGraphic && graphicUrl.trim()) {
+        waText += `\n\n📎 Course Flyer: ${graphicUrl.trim()}`;
+      }
+      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waText)}`;
       window.open(waUrl, "_blank");
     } else if (activeChannel === "EMAIL") {
       const email = target.email || "student@gmail.com";
@@ -372,86 +371,69 @@ const BulkOutreachModal = ({
     <Modal
       open={open}
       title="Bulk Student Outreach"
-      subtitle={`Broadcast personalized messages via WhatsApp, Email, or SMS to ${validLeads.length} selected students.`}
+      subtitle={`Personalized WhatsApp, Email, & SMS broadcasts to ${validLeads.length} selected students.`}
       size="2xl"
       onClose={onClose}
     >
-      <div className="space-y-4">
-        {/* Top Channel Navigation Bar */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-2.5">
-          <div className="flex items-center bg-slate-100/90 p-1 rounded-xl gap-1 border border-slate-200/60">
-            {/* WhatsApp */}
+      <div className="outreach-modal-wrapper">
+        {/* 1. TOP CHANNEL SWITCHER */}
+        <div className="outreach-channel-bar">
+          <div className="outreach-channel-pills">
             <button
               type="button"
               onClick={() => handleChannelSwitch("WHATSAPP")}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-                activeChannel === "WHATSAPP"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
+              className={`outreach-channel-btn ${activeChannel === "WHATSAPP" ? "active-whatsapp" : ""}`}
             >
-              <MessageCircle size={15} />
+              <MessageCircle size={16} />
               <span>WhatsApp</span>
             </button>
 
-            {/* Email */}
             <button
               type="button"
               onClick={() => handleChannelSwitch("EMAIL")}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-                activeChannel === "EMAIL"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
+              className={`outreach-channel-btn ${activeChannel === "EMAIL" ? "active-email" : ""}`}
             >
-              <Mail size={15} />
+              <Mail size={16} />
               <span>Email Campaign</span>
             </button>
 
-            {/* SMS */}
             <button
               type="button"
               onClick={() => handleChannelSwitch("SMS")}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-                activeChannel === "SMS"
-                  ? "bg-purple-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
+              className={`outreach-channel-btn ${activeChannel === "SMS" ? "active-sms" : ""}`}
             >
-              <Smartphone size={15} />
+              <Smartphone size={16} />
               <span>SMS Blast</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200/60 px-3 py-1 text-xs font-semibold text-blue-800">
-              <User size={13} className="text-blue-600" />
-              <span><strong>{validLeads.length}</strong> Students Selected</span>
-            </span>
+          <div className="outreach-audience-badge">
+            <User size={14} />
+            <span><strong>{validLeads.length}</strong> Students Selected</span>
           </div>
         </div>
 
-        {/* 2-Columns Layout: Composer (Left 7) & Live Preview (Right 5) */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
-          {/* LEFT: Composer & Configuration */}
-          <div className="space-y-3.5 lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
-            {/* 1. Template Selector (Clean Dropdown) */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[12px] font-bold text-slate-700 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-amber-500" />
+        {/* 2. MAIN 2-COLUMN GRID */}
+        <div className="outreach-grid">
+          {/* LEFT: COMPOSER CARD */}
+          <div className="outreach-composer-card">
+            {/* Template Selector */}
+            <div className="outreach-form-group">
+              <div className="outreach-label-row">
+                <label className="outreach-label">
+                  <Sparkles size={14} style={{ color: "#F59E0B" }} />
                   <span>Choose Template</span>
                 </label>
-                <span className="text-[11px] text-slate-400">Pre-approved outreach templates</span>
+                <span className="outreach-subtext">Pre-approved outreach template</span>
               </div>
-              <div className="relative">
+              <div className="outreach-select-wrapper">
                 <select
                   value={selectedTemplateId}
                   onChange={(e) => {
                     const tmpl = currentTemplates.find((t) => t.id === e.target.value);
                     if (tmpl) handleSelectTemplate(tmpl);
                   }}
-                  className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pr-9 text-[13px] font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer"
+                  className="outreach-select"
                 >
                   {currentTemplates.map((tmpl) => (
                     <option key={tmpl.id} value={tmpl.id}>
@@ -459,44 +441,42 @@ const BulkOutreachModal = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-3.5 text-slate-400" />
+                <ChevronDown size={16} className="outreach-select-icon" />
               </div>
             </div>
 
-            {/* 2. Email Subject Line (Only for Email) */}
+            {/* Email Subject */}
             {activeChannel === "EMAIL" && (
-              <div>
-                <label className="block text-[12px] font-bold text-slate-700 mb-1">
-                  Email Subject
-                </label>
+              <div className="outreach-form-group">
+                <label className="outreach-label">Email Subject Line</label>
                 <input
                   type="text"
                   value={subjectText}
                   onChange={(e) => setSubjectText(e.target.value)}
                   placeholder="e.g. Admissions Open: {{course}} at {{domain}}"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] text-slate-800 font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="outreach-input"
                 />
               </div>
             )}
 
-            {/* 3. Message Body + Dynamic Tag Toolbar */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                <label className="text-[12px] font-bold text-slate-700">
+            {/* Message Body + Dynamic Tags Toolbar */}
+            <div className="outreach-form-group">
+              <div className="outreach-label-row">
+                <label className="outreach-label">
                   {activeChannel === "EMAIL"
                     ? "Email Body"
                     : activeChannel === "SMS"
                     ? "SMS Content"
                     : "WhatsApp Message"}
                 </label>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10.5px] text-slate-400 font-medium mr-1">Insert tag:</span>
+                <div className="outreach-tags-strip">
+                  <span className="outreach-subtext">Add tag:</span>
                   {["name", "course", "batch", "domain", "counsellor"].map((tag) => (
                     <button
                       key={tag}
                       type="button"
                       onClick={() => handleInsertTag(tag)}
-                      className="rounded-md bg-slate-100 hover:bg-blue-100 hover:text-blue-700 border border-slate-200 px-1.5 py-0.5 text-[10.5px] font-mono text-slate-600 transition-colors cursor-pointer"
+                      className="outreach-tag-btn"
                       title={`Insert {{${tag}}}`}
                     >
                       +{tag}
@@ -509,77 +489,77 @@ const BulkOutreachModal = ({
                 rows={activeChannel === "EMAIL" ? 6 : activeChannel === "SMS" ? 4 : 5}
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 p-3 text-[13px] text-slate-800 leading-relaxed font-sans focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                className="outreach-textarea"
                 placeholder="Type your message copy..."
               />
 
               {activeChannel === "SMS" && (
-                <div className="text-right text-[11px] font-mono text-slate-500 mt-1">
-                  {renderedBody.length} / 160 characters ({Math.ceil(renderedBody.length / 160) || 1} SMS unit)
+                <div style={{ textAlign: "right", fontSize: "11.5px", color: "#64748B", fontFamily: "monospace" }}>
+                  {renderedBody.length} / 160 characters ({Math.ceil(renderedBody.length / 160) || 1} SMS part)
                 </div>
               )}
             </div>
 
-            {/* 4. Graphic / Course Flyer Attachment (WhatsApp & Email) */}
+            {/* Graphic Flyer Section (WhatsApp & Email) */}
             {activeChannel !== "SMS" && (
-              <div className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-3 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div className="outreach-graphic-box">
+                <div className="outreach-graphic-header">
+                  <label className="outreach-checkbox-label">
                     <input
                       type="checkbox"
                       checked={attachGraphic}
                       onChange={(e) => setAttachGraphic(e.target.checked)}
-                      className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      className="outreach-checkbox"
                     />
-                    <span className="text-[12px] font-bold text-slate-700 flex items-center gap-1.5">
-                      <Image size={14} className="text-blue-600" />
-                      Attach Course Flyer / Promotional Banner
-                    </span>
+                    <Image size={15} style={{ color: "#2563EB" }} />
+                    <span>Attach Course Flyer / Promotional Banner</span>
                   </label>
 
                   {attachGraphic && (
-                    <span className="text-[10.5px] text-emerald-700 font-bold bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                    <span className="outreach-active-badge">
                       Flyer Active
                     </span>
                   )}
                 </div>
 
                 {attachGraphic && (
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] text-slate-500 font-medium">Flyer Presets:</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div className="outreach-presets-grid">
                       {GRAPHIC_PRESETS.map((preset, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => setGraphicUrl(preset.url)}
-                          className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                            graphicUrl === preset.url
-                              ? "bg-blue-50 border-blue-400 text-blue-800 font-bold shadow-2xs"
-                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-                          }`}
+                          className={`outreach-preset-pill ${graphicUrl === preset.url ? "active" : ""}`}
                         >
                           {preset.label}
                         </button>
                       ))}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="outreach-url-row">
                       <input
                         type="url"
                         value={graphicUrl}
                         onChange={(e) => setGraphicUrl(e.target.value)}
                         placeholder="Image URL (https://...)"
-                        className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="outreach-input"
+                        style={{ fontSize: "12.5px", padding: "7px 10px" }}
                       />
                       {graphicUrl && (
                         <button
                           type="button"
                           onClick={() => setGraphicUrl("")}
-                          className="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "#94a3b8",
+                            cursor: "pointer",
+                            padding: "4px",
+                          }}
                           title="Remove image"
                         >
-                          <X size={15} />
+                          <X size={16} />
                         </button>
                       )}
                     </div>
@@ -588,29 +568,21 @@ const BulkOutreachModal = ({
               </div>
             )}
 
-            {/* 5. Sending Mode Selector */}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[12px] font-bold text-slate-600">Sending Mode:</span>
-              <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
+            {/* Sending Mode Selector */}
+            <div className="outreach-mode-row">
+              <span className="outreach-label">Sending Mode:</span>
+              <div className="outreach-mode-pills">
                 <button
                   type="button"
                   onClick={() => setSendingMode("launcher")}
-                  className={`rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
-                    sendingMode === "launcher"
-                      ? "bg-white text-slate-900 shadow-2xs font-bold"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`outreach-mode-btn ${sendingMode === "launcher" ? "active" : ""}`}
                 >
-                  ⚡ 1-Click Launcher (Direct)
+                  ⚡ 1-Click Direct Launch
                 </button>
                 <button
                   type="button"
                   onClick={() => setSendingMode("api")}
-                  className={`rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
-                    sendingMode === "api"
-                      ? "bg-white text-blue-700 shadow-2xs font-bold"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`outreach-mode-btn ${sendingMode === "api" ? "active" : ""}`}
                 >
                   🚀 Cloud Broadcast
                 </button>
@@ -618,36 +590,36 @@ const BulkOutreachModal = ({
             </div>
           </div>
 
-          {/* RIGHT: Live Simulation Preview */}
-          <div className="space-y-3 lg:col-span-5">
-            {/* Header with Lead Switcher */}
-            <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200/80 px-3.5 py-2 shadow-2xs">
-              <div className="flex items-center gap-1.5">
-                {activeChannel === "WHATSAPP" && <MessageCircle size={15} className="text-emerald-600" />}
-                {activeChannel === "EMAIL" && <Mail size={15} className="text-blue-600" />}
-                {activeChannel === "SMS" && <Smartphone size={15} className="text-purple-600" />}
-                <span className="text-[12px] font-bold text-slate-800">Live Preview</span>
+          {/* RIGHT: LIVE SIMULATION PREVIEW */}
+          <div className="outreach-preview-column">
+            {/* Topbar with Student Navigator */}
+            <div className="outreach-preview-topbar">
+              <div className="outreach-preview-title">
+                {activeChannel === "WHATSAPP" && <MessageCircle size={15} style={{ color: "#10b981" }} />}
+                {activeChannel === "EMAIL" && <Mail size={15} style={{ color: "#2563eb" }} />}
+                {activeChannel === "SMS" && <Smartphone size={15} style={{ color: "#8b5cf6" }} />}
+                <span>Live Preview</span>
               </div>
 
               {validLeads.length > 1 && (
-                <div className="flex items-center gap-1 text-xs text-slate-600">
+                <div className="outreach-preview-nav">
                   <button
                     type="button"
                     disabled={previewIndex === 0}
                     onClick={() => setPreviewIndex((prev) => Math.max(0, prev - 1))}
-                    className="rounded-md border border-slate-200 p-1 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                    className="outreach-nav-btn"
                     title="Previous student"
                   >
                     <ChevronLeft size={13} />
                   </button>
-                  <span className="font-semibold text-slate-700 text-[11.5px] px-1">
+                  <span className="outreach-nav-counter">
                     {previewIndex + 1} of {validLeads.length}
                   </span>
                   <button
                     type="button"
                     disabled={previewIndex >= validLeads.length - 1}
                     onClick={() => setPreviewIndex((prev) => Math.min(validLeads.length - 1, prev + 1))}
-                    className="rounded-md border border-slate-200 p-1 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                    className="outreach-nav-btn"
                     title="Next student"
                   >
                     <ChevronRight size={13} />
@@ -656,145 +628,133 @@ const BulkOutreachModal = ({
               )}
             </div>
 
-            {/* ==================================================== */}
             {/* WHATSAPP MOCKUP */}
-            {/* ==================================================== */}
             {activeChannel === "WHATSAPP" && (
-              <div
-                className="rounded-2xl border border-slate-300/80 shadow-xs overflow-hidden flex flex-col"
-                style={{
-                  backgroundColor: "#EFEAE2",
-                  backgroundImage: "radial-gradient(#CBD5E1 0.75px, transparent 0.75px)",
-                  backgroundSize: "12px 12px",
-                  height: "390px",
-                }}
-              >
-                <div style={{ backgroundColor: "#075E54" }} className="px-3.5 py-2.5 text-white flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center font-bold text-xs">
+              <div className="outreach-phone-frame">
+                <div className="outreach-wa-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div className="outreach-wa-avatar">
                       {currentLead.full_name ? currentLead.full_name.charAt(0).toUpperCase() : "S"}
                     </div>
                     <div>
-                      <h5 className="m-0 text-[12.5px] font-bold leading-tight">{currentLead.full_name || "Student"}</h5>
-                      <p className="m-0 text-[10.5px] text-emerald-100/90">+91 {currentLead.mobile || "9876543210"}</p>
+                      <div style={{ fontSize: "13px", fontWeight: "700", lineHeight: "1.2" }}>
+                        {currentLead.full_name || "Student"}
+                      </div>
+                      <div style={{ fontSize: "10.5px", opacity: 0.85 }}>
+                        +91 {currentLead.mobile || "9876543210"}
+                      </div>
                     </div>
                   </div>
-                  <span className="text-[10.5px] bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200 font-semibold">{currentLead.domain || "DizitalAdda"}</span>
+                  <span style={{ fontSize: "10.5px", background: "rgba(0,0,0,0.2)", padding: "2px 8px", borderRadius: "4px" }}>
+                    {currentLead.domain || "DizitalAdda"}
+                  </span>
                 </div>
 
-                <div className="p-3.5 flex-1 overflow-y-auto flex flex-col justify-end">
-                  <div className="rounded-2xl rounded-tr-none bg-white p-3 shadow-md border border-slate-200 max-w-[94%] ml-auto" style={{ backgroundColor: "#DCF8C6" }}>
+                <div className="outreach-wa-body">
+                  <div className="outreach-wa-bubble">
                     {attachGraphic && graphicUrl.trim() && (
-                      <div className="mb-2 overflow-hidden rounded-xl border border-emerald-200/80">
-                        <img src={graphicUrl} alt="Flyer" className="w-full max-h-32 object-cover" onError={(e) => { e.target.style.display = "none"; }} />
+                      <div className="outreach-wa-banner">
+                        <img
+                          src={graphicUrl}
+                          alt="Flyer"
+                          onError={(e) => { e.target.style.display = "none"; }}
+                        />
                       </div>
                     )}
-                    <div className="text-[12.5px] text-slate-900 whitespace-pre-wrap leading-relaxed">{renderedBody}</div>
-                    <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-slate-500">
+                    <div>{renderedBody}</div>
+                    <div className="outreach-wa-meta">
                       <span>10:30 AM</span>
-                      <span className="text-blue-500 font-bold">✓✓</span>
+                      <span style={{ color: "#3B82F6", fontWeight: "700" }}>✓✓</span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ==================================================== */}
             {/* EMAIL MOCKUP */}
-            {/* ==================================================== */}
             {activeChannel === "EMAIL" && (
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col" style={{ height: "390px" }}>
-                <div className="bg-slate-50/90 border-b border-slate-200/80 px-4 py-3 space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                    <span className="font-semibold text-slate-700">To:</span>
-                    <span className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-800 font-mono text-[10.5px]">
-                      {currentLead.email || "student@gmail.com"}
-                    </span>
+              <div className="outreach-phone-frame" style={{ background: "#ffffff" }}>
+                <div className="outreach-email-header">
+                  <div className="outreach-email-to">
+                    <span>To:</span>
+                    <strong>{currentLead.email || "student@gmail.com"}</strong>
                   </div>
-                  <div className="text-[13px] font-bold text-slate-900 truncate">
+                  <div className="outreach-email-subject">
                     {renderedSubject || "Subject: Admissions Update"}
                   </div>
                 </div>
 
-                <div className="p-4 flex-1 overflow-y-auto text-slate-800 space-y-3">
+                <div className="outreach-email-body">
                   {attachGraphic && graphicUrl.trim() && (
-                    <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
-                      <img src={graphicUrl} alt="Email Banner" className="w-full max-h-32 object-cover" onError={(e) => { e.target.style.display = "none"; }} />
+                    <div className="outreach-wa-banner">
+                      <img
+                        src={graphicUrl}
+                        alt="Flyer Banner"
+                        onError={(e) => { e.target.style.display = "none"; }}
+                      />
                     </div>
                   )}
-                  <div className="text-[12.5px] whitespace-pre-wrap leading-relaxed text-slate-700">
-                    {renderedBody}
-                  </div>
+                  <div>{renderedBody}</div>
                 </div>
               </div>
             )}
 
-            {/* ==================================================== */}
             {/* SMS MOCKUP */}
-            {/* ==================================================== */}
             {activeChannel === "SMS" && (
-              <div
-                className="rounded-2xl border border-slate-300/80 shadow-xs overflow-hidden flex flex-col"
-                style={{
-                  backgroundColor: "#F8FAFC",
-                  height: "390px",
-                }}
-              >
-                <div className="bg-slate-800 text-white px-3.5 py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Smartphone size={16} className="text-purple-400" />
-                    <span className="text-[12.5px] font-bold">{currentLead.full_name || "Student"}</span>
+              <div className="outreach-phone-frame">
+                <div className="outreach-sms-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Smartphone size={16} style={{ color: "#c084fc" }} />
+                    <span style={{ fontSize: "13px", fontWeight: "700" }}>{currentLead.full_name || "Student"}</span>
                   </div>
-                  <span className="text-[10.5px] text-slate-300">+91 {currentLead.mobile || "9876543210"}</span>
+                  <span style={{ fontSize: "11px", opacity: 0.8 }}>+91 {currentLead.mobile || "9876543210"}</span>
                 </div>
 
-                <div className="p-3.5 flex-1 overflow-y-auto flex flex-col justify-end">
-                  <div className="rounded-2xl rounded-tl-none bg-white p-3.5 shadow-xs border border-slate-200 max-w-[90%] space-y-1">
-                    <div className="text-[12.5px] text-slate-900 whitespace-pre-wrap leading-relaxed">
-                      {renderedBody}
+                <div className="outreach-sms-body">
+                  <div className="outreach-sms-bubble">
+                    <div>{renderedBody}</div>
+                    <div style={{ fontSize: "10px", color: "#94a3b8", textAlign: "right", marginTop: "4px" }}>
+                      SMS • Delivered
                     </div>
-                    <div className="text-[9.5px] text-slate-400 text-right">SMS • Delivered</div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Student Chip & Quick Copy Bar */}
-            <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-              <span className="truncate max-w-[200px] text-slate-700">
-                Lead: <strong>{currentLead.full_name}</strong>
+            {/* Preview Footer */}
+            <div className="outreach-preview-footer">
+              <span>
+                Previewing: <strong>{currentLead.full_name}</strong>
               </span>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 text-slate-600 hover:text-blue-600 font-semibold cursor-pointer py-0.5 px-2 rounded-md hover:bg-slate-100 transition-colors"
+                className="outreach-copy-btn"
               >
-                {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                <span>{copied ? "Copied!" : "Copy Content"}</span>
+                {copied ? <Check size={13} style={{ color: "#10b981" }} /> : <Copy size={13} />}
+                <span>{copied ? "Copied!" : "Copy Text"}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="pt-3.5 border-t border-slate-200/80 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-              ✓
-            </span>
+        {/* 3. MODAL FOOTER */}
+        <div className="outreach-modal-footer">
+          <div className="outreach-footer-status">
+            <span className="status-dot" />
             <span><strong>{validLeads.length}</strong> students ready for outreach</span>
             {sentStudentIds.size > 0 && (
-              <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+              <span style={{ color: "#065f46", background: "#d1fae5", padding: "2px 8px", borderRadius: "10px", fontSize: "11.5px", fontWeight: "700" }}>
                 {sentStudentIds.size} sent
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="outreach-footer-actions">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="outreach-btn-cancel"
             >
               Cancel
             </button>
@@ -803,30 +763,30 @@ const BulkOutreachModal = ({
               <button
                 type="button"
                 onClick={() => handleLaunchChannel(currentLead)}
-                className={`inline-flex items-center gap-2 rounded-xl px-5 py-2 text-[13px] font-bold text-white shadow-xs transition-all cursor-pointer ${
+                className={`outreach-btn-primary ${
                   activeChannel === "WHATSAPP"
-                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+                    ? "btn-wa"
                     : activeChannel === "EMAIL"
-                    ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
-                    : "bg-purple-600 hover:bg-purple-700 shadow-purple-200"
+                    ? "btn-email"
+                    : "btn-sms"
                 }`}
               >
-                {activeChannel === "WHATSAPP" && <MessageCircle size={15} />}
-                {activeChannel === "EMAIL" && <Mail size={15} />}
-                {activeChannel === "SMS" && <Smartphone size={15} />}
+                {activeChannel === "WHATSAPP" && <MessageCircle size={16} />}
+                {activeChannel === "EMAIL" && <Mail size={16} />}
+                {activeChannel === "SMS" && <Smartphone size={16} />}
                 <span>
                   Launch {activeChannel === "WHATSAPP" ? "WhatsApp" : activeChannel === "EMAIL" ? "Gmail" : "SMS"} ({previewIndex + 1}/{validLeads.length})
                 </span>
-                <ExternalLink size={13} />
+                <ExternalLink size={14} />
               </button>
             ) : (
               <button
                 type="button"
                 disabled={submitting}
                 onClick={handleApiBroadcast}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-[13px] font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-all cursor-pointer"
+                className="outreach-btn-primary btn-api"
               >
-                <Send size={15} />
+                <Send size={16} />
                 <span>
                   {submitting ? "Broadcasting..." : `Send to All ${validLeads.length} Students`}
                 </span>
