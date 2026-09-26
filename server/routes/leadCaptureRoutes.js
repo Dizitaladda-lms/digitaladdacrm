@@ -144,6 +144,14 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.domain = "DizitalAdda";
     }
 
+    // Force LANDING_PAGE for Nidads or any landing-page url submissions
+    if (req.body.domain === "Nidads" && req.body.source === "WEBSITE") {
+      req.body.source = "LANDING_PAGE";
+    }
+    if (req.body.landing_page_url && req.body.source === "WEBSITE") {
+      req.body.source = "LANDING_PAGE";
+    }
+
     if (!req.body.redirect_url && req.body.redirect) {
       req.body.redirect_url = req.body.redirect;
     }
