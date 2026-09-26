@@ -10,7 +10,11 @@ const Topbar = ({ isSidebarOpen = true, onMenuClick }) => {
         <button
           type="button"
           onClick={onMenuClick}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-colors shadow-2xs"
+          className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all cursor-pointer shadow-xs ${
+            !isSidebarOpen
+              ? "border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 ring-2 ring-blue-100"
+              : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-blue-600"
+          }`}
           title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
