@@ -34,19 +34,24 @@ import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
 
-const localDevelopmentOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://[::1]:5173",
-];
+const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+const vercelOriginRegex = /\.vercel\.app$/i;
+const dizitalAddaOriginRegex = /(^|\.)dizitaladda\.com$/i;
 
-const allowedOrigins = [...new Set([
-  ...(process.env.CLIENT_URL || "")
-    .split(",")
-    .map((origin) => origin.trim().replace(/\/$/, ""))
-    .filter(Boolean),
-  ...localDevelopmentOrigins,
-])];
+const explicitOrigins = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // server-to-server, Postman, curl, same-origin
+  if (localOriginRegex.test(origin)) return true;
+  if (vercelOriginRegex.test(origin)) return true;
+  if (dizitalAddaOriginRegex.test(origin)) return true;
+  if (explicitOrigins.includes(origin.replace(/\/$/, ""))) return true;
+  if (process.env.NODE_ENV !== "production") return true;
+  return false;
+};
 
 /**
  * Environment Validation
@@ -58,41 +63,28 @@ validateEnv();
  */
 app.use(cors((req, callback) => {
   const origin = req.header("Origin");
+  const isAllowed = isOriginAllowed(origin);
 
-  // Always allow public landing pages, forms, and webhooks to submit
-  const isPublicRoute =
+  // Always allow public landing pages, forms, webhooks, and auth endpoints to communicate
+  const isPublicOrAuthRoute =
     req.path?.startsWith("/api/public") ||
+    req.path?.startsWith("/api/auth") ||
     req.url?.startsWith("/api/public") ||
-    req.originalUrl?.startsWith("/api/public");
+    req.url?.startsWith("/api/auth") ||
+    req.originalUrl?.startsWith("/api/public") ||
+    req.originalUrl?.startsWith("/api/auth");
 
-  if (isPublicRoute) {
+  if (isPublicOrAuthRoute || isAllowed) {
     return callback(null, {
-      origin: true,
-      credentials: false,
-      methods: ["GET", "POST", "OPTIONS"],
+      origin: origin || true,
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     });
   }
 
-  if (!origin || (origin && origin.endsWith(".vercel.app")) || process.env.NODE_ENV !== "production") {
-    return callback(null, {
-      origin: true,
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-    });
-  }
-
-  if (allowedOrigins.includes(origin.replace(/\/$/, ""))) {
-    return callback(null, {
-      origin: true,
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-    });
-  }
-
-  return callback(new Error("Origin is not allowed by CORS."));
+  // Gracefully reject unauthorized origins without throwing 500
+  return callback(null, { origin: false });
 }));
 
 app.use(cookieParser());
