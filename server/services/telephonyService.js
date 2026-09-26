@@ -153,6 +153,55 @@ export const initiateClickToCallService = async ({ leadId, employeeId, customCal
       console.error("MyOperator Call Error:", err.message);
       throw new ApiError(502, `MyOperator error: ${err.message}`);
     }
+  } else if (
+    provider === "TWILIO" &&
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN
+  ) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
+
+    // TwiML: Calls counsellor, upon answer connects student with automatic recording
+    const twiml = `
+      <Response>
+        <Say>Connecting to student</Say>
+        <Dial record="record-from-answer" recordingStatusCallback="${webhookUrl}">
+          <Number>+91${leadPhone}</Number>
+        </Dial>
+      </Response>
+    `.trim();
+
+    const formParams = new URLSearchParams();
+    formParams.append("To", `+91${counsellorPhone}`);
+    formParams.append("From", callerId.startsWith("+") ? callerId : `+${callerId}`);
+    formParams.append("Twiml", twiml);
+    formParams.append("StatusCallback", webhookUrl);
+    formParams.append("StatusCallbackEvent", "completed");
+
+    try {
+      const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formParams.toString(),
+      });
+      const data = await response.json();
+      externalResponse = data;
+
+      if (!response.ok || !data?.sid) {
+        throw new Error(data?.message || "Failed to initiate call via Twilio");
+      }
+
+      callSid = data.sid;
+      callStatus = data.status ? data.status.toUpperCase() : "INITIATED";
+    } catch (err) {
+      console.error("Twilio Call Error:", err.message);
+      throw new ApiError(502, `Twilio error: ${err.message}`);
+    }
   } else {
     // DEV_MOCK Mode (Instant out-of-the-box working simulation when credentials are not yet added)
     callSid = `mock_call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -215,8 +264,11 @@ export const processTelephonyWebhookService = async (payload) => {
         0
     ) || 0;
 
-  const recordingUrl =
+  let recordingUrl =
     payload.RecordingUrl || payload.recording_url || payload.recording || payload.audio_url || null;
+  if (recordingUrl && recordingUrl.includes("twilio.com") && !recordingUrl.endsWith(".mp3")) {
+    recordingUrl = `${recordingUrl}.mp3`;
+  }
 
   // Update lead_call_logs
   const updateRes = await pool.query(
