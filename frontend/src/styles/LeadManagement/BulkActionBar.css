@@ -232,3 +232,18 @@ gap:10px;
 .whatsapp-btn:hover{
     background:#15803D;
 }
+
+.email-btn{
+    background:#2563EB;
+    color:#fff;
+}
+.email-btn:hover{
+    background:#1D4ED8;
+}
+.sms-btn{
+    background:#7C3AED;
+    color:#fff;
+}
+.sms-btn:hover{
+    background:#6D28D9;
+}

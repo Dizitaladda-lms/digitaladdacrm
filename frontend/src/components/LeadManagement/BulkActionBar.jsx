@@ -6,11 +6,15 @@ import {
   Trash2,
   X,
   MessageCircle,
+  Mail,
+  Smartphone,
 } from "lucide-react";
 
 const BulkActionBar = ({
   selectedLeads = [],
   onWhatsApp,
+  onEmail,
+  onSMS,
   onAssign,
   onExport,
   onDelete,
@@ -27,7 +31,7 @@ const BulkActionBar = ({
 
         <div>
           <h4>Leads Selected</h4>
-          <p>Choose an action for selected leads.</p>
+          <p>Broadcast messages or assign selected leads.</p>
         </div>
       </div>
 
@@ -38,28 +42,50 @@ const BulkActionBar = ({
             onClick={onWhatsApp}
             title="Send Bulk WhatsApp message with template & graphics"
           >
-            <MessageCircle size={18} />
+            <MessageCircle size={16} />
             Bulk WhatsApp
           </button>
         )}
 
+        {onEmail && (
+          <button
+            className="email-btn"
+            onClick={onEmail}
+            title="Send Bulk Email campaign with templates & graphics"
+          >
+            <Mail size={16} />
+            Bulk Email
+          </button>
+        )}
+
+        {onSMS && (
+          <button
+            className="sms-btn"
+            onClick={onSMS}
+            title="Send Bulk SMS text blast to selected leads"
+          >
+            <Smartphone size={16} />
+            Bulk SMS
+          </button>
+        )}
+
         <button className="assign-btn" onClick={onAssign}>
-          <UserCheck size={18} />
-          Assign Selected
+          <UserCheck size={16} />
+          Assign
         </button>
 
         <button className="export-btn" onClick={onExport}>
-          <Download size={18} />
+          <Download size={16} />
           Export
         </button>
 
         <button className="delete-btn" onClick={onDelete}>
-          <Trash2 size={18} />
+          <Trash2 size={16} />
           Delete
         </button>
 
         <button className="clear-btn" onClick={onClear}>
-          <X size={18} />
+          <X size={16} />
           Clear
         </button>
       </div>

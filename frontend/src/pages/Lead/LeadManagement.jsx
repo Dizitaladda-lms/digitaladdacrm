@@ -26,12 +26,13 @@ import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDet
 import DeleteLeadModal from "../../components/LeadManagement/DeleteLeadModal";
 import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 import ImportLeadsModal from "../../components/LeadManagement/ImportLeadsModal";
-import BulkWhatsAppModal from "../../components/LeadManagement/BulkWhatsAppModal";
+import BulkOutreachModal from "../../components/LeadManagement/BulkOutreachModal";
 import { useAuth } from "../../context/AuthContext";
 import { exportToCsv } from "../../utils/exportCsv";
 const LeadManagement = () => {
   const { user } = useAuth();
-  const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
+  const [outreachModalOpen, setOutreachModalOpen] = useState(false);
+  const [outreachChannel, setOutreachChannel] = useState("WHATSAPP");
 
   /*
   =====================================
@@ -513,7 +514,18 @@ const openAssignModal = () => {
         selectedLeads.length > 0 && (
           <BulkActionBar
             selectedLeads={selectedLeads}
-            onWhatsApp={() => setWhatsAppModalOpen(true)}
+            onWhatsApp={() => {
+              setOutreachChannel("WHATSAPP");
+              setOutreachModalOpen(true);
+            }}
+            onEmail={() => {
+              setOutreachChannel("EMAIL");
+              setOutreachModalOpen(true);
+            }}
+            onSMS={() => {
+              setOutreachChannel("SMS");
+              setOutreachModalOpen(true);
+            }}
             onAssign={openAssignModal}
             onExport={handleBulkExport}
             onDelete={handleBulkDeleteClick}
@@ -585,10 +597,11 @@ const openAssignModal = () => {
   onSuccess={loadLeads}
 />
 
-<BulkWhatsAppModal
-  open={whatsAppModalOpen}
+<BulkOutreachModal
+  open={outreachModalOpen}
+  initialChannel={outreachChannel}
   leads={leads.filter((l) => selectedLeads.includes(l.id))}
-  onClose={() => setWhatsAppModalOpen(false)}
+  onClose={() => setOutreachModalOpen(false)}
   onSuccess={loadLeads}
   currentUser={user}
 />

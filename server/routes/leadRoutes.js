@@ -39,6 +39,7 @@ import {
   getLeadFeedbackHistory,
 } from "../controllers/leadFeedback.controller.js";
 import { handleBulkWhatsAppBroadcast } from "../controllers/whatsappController.js";
+import { handleBulkBroadcast } from "../controllers/communicationController.js";
 
 const router = express.Router();
 
@@ -46,6 +47,12 @@ router.post(
   "/bulk-whatsapp",
   authMiddleware,
   handleBulkWhatsAppBroadcast
+);
+
+router.post(
+  "/bulk-broadcast",
+  authMiddleware,
+  handleBulkBroadcast
 );
 
 /**
