@@ -55,6 +55,12 @@ export const addLeadFeedbackService = async (
     const interestedCourse = isAlreadyEnrolled ? lead.interested_course : (academic_info.interested_course || feedback_fields.interested_course || lead.interested_course);
     const preferredCentre = isAlreadyEnrolled ? lead.preferred_centre : (academic_info.preferred_centre || feedback_fields.preferred_centre || lead.preferred_centre);
 
+    const educationBackground = isAlreadyEnrolled
+      ? lead.education_background
+      : (personal_info.education_background !== undefined
+          ? personal_info.education_background
+          : (feedback_fields.education_background || lead.education_background || null));
+
     // 1. Save Feedback record
     const feedbackRecord = await createLeadFeedbackRepository(client, {
       lead_id: leadId,
@@ -91,9 +97,10 @@ export const addLeadFeedbackService = async (
         priority = $10,
         next_followup = $11,
         feedback = $12,
-        updated_by = $13,
+        education_background = $13,
+        updated_by = $14,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
+      WHERE id = $15
       RETURNING *;
     `;
 
@@ -112,6 +119,7 @@ export const addLeadFeedbackService = async (
       calculatedPriority,
       nextFollowup,
       summaryText,
+      educationBackground,
       currentUser.id,
       leadId,
     ]);

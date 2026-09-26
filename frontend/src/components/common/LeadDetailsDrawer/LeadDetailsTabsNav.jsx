@@ -1,10 +1,10 @@
 import React from "react";
-import { User, GraduationCap, MessageSquareText, History, PhoneCall } from "lucide-react";
+import { User, MessageSquareText, History, PhoneCall } from "lucide-react";
 import "./LeadDetailsDrawer.css";
 
 /**
  * LeadDetailsTabsNav Component
- * 4-Step Guided Counselling Navigation Tabs.
+ * Guided Counselling Navigation Tabs (Personal, Counselling, Calls, Timeline)
  */
 const LeadDetailsTabsNav = ({ activeTab, onTabChange }) => {
   const tabs = [
@@ -12,11 +12,6 @@ const LeadDetailsTabsNav = ({ activeTab, onTabChange }) => {
       id: "personal",
       label: "Personal Contact",
       icon: <User size={16} />,
-    },
-    {
-      id: "academic",
-      label: "Academic Profile",
-      icon: <GraduationCap size={16} />,
     },
     {
       id: "counselling",

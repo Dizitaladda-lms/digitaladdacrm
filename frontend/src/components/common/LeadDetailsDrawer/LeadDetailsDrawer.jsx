@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import LeadSummaryHeader from "./LeadSummaryHeader";
 import LeadDetailsTabsNav from "./LeadDetailsTabsNav";
 import PersonalInformationTab from "./PersonalInformationTab";
-import AcademicInformationTab from "./AcademicInformationTab";
 import CounsellorNotesTab from "./CounsellorNotesTab";
 import AuditTimelineTab from "./AuditTimelineTab";
 import CallRecordingsTab from "./CallRecordingsTab";
@@ -69,9 +68,7 @@ const LeadDetailsDrawer = ({
         mobile: leadData.mobile || "",
         alternate_mobile: leadData.alternate_mobile || "",
         email: leadData.email || "",
-        city: leadData.city || "",
-        state: leadData.state || "Uttar Pradesh",
-        country: leadData.country || "India",
+        education_background: leadData.education_background || "12th Pass / Appearing",
       });
 
       // Hydrate academic info state
@@ -278,18 +275,7 @@ const LeadDetailsDrawer = ({
             />
           )}
 
-          {/* STEP 2: ACADEMIC PROFILE & PREFERENCES */}
-          {activeTab === "academic" && (
-            <AcademicInformationTab
-              formData={academicData}
-              onFormChange={setAcademicData}
-              lead={currentLead}
-              isEditable={isEditable}
-              isLocked={isEnrolled}
-            />
-          )}
-
-          {/* STEP 3: GUIDED COUNSELLING & CONTEXTUAL ACTION ENGINE */}
+          {/* STEP 2: GUIDED COUNSELLING & CONTEXTUAL ACTION ENGINE */}
           {activeTab === "counselling" && (
             <CounsellorNotesTab
               selectedStatus={selectedStatus}

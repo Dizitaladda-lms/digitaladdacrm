@@ -1,11 +1,21 @@
 import React from "react";
-import { User, Phone, Mail, MapPin, Globe, Lock } from "lucide-react";
+import { User, Phone, Mail, GraduationCap, Lock } from "lucide-react";
 import "./LeadDetailsDrawer.css";
+
+const EDUCATION_OPTIONS = [
+  "12th Pass / Appearing",
+  "Pursuing Graduation (BCA / B.Tech / BBA / B.Com / BA)",
+  "Graduate (Completed Degree)",
+  "Postgraduate (MCA / MBA / M.Tech / MA)",
+  "10th Pass",
+  "Diploma Holder",
+  "Working Professional",
+  "Other",
+];
 
 /**
  * PersonalInformationTab Component (Tab 1)
- * Guided Step 1: Personal Contact Information
- * Lock protection for enrolled students.
+ * Guided Step 1: Personal Contact & Educational Background
  */
 const PersonalInformationTab = ({
   formData,
@@ -52,9 +62,9 @@ const PersonalInformationTab = ({
       <div className="crm-card-header">
         <User className="text-blue-600" size={20} />
         <div>
-          <h3 className="crm-card-title">Step 1: Personal Contact Information</h3>
+          <h3 className="crm-card-title">Personal Contact & Education Details</h3>
           <p className="crm-card-subtitle">
-            Contact details, alternate parent mobile, and student location
+            Student identity, contact numbers, and educational background
           </p>
         </div>
       </div>
@@ -136,65 +146,31 @@ const PersonalInformationTab = ({
           </div>
         </div>
 
-        {/* City */}
-        <div className="crm-field">
-          <label className="crm-label">
-            City <span className="crm-required">*</span>
-          </label>
-          <div className="crm-input-wrapper">
-            <MapPin size={16} className="crm-input-icon" />
-            <input
-              type="text"
-              disabled={!canEdit}
-              value={formData.city || ""}
-              onChange={(e) => handleChange("city", e.target.value)}
-              placeholder="Enter city name"
-              className="crm-input has-icon"
-              style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "text" }}
-              required
-            />
-          </div>
-        </div>
-
-        {/* State */}
-        <div className="crm-field">
-          <label className="crm-label">
-            State <span className="crm-required">*</span>
-          </label>
-          <select
-            disabled={!canEdit}
-            value={formData.state || "Uttar Pradesh"}
-            onChange={(e) => handleChange("state", e.target.value)}
-            className="crm-select"
-            style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "pointer" }}
-            required
-          >
-            <option value="">-- Select State --</option>
-            <option value="Uttar Pradesh">Uttar Pradesh</option>
-            <option value="Delhi">Delhi</option>
-            <option value="Haryana">Haryana</option>
-            <option value="Bihar">Bihar</option>
-            <option value="West Bengal">West Bengal</option>
-            <option value="Maharashtra">Maharashtra</option>
-            <option value="Karnataka">Karnataka</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        {/* Country */}
+        {/* Educational Background (Replaced City and Country) */}
         <div className="crm-field" style={{ gridColumn: "span 2" }}>
-          <label className="crm-label">Country</label>
+          <label className="crm-label">
+            Educational Background
+          </label>
           <div className="crm-input-wrapper">
-            <Globe size={16} className="crm-input-icon" />
-            <input
-              type="text"
+            <GraduationCap size={16} className="crm-input-icon" />
+            <select
               disabled={!canEdit}
-              value={formData.country || "India"}
-              onChange={(e) => handleChange("country", e.target.value)}
-              placeholder="India"
-              className="crm-input has-icon"
-              style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "text" }}
-            />
+              value={formData.education_background || "12th Pass / Appearing"}
+              onChange={(e) => handleChange("education_background", e.target.value)}
+              className="crm-select has-icon"
+              style={{
+                backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF",
+                cursor: !canEdit ? "not-allowed" : "pointer",
+                paddingLeft: "36px",
+              }}
+            >
+              <option value="">-- Select Educational Qualification --</option>
+              {EDUCATION_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
