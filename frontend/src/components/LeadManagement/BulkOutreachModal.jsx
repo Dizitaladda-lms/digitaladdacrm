@@ -19,6 +19,7 @@ import {
   Clock,
   Layers,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { sendBulkBroadcast } from "../../services/communicationService";
@@ -370,51 +371,51 @@ const BulkOutreachModal = ({
   return (
     <Modal
       open={open}
-      title="Bulk Omnichannel Outreach"
+      title="Bulk Student Outreach"
       subtitle={`Broadcast personalized messages via WhatsApp, Email, or SMS to ${validLeads.length} selected students.`}
-      size="xl"
+      size="2xl"
       onClose={onClose}
     >
       <div className="space-y-4">
-        {/* Top Channel Switcher Tabs */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
-            {/* WhatsApp Tab */}
+        {/* Top Channel Navigation Bar */}
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-2.5">
+          <div className="flex items-center bg-slate-100/90 p-1 rounded-xl gap-1 border border-slate-200/60">
+            {/* WhatsApp */}
             <button
               type="button"
               onClick={() => handleChannelSwitch("WHATSAPP")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeChannel === "WHATSAPP"
                   ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
               <MessageCircle size={15} />
-              <span>WhatsApp Broadcast</span>
+              <span>WhatsApp</span>
             </button>
 
-            {/* Email Tab */}
+            {/* Email */}
             <button
               type="button"
               onClick={() => handleChannelSwitch("EMAIL")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeChannel === "EMAIL"
                   ? "bg-blue-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
               <Mail size={15} />
               <span>Email Campaign</span>
             </button>
 
-            {/* SMS Tab */}
+            {/* SMS */}
             <button
               type="button"
               onClick={() => handleChannelSwitch("SMS")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeChannel === "SMS"
                   ? "bg-purple-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
               <Smartphone size={15} />
@@ -422,143 +423,139 @@ const BulkOutreachModal = ({
             </button>
           </div>
 
-          <div className="text-xs font-semibold text-slate-500">
-            Target Audience: <strong className="text-slate-800">{validLeads.length} Leads</strong>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200/60 px-3 py-1 text-xs font-semibold text-blue-800">
+              <User size={13} className="text-blue-600" />
+              <span><strong>{validLeads.length}</strong> Students Selected</span>
+            </span>
           </div>
         </div>
 
-        {/* 2-Columns Layout: Composer (Left) & Live Channel Mockup (Right) */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* LEFT: Composer & Templates (7 cols) */}
-          <div className="space-y-3.5 lg:col-span-7">
-            {/* Template Buttons */}
+        {/* 2-Columns Layout: Composer (Left 7) & Live Preview (Right 5) */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
+          {/* LEFT: Composer & Configuration */}
+          <div className="space-y-3.5 lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
+            {/* 1. Template Selector (Clean Dropdown) */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
-                <Sparkles size={13} className="text-blue-600" />
-                <span>Choose {activeChannel} Template</span>
-              </label>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                {currentTemplates.map((tmpl) => {
-                  const isSelected = selectedTemplateId === tmpl.id;
-                  return (
-                    <button
-                      key={tmpl.id}
-                      type="button"
-                      onClick={() => handleSelectTemplate(tmpl)}
-                      className={`rounded-lg p-2 text-left text-xs font-semibold transition-all border ${
-                        isSelected
-                          ? "border-blue-600 bg-blue-50/80 text-blue-900 shadow-2xs"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="truncate">{tmpl.title}</div>
-                    </button>
-                  );
-                })}
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[12px] font-bold text-slate-700 flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-amber-500" />
+                  <span>Choose Template</span>
+                </label>
+                <span className="text-[11px] text-slate-400">Pre-approved outreach templates</span>
+              </div>
+              <div className="relative">
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => {
+                    const tmpl = currentTemplates.find((t) => t.id === e.target.value);
+                    if (tmpl) handleSelectTemplate(tmpl);
+                  }}
+                  className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pr-9 text-[13px] font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer"
+                >
+                  {currentTemplates.map((tmpl) => (
+                    <option key={tmpl.id} value={tmpl.id}>
+                      {tmpl.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-3.5 text-slate-400" />
               </div>
             </div>
 
-            {/* Dynamic Tag Pills */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Insert Dynamic Tag:
-                </span>
-                <span className="text-[11px] text-slate-400">Click pill to append</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {["name", "course", "batch", "domain", "counsellor"].map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => handleInsertTag(tag)}
-                    className="rounded-md bg-slate-100 hover:bg-blue-100 hover:text-blue-700 border border-slate-200 px-2 py-0.5 text-[11px] font-mono text-slate-700 transition-colors"
-                  >
-                    +{`{{${tag}}}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Email Subject Line (Only for EMAIL) */}
+            {/* 2. Email Subject Line (Only for Email) */}
             {activeChannel === "EMAIL" && (
               <div>
-                <label className="block text-[12px] font-semibold text-slate-700 mb-1">
-                  Email Subject Line
+                <label className="block text-[12px] font-bold text-slate-700 mb-1">
+                  Email Subject
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={subjectText}
-                    onChange={(e) => setSubjectText(e.target.value)}
-                    placeholder="Enter email subject line..."
-                    className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-[13px] text-slate-800 font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={subjectText}
+                  onChange={(e) => setSubjectText(e.target.value)}
+                  placeholder="e.g. Admissions Open: {{course}} at {{domain}}"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] text-slate-800 font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                />
               </div>
             )}
 
-            {/* Message Body */}
+            {/* 3. Message Body + Dynamic Tag Toolbar */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-[12px] font-semibold text-slate-700">
+              <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                <label className="text-[12px] font-bold text-slate-700">
                   {activeChannel === "EMAIL"
-                    ? "Email Body Content"
+                    ? "Email Body"
                     : activeChannel === "SMS"
-                    ? "SMS Message Text"
-                    : "WhatsApp Message Text"}
+                    ? "SMS Content"
+                    : "WhatsApp Message"}
                 </label>
-                {activeChannel === "SMS" && (
-                  <span className="text-[11px] font-mono text-slate-500">
-                    {renderedBody.length} / 160 chars ({Math.ceil(renderedBody.length / 160) || 1} SMS)
-                  </span>
-                )}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10.5px] text-slate-400 font-medium mr-1">Insert tag:</span>
+                  {["name", "course", "batch", "domain", "counsellor"].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleInsertTag(tag)}
+                      className="rounded-md bg-slate-100 hover:bg-blue-100 hover:text-blue-700 border border-slate-200 px-1.5 py-0.5 text-[10.5px] font-mono text-slate-600 transition-colors cursor-pointer"
+                      title={`Insert {{${tag}}}`}
+                    >
+                      +{tag}
+                    </button>
+                  ))}
+                </div>
               </div>
+
               <textarea
                 rows={activeChannel === "EMAIL" ? 6 : activeChannel === "SMS" ? 4 : 5}
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 p-2.5 text-[13px] text-slate-800 leading-relaxed font-sans focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-slate-200 p-3 text-[13px] text-slate-800 leading-relaxed font-sans focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
                 placeholder="Type your message copy..."
               />
+
+              {activeChannel === "SMS" && (
+                <div className="text-right text-[11px] font-mono text-slate-500 mt-1">
+                  {renderedBody.length} / 160 characters ({Math.ceil(renderedBody.length / 160) || 1} SMS unit)
+                </div>
+              )}
             </div>
 
-            {/* Graphic / Flyer Attachment Option (WhatsApp & Email) */}
+            {/* 4. Graphic / Course Flyer Attachment (WhatsApp & Email) */}
             {activeChannel !== "SMS" && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+              <div className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={attachGraphic}
                       onChange={(e) => setAttachGraphic(e.target.checked)}
-                      className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
-                    <span className="text-[12px] font-bold text-slate-800 flex items-center gap-1.5">
-                      <Image size={14} className="text-emerald-600" />
-                      Attach Graphic / Course Flyer
+                    <span className="text-[12px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <Image size={14} className="text-blue-600" />
+                      Attach Course Flyer / Promotional Banner
                     </span>
                   </label>
 
                   {attachGraphic && (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
-                      Graphic Attached
+                    <span className="text-[10.5px] text-emerald-700 font-bold bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                      Flyer Active
                     </span>
                   )}
                 </div>
 
                 {attachGraphic && (
-                  <div className="space-y-1.5 pt-0.5">
+                  <div className="space-y-2 pt-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10.5px] text-slate-500 font-medium">Quick Presets:</span>
+                      <span className="text-[11px] text-slate-500 font-medium">Flyer Presets:</span>
                       {GRAPHIC_PRESETS.map((preset, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => setGraphicUrl(preset.url)}
-                          className={`text-[10.5px] px-2 py-0.5 rounded border transition-colors ${
+                          className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
                             graphicUrl === preset.url
-                              ? "bg-emerald-50 border-emerald-400 text-emerald-800 font-semibold"
+                              ? "bg-blue-50 border-blue-400 text-blue-800 font-bold shadow-2xs"
                               : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                           }`}
                         >
@@ -572,14 +569,14 @@ const BulkOutreachModal = ({
                         type="url"
                         value={graphicUrl}
                         onChange={(e) => setGraphicUrl(e.target.value)}
-                        placeholder="Paste image/flyer URL (https://...)"
-                        className="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[12px] text-slate-800 focus:border-blue-500 focus:outline-none"
+                        placeholder="Image URL (https://...)"
+                        className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       {graphicUrl && (
                         <button
                           type="button"
                           onClick={() => setGraphicUrl("")}
-                          className="text-slate-400 hover:text-red-500 p-1"
+                          className="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
                           title="Remove image"
                         >
                           <X size={15} />
@@ -591,103 +588,109 @@ const BulkOutreachModal = ({
               </div>
             )}
 
-            {/* Sending Mode Selector */}
-            <div className="flex items-center gap-3 pt-1">
-              <span className="text-[12px] font-semibold text-slate-600">Sending Mode:</span>
-              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs font-semibold">
+            {/* 5. Sending Mode Selector */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[12px] font-bold text-slate-600">Sending Mode:</span>
+              <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setSendingMode("launcher")}
-                  className={`rounded-md px-3 py-1 transition-colors ${
+                  className={`rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
                     sendingMode === "launcher"
                       ? "bg-white text-slate-900 shadow-2xs font-bold"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  ⚡ 1-Click Launcher (Safe & Direct)
+                  ⚡ 1-Click Launcher (Direct)
                 </button>
                 <button
                   type="button"
                   onClick={() => setSendingMode("api")}
-                  className={`rounded-md px-3 py-1 transition-colors ${
+                  className={`rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
                     sendingMode === "api"
                       ? "bg-white text-blue-700 shadow-2xs font-bold"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  🚀 Cloud Server Broadcast
+                  🚀 Cloud Broadcast
                 </button>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: Live Simulation Preview (5 cols) */}
-          <div className="space-y-2.5 lg:col-span-5">
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          {/* RIGHT: Live Simulation Preview */}
+          <div className="space-y-3 lg:col-span-5">
+            {/* Header with Lead Switcher */}
+            <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200/80 px-3.5 py-2 shadow-2xs">
+              <div className="flex items-center gap-1.5">
                 {activeChannel === "WHATSAPP" && <MessageCircle size={15} className="text-emerald-600" />}
                 {activeChannel === "EMAIL" && <Mail size={15} className="text-blue-600" />}
                 {activeChannel === "SMS" && <Smartphone size={15} className="text-purple-600" />}
-                <span>Live {activeChannel} Preview</span>
-              </span>
+                <span className="text-[12px] font-bold text-slate-800">Live Preview</span>
+              </div>
 
-              {/* Student Preview Pagination */}
               {validLeads.length > 1 && (
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <span>{previewIndex + 1} of {validLeads.length}</span>
+                <div className="flex items-center gap-1 text-xs text-slate-600">
                   <button
                     type="button"
                     disabled={previewIndex === 0}
                     onClick={() => setPreviewIndex((prev) => Math.max(0, prev - 1))}
-                    className="rounded border border-slate-200 p-1 hover:bg-slate-100 disabled:opacity-30"
+                    className="rounded-md border border-slate-200 p-1 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                    title="Previous student"
                   >
-                    <ChevronLeft size={12} />
+                    <ChevronLeft size={13} />
                   </button>
+                  <span className="font-semibold text-slate-700 text-[11.5px] px-1">
+                    {previewIndex + 1} of {validLeads.length}
+                  </span>
                   <button
                     type="button"
                     disabled={previewIndex >= validLeads.length - 1}
                     onClick={() => setPreviewIndex((prev) => Math.min(validLeads.length - 1, prev + 1))}
-                    className="rounded border border-slate-200 p-1 hover:bg-slate-100 disabled:opacity-30"
+                    className="rounded-md border border-slate-200 p-1 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                    title="Next student"
                   >
-                    <ChevronRight size={12} />
+                    <ChevronRight size={13} />
                   </button>
                 </div>
               )}
             </div>
 
             {/* ==================================================== */}
-            {/* 1. WHATSAPP MOCKUP PREVIEW */}
+            {/* WHATSAPP MOCKUP */}
             {/* ==================================================== */}
             {activeChannel === "WHATSAPP" && (
               <div
-                className="rounded-2xl border border-slate-300 shadow-xs overflow-hidden flex flex-col"
+                className="rounded-2xl border border-slate-300/80 shadow-xs overflow-hidden flex flex-col"
                 style={{
                   backgroundColor: "#EFEAE2",
                   backgroundImage: "radial-gradient(#CBD5E1 0.75px, transparent 0.75px)",
                   backgroundSize: "12px 12px",
-                  minHeight: "360px",
+                  height: "390px",
                 }}
               >
-                <div style={{ backgroundColor: "#075E54" }} className="px-3 py-2 text-white flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-emerald-800 flex items-center justify-center font-bold text-xs">DA</div>
+                <div style={{ backgroundColor: "#075E54" }} className="px-3.5 py-2.5 text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center font-bold text-xs">
+                      {currentLead.full_name ? currentLead.full_name.charAt(0).toUpperCase() : "S"}
+                    </div>
                     <div>
-                      <h5 className="margin-0 text-[12.5px] font-bold leading-tight">{currentLead.full_name || "Student"}</h5>
-                      <p className="margin-0 text-[10px] text-emerald-100 opacity-90">+91 {currentLead.mobile || "9876543210"}</p>
+                      <h5 className="m-0 text-[12.5px] font-bold leading-tight">{currentLead.full_name || "Student"}</h5>
+                      <p className="m-0 text-[10.5px] text-emerald-100/90">+91 {currentLead.mobile || "9876543210"}</p>
                     </div>
                   </div>
-                  <span className="text-[10px] bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200 font-semibold">{currentLead.domain || "DizitalAdda"}</span>
+                  <span className="text-[10.5px] bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200 font-semibold">{currentLead.domain || "DizitalAdda"}</span>
                 </div>
 
-                <div className="p-3 flex-1 flex flex-col justify-end">
-                  <div className="rounded-2xl rounded-tr-none bg-white p-2.5 shadow-md border border-slate-200 max-w-[94%] ml-auto" style={{ backgroundColor: "#DCF8C6" }}>
+                <div className="p-3.5 flex-1 overflow-y-auto flex flex-col justify-end">
+                  <div className="rounded-2xl rounded-tr-none bg-white p-3 shadow-md border border-slate-200 max-w-[94%] ml-auto" style={{ backgroundColor: "#DCF8C6" }}>
                     {attachGraphic && graphicUrl.trim() && (
-                      <div className="mb-2 overflow-hidden rounded-xl border border-emerald-200">
+                      <div className="mb-2 overflow-hidden rounded-xl border border-emerald-200/80">
                         <img src={graphicUrl} alt="Flyer" className="w-full max-h-32 object-cover" onError={(e) => { e.target.style.display = "none"; }} />
                       </div>
                     )}
-                    <div className="text-[12px] text-slate-900 whitespace-pre-wrap leading-relaxed">{renderedBody}</div>
-                    <div className="flex items-center justify-end gap-1 mt-1 text-[9.5px] text-slate-500">
+                    <div className="text-[12.5px] text-slate-900 whitespace-pre-wrap leading-relaxed">{renderedBody}</div>
+                    <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-slate-500">
                       <span>10:30 AM</span>
                       <span className="text-blue-500 font-bold">✓✓</span>
                     </div>
@@ -697,12 +700,12 @@ const BulkOutreachModal = ({
             )}
 
             {/* ==================================================== */}
-            {/* 2. EMAIL MOCKUP PREVIEW */}
+            {/* EMAIL MOCKUP */}
             {/* ==================================================== */}
             {activeChannel === "EMAIL" && (
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col" style={{ minHeight: "360px" }}>
-                <div className="bg-slate-100 border-b border-slate-200 px-3.5 py-2.5">
-                  <div className="flex items-center gap-1.5 mb-1 text-[11px] text-slate-500">
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col" style={{ height: "390px" }}>
+                <div className="bg-slate-50/90 border-b border-slate-200/80 px-4 py-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
                     <span className="font-semibold text-slate-700">To:</span>
                     <span className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-800 font-mono text-[10.5px]">
                       {currentLead.email || "student@gmail.com"}
@@ -713,10 +716,10 @@ const BulkOutreachModal = ({
                   </div>
                 </div>
 
-                <div className="p-3.5 flex-1 overflow-y-auto max-h-[300px] text-slate-800 space-y-3">
+                <div className="p-4 flex-1 overflow-y-auto text-slate-800 space-y-3">
                   {attachGraphic && graphicUrl.trim() && (
                     <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
-                      <img src={graphicUrl} alt="Email Banner" className="w-full max-h-36 object-cover" onError={(e) => { e.target.style.display = "none"; }} />
+                      <img src={graphicUrl} alt="Email Banner" className="w-full max-h-32 object-cover" onError={(e) => { e.target.style.display = "none"; }} />
                     </div>
                   )}
                   <div className="text-[12.5px] whitespace-pre-wrap leading-relaxed text-slate-700">
@@ -727,61 +730,61 @@ const BulkOutreachModal = ({
             )}
 
             {/* ==================================================== */}
-            {/* 3. SMS MOCKUP PREVIEW */}
+            {/* SMS MOCKUP */}
             {/* ==================================================== */}
             {activeChannel === "SMS" && (
               <div
-                className="rounded-2xl border border-slate-300 shadow-xs overflow-hidden flex flex-col"
+                className="rounded-2xl border border-slate-300/80 shadow-xs overflow-hidden flex flex-col"
                 style={{
-                  backgroundColor: "#F1F5F9",
-                  minHeight: "360px",
+                  backgroundColor: "#F8FAFC",
+                  height: "390px",
                 }}
               >
-                <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between">
+                <div className="bg-slate-800 text-white px-3.5 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Smartphone size={16} className="text-purple-400" />
-                    <span className="text-[12px] font-bold">{currentLead.full_name || "Student"}</span>
+                    <span className="text-[12.5px] font-bold">{currentLead.full_name || "Student"}</span>
                   </div>
-                  <span className="text-[10px] text-slate-300">+91 {currentLead.mobile || "9876543210"}</span>
+                  <span className="text-[10.5px] text-slate-300">+91 {currentLead.mobile || "9876543210"}</span>
                 </div>
 
-                <div className="p-3 flex-1 flex flex-col justify-end">
-                  <div className="rounded-2xl rounded-tl-none bg-white p-3 shadow-xs border border-slate-200 max-w-[90%] space-y-1">
-                    <div className="text-[12px] text-slate-900 whitespace-pre-wrap leading-relaxed">
+                <div className="p-3.5 flex-1 overflow-y-auto flex flex-col justify-end">
+                  <div className="rounded-2xl rounded-tl-none bg-white p-3.5 shadow-xs border border-slate-200 max-w-[90%] space-y-1">
+                    <div className="text-[12.5px] text-slate-900 whitespace-pre-wrap leading-relaxed">
                       {renderedBody}
                     </div>
-                    <div className="text-[9px] text-slate-400 text-right">SMS • Delivered</div>
+                    <div className="text-[9.5px] text-slate-400 text-right">SMS • Delivered</div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Quick Actions Strip */}
+            {/* Student Chip & Quick Copy Bar */}
             <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-              <span className="truncate max-w-[200px]">
-                Active Lead: <strong>{currentLead.full_name}</strong>
+              <span className="truncate max-w-[200px] text-slate-700">
+                Lead: <strong>{currentLead.full_name}</strong>
               </span>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1 text-slate-600 hover:text-blue-600 font-semibold"
+                className="inline-flex items-center gap-1.5 text-slate-600 hover:text-blue-600 font-semibold cursor-pointer py-0.5 px-2 rounded-md hover:bg-slate-100 transition-colors"
               >
-                {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                <span>{copied ? "Copied!" : "Copy"}</span>
+                {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                <span>{copied ? "Copied!" : "Copy Content"}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Bottom Actions Bar */}
-        <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3">
+        {/* Modal Footer */}
+        <div className="pt-3.5 border-t border-slate-200/80 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-800 font-bold text-[11px]">
-              {validLeads.length}
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
+              ✓
             </span>
-            <span>Target leads ready</span>
+            <span><strong>{validLeads.length}</strong> students ready for outreach</span>
             {sentStudentIds.size > 0 && (
-              <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
                 {sentStudentIds.size} sent
               </span>
             )}
@@ -791,7 +794,7 @@ const BulkOutreachModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -800,12 +803,12 @@ const BulkOutreachModal = ({
               <button
                 type="button"
                 onClick={() => handleLaunchChannel(currentLead)}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-5 py-1.5 text-[13px] font-bold text-white shadow-xs transition-colors ${
+                className={`inline-flex items-center gap-2 rounded-xl px-5 py-2 text-[13px] font-bold text-white shadow-xs transition-all cursor-pointer ${
                   activeChannel === "WHATSAPP"
-                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
                     : activeChannel === "EMAIL"
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-purple-600 hover:bg-purple-700"
+                    ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
+                    : "bg-purple-600 hover:bg-purple-700 shadow-purple-200"
                 }`}
               >
                 {activeChannel === "WHATSAPP" && <MessageCircle size={15} />}
@@ -821,7 +824,7 @@ const BulkOutreachModal = ({
                 type="button"
                 disabled={submitting}
                 onClick={handleApiBroadcast}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-1.5 text-[13px] font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-[13px] font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-all cursor-pointer"
               >
                 <Send size={15} />
                 <span>

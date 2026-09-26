@@ -55,9 +55,11 @@
 }
 
 .modal-xl{
-
     max-width:1000px;
+}
 
+.modal-2xl{
+    max-width:1160px;
 }
 
 .modal-full{
