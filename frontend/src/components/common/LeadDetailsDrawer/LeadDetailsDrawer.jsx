@@ -5,6 +5,7 @@ import PersonalInformationTab from "./PersonalInformationTab";
 import AcademicInformationTab from "./AcademicInformationTab";
 import CounsellorNotesTab from "./CounsellorNotesTab";
 import AuditTimelineTab from "./AuditTimelineTab";
+import CallRecordingsTab from "./CallRecordingsTab";
 import LeadDrawerFooter from "./LeadDrawerFooter";
 import "./LeadDetailsDrawer.css";
 
@@ -253,9 +254,13 @@ const LeadDetailsDrawer = ({
       {/* Spacious 4-Step Guided Counselling Drawer Panel */}
       <aside className="crm-drawer-panel">
         {/* HEADER & QUICK COMMUNICATION BAR */}
-        <LeadSummaryHeader lead={currentLead} onClose={onClose} />
+        <LeadSummaryHeader
+          lead={currentLead}
+          onClose={onClose}
+          onOpenCallTab={() => setActiveTab("calls")}
+        />
 
-        {/* 4-STEP GUIDED TABS NAV BAR */}
+        {/* 5-STEP GUIDED TABS NAV BAR */}
         <LeadDetailsTabsNav
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -298,7 +303,12 @@ const LeadDetailsDrawer = ({
             />
           )}
 
-          {/* STEP 4: FULL AUDIT TIMELINE & INTERNAL NOTES */}
+          {/* STEP 4: CALL RECORDINGS & TELEPHONY */}
+          {activeTab === "calls" && (
+            <CallRecordingsTab lead={currentLead} role={role} />
+          )}
+
+          {/* STEP 5: FULL AUDIT TIMELINE & INTERNAL NOTES */}
           {activeTab === "timeline" && (
             <AuditTimelineTab
               feedbackHistory={feedbackHistory}

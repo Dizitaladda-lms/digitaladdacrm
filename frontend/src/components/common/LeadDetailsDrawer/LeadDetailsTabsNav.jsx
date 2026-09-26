@@ -1,5 +1,5 @@
 import React from "react";
-import { User, GraduationCap, MessageSquareText, History } from "lucide-react";
+import { User, GraduationCap, MessageSquareText, History, PhoneCall } from "lucide-react";
 import "./LeadDetailsDrawer.css";
 
 /**
@@ -22,6 +22,11 @@ const LeadDetailsTabsNav = ({ activeTab, onTabChange }) => {
       id: "counselling",
       label: "Guided Counselling",
       icon: <MessageSquareText size={16} />,
+    },
+    {
+      id: "calls",
+      label: "Call Recordings",
+      icon: <PhoneCall size={16} />,
     },
     {
       id: "timeline",

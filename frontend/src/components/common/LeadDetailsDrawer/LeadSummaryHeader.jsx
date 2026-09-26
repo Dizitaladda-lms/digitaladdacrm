@@ -7,7 +7,7 @@ import "./LeadDetailsDrawer.css";
  * Guided Counselling Header with student avatar, dynamic status, smart priority badge,
  * and 1-click Phone (`tel:`) + WhatsApp (`wa.me`) triggers.
  */
-const LeadSummaryHeader = ({ lead, onClose }) => {
+const LeadSummaryHeader = ({ lead, onClose, onOpenCallTab }) => {
   if (!lead) return null;
 
   const initials = lead.full_name
@@ -77,20 +77,23 @@ const LeadSummaryHeader = ({ lead, onClose }) => {
         {/* Quick Communication Trigger Buttons */}
         {cleanMobile && (
           <>
-            <a
-              href={`tel:${cleanMobile}`}
-              title="Call Student"
+            <button
+              type="button"
+              onClick={onOpenCallTab}
+              title="Call Student with Cloud Recording"
               className="crm-btn-primary"
               style={{
                 height: "36px",
                 padding: "0 12px",
                 fontSize: "12px",
                 backgroundColor: "#16A34A",
+                cursor: "pointer",
+                border: "none",
               }}
             >
               <Phone size={14} />
-              <span>Call</span>
-            </a>
+              <span>Call & Record 🎧</span>
+            </button>
 
             <a
               href={whatsappUrl}

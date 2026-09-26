@@ -24,6 +24,7 @@ import leadRoutingRoutes from "./routes/leadRoutingRoutes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import employeePortalRoutes from "./routes/employeePortal.routes.js";
 import admissionRoutes from "./routes/admissionRoutes.js";
+import telephonyRoutes from "./routes/telephonyRoutes.js";
 
 /* Middlewares */
 import { globalLimiter } from "./middleware/rateLimiter.js";
@@ -73,10 +74,13 @@ app.use(cors((req, callback) => {
   const isPublicOrAuthRoute =
     req.path?.startsWith("/api/public") ||
     req.path?.startsWith("/api/auth") ||
+    req.path?.startsWith("/api/telephony/webhook") ||
     req.url?.startsWith("/api/public") ||
     req.url?.startsWith("/api/auth") ||
+    req.url?.startsWith("/api/telephony/webhook") ||
     req.originalUrl?.startsWith("/api/public") ||
-    req.originalUrl?.startsWith("/api/auth");
+    req.originalUrl?.startsWith("/api/auth") ||
+    req.originalUrl?.startsWith("/api/telephony/webhook");
 
   if (isPublicOrAuthRoute || isAllowed) {
     return callback(null, {
@@ -155,6 +159,7 @@ app.use("/api/lead-sources", leadSourceRoutes);
 app.use("/api/lead-routing", leadRoutingRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admissions", admissionRoutes);
+app.use("/api/telephony", telephonyRoutes);
 
 /**
  * 404 Handler
