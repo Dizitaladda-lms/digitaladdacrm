@@ -7,6 +7,8 @@ import {
   getLeadCallLogsService,
   getAllCallLogsService,
   simulateMockCallCompleteService,
+  getTelephonyDomainsService,
+  updateDomainCallerIdService,
 } from "../services/telephonyService.js";
 
 /**
@@ -100,5 +102,29 @@ export const simulateMockComplete = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, updated, "Call marked completed with sample recording.")
+  );
+});
+
+/**
+ * Get all domains and their configured virtual caller numbers
+ */
+export const getTelephonyDomains = asyncHandler(async (req, res) => {
+  const domains = await getTelephonyDomainsService();
+  return res.status(200).json(
+    new ApiResponse(200, domains, "Domains retrieved successfully.")
+  );
+});
+
+/**
+ * Update domain virtual caller ID (Admin)
+ */
+export const updateDomainCallerId = asyncHandler(async (req, res) => {
+  const { domainId } = req.params;
+  const { caller_id } = req.body;
+
+  const updated = await updateDomainCallerIdService(domainId, caller_id);
+
+  return res.status(200).json(
+    new ApiResponse(200, updated, "Domain caller ID updated successfully.")
   );
 });

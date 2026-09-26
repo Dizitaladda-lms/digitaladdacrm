@@ -36,3 +36,21 @@ export const simulateMockComplete = async (callId, recordingUrl = null) => {
   });
   return response.data;
 };
+
+/**
+ * Fetch all domains with their configured virtual caller numbers
+ */
+export const getTelephonyDomains = async () => {
+  const response = await axiosInstance.get("/telephony/domains");
+  return response.data;
+};
+
+/**
+ * Update domain virtual caller ID (Admin)
+ */
+export const updateDomainCallerId = async (domainId, callerId) => {
+  const response = await axiosInstance.put(`/telephony/domains/${domainId}/caller-id`, {
+    caller_id: callerId,
+  });
+  return response.data;
+};

@@ -127,6 +127,9 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
             <p style={{ margin: 0, fontSize: "13px", color: "#3B82F6", maxWidth: "480px" }}>
               Counsellor aur student ke beech call connect hogi aur poori conversation automatically CRM me record ho jayegi.
             </p>
+            <div style={{ marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#DBEAFE", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", color: "#1E40AF", fontWeight: "600" }}>
+              <span>🏢 Outbound Domain: <strong>{lead?.domain || "DizitalAdda"}</strong> (Uses {lead?.domain || "DizitalAdda"} Virtual Number)</span>
+            </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

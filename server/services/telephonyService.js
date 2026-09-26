@@ -59,7 +59,30 @@ export const initiateClickToCallService = async ({ leadId, employeeId, customCal
   }
 
   const provider = (process.env.TELEPHONY_PROVIDER || "DEV_MOCK").toUpperCase();
-  const callerId = process.env.EXOTEL_CALLER_ID || process.env.TELEPHONY_CALLER_ID || "01140000000";
+
+  // Resolve Domain-Specific Caller ID / Virtual Number
+  let domainCallerId = null;
+  if (lead.domain) {
+    const domainQuery = await pool.query(
+      "SELECT caller_id, virtual_number FROM lead_domains WHERE LOWER(name) = LOWER($1)",
+      [lead.domain]
+    );
+    if (domainQuery.rows.length > 0) {
+      domainCallerId =
+        domainQuery.rows[0].caller_id || domainQuery.rows[0].virtual_number;
+    }
+    if (!domainCallerId) {
+      const envKey = `CALLER_ID_${lead.domain.toUpperCase().replace(/\W/g, "_")}`;
+      domainCallerId = process.env[envKey] || null;
+    }
+  }
+
+  const callerId =
+    domainCallerId ||
+    process.env.EXOTEL_CALLER_ID ||
+    process.env.TELEPHONY_CALLER_ID ||
+    "01140000000";
+
   const webhookUrl =
     process.env.TELEPHONY_WEBHOOK_URL ||
     `${process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, "") : "https://leads.dizitaladda.com"}/api/public/telephony/webhook`;
@@ -347,4 +370,30 @@ export const simulateMockCallCompleteService = async (callId, customRecordingUrl
   }
 
   return res.rows[0] || null;
+};
+
+/**
+ * Update domain caller ID / virtual number
+ */
+export const updateDomainCallerIdService = async (domainId, callerId) => {
+  const { rows } = await pool.query(
+    `
+    UPDATE lead_domains
+    SET caller_id = $1, virtual_number = $1, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $2
+    RETURNING *;
+    `,
+    [callerId ? String(callerId).trim() : null, domainId]
+  );
+  return rows[0] || null;
+};
+
+/**
+ * Get all domains with their configured caller ID
+ */
+export const getTelephonyDomainsService = async () => {
+  const { rows } = await pool.query(
+    "SELECT id, name, caller_id, virtual_number, is_active FROM lead_domains ORDER BY id ASC;"
+  );
+  return rows;
 };

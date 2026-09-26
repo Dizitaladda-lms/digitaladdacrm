@@ -6,6 +6,8 @@ import {
   getLeadCallLogs,
   getAllCallLogs,
   simulateMockComplete,
+  getTelephonyDomains,
+  updateDomainCallerId,
 } from "../controllers/telephonyController.js";
 
 const router = express.Router();
@@ -23,6 +25,10 @@ router.get("/webhook", handleWebhook);
 router.post("/call", authMiddleware, initiateCall);
 router.get("/lead/:leadId", authMiddleware, getLeadCallLogs);
 router.get("/logs", authMiddleware, getAllCallLogs);
+
+// Domain-specific caller ID management
+router.get("/domains", authMiddleware, getTelephonyDomains);
+router.put("/domains/:domainId/caller-id", authMiddleware, updateDomainCallerId);
 
 // Dev / Testing Simulation helper
 router.post("/simulate-complete/:callId", authMiddleware, simulateMockComplete);
