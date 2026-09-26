@@ -12,8 +12,11 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  Edit2,
+  Check,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "../../../context/AuthContext";
 import {
   initiateCall,
   getLeadCallLogs,
@@ -22,11 +25,16 @@ import {
 import "./LeadDetailsDrawer.css";
 
 const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
+  const { user } = useAuth();
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [calling, setCalling] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [activeAudio, setActiveAudio] = useState(null);
+  const [counsellorMobile, setCounsellorMobile] = useState(() => {
+    return localStorage.getItem("counsellor_call_phone") || user?.mobile || "";
+  });
+  const [editingPhone, setEditingPhone] = useState(false);
 
   const fetchCalls = useCallback(async () => {
     if (!lead?.id) return;
@@ -55,7 +63,7 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
 
     try {
       setCalling(true);
-      const res = await initiateCall(lead.id);
+      const res = await initiateCall(lead.id, counsellorMobile ? counsellorMobile.trim() : null);
       if (res?.success) {
         toast.success(res.message || "Call initiated! Your phone will ring shortly.");
         fetchCalls();
@@ -127,8 +135,56 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
             <p style={{ margin: 0, fontSize: "13px", color: "#3B82F6", maxWidth: "480px" }}>
               Counsellor aur student ke beech call connect hogi aur poori conversation automatically CRM me record ho jayegi.
             </p>
-            <div style={{ marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#DBEAFE", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", color: "#1E40AF", fontWeight: "600" }}>
-              <span>🏢 Outbound Domain: <strong>{lead?.domain || "DizitalAdda"}</strong> (Uses {lead?.domain || "DizitalAdda"} Virtual Number)</span>
+            <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#DBEAFE", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", color: "#1E40AF", fontWeight: "600" }}>
+                <span>🏢 Outbound Domain: <strong>{lead?.domain || "DizitalAdda"}</strong></span>
+              </div>
+
+              {/* Counsellor Receiving Mobile Number */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#FEF3C7", border: "1px solid #FDE68A", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", color: "#92400E" }}>
+                <span>📱 Your Phone:</span>
+                {editingPhone ? (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={counsellorMobile}
+                      onChange={(e) => setCounsellorMobile(e.target.value.replace(/\D/g, ""))}
+                      placeholder="10-digit mobile"
+                      style={{
+                        width: "110px",
+                        fontSize: "11px",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        border: "1px solid #D97706",
+                        outline: "none",
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        localStorage.setItem("counsellor_call_phone", counsellorMobile);
+                        setEditingPhone(false);
+                        toast.success("Receiving phone updated!");
+                      }}
+                      style={{ background: "#D97706", color: "#fff", border: "none", borderRadius: "3px", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}
+                    >
+                      <Check size={10} /> Save
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <strong>{counsellorMobile || "Not Set"}</strong>
+                    <button
+                      onClick={() => setEditingPhone(true)}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "#B45309", padding: "0 2px" }}
+                      title="Change phone to receive call"
+                    >
+                      <Edit2 size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

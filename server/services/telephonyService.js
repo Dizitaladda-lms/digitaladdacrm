@@ -35,18 +35,43 @@ export const initiateClickToCallService = async ({ leadId, employeeId, customCal
   }
   const lead = leadRes.rows[0];
 
-  // 2. Fetch Employee / Counsellor
+  // 2. Fetch Employee / Counsellor (support both employees.id and employees.user_id, or users fallback)
+  let employee = null;
   const empRes = await pool.query(
-    "SELECT id, full_name, email, phone, role FROM employees WHERE id = $1 AND is_deleted = FALSE",
+    `SELECT id, user_id, full_name, email, mobile, role 
+     FROM employees 
+     WHERE (id = $1 OR user_id = $1) AND is_deleted = FALSE 
+     ORDER BY id ASC LIMIT 1`,
     [employeeId]
   );
-  if (empRes.rows.length === 0) {
-    throw new ApiError(404, "Employee not found");
+  if (empRes.rows.length > 0) {
+    employee = empRes.rows[0];
+  } else {
+    const userRes = await pool.query(
+      `SELECT id, full_name, email, mobile, role 
+       FROM users 
+       WHERE id = $1 LIMIT 1`,
+      [employeeId]
+    );
+    if (userRes.rows.length > 0) {
+      const u = userRes.rows[0];
+      employee = {
+        id: u.id,
+        user_id: u.id,
+        full_name: u.full_name,
+        email: u.email,
+        mobile: u.mobile || null,
+        role: u.role,
+      };
+    } else {
+      throw new ApiError(404, "Initiating employee or user profile not found");
+    }
   }
-  const employee = empRes.rows[0];
 
   const leadPhone = cleanPhoneNumber(lead.mobile);
-  const counsellorPhone = cleanPhoneNumber(customCallerNumber || employee.phone);
+  const counsellorPhone = cleanPhoneNumber(
+    customCallerNumber || employee.mobile || process.env.COUNSELLOR_DEFAULT_MOBILE
+  );
 
   if (!leadPhone || leadPhone.length !== 10) {
     throw new ApiError(400, "Student has an invalid 10-digit mobile number.");
@@ -54,7 +79,7 @@ export const initiateClickToCallService = async ({ leadId, employeeId, customCal
   if (!counsellorPhone || counsellorPhone.length !== 10) {
     throw new ApiError(
       400,
-      "Counsellor's phone number is missing or invalid. Please update your profile phone number first."
+      "Counsellor mobile number is required to receive the call. Please update your profile with a 10-digit mobile number or enter it before calling."
     );
   }
 
@@ -162,19 +187,30 @@ export const initiateClickToCallService = async ({ leadId, employeeId, customCal
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
 
+    const toE164 = (phone) => {
+      const clean = String(phone || "").replace(/\D/g, "");
+      if (clean.length === 10) return `+91${clean}`;
+      if (clean.length === 12 && clean.startsWith("91")) return `+${clean}`;
+      return clean.startsWith("+") ? clean : `+${clean}`;
+    };
+
+    const twilioTo = toE164(counsellorPhone);
+    const twilioFrom = toE164(callerId);
+    const twilioLead = toE164(leadPhone);
+
     // TwiML: Calls counsellor, upon answer connects student with automatic recording
     const twiml = `
       <Response>
         <Say>Connecting to student</Say>
         <Dial record="record-from-answer" recordingStatusCallback="${webhookUrl}">
-          <Number>+91${leadPhone}</Number>
+          <Number>${twilioLead}</Number>
         </Dial>
       </Response>
     `.trim();
 
     const formParams = new URLSearchParams();
-    formParams.append("To", `+91${counsellorPhone}`);
-    formParams.append("From", callerId.startsWith("+") ? callerId : `+${callerId}`);
+    formParams.append("To", twilioTo);
+    formParams.append("From", twilioFrom);
     formParams.append("Twiml", twiml);
     formParams.append("StatusCallback", webhookUrl);
     formParams.append("StatusCallbackEvent", "completed");
@@ -319,10 +355,11 @@ export const getLeadCallLogsService = async (leadId) => {
     `
     SELECT 
       c.*,
-      e.full_name AS counsellor_name,
-      e.email AS counsellor_email
+      COALESCE(e.full_name, u.full_name, 'Staff') AS counsellor_name,
+      COALESCE(e.email, u.email, '') AS counsellor_email
     FROM lead_call_logs c
     LEFT JOIN employees e ON e.id = c.employee_id
+    LEFT JOIN users u ON u.id = c.employee_id
     WHERE c.lead_id = $1
     ORDER BY c.created_at DESC;
     `,
@@ -364,12 +401,13 @@ export const getAllCallLogsService = async ({ page = 1, limit = 20, employeeId =
   const dataQuery = `
     SELECT 
       c.*,
-      e.full_name AS counsellor_name,
+      COALESCE(e.full_name, u.full_name, 'Staff') AS counsellor_name,
       l.full_name AS lead_name,
       l.domain AS lead_domain,
       l.lead_code
     FROM lead_call_logs c
     LEFT JOIN employees e ON e.id = c.employee_id
+    LEFT JOIN users u ON u.id = c.employee_id
     LEFT JOIN leads l ON l.id = c.lead_id
     ${whereStr}
     ORDER BY c.created_at DESC
