@@ -175,10 +175,10 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
         />
         <Radio size={16} style={{ color: "#15803D", flexShrink: 0 }} />
         <span style={{ fontSize: "13px", fontWeight: "700", color: "#14532D" }}>
-          Call Recording ACTIVE
+          Automatic Recording Enabled
         </span>
         <span style={{ fontSize: "12px", color: "#166534", marginLeft: "4px" }}>
-          — Aapke number se jitni bhi calls hongi, sabki recording automatically save hogi
+          — CRM se initiate har call automatically record hogi; kisi lead ke liye alag se ON karne ki zarurat nahi
         </span>
         <ShieldCheck size={15} style={{ color: "#16A34A", marginLeft: "auto", flexShrink: 0 }} />
       </div>
@@ -202,7 +202,7 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
         <div>
           <strong style={{ display: "block", marginBottom: "4px" }}>Kaise kaam karta hai?</strong>
           1. Apna <strong>receiving phone number</strong> set karein neeche<br />
-          2. <strong>"Start Recorded Call"</strong> click karein<br />
+          2. <strong>"Start Call"</strong> click karein<br />
           3. Pehle <strong>aapka phone ring</strong> karega — utha lo<br />
           4. Phir <strong>student ka phone ring</strong> karega — dono connect ho jayenge<br />
           5. Poori call ki <strong>recording automatic</strong> CRM mein save ho jaayegi
@@ -334,7 +334,7 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
               }}
             >
               <PhoneCall size={17} />
-              <span>{calling ? "Dialing..." : "Start Recorded Call"}</span>
+              <span>{calling ? "Dialing..." : "Start Call"}</span>
             </button>
 
             <button
@@ -406,7 +406,7 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
               Abhi Tak Koi Call Nahi
             </h5>
             <p style={{ margin: 0, fontSize: "12px", color: "#64748B" }}>
-              Upar <strong>"Start Recorded Call"</strong> click karein — pehli call initiate karein.
+              Upar <strong>"Start Call"</strong> click karein — recording automatic hogi.
             </p>
           </div>
         ) : (

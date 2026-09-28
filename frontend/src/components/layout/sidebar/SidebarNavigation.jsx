@@ -3,8 +3,6 @@ import {
   Megaphone,
   UsersRound,
   BriefcaseBusiness,
-  PhoneCall,
-  GraduationCap,
   KeyRound,
   LogOut,
   Radio,
@@ -30,16 +28,6 @@ const menuItems = [
     title: "Lead Management",
     icon: UsersRound,
     path: "/leads",
-  },
-  {
-    title: "Follow-ups",
-    icon: PhoneCall,
-    path: "/followups",
-  },
-  {
-    title: "Admissions & Fees",
-    icon: GraduationCap,
-    path: "/admissions",
   },
   {
     title: "Employees",

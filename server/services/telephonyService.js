@@ -22,6 +22,30 @@ export const formatDuration = (seconds) => {
   return `${m}m ${s}s`;
 };
 
+const assertCounsellorCanAccessLead = async (leadId, requester) => {
+  if (String(requester?.role).toUpperCase() === "ADMIN") return;
+  if (String(requester?.role).toUpperCase() !== "COUNSELLOR") {
+    throw new ApiError(403, "You are not authorized to access call recordings.");
+  }
+
+  const employeeResult = await pool.query(
+    "SELECT id FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1",
+    [requester.id]
+  );
+  const employeeId = employeeResult.rows[0]?.id;
+  if (!employeeId) {
+    throw new ApiError(403, "No employee profile is linked to this account.");
+  }
+
+  const leadResult = await pool.query(
+    "SELECT id FROM leads WHERE id = $1 AND assigned_to = $2 AND is_deleted = FALSE",
+    [leadId, employeeId]
+  );
+  if (!leadResult.rows[0]) {
+    throw new ApiError(403, "You can only access recordings for your assigned leads.");
+  }
+};
+
 /**
  * Verify Twilio's signed webhook before any call record is changed.
  * TELEPHONY_WEBHOOK_URL must be the exact public URL configured in Twilio.
@@ -380,15 +404,16 @@ export const processTelephonyWebhookService = async (payload) => {
  * Read a recording only after the caller has passed CRM authentication.
  * Recording URLs are never returned as a public CRM URL.
  */
-export const getCallRecordingStreamService = async (callId) => {
+export const getCallRecordingStreamService = async (callId, requester) => {
   const { rows } = await pool.query(
-    "SELECT provider, recording_url FROM lead_call_logs WHERE id = $1",
+    "SELECT lead_id, provider, recording_url FROM lead_call_logs WHERE id = $1",
     [callId]
   );
   const call = rows[0];
   if (!call?.recording_url) {
     throw new ApiError(404, "Recording is not available for this call.");
   }
+  await assertCounsellorCanAccessLead(call.lead_id, requester);
 
   let recordingUrl;
   try {
@@ -431,7 +456,8 @@ export const getCallRecordingStreamService = async (callId) => {
 /**
  * Get call logs and recordings for a lead
  */
-export const getLeadCallLogsService = async (leadId) => {
+export const getLeadCallLogsService = async (leadId, requester) => {
+  await assertCounsellorCanAccessLead(leadId, requester);
   const { rows } = await pool.query(
     `
     SELECT 

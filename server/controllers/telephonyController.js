@@ -72,9 +72,9 @@ export const handleWebhook = asyncHandler(async (req, res) => {
   });
 });
 
-/** Admin-only authenticated recording stream. */
+/** Authenticated recording stream. Counsellors are limited to assigned leads. */
 export const streamCallRecording = asyncHandler(async (req, res) => {
-  const recording = await getCallRecordingStreamService(req.params.callId);
+  const recording = await getCallRecordingStreamService(req.params.callId, req.user);
   res.setHeader("Content-Type", recording.contentType);
   res.setHeader("Content-Disposition", "inline");
   if (recording.contentLength) res.setHeader("Content-Length", recording.contentLength);
@@ -91,7 +91,7 @@ export const getLeadCallLogs = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Lead ID parameter is required.");
   }
 
-  const calls = await getLeadCallLogsService(leadId);
+  const calls = await getLeadCallLogsService(leadId, req.user);
 
   return res.status(200).json(
     new ApiResponse(200, calls, "Lead call logs retrieved successfully.")

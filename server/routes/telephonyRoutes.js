@@ -50,7 +50,7 @@ router.get("/logs", authMiddleware, roleMiddleware(ROLES.ADMIN), getAllCallLogs)
 router.get(
   "/recordings/:callId",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
   streamCallRecording
 );
 

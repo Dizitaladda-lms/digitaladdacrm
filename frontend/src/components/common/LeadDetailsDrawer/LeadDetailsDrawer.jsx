@@ -27,8 +27,8 @@ const LeadDetailsDrawer = ({
 }) => {
   const isCounsellor = role === "counsellor" || role === "employee";
   const isEditable = isCounsellor;
-  // This shared drawer serves both portals, but recordings are admin-only.
-  const canAccessCallRecordings = String(role).toLowerCase() === "admin";
+  // Recording is globally enabled; counsellors can access only their assigned leads.
+  const canAccessCallRecordings = ["admin", "counsellor"].includes(String(role).toLowerCase());
 
   const [loading, setLoading] = useState(false);
   const [leadDetails, setLeadDetails] = useState(null);
