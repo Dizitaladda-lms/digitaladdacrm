@@ -27,6 +27,8 @@ const LeadDetailsDrawer = ({
 }) => {
   const isCounsellor = role === "counsellor" || role === "employee";
   const isEditable = isCounsellor;
+  // This shared drawer serves both portals, but recordings are admin-only.
+  const canAccessCallRecordings = String(role).toLowerCase() === "admin";
 
   const [loading, setLoading] = useState(false);
   const [leadDetails, setLeadDetails] = useState(null);
@@ -266,12 +268,14 @@ const LeadDetailsDrawer = ({
           lead={currentLead}
           onClose={onClose}
           onOpenCallTab={() => setActiveTab("calls")}
+          canAccessCallRecordings={canAccessCallRecordings}
         />
 
         {/* 5-STEP GUIDED TABS NAV BAR */}
         <LeadDetailsTabsNav
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          canAccessCallRecordings={canAccessCallRecordings}
         />
 
         {/* INDEPENDENT SCROLLING TAB CONTENT AREA */}
@@ -301,7 +305,7 @@ const LeadDetailsDrawer = ({
           )}
 
           {/* STEP 4: CALL RECORDINGS & TELEPHONY */}
-          {activeTab === "calls" && (
+          {canAccessCallRecordings && activeTab === "calls" && (
             <CallRecordingsTab lead={currentLead} role={role} />
           )}
 

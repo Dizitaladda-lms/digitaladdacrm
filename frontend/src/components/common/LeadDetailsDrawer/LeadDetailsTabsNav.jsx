@@ -6,7 +6,7 @@ import "./LeadDetailsDrawer.css";
  * LeadDetailsTabsNav Component
  * Guided Counselling Navigation Tabs (Personal, Counselling, Calls, Timeline)
  */
-const LeadDetailsTabsNav = ({ activeTab, onTabChange }) => {
+const LeadDetailsTabsNav = ({ activeTab, onTabChange, canAccessCallRecordings = false }) => {
   const tabs = [
     {
       id: "personal",
@@ -18,11 +18,11 @@ const LeadDetailsTabsNav = ({ activeTab, onTabChange }) => {
       label: "Guided Counselling",
       icon: <MessageSquareText size={16} />,
     },
-    {
+    ...(canAccessCallRecordings ? [{
       id: "calls",
       label: "Call Recordings",
       icon: <PhoneCall size={16} />,
-    },
+    }] : []),
     {
       id: "timeline",
       label: "Audit Timeline & Notes",

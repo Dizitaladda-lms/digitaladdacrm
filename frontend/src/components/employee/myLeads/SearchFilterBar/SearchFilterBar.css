@@ -82,6 +82,11 @@
 
 }
 
+@media(max-width:576px){
+    .search-filter-bar { padding: 14px; gap: 10px; }
+    .search-box, .search-filter-bar select { min-width: 100%; width: 100%; }
+}
+
 .search-filter-bar select{
 
     flex:1;

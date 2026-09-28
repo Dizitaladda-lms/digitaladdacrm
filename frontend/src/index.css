@@ -13,6 +13,17 @@ body,
   height:100%;
 }
 
+html { -webkit-text-size-adjust: 100%; }
+
+body { overflow-x: hidden; }
+
+img, svg, video, canvas { max-width: 100%; }
+
+button, input, select, textarea { font: inherit; }
+
+/* Prevent narrow screens from creating a page-wide horizontal scroll. */
+#root, main, [class$="-page"], [class$="-container"] { min-width: 0; }
+
 body{
   font-family: Inter, sans-serif;
   background:#F8FAFC;

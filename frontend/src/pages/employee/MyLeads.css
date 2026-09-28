@@ -97,6 +97,12 @@
 
 }
 
+@media(max-width:576px){
+    .my-leads-page { gap: 16px; }
+    .my-leads-header, .filter-section, .table-section { padding: 16px; border-radius: 12px; }
+    .my-leads-header h1 { font-size: 24px; }
+}
+
 .add-followup-btn{
 
     width:100%;

@@ -21,7 +21,7 @@ const STATUS_LABELS = {
  * Guided Counselling Header with student avatar, dynamic status, smart priority badge,
  * and 1-click Phone (`tel:`) + WhatsApp (`wa.me`) triggers.
  */
-const LeadSummaryHeader = ({ lead, onClose, onOpenCallTab }) => {
+const LeadSummaryHeader = ({ lead, onClose, onOpenCallTab, canAccessCallRecordings = false }) => {
   if (!lead) return null;
 
   const initials = lead.full_name
@@ -91,7 +91,7 @@ const LeadSummaryHeader = ({ lead, onClose, onOpenCallTab }) => {
         {/* Quick Communication Trigger Buttons */}
         {cleanMobile && (
           <>
-            <button
+            {canAccessCallRecordings && <button
               type="button"
               onClick={onOpenCallTab}
               title="Call Student with Cloud Recording"
@@ -107,7 +107,7 @@ const LeadSummaryHeader = ({ lead, onClose, onOpenCallTab }) => {
             >
               <Phone size={14} />
               <span>Call & Record 🎧</span>
-            </button>
+            </button>}
 
             <a
               href={whatsappUrl}
