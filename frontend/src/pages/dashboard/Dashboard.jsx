@@ -5,7 +5,6 @@ import "./Dashboard.css";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import StatsGrid from "../../components/dashboard/StatsGrid";
 import RecentLeads from "../../components/dashboard/RecentLeads";
-import RecentActivity from "../../components/dashboard/RecentActivity";
 import TodayFollowups from "../../components/dashboard/TodayFollowups";
 
 import DashboardSkeleton from "../../components/Skeleton/DashboardSkeleton";
@@ -197,14 +196,6 @@ const Dashboard = () => {
           loading={loading}
 
           leads={dashboard.recentLeads}
-
-        />
-
-        <RecentActivity
-
-          loading={loading}
-
-          activities={dashboard.recentActivities}
 
         />
 
