@@ -7,6 +7,7 @@ import {
   GraduationCap,
   KeyRound,
   LogOut,
+  Radio,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -45,89 +46,68 @@ const menuItems = [
     icon: BriefcaseBusiness,
     path: "/employees",
   },
+  {
+    title: "Call Recording",
+    icon: Radio,
+    path: "/telephony",
+  },
 ];
 
-const SidebarNavigation = () => {
- const navigate = useNavigate();
+const SidebarNavigation = ({ onClose }) => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
-const { logout } = useAuth();
+  const handleNavClick = () => {
+    if (typeof window !== "undefined" && window.innerWidth <= 768 && onClose) {
+      onClose();
+    }
+  };
 
-
-const handleLogout = () => {
-
+  const handleLogout = () => {
     logout();
-
-    navigate("/", {
-  replace: true,
-});
-
-};
+    navigate("/", { replace: true });
+  };
 
   return (
-
     <>
-
       <p className="menu-title">
-
         MAIN MENU
-
       </p>
 
-      {
+      {menuItems.map((item) => {
+        const Icon = item.icon;
 
-        menuItems.map((item) => {
-
-          const Icon = item.icon;
-
-          return (
-
-            <NavLink
-
-              key={item.title}
-
-              to={item.path}
-
-              className={({ isActive }) =>
-
-                `sidebar-item ${isActive ? "active" : ""}`
-
-              }
-
-            >
-
-              <Icon size={20} />
-
-              <span>
-
-                {item.title}
-
-              </span>
-
-            </NavLink>
-
-          );
-
-        })
-
-      }
+        return (
+          <NavLink
+            key={item.title}
+            to={item.path}
+            onClick={handleNavClick}
+            className={({ isActive }) =>
+              `sidebar-item ${isActive ? "active" : ""}`
+            }
+          >
+            <Icon size={20} />
+            <span>{item.title}</span>
+          </NavLink>
+        );
+      })}
 
       <div className="sidebar-divider" />
 
       <p className="menu-title">
-
         ACCOUNT
-
       </p>
 
       <NavLink
-  to="/change-password"
-  className={({ isActive }) =>
-    `sidebar-item ${isActive ? "active" : ""}`
-  }
->
-  <KeyRound size={20} />
-  <span>Change Password</span>
-</NavLink>
+        to="/change-password"
+        onClick={handleNavClick}
+        className={({ isActive }) =>
+          `sidebar-item ${isActive ? "active" : ""}`
+        }
+      >
+        <KeyRound size={20} />
+        <span>Change Password</span>
+      </NavLink>
 
       <button
 

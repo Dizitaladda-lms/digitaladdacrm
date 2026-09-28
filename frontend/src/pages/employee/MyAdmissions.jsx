@@ -195,9 +195,9 @@ const MyAdmissions = () => {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "16px",
-          marginBottom: "24px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: "12px",
+          marginBottom: "20px",
         }}
       >
         <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
@@ -334,8 +334,18 @@ const MyAdmissions = () => {
         </div>
 
         {/* Filter Tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <Filter size={16} style={{ color: "#64748B", marginRight: "4px" }} />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            overflowX: "auto",
+            flexWrap: "nowrap",
+            paddingBottom: "4px",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          <Filter size={16} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
           {["All", "Pending Fee Dues", "Fully Paid"].map((tab) => (
             <button
               key={tab}
@@ -351,6 +361,8 @@ const MyAdmissions = () => {
                 backgroundColor: activeTab === tab ? "#2563EB" : "#FFFFFF",
                 color: activeTab === tab ? "#FFFFFF" : "#64748B",
                 transition: "all 0.2s ease",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
             >
               {tab}
@@ -381,7 +393,7 @@ const MyAdmissions = () => {
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+            <table style={{ width: "100%", minWidth: "850px", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #E2E8F0", fontSize: "12px", color: "#64748B", textTransform: "uppercase" }}>
                   <th style={{ padding: "14px 16px" }}>Student & Code</th>

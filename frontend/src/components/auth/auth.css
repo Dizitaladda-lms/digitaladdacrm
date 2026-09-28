@@ -443,7 +443,30 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .auth-shell {
+    padding: 16px;
+    background: #f8fbff;
+  }
+
+  .auth-panel {
+    min-height: auto;
+    width: 100%;
+    max-width: 440px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  .auth-banner {
+    display: none;
+  }
+
+  .auth-card {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 480px) {
   .auth-shell {
     padding: 0;
     background: white;
@@ -453,14 +476,14 @@
     min-height: 100vh;
     border-radius: 0;
     box-shadow: none;
-  }
-
-  .auth-banner {
-    padding: 24px 20px 20px;
+    border: none;
   }
 
   .auth-card {
-    padding: 24px 18px 28px;
+    padding: 40px 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
   }
-
 }

@@ -56,6 +56,12 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     navigate("/", { replace: true });
   };
 
+  const handleNavClick = () => {
+    if (typeof window !== "undefined" && window.innerWidth <= 992) {
+      onToggle();
+    }
+  };
+
   return (
     <>
       <div
@@ -91,7 +97,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
                 className={({ isActive }) =>
                   isActive ? "sidebar-link active" : "sidebar-link"
                 }
-                onClick={onToggle}
+                onClick={handleNavClick}
               >
                 <Icon size={20} />
                 <span>{item.title}</span>

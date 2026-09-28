@@ -15,25 +15,58 @@ import {
 const router = express.Router();
 
 /**
- * Public Webhook Endpoint (Receives status & recording callback from Exotel / MyOperator)
+ * Public Webhook Endpoint (Receives status & recording callback from Exotel / MyOperator / Twilio)
  * POST /api/telephony/webhook
  */
 router.post("/webhook", handleWebhook);
 router.get("/webhook", handleWebhook);
 
 /**
- * Protected routes (Counsellors & Admins)
+ * Click-To-Call — Both Admin & Counsellor can initiate calls
  */
-// Call audio and provider controls are confidential; protect the API as well as the UI.
-router.post("/call", authMiddleware, roleMiddleware(ROLES.ADMIN), initiateCall);
-router.get("/lead/:leadId", authMiddleware, roleMiddleware(ROLES.ADMIN), getLeadCallLogs);
+router.post(
+  "/call",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  initiateCall
+);
+
+/**
+ * Get call logs for a specific lead — Both Admin & Counsellor
+ * Counsellor can only see calls for leads assigned to them (enforced in controller)
+ */
+router.get(
+  "/lead/:leadId",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  getLeadCallLogs
+);
+
+/**
+ * Admin only: all call logs report
+ */
 router.get("/logs", authMiddleware, roleMiddleware(ROLES.ADMIN), getAllCallLogs);
 
-// Domain-specific caller ID management
+/**
+ * Domain-specific caller ID / virtual number management (Admin only)
+ */
 router.get("/domains", authMiddleware, roleMiddleware(ROLES.ADMIN), getTelephonyDomains);
-router.put("/domains/:domainId/caller-id", authMiddleware, roleMiddleware(ROLES.ADMIN), updateDomainCallerId);
+router.put(
+  "/domains/:domainId/caller-id",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  updateDomainCallerId
+);
 
-// Dev / Testing Simulation helper
-router.post("/simulate-complete/:callId", authMiddleware, roleMiddleware(ROLES.ADMIN), simulateMockComplete);
+/**
+ * Dev / Testing: Simulate a completed call with sample recording
+ * Available to both roles so counsellors can test in DEV mode
+ */
+router.post(
+  "/simulate-complete/:callId",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  simulateMockComplete
+);
 
 export default router;

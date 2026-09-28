@@ -203,13 +203,31 @@ textarea{
 }
 
 @media(max-width:900px){
-
-.form-grid{
-
-grid-template-columns:1fr;
-
+  .form-grid{
+    grid-template-columns:1fr;
+  }
 }
 
+@media(max-width:640px){
+  .campaign-form-page{
+    padding:16px;
+  }
+  .campaign-card{
+    padding:18px 16px;
+    border-radius:12px;
+  }
+  .campaign-header h1{
+    font-size:24px;
+  }
+  .campaign-footer{
+    flex-direction:column-reverse;
+    gap:10px;
+  }
+  .btn-primary,
+  .btn-secondary{
+    width:100%;
+    text-align:center;
+  }
 }
 
 .error{

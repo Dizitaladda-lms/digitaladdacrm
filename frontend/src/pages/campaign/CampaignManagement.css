@@ -527,47 +527,56 @@
 }
 
 @media(max-width:768px){
+    .campaign-page{
+        padding:15px;
+        gap:16px;
+    }
 
-.campaign-page{
+    .campaign-header{
+        flex-direction:column;
+        align-items:stretch;
+        gap:16px;
+        padding:18px;
+    }
 
-    padding:15px;
+    .add-campaign-btn{
+        width:100%;
+        justify-content:center;
+    }
 
+    .campaign-stats{
+        grid-template-columns:repeat(2, 1fr);
+        gap:12px;
+    }
+
+    .stat-card{
+        padding:14px 16px;
+        border-radius:14px;
+    }
+
+    .stat-card h2{
+        font-size:24px;
+        margin-top:6px;
+    }
+
+    .campaign-filter{
+        flex-direction:column;
+        padding:16px;
+    }
+
+    .campaign-filter input,
+    .campaign-filter select{
+        width:100%;
+        min-width:0;
+    }
+
+    .campaign-table{
+        overflow-x:auto;
+    }
 }
 
-.campaign-header{
-
-    flex-direction:column;
-
-    align-items:flex-start;
-
-    gap:20px;
-
-}
-
-.campaign-stats{
-
-    grid-template-columns:1fr;
-
-}
-
-.campaign-filter{
-
-    flex-direction:column;
-
-}
-
-.campaign-filter input,
-
-.campaign-filter select{
-
-    width:100%;
-
-}
-
-.campaign-table{
-
-    overflow-x:auto;
-
-}
-
+@media(max-width:380px){
+    .campaign-stats{
+        grid-template-columns:1fr;
+    }
 }

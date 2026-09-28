@@ -16,6 +16,7 @@ import Employees from "../pages/admin/Employees";
 // Lazy-loaded so they share the same chunk as EmployeeRoutes (no INEFFECTIVE_DYNAMIC_IMPORT warning)
 const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
 const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
+const TelephonySettings = lazy(() => import("../pages/admin/TelephonySettings"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -80,6 +81,15 @@ const AppRoutes = () => {
             <Route path="/reports" element={<AdminWorkspace page="reports" />} />
 
             <Route path="/settings" element={<AdminSettings />} />
+
+            <Route
+              path="/telephony"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <TelephonySettings />
+                </Suspense>
+              }
+            />
 
             <Route path="/campaigns/new" element={<CampaignForm />} />
 

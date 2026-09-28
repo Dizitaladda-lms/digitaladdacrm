@@ -20,7 +20,7 @@ const Sidebar = ({ isOpen = false, onToggle = () => {}, onClose = () => {} }) =>
         </div>
 
         <div className="sidebar-nav">
-          <SidebarNavigation />
+          <SidebarNavigation onClose={handleClose} />
         </div>
 
         <SidebarFooter />

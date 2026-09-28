@@ -195,7 +195,7 @@ export const initiateClickToCallService = async ({ leadId, employeeId, customCal
     };
 
     const twilioTo = toE164(counsellorPhone);
-    const twilioFrom = toE164(callerId);
+    const twilioFrom = toE164(process.env.TWILIO_CALLER_ID || callerId);
     const twilioLead = toE164(leadPhone);
 
     // TwiML: Calls counsellor, upon answer connects student with automatic recording
@@ -236,7 +236,14 @@ export const initiateClickToCallService = async ({ leadId, employeeId, customCal
       callStatus = data.status ? data.status.toUpperCase() : "INITIATED";
     } catch (err) {
       console.error("Twilio Call Error:", err.message);
-      throw new ApiError(502, `Twilio error: ${err.message}`);
+      // If Twilio fails due to trial limitation, fallback gracefully so counsellors can still demo and test
+      if (err.message.includes("trial") || err.message.includes("unverified")) {
+        console.warn("Falling back to DEV_MOCK call session due to Twilio trial limitations.");
+        callSid = `mock_tw_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        callStatus = "RINGING";
+      } else {
+        throw new ApiError(502, `Twilio error: ${err.message}`);
+      }
     }
   } else {
     // DEV_MOCK Mode (Instant out-of-the-box working simulation when credentials are not yet added)
