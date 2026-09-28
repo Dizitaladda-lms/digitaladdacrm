@@ -81,35 +81,60 @@ const MyFollowups = () => {
     };
   }, [followups]);
 
-  // Filtered Followups List
+  // Filtered and Prioritized Followups List (Active/Pending on TOP, Completed at BOTTOM)
   const filteredFollowups = useMemo(() => {
     const now = new Date();
+    let list = [...followups];
+
     if (activeFilter === "Due Today") {
-      return followups.filter(
+      list = list.filter(
         (item) =>
+          (item.status || "").toUpperCase() === "PENDING" &&
           item.next_followup_at &&
           new Date(item.next_followup_at).toDateString() === now.toDateString()
       );
-    }
-    if (activeFilter === "Overdue") {
-      return followups.filter(
+    } else if (activeFilter === "Overdue") {
+      list = list.filter(
         (item) =>
           (item.status || "").toUpperCase() === "PENDING" &&
           item.next_followup_at &&
           new Date(item.next_followup_at) < now
       );
-    }
-    if (activeFilter === "Pending") {
-      return followups.filter(
-        (item) => (item.status || "").toUpperCase() === "PENDING"
+    } else if (activeFilter === "Upcoming") {
+      list = list.filter(
+        (item) =>
+          (item.status || "").toUpperCase() === "PENDING" &&
+          item.next_followup_at &&
+          new Date(item.next_followup_at) > now
       );
-    }
-    if (activeFilter === "Completed") {
-      return followups.filter(
+    } else if (activeFilter === "Completed / Closed") {
+      list = list.filter(
         (item) => (item.status || "").toUpperCase() === "COMPLETED"
       );
     }
-    return followups;
+
+    // Sort order: PENDING always on top, COMPLETED at bottom
+    // Within PENDING: Overdue and Due Today first, then ascending by next_followup_at
+    list.sort((a, b) => {
+      const aIsPending = (a.status || "").toUpperCase() === "PENDING";
+      const bIsPending = (b.status || "").toUpperCase() === "PENDING";
+
+      if (aIsPending && !bIsPending) return -1;
+      if (!aIsPending && bIsPending) return 1;
+
+      if (aIsPending && bIsPending) {
+        const aTime = a.next_followup_at ? new Date(a.next_followup_at).getTime() : Infinity;
+        const bTime = b.next_followup_at ? new Date(b.next_followup_at).getTime() : Infinity;
+        return aTime - bTime;
+      }
+
+      // Both completed: most recent first
+      const aUpd = new Date(a.updated_at || a.created_at || 0).getTime();
+      const bUpd = new Date(b.updated_at || b.created_at || 0).getTime();
+      return bUpd - aUpd;
+    });
+
+    return list;
   }, [followups, activeFilter]);
 
   const handleOpenLeadDrawer = (item) => {
@@ -340,7 +365,7 @@ const MyFollowups = () => {
         }}
       >
         <Filter size={16} style={{ color: "#64748B", marginRight: "4px" }} />
-        {["All", "Due Today", "Overdue", "Pending", "Completed"].map((tab) => (
+        {["All", "Due Today", "Overdue", "Upcoming", "Completed / Closed"].map((tab) => (
           <button
             key={tab}
             type="button"
@@ -389,9 +414,9 @@ const MyFollowups = () => {
                 <tr style={{ borderBottom: "1px solid #E2E8F0", fontSize: "12px", color: "#64748B", textTransform: "uppercase" }}>
                   <th style={{ padding: "14px 16px" }}>Student Lead</th>
                   <th style={{ padding: "14px 16px" }}>Interested Course</th>
-                  <th style={{ padding: "14px 16px" }}>Channel / Activity</th>
-                  <th style={{ padding: "14px 16px" }}>Scheduled Time</th>
-                  <th style={{ padding: "14px 16px" }}>Status</th>
+                  <th style={{ padding: "14px 16px" }}>Channel</th>
+                  <th style={{ padding: "14px 16px" }}>Next Follow-up Schedule</th>
+                  <th style={{ padding: "14px 16px" }}>Status / Outcome</th>
                   <th style={{ padding: "14px 16px", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
@@ -400,28 +425,46 @@ const MyFollowups = () => {
                   const leadName = item.lead_name || item.full_name || "Student Lead";
                   const mobile = item.mobile || item.lead_mobile || "";
                   const cleanMobile = mobile.replace(/\D/g, "");
-                  const formattedDue = item.next_followup_at
-                    ? new Date(item.next_followup_at).toLocaleString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "—";
+                  const isPending = (item.status || "").toUpperCase() === "PENDING";
+                  const isCompleted = (item.status || "").toUpperCase() === "COMPLETED";
 
-                  const isItemOverdue =
-                    (item.status || "").toUpperCase() === "PENDING" &&
-                    item.next_followup_at &&
-                    new Date(item.next_followup_at) < new Date();
+                  const now = new Date();
+                  const targetDate = item.next_followup_at ? new Date(item.next_followup_at) : null;
+                  const isItemOverdue = isPending && targetDate && targetDate < now;
+                  const isDueToday = isPending && targetDate && targetDate.toDateString() === now.toDateString();
+
+                  // Relative display string for Next Follow-up column
+                  let scheduleBadge = "No Date Set";
+                  if (targetDate) {
+                    const timeStr = targetDate.toLocaleTimeString("en-IN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    });
+                    const dateStr = targetDate.toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                    });
+
+                    if (isDueToday) {
+                      scheduleBadge = `Today at ${timeStr}`;
+                    } else if (isItemOverdue) {
+                      scheduleBadge = `Overdue (${dateStr} ${timeStr})`;
+                    } else {
+                      scheduleBadge = `${dateStr} at ${timeStr}`;
+                    }
+                  }
+
+                  const outcome = (item.outcome || item.lead_status || "").toUpperCase();
 
                   return (
                     <tr
                       key={item.id}
                       style={{
                         borderBottom: "1px solid #F1F5F9",
+                        backgroundColor: isCompleted ? "#FAF5FF" : isItemOverdue ? "#FFFDFD" : "#FFFFFF",
                         transition: "background-color 0.2s ease",
+                        opacity: isCompleted && outcome === "NOT_INTERESTED" ? 0.75 : 1,
                       }}
                     >
                       <td style={{ padding: "14px 16px" }}>
@@ -436,32 +479,95 @@ const MyFollowups = () => {
                       </td>
 
                       <td style={{ padding: "14px 16px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>
-                        {item.interested_course || "BCA"}
+                        {item.interested_course || "Digital Marketing"}
                       </td>
 
                       <td style={{ padding: "14px 16px", fontSize: "13px", color: "#64748B" }}>
                         <span className="crm-badge crm-badge-status" style={{ fontSize: "11px" }}>
-                          {item.followup_type || "PHONE CALL"}
+                          {item.followup_type || "CALL"}
                         </span>
                       </td>
 
-                      <td style={{ padding: "14px 16px", fontSize: "13px", color: isItemOverdue ? "#DC2626" : "#334155", fontWeight: 600 }}>
-                        {formattedDue}
-                      </td>
-
+                      {/* Next Follow-up Schedule Column */}
                       <td style={{ padding: "14px 16px" }}>
-                        <span
-                          className={`crm-badge ${
-                            (item.status || "").toUpperCase() === "COMPLETED"
-                              ? "crm-badge-low"
-                              : isItemOverdue
-                              ? "crm-badge-high"
-                              : "crm-badge-medium"
-                          }`}
-                          style={{ fontSize: "11px" }}
-                        >
-                          {isItemOverdue ? "OVERDUE" : item.status || "PENDING"}
-                        </span>
+                        {isPending ? (
+                          <div>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "4px 10px",
+                                borderRadius: "8px",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                backgroundColor: isItemOverdue ? "#FEF2F2" : isDueToday ? "#FFFBEB" : "#EFF6FF",
+                                color: isItemOverdue ? "#DC2626" : isDueToday ? "#D97706" : "#2563EB",
+                                border: `1px solid ${isItemOverdue ? "#FECACA" : isDueToday ? "#FDE68A" : "#BFDBFE"}`,
+                              }}
+                            >
+                              <Clock size={13} />
+                              <span>{scheduleBadge}</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "12px", color: "#64748B" }}>
+                            Completed on {new Date(item.updated_at || item.created_at).toLocaleDateString("en-IN")}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Status / Outcome Column */}
+                      <td style={{ padding: "14px 16px" }}>
+                        {isPending ? (
+                          <span
+                            className={`crm-badge ${isItemOverdue ? "crm-badge-high" : isDueToday ? "crm-badge-medium" : "crm-badge-low"}`}
+                            style={{ fontSize: "11px" }}
+                          >
+                            {isItemOverdue ? "OVERDUE" : isDueToday ? "DUE TODAY" : "UPCOMING"}
+                          </span>
+                        ) : outcome === "ENROLLED" ? (
+                          <span
+                            className="crm-badge"
+                            style={{
+                              backgroundColor: "#F5F3FF",
+                              color: "#7C3AED",
+                              border: "1px solid #DDD6FE",
+                              fontWeight: 700,
+                              fontSize: "11px",
+                            }}
+                          >
+                            ENROLLED
+                          </span>
+                        ) : outcome === "NOT_INTERESTED" ? (
+                          <span
+                            className="crm-badge"
+                            style={{
+                              backgroundColor: "#FEF2F2",
+                              color: "#DC2626",
+                              border: "1px solid #FECACA",
+                              fontSize: "11px",
+                            }}
+                          >
+                            NOT INTERESTED
+                          </span>
+                        ) : outcome === "WALK_IN" ? (
+                          <span
+                            className="crm-badge"
+                            style={{
+                              backgroundColor: "#EFF6FF",
+                              color: "#2563EB",
+                              border: "1px solid #BFDBFE",
+                              fontSize: "11px",
+                            }}
+                          >
+                            WALKIN
+                          </span>
+                        ) : (
+                          <span className="crm-badge crm-badge-low" style={{ fontSize: "11px" }}>
+                            COMPLETED
+                          </span>
+                        )}
                       </td>
 
                       <td style={{ padding: "14px 16px", textAlign: "right" }}>
