@@ -27,9 +27,8 @@ export const createAdmissionRepository = async (clientOrPool, data) => {
   const pendingNum = Math.max(0, totalNum - paidNum);
 
   // Generate admission_code e.g. ADM1001
-  const countRes = await db.query("SELECT COUNT(*) FROM admissions;");
-  const count = Number(countRes.rows[0].count) + 1001;
-  const admissionCode = `ADM${count}`;
+  const countRes = await db.query("SELECT COALESCE(MAX(CAST(REGEXP_REPLACE(admission_code, '[^0-9]', '', 'g') AS INTEGER)), 1001) + 1 AS next_num FROM admissions;");
+  const admissionCode = `ADM${countRes.rows[0].next_num}`;
 
   const query = `
     INSERT INTO admissions (

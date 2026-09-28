@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import Login from "../pages/auth/Login";
@@ -11,8 +12,10 @@ import LeadSources from "../pages/leadSources/LeadSources";
 import AdminWorkspace from "../pages/admin/AdminWorkspace";
 import AdminSettings from "../pages/admin/Settings";
 import Employees from "../pages/admin/Employees";
-import MyFollowups from "../pages/employee/MyFollowups";
-import MyAdmissions from "../pages/employee/MyAdmissions";
+
+// Lazy-loaded so they share the same chunk as EmployeeRoutes (no INEFFECTIVE_DYNAMIC_IMPORT warning)
+const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
+const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -20,6 +23,12 @@ import MainLayout from "../layouts/MainLayout";
 import EmployeeRoutes from "./EmployeeRoutes";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleProtectedRoute from "./RoleProtectedRoute";
+
+const PageLoader = () => (
+  <div style={{ padding: "40px", textAlign: "center", fontWeight: 600, color: "#64748B" }}>
+    Loading...
+  </div>
+);
 
 const AppRoutes = () => {
   return (
@@ -48,9 +57,23 @@ const AppRoutes = () => {
 
             <Route path="/employees" element={<Employees />} />
 
-            <Route path="/followups" element={<MyFollowups />} />
+            <Route
+              path="/followups"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyFollowups />
+                </Suspense>
+              }
+            />
 
-            <Route path="/admissions" element={<MyAdmissions />} />
+            <Route
+              path="/admissions"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyAdmissions />
+                </Suspense>
+              }
+            />
 
             <Route path="/students" element={<AdminWorkspace page="students" />} />
 

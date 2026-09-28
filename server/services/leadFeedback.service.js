@@ -185,8 +185,8 @@ export const addLeadFeedbackService = async (
         const courseName = feedback_fields.course_name || interestedCourse || "Digital Marketing";
 
         if (Number(countRes.rows[0].count) === 0) {
-          const admCount = (await client.query("SELECT COUNT(*) FROM admissions;")).rows[0].count;
-          const admCode = `ADM${Number(admCount) + 1001}`;
+          const admCodeRes = await client.query("SELECT COALESCE(MAX(CAST(REGEXP_REPLACE(admission_code, '[^0-9]', '', 'g') AS INTEGER)), 1001) + 1 AS next_num FROM admissions;");
+          const admCode = `ADM${admCodeRes.rows[0].next_num}`;
 
           await client.query(`
             INSERT INTO admissions (
