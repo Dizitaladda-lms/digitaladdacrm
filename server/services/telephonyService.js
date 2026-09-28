@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
+import crypto from "crypto";
 
 /**
  * Clean phone number to 10 digits
@@ -19,6 +20,27 @@ export const formatDuration = (seconds) => {
   const s = secs % 60;
   if (m === 0) return `${s}s`;
   return `${m}m ${s}s`;
+};
+
+/**
+ * Verify Twilio's signed webhook before any call record is changed.
+ * TELEPHONY_WEBHOOK_URL must be the exact public URL configured in Twilio.
+ */
+export const verifyTwilioWebhookSignature = ({ signature, payload, requestUrl }) => {
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!signature || !authToken || !requestUrl) return false;
+
+  const signedPayload = Object.keys(payload || {})
+    .sort()
+    .reduce((value, key) => `${value}${key}${payload[key] ?? ""}`, requestUrl);
+  const expected = crypto
+    .createHmac("sha1", authToken)
+    .update(signedPayload, "utf8")
+    .digest("base64");
+
+  const received = Buffer.from(String(signature));
+  const calculated = Buffer.from(expected);
+  return received.length === calculated.length && crypto.timingSafeEqual(received, calculated);
 };
 
 /**
@@ -352,6 +374,58 @@ export const processTelephonyWebhookService = async (payload) => {
   }
 
   return { success: true, callLog };
+};
+
+/**
+ * Read a recording only after the caller has passed CRM authentication.
+ * Recording URLs are never returned as a public CRM URL.
+ */
+export const getCallRecordingStreamService = async (callId) => {
+  const { rows } = await pool.query(
+    "SELECT provider, recording_url FROM lead_call_logs WHERE id = $1",
+    [callId]
+  );
+  const call = rows[0];
+  if (!call?.recording_url) {
+    throw new ApiError(404, "Recording is not available for this call.");
+  }
+
+  let recordingUrl;
+  try {
+    recordingUrl = new URL(call.recording_url);
+  } catch {
+    throw new ApiError(422, "Stored recording URL is invalid.");
+  }
+  if (recordingUrl.protocol !== "https:") {
+    throw new ApiError(422, "Recording URL must use HTTPS.");
+  }
+
+  const headers = {};
+  if (String(call.provider).toUpperCase() === "TWILIO") {
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+      throw new ApiError(503, "Twilio recording access is not configured.");
+    }
+    const credentials = Buffer.from(
+      `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+    ).toString("base64");
+    headers.Authorization = `Basic ${credentials}`;
+  }
+
+  let response;
+  try {
+    response = await fetch(recordingUrl, { headers });
+  } catch {
+    throw new ApiError(502, "Could not reach the recording provider.");
+  }
+  if (!response.ok || !response.body) {
+    throw new ApiError(502, "Could not retrieve the recording from the provider.");
+  }
+
+  return {
+    body: response.body,
+    contentType: response.headers.get("content-type") || "audio/mpeg",
+    contentLength: response.headers.get("content-length"),
+  };
 };
 
 /**

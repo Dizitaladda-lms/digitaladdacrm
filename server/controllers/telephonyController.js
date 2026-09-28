@@ -1,4 +1,5 @@
 import asyncHandler from "../utils/asyncHandler.js";
+import { Readable } from "stream";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
 import {
@@ -9,6 +10,8 @@ import {
   simulateMockCallCompleteService,
   getTelephonyDomainsService,
   updateDomainCallerIdService,
+  verifyTwilioWebhookSignature,
+  getCallRecordingStreamService,
 } from "../services/telephonyService.js";
 
 /**
@@ -47,6 +50,19 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     ...req.query,
   };
 
+  if ((process.env.TELEPHONY_PROVIDER || "").toUpperCase() === "TWILIO") {
+    const configuredUrl = process.env.TELEPHONY_WEBHOOK_URL;
+    const requestUrl = configuredUrl || `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+    const validSignature = verifyTwilioWebhookSignature({
+      signature: req.get("X-Twilio-Signature"),
+      payload,
+      requestUrl,
+    });
+    if (!validSignature) {
+      throw new ApiError(403, "Invalid Twilio webhook signature.");
+    }
+  }
+
   const result = await processTelephonyWebhookService(payload);
 
   // Providers expect standard 200 OK
@@ -54,6 +70,15 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     success: true,
     data: result,
   });
+});
+
+/** Admin-only authenticated recording stream. */
+export const streamCallRecording = asyncHandler(async (req, res) => {
+  const recording = await getCallRecordingStreamService(req.params.callId);
+  res.setHeader("Content-Type", recording.contentType);
+  res.setHeader("Content-Disposition", "inline");
+  if (recording.contentLength) res.setHeader("Content-Length", recording.contentLength);
+  Readable.fromWeb(recording.body).pipe(res);
 });
 
 /**

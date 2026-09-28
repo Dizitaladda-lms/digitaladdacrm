@@ -10,6 +10,7 @@ import {
   simulateMockComplete,
   getTelephonyDomains,
   updateDomainCallerId,
+  streamCallRecording,
 } from "../controllers/telephonyController.js";
 
 const router = express.Router();
@@ -19,7 +20,6 @@ const router = express.Router();
  * POST /api/telephony/webhook
  */
 router.post("/webhook", handleWebhook);
-router.get("/webhook", handleWebhook);
 
 /**
  * Click-To-Call — Both Admin & Counsellor can initiate calls
@@ -47,6 +47,13 @@ router.get(
  */
 router.get("/logs", authMiddleware, roleMiddleware(ROLES.ADMIN), getAllCallLogs);
 
+router.get(
+  "/recordings/:callId",
+  authMiddleware,
+  roleMiddleware(ROLES.ADMIN),
+  streamCallRecording
+);
+
 /**
  * Domain-specific caller ID / virtual number management (Admin only)
  */
@@ -62,11 +69,13 @@ router.put(
  * Dev / Testing: Simulate a completed call with sample recording
  * Available to both roles so counsellors can test in DEV mode
  */
-router.post(
-  "/simulate-complete/:callId",
-  authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
-  simulateMockComplete
-);
+if (process.env.NODE_ENV !== "production") {
+  router.post(
+    "/simulate-complete/:callId",
+    authMiddleware,
+    roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+    simulateMockComplete
+  );
+}
 
 export default router;

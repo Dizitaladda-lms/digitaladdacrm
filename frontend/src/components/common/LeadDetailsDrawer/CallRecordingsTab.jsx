@@ -21,11 +21,46 @@ import {
   initiateCall,
   getLeadCallLogs,
   simulateMockComplete,
+  getCallRecordingAudio,
 } from "../../../services/telephonyService";
 import "./LeadDetailsDrawer.css";
 
+const RecordingAudio = ({ call, fileName }) => {
+  const [audioUrl, setAudioUrl] = useState("");
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let objectUrl = "";
+    let cancelled = false;
+    getCallRecordingAudio(call.id)
+      .then((audio) => {
+        objectUrl = URL.createObjectURL(audio);
+        if (!cancelled) setAudioUrl(objectUrl);
+      })
+      .catch(() => !cancelled && setError(true));
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [call.id]);
+
+  if (error) {
+    return <span style={{ fontSize: "12px", color: "#B91C1C" }}>Recording play nahi ho saki.</span>;
+  }
+  if (!audioUrl) {
+    return <span style={{ fontSize: "12px", color: "#64748B" }}>Recording load ho rahi hai...</span>;
+  }
+  return <>
+    <audio controls src={audioUrl} style={{ flexGrow: 1, minWidth: "200px", height: "34px" }} />
+    <a href={audioUrl} download={fileName} style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", backgroundColor: "#fff", border: "1px solid #86EFAC", borderRadius: "6px", color: "#15803D", textDecoration: "none", flexShrink: 0 }}>
+      <Download size={12} /> Download
+    </a>
+  </>;
+};
+
 const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
   const { user } = useAuth();
+  const isDev = import.meta.env.DEV;
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [calling, setCalling] = useState(false);
@@ -453,33 +488,17 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
                       <span style={{ fontSize: "13px", fontWeight: "600", color: "#14532D", display: "inline-flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
                         🎧 Recording Ready:
                       </span>
-                      <audio
-                        controls
-                        src={call.recording_url}
-                        style={{ flexGrow: 1, minWidth: "200px", height: "34px" }}
+                      <RecordingAudio
+                        call={call}
+                        fileName={`call_${lead?.lead_code || lead?.id}_${call.id}.mp3`}
                       />
-                      <a
-                        href={call.recording_url}
-                        download={`call_${lead?.lead_code || lead?.id}_${call.id}.mp3`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: "4px",
-                          padding: "5px 10px", fontSize: "11px", fontWeight: "600",
-                          backgroundColor: "#fff", border: "1px solid #86EFAC",
-                          borderRadius: "6px", color: "#15803D", textDecoration: "none",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Download size={12} /> Download
-                      </a>
                     </div>
                   ) : isRinging ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#EFF6FF", padding: "9px 12px", borderRadius: "8px", gap: "8px", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "12px", color: "#1D4ED8" }}>
                         ⏳ Call in progress — provider se recording callback ka wait ho raha hai...
                       </span>
-                      <button
+                      {isDev && <button
                         onClick={() => handleSimulateComplete(call.id)}
                         disabled={simulating}
                         style={{
@@ -493,7 +512,7 @@ const CallRecordingsTab = ({ lead, role = "counsellor" }) => {
                       >
                         <Sparkles size={11} />
                         {simulating ? "..." : "Simulate Complete (Dev)"}
-                      </button>
+                      </button>}
                     </div>
                   ) : (
                     <div style={{ fontSize: "11px", color: "#94A3B8", fontStyle: "italic" }}>

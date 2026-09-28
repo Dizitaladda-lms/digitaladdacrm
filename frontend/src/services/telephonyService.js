@@ -37,6 +37,14 @@ export const simulateMockComplete = async (callId, recordingUrl = null) => {
   return response.data;
 };
 
+/** Fetch protected recording audio with the current CRM session. */
+export const getCallRecordingAudio = async (callId) => {
+  const response = await axiosInstance.get(`/telephony/recordings/${callId}`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
 /**
  * Fetch all domains with their configured virtual caller numbers
  */
