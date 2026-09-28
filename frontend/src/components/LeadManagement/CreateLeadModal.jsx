@@ -8,13 +8,15 @@ import {
   Globe,
   Share2,
   Tag,
-  FileText,
   CheckCircle2,
   AlertCircle,
   Clock,
   UserCheck,
+  ChevronDown,
+  GraduationCap,
 } from "lucide-react";
 import { createLead } from "../../services/leadService";
+import "./CreateLeadModal.css";
 
 const DOMAINS = [
   "DizitalAdda",
@@ -51,10 +53,23 @@ const POPULAR_COURSES = [
 ];
 
 const BATCH_OPTIONS = [
+  "Morning Batch (9:00 AM - 12:00 PM)",
+  "Afternoon Batch (12:00 PM - 3:00 PM)",
+  "Evening Batch (4:00 PM - 7:00 PM)",
   "Weekend Batch (Saturday - Sunday)",
-  "Online  Batch",
-  "Offline Batch",
+  "Online Live Interactive Batch",
   "Flexible / Immediate",
+];
+
+const EDUCATION_OPTIONS = [
+  "12th Pass / Appearing",
+  "Pursuing Graduation (BCA / B.Tech / BBA / B.Com / BA)",
+  "Graduate (Completed Degree)",
+  "Postgraduate (MCA / MBA / M.Tech / MA)",
+  "10th Pass",
+  "Diploma Holder",
+  "Working Professional",
+  "Other",
 ];
 
 const CreateLeadModal = ({
@@ -69,6 +84,7 @@ const CreateLeadModal = ({
     mobile: "",
     alternate_mobile: "",
     email: "",
+    education_background: "12th Pass / Appearing",
     source: "WHATSAPP",
     domain: "DizitalAdda",
     interested_course: "Digital Marketing",
@@ -115,6 +131,7 @@ const CreateLeadModal = ({
         mobile: cleanMobile,
         alternate_mobile: formData.alternate_mobile.trim() || null,
         email: formData.email.trim() || null,
+        education_background: formData.education_background || null,
         source: formData.source,
         domain: formData.domain,
         interested_course: formData.interested_course.trim() || null,
@@ -154,44 +171,43 @@ const CreateLeadModal = ({
     <Modal
       open={open}
       title="Create New Lead"
-      subtitle="Add direct enquiry from WhatsApp, Referral, Call, or Walk-in."
+      subtitle="Direct enquiry capture for WhatsApp, Walk-ins, Calls, & Campaigns"
       size="lg"
       onClose={onClose}
       loading={loading}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="create-lead-form">
         {error && (
-          <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 border border-red-200">
-            <AlertCircle size={15} />
+          <div className="create-lead-alert error">
+            <AlertCircle size={16} />
             <span>{error}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 border border-emerald-200">
-            <CheckCircle2 size={15} />
+          <div className="create-lead-alert success">
+            <CheckCircle2 size={16} />
             <span>{successMsg}</span>
           </div>
         )}
 
-        {/* Section 1: Student Contact Details */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <User size={14} className="text-blue-600" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Student Details
-            </span>
+        {/* Section 1: Student Identity & Contact */}
+        <div className="create-lead-section">
+          <div className="create-lead-section-header">
+            <User size={15} style={{ color: "#2563EB" }} />
+            <h4>1. Student Contact & Education</h4>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+          <div className="create-lead-grid-2">
             {/* Full Name */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
-                Student Full Name <span className="text-red-500">*</span>
+            <div className="create-lead-field">
+              <label className="create-lead-label">
+                Student Full Name <span className="create-lead-required">*</span>
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <User size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <User size={15} />
+                </span>
                 <input
                   type="text"
                   name="full_name"
@@ -199,20 +215,20 @@ const CreateLeadModal = ({
                   placeholder="e.g. Rahul Sharma"
                   value={formData.full_name}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-input"
                 />
               </div>
             </div>
 
             {/* Mobile */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
-                Mobile Number (10 Digits) <span className="text-red-500">*</span>
+            <div className="create-lead-field">
+              <label className="create-lead-label">
+                Mobile Number (10 Digits) <span className="create-lead-required">*</span>
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Phone size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Phone size={15} />
+                </span>
                 <input
                   type="tel"
                   name="mobile"
@@ -221,79 +237,103 @@ const CreateLeadModal = ({
                   placeholder="e.g. 9876543210"
                   value={formData.mobile}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-input"
                 />
               </div>
             </div>
 
-            {/* Email */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+            {/* Email Address */}
+            <div className="create-lead-field">
+              <label className="create-lead-label">
                 Email Address (Optional)
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Mail size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Mail size={15} />
+                </span>
                 <input
                   type="text"
                   name="email"
-                  placeholder="e.g. student@gmail.com"
+                  placeholder="student@gmail.com"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-input"
                 />
               </div>
             </div>
 
-            {/* Alternate Mobile */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
-                Alternate Phone (Optional)
+            {/* Alternate Phone */}
+            <div className="create-lead-field">
+              <label className="create-lead-label">
+                Alternate / Parent Phone
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Phone size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Phone size={15} />
+                </span>
                 <input
                   type="tel"
                   name="alternate_mobile"
-                  placeholder="Parent / Secondary mobile"
+                  placeholder="Secondary mobile"
                   value={formData.alternate_mobile}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-input"
                 />
+              </div>
+            </div>
+
+            {/* Educational Background */}
+            <div className="create-lead-field" style={{ gridColumn: "span 2" }}>
+              <label className="create-lead-label">
+                Educational Background
+              </label>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <GraduationCap size={15} />
+                </span>
+                <select
+                  name="education_background"
+                  value={formData.education_background}
+                  onChange={handleChange}
+                  className="create-lead-select"
+                >
+                  {EDUCATION_OPTIONS.map((edu) => (
+                    <option key={edu} value={edu}>
+                      {edu}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="create-lead-select-chevron" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Section 2: Course & Batch Preference */}
-        <div className="pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <Building size={14} className="text-blue-600" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Course & Batch Preference
-            </span>
+        <div className="create-lead-section">
+          <div className="create-lead-section-header">
+            <Building size={15} style={{ color: "#2563EB" }} />
+            <h4>2. Course & Batch Preference</h4>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+          <div className="create-lead-grid-3">
             {/* Interested Course */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+            <div className="create-lead-field">
+              <label className="create-lead-label">
                 Interested Course
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Building size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Building size={15} />
+                </span>
                 <input
                   type="text"
                   list="popular-courses-list"
                   name="interested_course"
-                  placeholder="e.g. Digital Marketing"
+                  placeholder="Select or type course..."
                   value={formData.interested_course}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-input"
                 />
                 <datalist id="popular-courses-list">
                   {POPULAR_COURSES.map((c) => (
@@ -304,19 +344,19 @@ const CreateLeadModal = ({
             </div>
 
             {/* Preferred Batch */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+            <div className="create-lead-field">
+              <label className="create-lead-label">
                 Preferred Batch
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Clock size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Clock size={15} />
+                </span>
                 <select
                   name="preferred_centre"
                   value={formData.preferred_centre}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-select"
                 >
                   {BATCH_OPTIONS.map((batch) => (
                     <option key={batch} value={batch}>
@@ -324,23 +364,24 @@ const CreateLeadModal = ({
                     </option>
                   ))}
                 </select>
+                <ChevronDown size={15} className="create-lead-select-chevron" />
               </div>
             </div>
 
             {/* Domain / Brand */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
-                Domain / Brand <span className="text-red-500">*</span>
+            <div className="create-lead-field">
+              <label className="create-lead-label">
+                Institute Domain <span className="create-lead-required">*</span>
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Globe size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Globe size={15} />
+                </span>
                 <select
                   name="domain"
                   value={formData.domain}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-select"
                 >
                   {DOMAINS.map((dom) => (
                     <option key={dom} value={dom}>
@@ -348,34 +389,34 @@ const CreateLeadModal = ({
                     </option>
                   ))}
                 </select>
+                <ChevronDown size={15} className="create-lead-select-chevron" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Section 3: Source, Priority & Assignment */}
-        <div className="pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <Share2 size={14} className="text-blue-600" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Source & Assignment
-            </span>
+        <div className="create-lead-section">
+          <div className="create-lead-section-header">
+            <Share2 size={15} style={{ color: "#2563EB" }} />
+            <h4>3. Source, Priority & Assignment</h4>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+          <div className="create-lead-grid-3">
             {/* Lead Source */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
-                Enquiry Source <span className="text-red-500">*</span>
+            <div className="create-lead-field">
+              <label className="create-lead-label">
+                Enquiry Source <span className="create-lead-required">*</span>
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Share2 size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Share2 size={15} />
+                </span>
                 <select
                   name="source"
                   value={formData.source}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-select"
                 >
                   {SOURCES.map((src) => (
                     <option key={src.value} value={src.value}>
@@ -383,46 +424,48 @@ const CreateLeadModal = ({
                     </option>
                   ))}
                 </select>
+                <ChevronDown size={15} className="create-lead-select-chevron" />
               </div>
             </div>
 
             {/* Priority */}
-            <div>
-              <label className="block text-[12px] font-medium text-slate-700 mb-1">
+            <div className="create-lead-field">
+              <label className="create-lead-label">
                 Lead Priority
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                  <Tag size={14} />
-                </div>
+              <div className="create-lead-input-wrapper">
+                <span className="create-lead-icon">
+                  <Tag size={15} />
+                </span>
                 <select
                   name="priority"
                   value={formData.priority}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="create-lead-select"
                 >
-                  <option value="HIGH">High Priority </option>
-                  <option value="MEDIUM">Medium Priority</option>
-                  <option value="LOW">Low Priority</option>
+                  <option value="HIGH">🔥 High Priority</option>
+                  <option value="MEDIUM">⚡ Medium Priority</option>
+                  <option value="LOW">💤 Low Priority</option>
                 </select>
+                <ChevronDown size={15} className="create-lead-select-chevron" />
               </div>
             </div>
 
-            {/* Assign To (for Admin) */}
+            {/* Assign Counsellor */}
             {currentUserRole === "ADMIN" ? (
-              <div>
-                <label className="block text-[12px] font-medium text-slate-700 mb-1">
+              <div className="create-lead-field">
+                <label className="create-lead-label">
                   Assign Counsellor
                 </label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                    <UserCheck size={14} />
-                  </div>
+                <div className="create-lead-input-wrapper">
+                  <span className="create-lead-icon">
+                    <UserCheck size={15} />
+                  </span>
                   <select
                     name="assigned_to"
                     value={formData.assigned_to}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="create-lead-select"
                   >
                     <option value="">Auto-Assign / Unassigned</option>
                     {employees.map((emp) => (
@@ -431,48 +474,44 @@ const CreateLeadModal = ({
                       </option>
                     ))}
                   </select>
+                  <ChevronDown size={15} className="create-lead-select-chevron" />
                 </div>
               </div>
             ) : (
-              <div className="hidden sm:block" />
+              <div />
             )}
           </div>
-        </div>
 
-        {/* Remarks / Reference Notes */}
-        <div>
-          <label className="block text-[12px] font-medium text-slate-700 mb-1">
-            Reference / Inquiry Remarks (Optional)
-          </label>
-          <div className="relative">
-            <div className="pointer-events-none absolute top-2 left-2.5 text-slate-400">
-              <FileText size={14} />
-            </div>
+          {/* Remarks */}
+          <div className="create-lead-field" style={{ marginTop: "4px" }}>
+            <label className="create-lead-label">
+              Inquiry Notes / Remarks (Optional)
+            </label>
             <textarea
               name="remarks"
               rows={2}
-              placeholder="e.g. Referred by friend; student inquired regarding weekend batch and fees..."
+              placeholder="e.g. Inquired about course fee discount, weekend batch timing..."
               value={formData.remarks}
               onChange={handleChange}
-              className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2.5 text-[13px] text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="create-lead-textarea"
             />
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
+        {/* Modal Actions */}
+        <div className="create-lead-footer">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            className="create-lead-btn-cancel"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-1.5 text-[13px] font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="create-lead-btn-submit"
           >
             {loading ? "Saving Lead..." : "Save & Add Lead"}
           </button>

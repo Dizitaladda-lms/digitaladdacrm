@@ -73,6 +73,11 @@ export const createLeadValidator = [
     .trim()
     .isLength({ max: 150 }),
 
+  body("education_background")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 255 }),
+
   body("platform")
     .optional({ nullable: true, checkFalsy: true })
     .isIn([
