@@ -82,6 +82,14 @@ const LeadDetailsDrawer = ({
       if (leadData.status) {
         setSelectedStatus(leadData.status.toUpperCase());
       }
+
+      if (leadData.next_followup) {
+        try {
+          const d = new Date(leadData.next_followup);
+          const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          setFeedbackFields((prev) => ({ ...prev, next_followup: localIso }));
+        } catch {}
+      }
     } catch (error) {
       console.error("Error fetching lead details:", error);
     } finally {
@@ -161,10 +169,16 @@ const LeadDetailsDrawer = ({
   const handleSaveChanges = async () => {
     if (!lead?.id) return;
 
+    if (selectedStatus === "FOLLOW_UP" && !feedbackFields?.next_followup) {
+      alert("Please select the Next Follow-up Date & Time before saving.");
+      return;
+    }
+
     try {
       setSaving(true);
       const payload = {
         status: selectedStatus,
+        next_followup: feedbackFields?.next_followup || null,
         personal_info: personalData,
         academic_info: academicData,
         feedback_fields: {
@@ -177,7 +191,6 @@ const LeadDetailsDrawer = ({
       await addLeadFeedback(lead.id, payload);
 
       setRemarks("");
-      setFeedbackFields({});
 
       await loadFeedbackHistory();
       await loadLeadData();
@@ -186,9 +199,7 @@ const LeadDetailsDrawer = ({
         onStatusUpdated();
       }
 
-      alert(
-        "Lead profile, academic details, status & guided feedback saved successfully!"
-      );
+      alert("Lead status and guided counselling saved successfully!");
     } catch (error) {
       console.error("Failed to save changes:", error);
       alert(error?.response?.data?.message || "Failed to save lead updates");

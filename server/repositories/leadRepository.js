@@ -162,9 +162,9 @@ $31, $32
 
     lead.external_lead_id || null,
 
-    lead.status || "NEW",
+    (lead.status && lead.status !== "NEW") ? lead.status : "INTERESTED",
 
-    lead.priority || "MEDIUM",
+    lead.priority || (["INTERESTED", "WALK_IN"].includes((lead.status && lead.status !== "NEW") ? lead.status : "INTERESTED") ? "HIGH" : ((lead.status && lead.status !== "NEW") ? lead.status : "INTERESTED") === "FOLLOW_UP" ? "MEDIUM" : "LOW"),
 
     lead.assigned_to || null,
 

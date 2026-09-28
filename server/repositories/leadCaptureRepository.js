@@ -59,13 +59,14 @@ export const createPublicLeadRepository = async (client, lead) => {
       landing_page_url,
       interested_course,
       captured_at,
-      status
+      status,
+      priority
     )
     VALUES (
       $1, $2, $3, $4, $5, $6,
       $7, $8, $9, $10, $11,
       $12, $13, $14, $15, $16,
-      $17, $18, $19, $20
+      $17, $18, $19, $20, $21
     )
     RETURNING *;
   `;
@@ -90,7 +91,8 @@ export const createPublicLeadRepository = async (client, lead) => {
     lead.landing_page_url || null,
     lead.interested_course || null,
     lead.captured_at || new Date(),
-    "NEW"
+    "INTERESTED",
+    "HIGH"
   ];
 
   const result = await client.query(query, values);

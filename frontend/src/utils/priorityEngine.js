@@ -8,23 +8,36 @@
  */
 
 export const calculateLeadPriority = (status) => {
-  if (!status) return "LOW";
+  if (!status) return "MEDIUM";
 
   const normalized = String(status).trim().toUpperCase().replace(/\s+/g, "_");
 
+  // HIGH Priority: INTERESTED, WALK_IN
   const highStatuses = [
-    "ENROLLED",
-    "ADMISSION_DONE",
+    "INTERESTED",
+    "WALK_IN",
+    "WALKIN",
     "VISITED",
     "WALKED_IN",
-    "INTERESTED",
     "QUALIFIED",
   ];
 
+  // MEDIUM Priority: FOLLOW_UP
   const mediumStatuses = [
     "FOLLOW_UP",
     "FOLLOW_UP_REQUIRED",
     "FOLLOWUP",
+    "CONTACTED",
+  ];
+
+  // LOW Priority: ENROLLED, NOT_INTERESTED
+  const lowStatuses = [
+    "ENROLLED",
+    "NOT_INTERESTED",
+    "NOTINTERESTED",
+    "LOST",
+    "REJECTED",
+    "ADMISSION_DONE",
   ];
 
   if (highStatuses.includes(normalized)) {
@@ -35,7 +48,11 @@ export const calculateLeadPriority = (status) => {
     return "MEDIUM";
   }
 
-  return "LOW";
+  if (lowStatuses.includes(normalized)) {
+    return "LOW";
+  }
+
+  return "MEDIUM";
 };
 
 export const getPriorityBadgeClass = (priority) => {

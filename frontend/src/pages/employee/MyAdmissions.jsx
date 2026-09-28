@@ -19,9 +19,14 @@ import CollectFeeModal from "../../components/employee/admissions/CollectFeeModa
 import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDetailsDrawer";
 import { getAdmissions } from "../../services/admissionService";
 import { exportToCsv } from "../../utils/exportCsv";
+import { useAuth } from "../../context/AuthContext";
 
 const MyAdmissions = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const leadsPath = isAdmin ? "/leads" : "/employee/leads";
+  const followupsPath = isAdmin ? "/followups" : "/employee/followups";
   const [admissions, setAdmissions] = useState([]);
   const [summary, setSummary] = useState({
     total_admissions: 0,
@@ -167,16 +172,16 @@ const MyAdmissions = () => {
 
           <button
             type="button"
-            onClick={() => navigate("/employee/leads")}
+            onClick={() => navigate(leadsPath)}
             className="crm-btn-secondary"
             style={{ height: "42px" }}
           >
-            <span>My Leads Pipeline</span>
+            <span>{isAdmin ? "All Leads Pipeline" : "My Leads Pipeline"}</span>
           </button>
 
           <button
             type="button"
-            onClick={() => navigate("/employee/followups")}
+            onClick={() => navigate(followupsPath)}
             className="crm-btn-primary"
             style={{ height: "42px", padding: "0 18px", fontSize: "13px" }}
           >

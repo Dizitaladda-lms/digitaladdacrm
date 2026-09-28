@@ -61,6 +61,7 @@ const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
 
         const payload = {
           status: "FOLLOW_UP",
+          next_followup: nextFollowupAt,
           remarks: remarks.trim() || `Call rescheduled for ${new Date(nextFollowupAt).toLocaleString("en-IN")}`,
           feedback_fields: {
             followup_id: followup.id,
@@ -165,10 +166,11 @@ const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
                 onChange={(e) => setOutcomeStatus(e.target.value)}
                 className="crm-select"
               >
-                <option value="INTERESTED">INTERESTED (High Intent Student)</option>
-                <option value="VISITED">VISITED (Campus Visit Scheduled)</option>
-                <option value="ENROLLED">ENROLLED (Confirmed Admission & Fee Paid)</option>
-                <option value="NOT_INTERESTED">NOT_INTERESTED (Lost / Dropped / Rejected)</option>
+                <option value="INTERESTED">Interested</option>
+                <option value="FOLLOW_UP">Follow Up</option>
+                <option value="WALK_IN">Walkin</option>
+                <option value="ENROLLED">Enrolled</option>
+                <option value="NOT_INTERESTED">Not Interested</option>
               </select>
             </div>
           )}

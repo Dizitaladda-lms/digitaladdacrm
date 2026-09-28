@@ -10,36 +10,37 @@
 export const calculateLeadPriority = ({ status }) => {
   const normStatus = (status || "").toUpperCase();
 
-  // HIGH Priority: Interested / Visited
+  // HIGH Priority: INTERESTED, WALK_IN
   if (
     [
       "INTERESTED",
+      "WALK_IN",
+      "WALKIN",
       "VISITED",
       "QUALIFIED",
-      "WALK_IN_SCHEDULED",
-      "WALKED_IN",
     ].includes(normStatus)
   ) {
     return "HIGH";
   }
 
-  // MEDIUM Priority: Follow-up
+  // MEDIUM Priority: FOLLOW_UP
   if (
     [
       "FOLLOW_UP",
       "FOLLOW_UP_REQUIRED",
+      "FOLLOWUP",
+      "CONTACTED",
     ].includes(normStatus)
   ) {
     return "MEDIUM";
   }
 
-  // LOW Priority: Enrolled, Not Interested, New, Contacted, Lost
+  // LOW Priority: ENROLLED, NOT_INTERESTED
   if (
     [
       "ENROLLED",
       "NOT_INTERESTED",
       "NEW",
-      "CONTACTED",
       "PENDING",
       "LOST",
       "REJECTED",
@@ -50,5 +51,5 @@ export const calculateLeadPriority = ({ status }) => {
     return "LOW";
   }
 
-  return "LOW";
+  return "MEDIUM";
 };

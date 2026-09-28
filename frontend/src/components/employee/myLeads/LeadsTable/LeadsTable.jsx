@@ -9,6 +9,20 @@
   import { useState } from "react";
   import LeadDetailsDrawer from "../../../common/LeadDetailsDrawer/LeadDetailsDrawer";
 
+  const STATUS_LABELS = {
+    INTERESTED: "Interested",
+    FOLLOW_UP: "Follow Up",
+    WALK_IN: "Walkin",
+    ENROLLED: "Enrolled",
+    NOT_INTERESTED: "Not Interested",
+    NEW: "Interested",
+    QUALIFIED: "Interested",
+    CONTACTED: "Follow Up",
+    ADMISSION: "Enrolled",
+    ADMISSION_DONE: "Enrolled",
+    LOST: "Not Interested",
+  };
+
   const LeadsTable = ({
   leads = [],
   loading = false,
@@ -136,7 +150,7 @@
                       lead.status || ""
                     ).toLowerCase().replace(/_/g, "-")}`}
                   >
-                    {lead.status || "-"}
+                    {STATUS_LABELS[(lead.status || "").toUpperCase()] || lead.status || "-"}
                   </span>
                 </td>
 

@@ -7,8 +7,8 @@ const initialForm = {
   email: "",
   course_name: "",
   domain: "",
-  status: "NEW",
-  priority: "MEDIUM",
+  status: "INTERESTED",
+  priority: "HIGH",
   remarks: "",
 };
 
@@ -37,7 +37,7 @@ const EditLeadModal = ({
 
         domain: lead.domain || "",
 
-        status: lead.status || "NEW",
+        status: lead.status || "INTERESTED",
 
         priority: lead.priority || "MEDIUM",
 
@@ -53,13 +53,23 @@ const EditLeadModal = ({
 
     const { name, value } = e.target;
 
-    setFormData((prev) => ({
-
-      ...prev,
-
-      [name]: value,
-
-    }));
+    if (name === "status") {
+      const autoPriority = ["INTERESTED", "WALK_IN"].includes(value)
+        ? "HIGH"
+        : value === "FOLLOW_UP"
+        ? "MEDIUM"
+        : "LOW";
+      setFormData((prev) => ({
+        ...prev,
+        status: value,
+        priority: autoPriority,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
 
   };
 
@@ -282,29 +292,16 @@ const EditLeadModal = ({
                 </label>
 
                 <select
-
                   name="status"
-
                   value={formData.status}
-
                   onChange={handleChange}
-
                   className="w-full rounded-xl border border-slate-300 px-4 py-3"
-
                 >
-
-                  <option value="NEW">New</option>
-
-                  <option value="CONTACTED">Contacted</option>
-
+                  <option value="INTERESTED">Interested</option>
                   <option value="FOLLOW_UP">Follow Up</option>
-
-                  <option value="QUALIFIED">Qualified</option>
-
-                  <option value="ADMISSION">Admission</option>
-
-                  <option value="LOST">Lost</option>
-
+                  <option value="WALK_IN">Walkin</option>
+                  <option value="ENROLLED">Enrolled</option>
+                  <option value="NOT_INTERESTED">Not Interested</option>
                 </select>
 
               </div>

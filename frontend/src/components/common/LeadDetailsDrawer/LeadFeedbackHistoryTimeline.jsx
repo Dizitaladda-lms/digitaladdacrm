@@ -1,6 +1,20 @@
 import React from "react";
 import { User, Clock, MessageSquareText } from "lucide-react";
 
+const STATUS_LABELS = {
+  INTERESTED: "Interested",
+  FOLLOW_UP: "Follow Up",
+  WALK_IN: "Walkin",
+  ENROLLED: "Enrolled",
+  NOT_INTERESTED: "Not Interested",
+  NEW: "Interested",
+  CONTACTED: "Follow Up",
+  QUALIFIED: "Interested",
+  ADMISSION: "Enrolled",
+  ADMISSION_DONE: "Enrolled",
+  LOST: "Not Interested",
+};
+
 /**
  * LeadFeedbackHistoryTimeline Component
  * Vertical timeline rendering date-wise interaction history.
@@ -58,7 +72,7 @@ const LeadFeedbackHistoryTimeline = ({
                   {/* Header Row: Date/Time & Status */}
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                     <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700 border border-blue-200 uppercase tracking-wider">
-                      {item.status_at_feedback || "STATUS"}
+                      {STATUS_LABELS[item.status_at_feedback] || item.status_at_feedback || "STATUS"}
                     </span>
                     
                     <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">

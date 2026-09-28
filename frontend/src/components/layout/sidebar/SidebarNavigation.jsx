@@ -3,6 +3,8 @@ import {
   Megaphone,
   UsersRound,
   BriefcaseBusiness,
+  PhoneCall,
+  GraduationCap,
   KeyRound,
   LogOut,
 } from "lucide-react";
@@ -13,31 +15,36 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 
 const menuItems = [
-
   {
     title: "Dashboard",
     icon: LayoutDashboard,
     path: "/dashboard",
   },
-
   {
     title: "Campaigns",
     icon: Megaphone,
     path: "/campaigns",
   },
-
   {
     title: "Lead Management",
     icon: UsersRound,
     path: "/leads",
   },
-
+  {
+    title: "Follow-ups",
+    icon: PhoneCall,
+    path: "/followups",
+  },
+  {
+    title: "Admissions & Fees",
+    icon: GraduationCap,
+    path: "/admissions",
+  },
   {
     title: "Employees",
     icon: BriefcaseBusiness,
     path: "/employees",
   },
-
 ];
 
 const SidebarNavigation = () => {

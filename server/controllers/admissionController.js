@@ -4,6 +4,7 @@ import {
   getAdmissionsService,
   createAdmissionService,
   collectFeeService,
+  getAdmissionByIdService,
 } from "../services/admissionService.js";
 
 /**
@@ -27,6 +28,17 @@ export const createAdmission = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get Single Admission by ID
+ */
+export const getAdmissionById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const admission = await getAdmissionByIdService(id);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, admission, "Admission fetched successfully."));
+});
+
+/**
  * Collect Fee Installment
  */
 export const collectFee = asyncHandler(async (req, res) => {
@@ -38,3 +50,4 @@ export const collectFee = asyncHandler(async (req, res) => {
       new ApiResponse(200, updatedAdmission, "Fee payment recorded successfully.")
     );
 });
+

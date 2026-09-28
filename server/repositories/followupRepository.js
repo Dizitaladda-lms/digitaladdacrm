@@ -61,7 +61,7 @@ ON l.id = lf.lead_id
 `;
 
 const EMPLOYEE_JOIN = `
-INNER JOIN employees e
+LEFT JOIN employees e
 ON e.id = lf.employee_id
 `;
 
@@ -316,7 +316,7 @@ const buildWhereClause = (filters = {}) => {
 
         addFilter(
 
-            `lf.employee_id = $${index}`,
+            `(lf.employee_id = $${index} OR (lf.employee_id IS NULL AND l.assigned_to = $${index}))`,
 
             filters.employeeId
 
@@ -838,9 +838,15 @@ export const getFollowupsRepository = async ({
     let dataList = dataResult.rows;
     let total = Number(countResult.rows[0].total || 0);
 
-    // Direct Sync with `leads` table if lead_followups contains no rows for employee
-    if (dataList.length === 0 && employeeId) {
+    // Direct Sync with `leads` table if lead_followups contains no rows
+    if (dataList.length === 0) {
       try {
+        const whereLeads = employeeId
+          ? "WHERE l.assigned_to = $1 AND l.is_deleted = FALSE AND (l.status = 'FOLLOW_UP' OR l.next_followup IS NOT NULL)"
+          : "WHERE l.is_deleted = FALSE AND (l.status = 'FOLLOW_UP' OR l.next_followup IS NOT NULL)";
+        const params = employeeId ? [employeeId, pagination.limit, pagination.offset] : [pagination.limit, pagination.offset];
+        const countParams = employeeId ? [employeeId] : [];
+
         const leadsQuery = `
           SELECT
             l.id AS id,
@@ -852,18 +858,21 @@ export const getFollowupsRepository = async ({
             l.interested_course,
             l.status AS lead_status,
             l.priority,
-            l.next_followup AS next_followup_at,
+            COALESCE(l.next_followup, l.created_at + INTERVAL '1 day') AS next_followup_at,
             'CALL' AS followup_type,
             CASE WHEN UPPER(l.status) IN ('ENROLLED', 'ADMISSION', 'ADMISSION_DONE', 'NOT_INTERESTED', 'COMPLETED') THEN 'COMPLETED' ELSE 'PENDING' END AS status,
-            l.remarks
+            l.remarks,
+            e.full_name AS counsellor_name
           FROM leads l
-          WHERE l.assigned_to = $1 AND l.is_deleted = FALSE AND l.next_followup IS NOT NULL
-          ORDER BY l.next_followup ASC
-          LIMIT $2 OFFSET $3;
+          LEFT JOIN employees e ON e.id = l.assigned_to
+          ${whereLeads}
+          ORDER BY next_followup_at ASC
+          LIMIT $${employeeId ? 2 : 1} OFFSET $${employeeId ? 3 : 2};
         `;
+        const countQueryStr = `SELECT COUNT(*) FROM leads l ${whereLeads};`;
         const [leadsRes, countRes] = await Promise.all([
-          pool.query(leadsQuery, [employeeId, pagination.limit, pagination.offset]),
-          pool.query(`SELECT COUNT(*) FROM leads WHERE assigned_to = $1 AND is_deleted = FALSE AND next_followup IS NOT NULL;`, [employeeId]),
+          pool.query(leadsQuery, params),
+          pool.query(countQueryStr, countParams),
         ]);
         dataList = leadsRes.rows;
         total = Number(countRes.rows[0].count || 0);

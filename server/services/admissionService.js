@@ -50,3 +50,11 @@ export const collectFeeService = async (admissionId, installmentData) => {
 
   return await collectFeeRepository(admissionId, installmentData);
 };
+
+export const getAdmissionByIdService = async (admissionId) => {
+  const admission = await getAdmissionByIdRepository(admissionId);
+  if (!admission) {
+    throw new ApiError(404, "Admission record not found.");
+  }
+  return admission;
+};

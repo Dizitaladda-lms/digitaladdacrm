@@ -46,16 +46,14 @@ const POPULAR_COURSES = [
   "Cyber Security / Ethical Hacking",
   "Full Stack Web Development",
   "Graphic & UI/UX Design",
-  "Data Analytics / Data Science",
-  "Python Programming",
+  "Data Analytics ",
+  "Data Science",
   "Video Editing",
-  "BCA / MCA",
+  
 ];
 
 const BATCH_OPTIONS = [
-  "Morning Batch (9:00 AM - 12:00 PM)",
-  "Afternoon Batch (12:00 PM - 3:00 PM)",
-  "Evening Batch (4:00 PM - 7:00 PM)",
+  "Weekdays Batch (Tuesday - Friday)",
   "Weekend Batch (Saturday - Sunday)",
   "Online Live Interactive Batch",
   "Flexible / Immediate",
@@ -443,9 +441,9 @@ const CreateLeadModal = ({
                   onChange={handleChange}
                   className="create-lead-select"
                 >
-                  <option value="HIGH">🔥 High Priority</option>
-                  <option value="MEDIUM">⚡ Medium Priority</option>
-                  <option value="LOW">💤 Low Priority</option>
+                  <option value="HIGH">High Priority</option>
+                  <option value="MEDIUM">Medium Priority</option>
+                  <option value="LOW">Low Priority</option>
                 </select>
                 <ChevronDown size={15} className="create-lead-select-chevron" />
               </div>

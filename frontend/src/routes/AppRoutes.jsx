@@ -11,6 +11,8 @@ import LeadSources from "../pages/leadSources/LeadSources";
 import AdminWorkspace from "../pages/admin/AdminWorkspace";
 import AdminSettings from "../pages/admin/Settings";
 import Employees from "../pages/admin/Employees";
+import MyFollowups from "../pages/employee/MyFollowups";
+import MyAdmissions from "../pages/employee/MyAdmissions";
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -46,9 +48,9 @@ const AppRoutes = () => {
 
             <Route path="/employees" element={<Employees />} />
 
-            <Route path="/followups" element={<AdminWorkspace page="followups" />} />
+            <Route path="/followups" element={<MyFollowups />} />
 
-            <Route path="/admissions" element={<AdminWorkspace page="admissions" />} />
+            <Route path="/admissions" element={<MyAdmissions />} />
 
             <Route path="/students" element={<AdminWorkspace page="students" />} />
 

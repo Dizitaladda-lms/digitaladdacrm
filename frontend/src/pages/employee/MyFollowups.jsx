@@ -18,9 +18,13 @@ import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDet
 import UpdateFollowupModal from "../../components/employee/followups/UpdateFollowupModal";
 import { getFollowups } from "../../services/followupService";
 import { exportToCsv } from "../../utils/exportCsv";
+import { useAuth } from "../../context/AuthContext";
 
 const MyFollowups = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const leadsPath = isAdmin ? "/leads" : "/employee/leads";
   const [followups, setFollowups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("All");
@@ -197,11 +201,11 @@ const MyFollowups = () => {
 
           <button
             type="button"
-            onClick={() => navigate("/employee/leads")}
+            onClick={() => navigate(leadsPath)}
             className="crm-btn-primary"
             style={{ height: "42px", padding: "0 18px", fontSize: "13px" }}
           >
-            <span>Go to My Leads Pipeline</span>
+            <span>{isAdmin ? "Go to All Leads Pipeline" : "Go to My Leads Pipeline"}</span>
             <ArrowRight size={16} />
           </button>
         </div>

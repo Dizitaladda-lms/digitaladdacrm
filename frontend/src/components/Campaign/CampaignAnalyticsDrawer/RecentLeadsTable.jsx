@@ -1,12 +1,29 @@
 import "./RecentLeadsTable.css";
 
 const STATUS_CLASS = {
-  NEW: "status-new",
-  CONTACTED: "status-contacted",
+  INTERESTED: "status-qualified",
   FOLLOW_UP: "status-followup",
+  WALK_IN: "status-walkin",
+  ENROLLED: "status-admission",
+  NOT_INTERESTED: "status-rejected",
+  NEW: "status-qualified",
+  CONTACTED: "status-followup",
   QUALIFIED: "status-qualified",
   ADMISSION: "status-admission",
   REJECTED: "status-rejected",
+};
+
+const STATUS_LABELS = {
+  INTERESTED: "Interested",
+  FOLLOW_UP: "Follow Up",
+  WALK_IN: "Walkin",
+  ENROLLED: "Enrolled",
+  NOT_INTERESTED: "Not Interested",
+  NEW: "Interested",
+  CONTACTED: "Follow Up",
+  QUALIFIED: "Interested",
+  ADMISSION: "Enrolled",
+  REJECTED: "Not Interested",
 };
 
 const RecentLeadsTable = ({ data = [] }) => {
@@ -87,7 +104,7 @@ const RecentLeadsTable = ({ data = [] }) => {
                     }`}
                   >
 
-                    {lead.status}
+                    {STATUS_LABELS[lead.status] || lead.status}
 
                   </span>
 

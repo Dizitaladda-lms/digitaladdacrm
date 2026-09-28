@@ -1,5 +1,19 @@
 import React from "react";
-import { User, Phone, Mail, AlertCircle, Tag } from "lucide-react";
+import { User, Phone, Mail } from "lucide-react";
+
+const STATUS_LABELS = {
+  INTERESTED: "Interested",
+  FOLLOW_UP: "Follow Up",
+  WALK_IN: "Walkin",
+  ENROLLED: "Enrolled",
+  NOT_INTERESTED: "Not Interested",
+  NEW: "Interested",
+  QUALIFIED: "Interested",
+  CONTACTED: "Follow Up",
+  ADMISSION: "Enrolled",
+  ADMISSION_DONE: "Enrolled",
+  LOST: "Not Interested",
+};
 
 /**
  * LeadSummaryCard Component
@@ -64,16 +78,14 @@ const LeadSummaryCard = ({ lead }) => {
         {/* Right: Status & Priority Badges */}
         <div className="flex items-center gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0 sm:flex-col sm:items-end">
           {/* Status Badge */}
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1 text-xs font-extrabold text-blue-700 border border-blue-200 uppercase tracking-wider">
-            <Tag size={13} />
-            {status}
+          <span className="inline-flex items-center rounded-lg bg-blue-50 px-3 py-1 text-xs font-extrabold text-blue-700 border border-blue-200 uppercase tracking-wider">
+            {STATUS_LABELS[(status || "").toUpperCase()] || status}
           </span>
 
           {/* Priority Badge */}
           <span
-            className={`inline-flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-extrabold uppercase tracking-wider border ${priorityBadgeStyle}`}
+            className={`inline-flex items-center rounded-lg px-3 py-1 text-xs font-extrabold uppercase tracking-wider border ${priorityBadgeStyle}`}
           >
-            <AlertCircle size={13} />
             {lead.priority || "MEDIUM"} Priority
           </span>
         </div>

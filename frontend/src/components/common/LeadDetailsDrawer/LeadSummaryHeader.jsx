@@ -1,6 +1,20 @@
 import React from "react";
-import { Phone, Mail, MapPin, Tag, X, MessageCircle } from "lucide-react";
+import { Phone, Mail, MapPin, X, MessageCircle } from "lucide-react";
 import "./LeadDetailsDrawer.css";
+
+const STATUS_LABELS = {
+  INTERESTED: "Interested",
+  FOLLOW_UP: "Follow Up",
+  WALK_IN: "Walkin",
+  ENROLLED: "Enrolled",
+  NOT_INTERESTED: "Not Interested",
+  NEW: "Interested",
+  CONTACTED: "Follow Up",
+  QUALIFIED: "Interested",
+  ADMISSION: "Enrolled",
+  ADMISSION_DONE: "Enrolled",
+  LOST: "Not Interested",
+};
 
 /**
  * LeadSummaryHeader Component
@@ -27,7 +41,7 @@ const LeadSummaryHeader = ({ lead, onClose, onOpenCallTab }) => {
       ? "crm-badge-medium"
       : "crm-badge-low";
 
-  const priorityLabel = rawPriority === "HIGH" ? "HIGH 🔥" : rawPriority;
+  const priorityLabel = rawPriority;
 
   const locationText = [lead.city, lead.state, lead.country || "India"]
     .filter(Boolean)
@@ -135,8 +149,7 @@ const LeadSummaryHeader = ({ lead, onClose, onOpenCallTab }) => {
         )}
 
         <span className="crm-badge crm-badge-status">
-          <Tag size={13} />
-          {lead.status || "NEW"}
+          {STATUS_LABELS[lead.status] || lead.status || "Interested"}
         </span>
 
         <button

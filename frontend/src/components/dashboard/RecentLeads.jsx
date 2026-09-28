@@ -7,19 +7,31 @@ import {
 } from "lucide-react";
 
 const statusClasses = {
-
-  NEW: "status-new",
-
-  CONTACTED: "status-contacted",
-
-  QUALIFIED: "status-qualified",
-
+  INTERESTED: "status-qualified",
   FOLLOW_UP: "status-followup",
-
+  WALK_IN: "status-walkin",
+  ENROLLED: "status-admission",
+  NOT_INTERESTED: "status-lost",
+  NEW: "status-qualified",
+  CONTACTED: "status-followup",
+  QUALIFIED: "status-qualified",
   ADMISSION: "status-admission",
-
+  ADMISSION_DONE: "status-admission",
   LOST: "status-lost",
+};
 
+const statusLabels = {
+  INTERESTED: "Interested",
+  FOLLOW_UP: "Follow Up",
+  WALK_IN: "Walkin",
+  ENROLLED: "Enrolled",
+  NOT_INTERESTED: "Not Interested",
+  NEW: "Interested",
+  CONTACTED: "Follow Up",
+  QUALIFIED: "Interested",
+  ADMISSION: "Enrolled",
+  ADMISSION_DONE: "Enrolled",
+  LOST: "Not Interested",
 };
 
 const sourceClasses = {
@@ -223,10 +235,10 @@ const RecentLeads = ({
                     <td>
 
                       <span
-                        className={`badge ${statusClasses[lead.status]}`}
+                        className={`badge ${statusClasses[lead.status] || "status-qualified"}`}
                       >
 
-                        {lead.status}
+                        {statusLabels[lead.status] || lead.status}
 
                       </span>
 

@@ -53,12 +53,11 @@ const SearchFilterBar = ({
         className="filter-select"
       >
         <option value="ALL">All Statuses</option>
-        <option value="NEW">New Lead</option>
-        <option value="INTERESTED">Interested (High Intent)</option>
-        <option value="FOLLOW_UP">Follow-up (Scheduled Callback)</option>
-        <option value="VISITED">Visited (Campus Visited)</option>
-        <option value="ENROLLED">Enrolled (Admission Confirmed)</option>
-        <option value="NOT_INTERESTED">Not Interested (Lost / Dropped)</option>
+        <option value="INTERESTED">Interested</option>
+        <option value="FOLLOW_UP">Follow Up</option>
+        <option value="WALK_IN">Walkin</option>
+        <option value="ENROLLED">Enrolled</option>
+        <option value="NOT_INTERESTED">Not Interested</option>
       </select>
 
       {/* Priority Filter */}

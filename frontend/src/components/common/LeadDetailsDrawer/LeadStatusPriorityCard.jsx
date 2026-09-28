@@ -83,9 +83,8 @@ const LeadStatusPriorityCard = ({
             Lead Priority (Auto)
           </span>
           <span
-            className={`inline-flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-extrabold uppercase tracking-wider border ${priorityStyle}`}
+            className={`inline-flex items-center rounded-lg px-3 py-1 text-xs font-extrabold uppercase tracking-wider border ${priorityStyle}`}
           >
-            <AlertCircle size={13} />
             {lead.priority || "MEDIUM"} Priority
           </span>
         </div>

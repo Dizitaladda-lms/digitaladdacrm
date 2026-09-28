@@ -2,6 +2,20 @@ import React, { useState } from "react";
 import { Clock, User, MessageSquare, Send } from "lucide-react";
 import "./LeadDetailsDrawer.css";
 
+const STATUS_LABELS = {
+  INTERESTED: "Interested",
+  FOLLOW_UP: "Follow Up",
+  WALK_IN: "Walkin",
+  ENROLLED: "Enrolled",
+  NOT_INTERESTED: "Not Interested",
+  NEW: "Interested",
+  CONTACTED: "Follow Up",
+  QUALIFIED: "Interested",
+  ADMISSION: "Enrolled",
+  ADMISSION_DONE: "Enrolled",
+  LOST: "Not Interested",
+};
+
 /**
  * AuditTimelineTab Component (Tab 4)
  * Clean Enterprise Audit Timeline & Internal Notes Composer
@@ -209,7 +223,7 @@ const AuditTimelineTab = ({
                   <div className="crm-timeline-card">
                     <div className="crm-timeline-header">
                       <span className="crm-badge crm-badge-status">
-                        {item.status_at_feedback || "STATUS"}
+                        {STATUS_LABELS[item.status_at_feedback] || item.status_at_feedback || "STATUS"}
                       </span>
 
                       <div className="crm-timeline-meta">

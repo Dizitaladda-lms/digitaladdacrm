@@ -9,6 +9,7 @@ import {
 } from "../repositories/leadFeedbackRepository.js";
 import { calculateLeadPriority } from "./leadPriority.service.js";
 import { addTimelineEventService } from "./leadTimeline.service.js";
+import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
 import TIMELINE_ACTIVITY from "../constants/timelineActivity.js";
 
 /**
@@ -126,7 +127,21 @@ export const addLeadFeedbackService = async (
 
     const updatedLead = updateResult.rows[0];
 
-    // 3.5. Follow-up Lifecycle Automation:
+    // 3.5. Follow-up & Admission Lifecycle Automation:
+    // Resolve effective employee id
+    let effectiveEmployeeId = lead.assigned_to;
+    if (!effectiveEmployeeId && currentUser?.id) {
+      try {
+        const emp = await ensureEmployeeProfileForUser(currentUser.id);
+        if (emp) effectiveEmployeeId = emp.id;
+      } catch {}
+    }
+
+    // If lead was unassigned, assign lead to this counsellor
+    if (!lead.assigned_to && effectiveEmployeeId) {
+      await client.query("UPDATE leads SET assigned_to = $1 WHERE id = $2", [effectiveEmployeeId, leadId]);
+    }
+
     // Mark existing PENDING follow-up tasks as COMPLETED
     try {
       await client.query(`
@@ -137,8 +152,10 @@ export const addLeadFeedbackService = async (
         WHERE lead_id = $2 AND status = 'PENDING';
       `, [targetStatus.toUpperCase(), leadId]);
 
-      // If status is FOLLOW_UP and a callback date is provided, create new PENDING follow-up task
-      if (targetStatus.toUpperCase() === "FOLLOW_UP" && nextFollowup) {
+      // If status is FOLLOW_UP, create new PENDING follow-up task
+      if (targetStatus.toUpperCase() === "FOLLOW_UP") {
+        const callbackDate = nextFollowup || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
         await client.query(`
           INSERT INTO lead_followups (
             lead_id, employee_id, followup_type, status, outcome, priority, next_followup_at, remarks, created_by
@@ -146,10 +163,10 @@ export const addLeadFeedbackService = async (
           VALUES ($1, $2, $3, 'PENDING', 'RESCHEDULED', $4, $5, $6, $7);
         `, [
           leadId,
-          lead.assigned_to,
+          effectiveEmployeeId || null,
           feedback_fields.followup_type || "CALL",
           calculatedPriority,
-          nextFollowup,
+          callbackDate,
           summaryText || "Rescheduled callback",
           currentUser.id,
         ]);
@@ -162,12 +179,14 @@ export const addLeadFeedbackService = async (
     if (["ENROLLED", "ADMISSION", "ADMISSION_DONE"].includes(targetStatus.toUpperCase())) {
       try {
         const countRes = await client.query("SELECT COUNT(*) FROM admissions WHERE lead_id = $1;", [leadId]);
+        const totFee = Number(feedback_fields.total_fee) || 45000;
+        const pdFee = Number(feedback_fields.fee_paid || feedback_fields.paid_fee) || 15000;
+        const pndFee = Math.max(0, totFee - pdFee);
+        const courseName = feedback_fields.course_name || interestedCourse || "Digital Marketing";
+
         if (Number(countRes.rows[0].count) === 0) {
           const admCount = (await client.query("SELECT COUNT(*) FROM admissions;")).rows[0].count;
           const admCode = `ADM${Number(admCount) + 1001}`;
-          const totFee = Number(feedback_fields.total_fee) || 120000;
-          const pdFee = Number(feedback_fields.fee_paid || feedback_fields.paid_fee) || 25000;
-          const pndFee = Math.max(0, totFee - pdFee);
 
           await client.query(`
             INSERT INTO admissions (
@@ -182,15 +201,39 @@ export const addLeadFeedbackService = async (
             fullName,
             mobile,
             email || null,
-            interestedCourse || feedback_fields.course_name || "BCA",
+            courseName,
             preferredCentre || "Main Campus",
             totFee,
             pdFee,
             pndFee,
             feedback_fields.receipt_no || null,
             feedback_fields.next_due_date || null,
-            lead.assigned_to,
+            effectiveEmployeeId || null,
             summaryText,
+          ]);
+        } else {
+          await client.query(`
+            UPDATE admissions
+            SET 
+              course_name = COALESCE($1, course_name),
+              total_fee = CASE WHEN $2 > 0 THEN $2 ELSE total_fee END,
+              paid_fee = CASE WHEN $3 > 0 THEN $3 ELSE paid_fee END,
+              pending_fee = CASE WHEN $2 > 0 AND $3 >= 0 THEN GREATEST(0, $2 - $3) ELSE pending_fee END,
+              receipt_no = COALESCE($4, receipt_no),
+              next_due_date = COALESCE($5, next_due_date),
+              assigned_to = COALESCE($6, assigned_to),
+              remarks = COALESCE($7, remarks),
+              updated_at = CURRENT_TIMESTAMP
+            WHERE lead_id = $8;
+          `, [
+            courseName,
+            totFee,
+            pdFee,
+            feedback_fields.receipt_no || null,
+            feedback_fields.next_due_date || null,
+            effectiveEmployeeId || null,
+            summaryText,
+            leadId,
           ]);
         }
       } catch (admErr) {

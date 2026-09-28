@@ -51,31 +51,8 @@ const LeadFeedbackFormCard = ({
 
         {/* DYNAMIC FIELDS CONTAINER */}
         <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/80 space-y-4">
-          {/* 1. NOT_CONTACTED / NEW / CONTACTED */}
-          {(selectedStatus === "NOT_CONTACTED" || selectedStatus === "NEW" || selectedStatus === "CONTACTED") && (
-            <div>
-              <label className="block text-xs font-bold uppercase text-slate-700 mb-1 tracking-wider">
-                Uncontacted Reason <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={feedbackFields.reason || ""}
-                onChange={(e) => onFieldChange("reason", e.target.value)}
-                required
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 outline-none focus:border-blue-500"
-              >
-                <option value="">-- Select Reason --</option>
-                <option value="Switched Off">Switched Off</option>
-                <option value="Not Reachable">Not Reachable</option>
-                <option value="Ringing No Response">Ringing No Response</option>
-                <option value="Invalid Number">Invalid Number</option>
-                <option value="Busy">Busy</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          )}
-
-          {/* 2. FOLLOW_UP */}
-          {(selectedStatus === "FOLLOW_UP" || selectedStatus === "FOLLOW_UP_REQUIRED") && (
+          {/* 1. FOLLOW_UP */}
+          {selectedStatus === "FOLLOW_UP" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1 tracking-wider">
@@ -108,8 +85,8 @@ const LeadFeedbackFormCard = ({
             </div>
           )}
 
-          {/* 3. QUALIFIED / INTERESTED */}
-          {(selectedStatus === "QUALIFIED" || selectedStatus === "INTERESTED") && (
+          {/* 2. INTERESTED & WALK_IN */}
+          {(selectedStatus === "INTERESTED" || selectedStatus === "WALK_IN" || selectedStatus === "QUALIFIED") && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1 tracking-wider">
@@ -150,8 +127,8 @@ const LeadFeedbackFormCard = ({
             </div>
           )}
 
-          {/* 4. ADMISSION_DONE */}
-          {(selectedStatus === "ADMISSION_DONE" || selectedStatus === "ENROLLED") && (
+          {/* 3. ENROLLED */}
+          {(selectedStatus === "ENROLLED" || selectedStatus === "ADMISSION_DONE") && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1 tracking-wider">
