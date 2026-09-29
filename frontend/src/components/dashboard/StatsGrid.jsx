@@ -3,10 +3,8 @@ import "../../styles/Dashboard/StatsGrid.css";
 import {
   Users,
   GraduationCap,
-  BookOpen,
-  Briefcase,
   Megaphone,
-  UserCheck,
+  Briefcase,
 } from "lucide-react";
 
 const StatsGrid = ({
@@ -19,49 +17,33 @@ const StatsGrid = ({
     {
       title: "Total Leads",
       value: Number(summary.total_leads || 0),
-      subtitle: `${Number(summary.today_leads || 0)} Today`,
+      subtitle: `${Number(summary.today_leads || 0)} added today`,
       icon: Users,
       color: "blue",
     },
 
     {
-      title: "Campaigns",
-      value: Number(summary.total_campaigns || 0),
-      subtitle: "Running Campaigns",
-      icon: Megaphone,
-      color: "purple",
-    },
-
-    {
       title: "Admissions",
       value: Number(summary.total_admissions || 0),
-      subtitle: "Confirmed Admissions",
+      subtitle: "Confirmed admissions",
       icon: GraduationCap,
       color: "green",
     },
 
     {
-      title: "Students",
-      value: Number(summary.total_students || 0),
-      subtitle: "Enrolled Students",
-      icon: BookOpen,
-      color: "orange",
+      title: "Campaigns",
+      value: Number(summary.total_campaigns || 0),
+      subtitle: "Active campaigns",
+      icon: Megaphone,
+      color: "purple",
     },
 
     {
       title: "Employees",
       value: Number(summary.total_employees || 0),
-      subtitle: "CRM Employees",
+      subtitle: "CRM team members",
       icon: Briefcase,
-      color: "red",
-    },
-
-    {
-      title: "Assigned Leads",
-      value: Number(summary.assigned_leads || 0),
-      subtitle: "Assigned To Counsellors",
-      icon: UserCheck,
-      color: "cyan",
+      color: "orange",
     },
 
   ];

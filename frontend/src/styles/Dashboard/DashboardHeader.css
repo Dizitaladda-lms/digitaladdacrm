@@ -1,245 +1,169 @@
-.dashboard-header{
+/* ==========================================================
+   DIZITALADDA CRM — Dashboard Header
+   ========================================================== */
 
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    gap:24px;
-
-    background:#ffffff;
-
-    border:1px solid #E7E9EE;
-
-    border-radius:12px;
-
-    padding:24px 30px;
-
-    box-shadow:0 2px 8px rgba(0,0,0,.05);
-
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  background: #ffffff;
+  border: 1px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
 }
 
-.dashboard-header-left{
-
-    display:flex;
-
-    flex-direction:column;
-
+/* ── Left: greeting + subtitle ───────────────────────────── */
+.dashboard-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.dashboard-badge{
-
-    width:max-content;
-
-    background:#EEEDFC;
-
-    color:#4F46E5;
-
-    font-size:12px;
-
-    font-weight:600;
-
-    padding:6px 14px;
-
-    border-radius:50px;
-
-    margin-bottom:16px;
-
-    text-transform:uppercase;
-
+.dashboard-badge {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 50px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid #c7d2fe;
 }
 
-.dashboard-header-left h1{
-
-    font-size:32px;
-
-    font-weight:700;
-
-    color:#12151C;
-
-    margin-bottom:10px;
-
+.dashboard-header-left h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
 }
 
-.dashboard-header-left p{
-
-    font-size:15px;
-
-    color:#6B7280;
-
-    line-height:24px;
-
+.dashboard-header-left p {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
 }
 
-.dashboard-header-right{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:16px;
-
+/* ── Right: date + refresh ──────────────────────────────── */
+.dashboard-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
-.today-card{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:14px;
-
-    padding:14px 18px;
-
-    border:1px solid #E7E9EE;
-
-    border-radius:12px;
-
-    background:#ffffff;
-
+.today-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border: 1px solid #e8eaf0;
+  border-radius: 10px;
+  background: #fafafa;
 }
 
-.today-icon{
-
-    width:44px;
-
-    height:44px;
-
-    border-radius:10px;
-
-    background:#EEEDFC;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    font-size:20px;
-
+.today-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: #eef2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
-.today-label{
-
-    display:block;
-
-    font-size:11px;
-
-    font-weight:700;
-
-    color:#9AA1AC;
-
-    letter-spacing:1px;
-
-    margin-bottom:4px;
-
+.today-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
 }
 
-.today-card h4{
-
-    font-size:14px;
-
-    color:#12151C;
-
-    font-weight:600;
-
+.today-card h4 {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 600;
+  margin: 0;
 }
 
-.refresh-btn{
-
-    height:48px;
-
-    padding:0 22px;
-
-    border:none;
-
-    border-radius:10px;
-
-    background:#4F46E5;
-
-    color:#ffffff;
-
-    font-size:14px;
-
-    font-weight:600;
-
-    cursor:pointer;
-
-    transition:.25s;
-
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 9px;
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
 }
 
-.refresh-btn:hover{
-
-    background:#4338CA;
-
+.refresh-btn:hover {
+  background: #4338ca;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
 }
 
-.refresh-btn:disabled{
-
-    opacity:.6;
-
-    cursor:not-allowed;
-
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
-/* Tablet */
+/* ── Tablet ──────────────────────────────────────────────── */
+@media (max-width: 992px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
 
-@media(max-width:992px){
-
-.dashboard-header{
-
-    flex-direction:column;
-
-    align-items:flex-start;
-
+  .dashboard-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
-.dashboard-header-right{
+/* ── Mobile ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dashboard-header {
+    padding: 16px 18px;
+    border-radius: 12px;
+  }
 
-    width:100%;
+  .dashboard-header-left h1 {
+    font-size: 17px;
+  }
 
-    justify-content:space-between;
+  .dashboard-header-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
 
-}
+  .today-card {
+    width: 100%;
+  }
 
-}
-
-/* Mobile */
-
-@media(max-width:768px){
-
-.dashboard-header{
-
-    padding:20px;
-
-}
-
-.dashboard-header-left h1{
-
-    font-size:26px;
-
-}
-
-.dashboard-header-right{
-
-    flex-direction:column;
-
-    align-items:stretch;
-
-}
-
-.today-card{
-
-    width:100%;
-
-}
-
-.refresh-btn{
-
-    width:100%;
-
-}
-
+  .refresh-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
