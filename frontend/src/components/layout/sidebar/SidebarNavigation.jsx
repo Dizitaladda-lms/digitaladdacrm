@@ -7,6 +7,7 @@ import {
   LogOut,
   Radio,
   FileBarChart2,
+  UserCircle,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -29,6 +30,11 @@ const managerMenuItems = [
     title: "Lead Management",
     icon: UsersRound,
     path: "/leads",
+  },
+  {
+    title: "My Leads",
+    icon: UserCircle,
+    path: "/my-leads",
   },
   {
     title: "Employees",

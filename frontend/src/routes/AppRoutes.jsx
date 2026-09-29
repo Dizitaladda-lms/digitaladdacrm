@@ -17,6 +17,7 @@ import Employees from "../pages/admin/Employees";
 const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
 const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
 const TelephonySettings = lazy(() => import("../pages/admin/TelephonySettings"));
+const ManagerMyLeads = lazy(() => import("../pages/admin/ManagerMyLeads"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -51,6 +52,15 @@ const AppRoutes = () => {
             <Route path="/dashboard" element={<Dashboard />} />
 
             <Route path="/leads" element={<LeadManagement />} />
+
+            <Route
+              path="/my-leads"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <ManagerMyLeads />
+                </Suspense>
+              }
+            />
 
             <Route path="/campaigns" element={<CampaignManagement />} />
 
