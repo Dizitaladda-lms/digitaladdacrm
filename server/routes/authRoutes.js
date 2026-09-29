@@ -1,6 +1,8 @@
 import express from "express";
 import {
   loginLimiter,
+  accountRecoveryLimiter,
+  registrationLimiter,
 } from "../middleware/rateLimiter.js";
 import {
   register,
@@ -38,6 +40,7 @@ const router = express.Router();
 
 router.post(
   "/register",
+  registrationLimiter,
   registerValidator,
   validate,
   register
@@ -53,6 +56,7 @@ router.post(
 
 router.post(
   "/forgot-password",
+  accountRecoveryLimiter,
   forgotPasswordValidator,
   validate,
   forgotPassword
@@ -60,6 +64,7 @@ router.post(
 
 router.post(
   "/reset-password",
+  accountRecoveryLimiter,
   resetPasswordValidator,
   validate,
   resetPassword

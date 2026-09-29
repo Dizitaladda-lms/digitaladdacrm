@@ -53,6 +53,9 @@ import { verifyStoredPassword } from "../utils/passwordUtils.js";
 export const registerUserService = async (
   userData
 ) => {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PUBLIC_REGISTRATION !== "true") {
+    throw new ApiError(403, "Public registration is disabled. Contact an administrator.");
+  }
 
   const client = await pool.connect();
 

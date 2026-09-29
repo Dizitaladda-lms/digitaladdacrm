@@ -32,7 +32,7 @@ export const createAdmission = asyncHandler(async (req, res) => {
  */
 export const getAdmissionById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const admission = await getAdmissionByIdService(id);
+  const admission = await getAdmissionByIdService(id, req.user);
   return res
     .status(200)
     .json(new ApiResponse(200, admission, "Admission fetched successfully."));
@@ -43,11 +43,10 @@ export const getAdmissionById = asyncHandler(async (req, res) => {
  */
 export const collectFee = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const updatedAdmission = await collectFeeService(id, req.body);
+  const updatedAdmission = await collectFeeService(id, req.body, req.user);
   return res
     .status(200)
     .json(
       new ApiResponse(200, updatedAdmission, "Fee payment recorded successfully.")
     );
 });
-

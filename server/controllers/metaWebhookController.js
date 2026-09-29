@@ -1,4 +1,5 @@
 import asyncHandler from "../utils/asyncHandler.js";
+import crypto from "crypto";
 import { handleMetaWebhookEvent } from "../services/metaWebhookService.js";
 
 /**
@@ -10,18 +11,14 @@ export const verifyMetaWebhook = (req, res) => {
   const token = req.query["hub.verify_token"] || req.query.verify_token;
   const challenge = req.query["hub.challenge"] || req.query.challenge;
 
-  const expectedToken = (
-    process.env.META_VERIFY_TOKEN || "dizitaladda_meta_verify_token_2026"
-  ).trim();
+  const expectedToken = (process.env.META_VERIFY_TOKEN || "").trim();
 
-  if (mode === "subscribe" && token && token.trim() === expectedToken) {
+  if (expectedToken && mode === "subscribe" && token && token.trim() === expectedToken) {
     console.log("✅ Meta Webhook Verified Successfully!");
     res.setHeader("Content-Type", "text/plain");
     return res.status(200).send(challenge);
   } else {
-    console.warn(
-      `❌ Meta Webhook Verification Failed. Expected: "${expectedToken}", Got: "${token}"`
-    );
+    console.warn("Meta webhook verification failed.");
     return res.status(403).send("Forbidden");
   }
 };
@@ -31,7 +28,18 @@ export const verifyMetaWebhook = (req, res) => {
  * Receive real-time lead events from Meta.
  */
 export const receiveMetaWebhook = asyncHandler(async (req, res) => {
-  // Always respond 200 OK immediately so Meta doesn't retry
+  const appSecret = process.env.META_APP_SECRET;
+  const signature = req.get("x-hub-signature-256");
+  if (!appSecret || !signature?.startsWith("sha256=") || !req.rawBody) {
+    return res.status(403).json({ success: false, message: "Invalid webhook signature." });
+  }
+  const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(req.rawBody).digest("hex")}`;
+  const received = Buffer.from(signature);
+  const calculated = Buffer.from(expected);
+  if (received.length !== calculated.length || !crypto.timingSafeEqual(received, calculated)) {
+    return res.status(403).json({ success: false, message: "Invalid webhook signature." });
+  }
+
   res.status(200).json({ success: true, message: "EVENT_RECEIVED" });
 
   try {

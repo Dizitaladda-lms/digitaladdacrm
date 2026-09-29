@@ -18,13 +18,6 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
-  // Attach token from localStorage as Authorization header fallback
-  const token =
-    localStorage.getItem("accessToken") || localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
   if (
     config.url &&
     !config.url.startsWith("http://") &&
@@ -54,9 +47,6 @@ axiosInstance.interceptors.response.use(
 
       // Only redirect via window location if not an auth check endpoint and not already on login page
       if (!isAuthCheck && !isAlreadyOnLogin) {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
         window.location.href = "/";
       }
     }

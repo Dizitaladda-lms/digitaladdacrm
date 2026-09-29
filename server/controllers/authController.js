@@ -67,7 +67,7 @@ export const register = asyncHandler(async (req, res) => {
 
 /**
  * Login User
- * Sets httpOnly cookies AND returns accessToken in payload for cross-domain fallback
+ * Sets HttpOnly cookies. Tokens are never exposed to browser JavaScript.
  */
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -81,7 +81,6 @@ export const login = asyncHandler(async (req, res) => {
       200,
       {
         user: result.user,
-        accessToken: result.accessToken,
       },
       "Login successful."
     )
@@ -180,7 +179,6 @@ export const refreshToken = asyncHandler(async (req, res) => {
         200,
         {
           success: true,
-          accessToken: result.accessToken,
         },
         "Access token refreshed successfully."
       )

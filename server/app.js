@@ -35,26 +35,21 @@ import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
 
-const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
-const vercelOriginRegex = /\.vercel\.app$/i;
-const dizitalAddaOriginRegex = /(^|\.)dizitaladda\.com$/i;
-const nigapeOriginRegex = /(^|\.)nigape\.com$/i;
-const nidadsOriginRegex = /(^|\.)nidads\.com$/i;
+// Render/Vercel deploy behind one trusted reverse proxy. This lets rate limits
+// use the real client IP instead of treating every request as the proxy.
+app.set("trust proxy", 1);
 
-const explicitOrigins = (process.env.CLIENT_URL || "")
+const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+const explicitOrigins = [process.env.CLIENT_URL || "", process.env.ALLOWED_ORIGINS || ""]
+  .join(",")
   .split(",")
   .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
 const isOriginAllowed = (origin) => {
-  if (!origin) return true; // server-to-server, Postman, curl, same-origin
-  if (localOriginRegex.test(origin)) return true;
-  if (vercelOriginRegex.test(origin)) return true;
-  if (dizitalAddaOriginRegex.test(origin)) return true;
-  if (nigapeOriginRegex.test(origin)) return true;
-  if (nidadsOriginRegex.test(origin)) return true;
+  if (!origin) return false;
+  if (process.env.NODE_ENV !== "production" && localOriginRegex.test(origin)) return true;
   if (explicitOrigins.includes(origin.replace(/\/$/, ""))) return true;
-  if (process.env.NODE_ENV !== "production") return true;
   return false;
 };
 
@@ -70,19 +65,7 @@ app.use(cors((req, callback) => {
   const origin = req.header("Origin");
   const isAllowed = isOriginAllowed(origin);
 
-  // Always allow public landing pages, forms, webhooks, and auth endpoints to communicate
-  const isPublicOrAuthRoute =
-    req.path?.startsWith("/api/public") ||
-    req.path?.startsWith("/api/auth") ||
-    req.path?.startsWith("/api/telephony/webhook") ||
-    req.url?.startsWith("/api/public") ||
-    req.url?.startsWith("/api/auth") ||
-    req.url?.startsWith("/api/telephony/webhook") ||
-    req.originalUrl?.startsWith("/api/public") ||
-    req.originalUrl?.startsWith("/api/auth") ||
-    req.originalUrl?.startsWith("/api/telephony/webhook");
-
-  if (isPublicOrAuthRoute || isAllowed) {
+  if (!origin || isAllowed) {
     return callback(null, {
       origin: origin || true,
       credentials: true,
@@ -96,7 +79,7 @@ app.use(cors((req, callback) => {
 }));
 
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ verify: (req, _res, buffer) => { req.rawBody = buffer; } }));
 app.use(
   express.urlencoded({
     extended: true,
@@ -110,6 +93,15 @@ app.use(helmet());
 app.use(compression());
 app.use(hpp());
 app.use(globalLimiter);
+
+app.use((req, res, next) => {
+  const unsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+  const hasAuthCookie = Boolean(req.cookies?.accessToken || req.cookies?.refreshToken);
+  if (unsafeMethod && hasAuthCookie && !isOriginAllowed(req.get("Origin"))) {
+    return res.status(403).json({ success: false, message: "Untrusted request origin." });
+  }
+  next();
+});
 
 /**
  * Logging

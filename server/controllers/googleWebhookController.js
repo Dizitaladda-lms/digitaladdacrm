@@ -49,15 +49,16 @@ export const extractGoogleFields = (columnData = []) => {
  * Direct Google Ads Lead Form Asset Webhook Receiver
  */
 export const receiveGoogleWebhook = asyncHandler(async (req, res) => {
-  const expectedKey =
-    process.env.GOOGLE_LEAD_KEY || "dizitaladda_google_lead_key_2026";
-
+  const expectedKey = process.env.GOOGLE_LEAD_KEY;
   const incomingKey = req.body?.google_key;
 
-  // Verify google_key if configured
-  if (expectedKey && incomingKey && incomingKey !== expectedKey) {
-    logger.warn(`Invalid Google Lead key received: "${incomingKey}"`);
-    return res.status(403).json({ error: "Invalid google_key" });
+  if (!expectedKey) {
+    logger.error("GOOGLE_LEAD_KEY is not configured; rejecting webhook.");
+    return res.status(503).json({ error: "Webhook is not configured" });
+  }
+  if (!incomingKey || incomingKey !== expectedKey) {
+    logger.warn("Rejected Google webhook with missing or invalid key.");
+    return res.status(403).json({ error: "Invalid webhook key" });
   }
 
   // Google Test Lead submission check

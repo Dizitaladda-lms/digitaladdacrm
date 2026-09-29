@@ -40,15 +40,8 @@ export const AuthProvider = ({ children }) => {
     if (response?.success) {
       const payload = response.data || {};
       const userData = payload.user || null;
-      const accessToken = payload.accessToken || null;
-
       if (userData) {
-        localStorage.setItem("user", JSON.stringify(userData));
         setUser(userData);
-      }
-
-      if (accessToken) {
-        localStorage.setItem("accessToken", accessToken);
       }
     }
 
@@ -62,9 +55,6 @@ export const AuthProvider = ({ children }) => {
       // Ignore network errors during logout
     }
 
-    localStorage.removeItem("user");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("token");
     setUser(null);
   };
 
@@ -74,7 +64,6 @@ export const AuthProvider = ({ children }) => {
 
     if (updatedUser) {
       setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
     }
 
     return response;

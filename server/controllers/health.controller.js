@@ -1,4 +1,3 @@
-import os from "os";
 import pool from "../config/db.js";
 
 /**
@@ -23,19 +22,7 @@ export const health = async (req, res) => {
 
         status: "UP",
 
-        uptime: process.uptime(),
-
         timestamp: new Date().toISOString(),
-
-        nodeVersion: process.version,
-
-        platform: process.platform,
-
-        cpuCores: os.cpus().length,
-
-        totalMemory: os.totalmem(),
-
-        freeMemory: os.freemem(),
 
       },
 

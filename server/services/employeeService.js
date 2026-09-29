@@ -116,6 +116,17 @@ export const createEmployeeService = async (
             employeeData.password ||
             process.env.DEFAULT_EMPLOYEE_PASSWORD;
 
+        if (
+            process.env.NODE_ENV === "production" &&
+            !employeeData.password &&
+            process.env.ALLOW_DEFAULT_EMPLOYEE_PASSWORD !== "true"
+        ) {
+            throw new ApiError(
+                400,
+                "A temporary password is required when creating an employee."
+            );
+        }
+
         const hashedPassword =
             await bcrypt.hash(
                 temporaryPassword,
