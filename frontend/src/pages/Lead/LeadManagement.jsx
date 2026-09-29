@@ -92,6 +92,10 @@ const [assignModal,setAssignModal]=useState(false);
 
     domain: "",
 
+    date_from: "",
+
+    date_to: "",
+
   });
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -237,6 +241,10 @@ setAssignModal(false);
       assigned_to: "",
 
       domain: "",
+
+    date_from: "",
+
+    date_to: "",
 
     });
 

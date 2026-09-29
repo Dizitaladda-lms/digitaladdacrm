@@ -287,6 +287,8 @@ export const getLeadsRepository = async (filters) => {
     priority,
     assigned_to,
     domain,
+    date_from,
+    date_to,
     sortBy = "created_at",
     order = "DESC",
   } = filters;
@@ -372,6 +374,19 @@ export const getLeadsRepository = async (filters) => {
       AND UPPER(l.domain) = $${index}
     `;
     values.push(String(domain).toUpperCase());
+    index++;
+  }
+
+  // Inclusive calendar-date filter. Created time is the single reference so
+  // list and stats report the same period.
+  if (date_from) {
+    whereClause += ` AND l.created_at >= $${index}::date `;
+    values.push(date_from);
+    index++;
+  }
+  if (date_to) {
+    whereClause += ` AND l.created_at < ($${index}::date + INTERVAL '1 day') `;
+    values.push(date_to);
     index++;
   }
 
@@ -489,6 +504,8 @@ export const getMyLeadsRepository = async (filters = {}) => {
     status,
     priority,
     domain,
+    date_from,
+    date_to,
     sortBy = "created_at",
     order = "DESC",
   } = filters;
@@ -560,6 +577,17 @@ export const getMyLeadsRepository = async (filters = {}) => {
       AND UPPER(l.domain) = $${index}
     `;
     values.push(String(domain).toUpperCase());
+    index++;
+  }
+
+  if (date_from) {
+    whereClause += ` AND l.created_at >= $${index}::date `;
+    values.push(date_from);
+    index++;
+  }
+  if (date_to) {
+    whereClause += ` AND l.created_at < ($${index}::date + INTERVAL '1 day') `;
+    values.push(date_to);
     index++;
   }
 
@@ -1016,7 +1044,7 @@ RETURNING *;
  */
 
 export const getLeadStatisticsRepository = async (filterParams = {}) => {
-  const { employeeId, domain, source } = filterParams;
+  const { employeeId, domain, source, date_from, date_to } = filterParams;
 
   const conditions = ["is_deleted = FALSE"];
   const values = [];
@@ -1037,6 +1065,17 @@ export const getLeadStatisticsRepository = async (filterParams = {}) => {
   if (source && String(source).toLowerCase() !== "all") {
     conditions.push(`UPPER(source) = $${index}`);
     values.push(String(source).toUpperCase());
+    index++;
+  }
+
+  if (date_from) {
+    conditions.push(`created_at >= $${index}::date`);
+    values.push(date_from);
+    index++;
+  }
+  if (date_to) {
+    conditions.push(`created_at < ($${index}::date + INTERVAL '1 day')`);
+    values.push(date_to);
     index++;
   }
 

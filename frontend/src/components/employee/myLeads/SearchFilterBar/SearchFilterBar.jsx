@@ -13,6 +13,10 @@ const SearchFilterBar = ({
   onSourceChange = () => {},
   domain = "ALL",
   onDomainChange = () => {},
+  dateFrom = "",
+  onDateFromChange = () => {},
+  dateTo = "",
+  onDateToChange = () => {},
   onReset = () => {},
 }) => {
   return (
@@ -27,6 +31,9 @@ const SearchFilterBar = ({
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
+
+      <input aria-label="Leads start date" type="date" value={dateFrom} onChange={(e) => onDateFromChange(e.target.value)} className="filter-select" />
+      <input aria-label="Leads end date" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => onDateToChange(e.target.value)} className="filter-select" />
 
       {/* Domain Filter */}
       <select

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { sendBulkWhatsApp } from "../../services/whatsappService";
+import "./BulkWhatsAppModal.css";
 
 const TEMPLATES = [
   {
@@ -247,16 +248,41 @@ const BulkWhatsAppModal = ({
       size="xl"
       onClose={onClose}
     >
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="employee-wa-outreach">
+        <div className="employee-wa-outreach__summary">
+          <div className="employee-wa-outreach__summary-copy">
+            <span className="employee-wa-outreach__eyebrow">
+              <Layers size={13} /> Campaign composer
+            </span>
+            <h3>Make every outreach feel personal.</h3>
+            <p>Choose a template, add your message, and check the student preview before sending.</p>
+          </div>
+          <div className="employee-wa-outreach__audience">
+            <span>{validLeads.length}</span>
+            <div>
+              <strong>ready recipients</strong>
+              <small>with valid WhatsApp numbers</small>
+            </div>
+          </div>
+        </div>
+
+        {leads.length !== validLeads.length && (
+          <div className="employee-wa-outreach__notice">
+            <AlertCircle size={15} />
+            {leads.length - validLeads.length} selected student(s) do not have a valid mobile number and will be skipped.
+          </div>
+        )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 employee-wa-outreach__grid">
         {/* LEFT COLUMN: Controls & Composer (7 cols) */}
-        <div className="space-y-4 lg:col-span-7">
+        <div className="space-y-4 lg:col-span-7 employee-wa-outreach__composer">
           {/* Template Selection */}
           <div>
             <label className="block text-[12px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
               <Sparkles size={14} className="text-blue-600" />
               <span>Select WhatsApp Template</span>
             </label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 employee-wa-outreach__templates">
               {TEMPLATES.map((tmpl) => {
                 const isSelected = selectedTemplateId === tmpl.id;
                 return (
@@ -317,7 +343,7 @@ const BulkWhatsAppModal = ({
           </div>
 
           {/* Graphic / Media Attachment Option */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5 employee-wa-outreach__media">
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -419,7 +445,7 @@ const BulkWhatsAppModal = ({
         </div>
 
         {/* RIGHT COLUMN: WhatsApp Real-Time Simulation (5 cols) */}
-        <div className="space-y-3 lg:col-span-5">
+        <div className="space-y-3 lg:col-span-5 employee-wa-outreach__preview">
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
               <MessageCircle size={15} className="text-emerald-600" />
@@ -458,7 +484,7 @@ const BulkWhatsAppModal = ({
 
           {/* WhatsApp Phone Mockup Container */}
           <div
-            className="rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col"
+            className="rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col employee-wa-outreach__phone"
             style={{
               backgroundColor: "#EFEAE2",
               backgroundImage:
@@ -544,7 +570,7 @@ const BulkWhatsAppModal = ({
       </div>
 
       {/* Selected Leads Mini Strip & Actions */}
-      <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3">
+      <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3 employee-wa-outreach__footer">
         <div className="flex items-center gap-2 text-xs text-slate-600">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-800 font-bold text-[11px]">
             {validLeads.length}
@@ -594,6 +620,7 @@ const BulkWhatsAppModal = ({
             </button>
           )}
         </div>
+      </div>
       </div>
     </Modal>
   );

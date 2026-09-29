@@ -16,13 +16,15 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
   if (!isOpen || !employee) return null;
 
   const [timeframe, setTimeframe] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [perfData, setPerfData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchPerformance = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get(`/employees/${employee.id}/performance?timeframe=${timeframe}`);
+      const res = await axiosInstance.get(`/employees/${employee.id}/performance`, { params: { timeframe, date_from: dateFrom || undefined, date_to: dateTo || undefined } });
       setPerfData(res.data?.data || res.data || {});
     } catch (error) {
       console.error("Failed to fetch employee performance:", error);
@@ -30,7 +32,7 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
     } finally {
       setLoading(false);
     }
-  }, [employee.id, timeframe]);
+  }, [employee.id, timeframe, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchPerformance();
@@ -136,6 +138,11 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
                 {t.label}
               </button>
             ))}
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ fontSize: "12px", color: "#475569" }}>From <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></label>
+            <label style={{ fontSize: "12px", color: "#475569" }}>To <input type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></label>
+            {(dateFrom || dateTo) && <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} style={{ fontSize: "12px", color: "#2563EB", fontWeight: 700 }}>Clear dates</button>}
           </div>
         </div>
 

@@ -1,0 +1,162 @@
+.employee-wa-outreach {
+  color: #172033;
+}
+
+.employee-wa-outreach__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: -2px 0 20px;
+  padding: 18px 20px;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: linear-gradient(120deg, #f0f7ff 0%, #f7fbff 52%, #ecfdf5 100%);
+}
+
+.employee-wa-outreach__summary-copy h3,
+.employee-wa-outreach__summary-copy p {
+  margin: 0;
+}
+
+.employee-wa-outreach__summary-copy h3 {
+  margin-top: 4px;
+  color: #172554;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.employee-wa-outreach__summary-copy p {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.employee-wa-outreach__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.employee-wa-outreach__audience {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.employee-wa-outreach__audience > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #047857;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.employee-wa-outreach__audience strong,
+.employee-wa-outreach__audience small {
+  display: block;
+}
+
+.employee-wa-outreach__audience strong {
+  color: #14532d;
+  font-size: 11px;
+}
+
+.employee-wa-outreach__audience small {
+  margin-top: 1px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.employee-wa-outreach__notice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: -10px 0 16px;
+  padding: 9px 11px;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.employee-wa-outreach__composer,
+.employee-wa-outreach__preview {
+  min-width: 0;
+}
+
+.employee-wa-outreach__templates button {
+  min-height: 45px;
+  border-radius: 10px;
+}
+
+.employee-wa-outreach textarea {
+  min-height: 142px;
+  resize: vertical;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.employee-wa-outreach textarea:focus {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.employee-wa-outreach__media {
+  border-color: #dbe5f1 !important;
+  background: linear-gradient(145deg, #f8fafc, #f0fdf4) !important;
+}
+
+.employee-wa-outreach__phone {
+  min-height: 395px !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1) !important;
+}
+
+.employee-wa-outreach__footer {
+  padding-top: 16px;
+}
+
+.employee-wa-outreach button {
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.employee-wa-outreach button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 640px) {
+  .employee-wa-outreach__summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    padding: 15px;
+  }
+
+  .employee-wa-outreach__audience {
+    width: 100%;
+  }
+
+  .employee-wa-outreach__footer > div:last-child {
+    width: 100%;
+  }
+
+  .employee-wa-outreach__footer button {
+    flex: 1;
+    justify-content: center;
+  }
+}

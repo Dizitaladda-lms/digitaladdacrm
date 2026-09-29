@@ -271,13 +271,13 @@ export const getEmployeeStatisticsController = asyncHandler(
 
 export const getEmployeePerformanceController = asyncHandler(async (req, res) => {
     const timeframe = req.query.timeframe || "all";
-    const performance = await getEmployeePerformanceService(req.params.id, null, timeframe);
+    const performance = await getEmployeePerformanceService(req.params.id, null, timeframe, req.query.date_from || null, req.query.date_to || null);
     return res.status(200).json(new ApiResponse(200, performance, "Employee performance fetched successfully."));
 });
 
 export const getMyPerformanceController = asyncHandler(async (req, res) => {
     const timeframe = req.query.timeframe || "all";
-    const performance = await getEmployeePerformanceService(null, req.user.id, timeframe);
+    const performance = await getEmployeePerformanceService(null, req.user.id, timeframe, req.query.date_from || null, req.query.date_to || null);
     return res.status(200).json(new ApiResponse(200, performance, "My performance scorecards fetched successfully."));
 });
 
@@ -307,6 +307,12 @@ export const getMyLeadsController = async (
       status: req.query.status,
 
       priority: req.query.priority,
+
+      domain: req.query.domain,
+
+      date_from: req.query.date_from,
+
+      date_to: req.query.date_to,
 
       sortBy: req.query.sortBy,
 

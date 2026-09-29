@@ -898,11 +898,20 @@ export const getEmployeeStatisticsRepository = async () => {
 
 };
 
-export const getEmployeePerformanceRepository = async (employeeId, timeframe = "all") => {
+export const getEmployeePerformanceRepository = async (employeeId, timeframe = "all", dateFrom = null, dateTo = null) => {
     let dateClause = "";
-    if (timeframe === "week") {
+    const params = [employeeId];
+    if (dateFrom) {
+      dateClause += " AND l.created_at >= $2::date";
+      params.push(dateFrom);
+    }
+    if (dateTo) {
+      dateClause += ` AND l.created_at < ($${params.length + 1}::date + INTERVAL '1 day')`;
+      params.push(dateTo);
+    }
+    if (!dateFrom && !dateTo && timeframe === "week") {
       dateClause = " AND l.created_at >= CURRENT_DATE - INTERVAL '7 days'";
-    } else if (timeframe === "month") {
+    } else if (!dateFrom && !dateTo && timeframe === "month") {
       dateClause = " AND l.created_at >= CURRENT_DATE - INTERVAL '30 days'";
     }
 
@@ -916,13 +925,13 @@ export const getEmployeePerformanceRepository = async (employeeId, timeframe = "
           FROM employees e
           LEFT JOIN leads l ON l.assigned_to = e.id
           WHERE e.id = $1
-        `, [employeeId]),
+        `, params),
         pool.query(`
           SELECT COALESCE(SUM(a.paid_fee), 0) AS total_revenue
           FROM admissions a
           LEFT JOIN leads l ON l.id = a.lead_id
-          WHERE a.assigned_to = $1 OR l.assigned_to = $1;
-        `, [employeeId]),
+          WHERE (a.assigned_to = $1 OR l.assigned_to = $1) ${dateClause.replaceAll("l.created_at", "a.created_at")};
+        `, params),
         pool.query(`
           SELECT
             l.id, l.lead_code, l.full_name, l.mobile, l.email,
@@ -931,7 +940,7 @@ export const getEmployeePerformanceRepository = async (employeeId, timeframe = "
           WHERE l.assigned_to = $1 AND l.is_deleted = FALSE ${dateClause}
           ORDER BY l.created_at DESC
           LIMIT 20;
-        `, [employeeId]),
+        `, params),
     ]);
 
     const summaryRow = summaryResult.rows[0] || {};

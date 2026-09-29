@@ -733,6 +733,8 @@ export const getLeadStatisticsService = async (currentUser, queryParams = {}) =>
   if (queryParams.source && queryParams.source !== "ALL") {
     filterParams.source = queryParams.source;
   }
+  if (queryParams.date_from) filterParams.date_from = queryParams.date_from;
+  if (queryParams.date_to) filterParams.date_to = queryParams.date_to;
 
   // Counsellor role: scope exclusively to their assigned employee ID
   if (currentUser?.role === ROLES.COUNSELLOR) {

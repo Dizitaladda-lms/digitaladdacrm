@@ -87,6 +87,16 @@ const LeadFilters = ({
         {/* Status */}
 
         <div className="filter-group">
+          <label>From Date</label>
+          <input type="date" value={filters.date_from || ""} onChange={(e) => onChange("date_from", e.target.value)} />
+        </div>
+
+        <div className="filter-group">
+          <label>To Date</label>
+          <input type="date" min={filters.date_from || undefined} value={filters.date_to || ""} onChange={(e) => onChange("date_to", e.target.value)} />
+        </div>
+
+        <div className="filter-group">
 
           <label>
 

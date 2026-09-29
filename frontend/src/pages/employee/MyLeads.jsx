@@ -30,6 +30,8 @@ const MyLeads = () => {
   const [status, setStatus] = useState("ALL");
   const [priority, setPriority] = useState("ALL");
   const [source, setSource] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchMyLeads = useCallback(async () => {
     try {
@@ -40,6 +42,8 @@ const MyLeads = () => {
       if (status !== "ALL") params.status = status;
       if (priority !== "ALL") params.priority = priority;
       if (source !== "ALL") params.source = source;
+      if (dateFrom) params.date_from = dateFrom;
+      if (dateTo) params.date_to = dateTo;
 
       const [response, statsResponse] = await Promise.all([
         getMyLeads(params),
@@ -57,7 +61,7 @@ const MyLeads = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, domain, status, priority, source]);
+  }, [search, domain, status, priority, source, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchMyLeads();
@@ -69,6 +73,8 @@ const MyLeads = () => {
     setStatus("ALL");
     setPriority("ALL");
     setSource("ALL");
+    setDateFrom("");
+    setDateTo("");
   };
 
   const handleExportCsv = () => {
@@ -114,6 +120,10 @@ const MyLeads = () => {
         onPriorityChange={setPriority}
         source={source}
         onSourceChange={setSource}
+        dateFrom={dateFrom}
+        onDateFromChange={setDateFrom}
+        dateTo={dateTo}
+        onDateToChange={setDateTo}
         onReset={handleResetFilters}
       />
 

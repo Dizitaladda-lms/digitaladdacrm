@@ -28,6 +28,8 @@ const Profile = () => {
 
   // Performance Scorecard State
   const [timeframe, setTimeframe] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [perfData, setPerfData] = useState(null);
   const [loadingPerf, setLoadingPerf] = useState(true);
 
@@ -47,14 +49,14 @@ const Profile = () => {
   const fetchMyPerformance = useCallback(async () => {
     try {
       setLoadingPerf(true);
-      const res = await axiosInstance.get(`/employee/my-performance?timeframe=${timeframe}`);
+      const res = await axiosInstance.get("/employee/my-performance", { params: { timeframe, date_from: dateFrom || undefined, date_to: dateTo || undefined } });
       setPerfData(res.data?.data || res.data || {});
     } catch (error) {
       console.error("Failed to load my performance:", error);
     } finally {
       setLoadingPerf(false);
     }
-  }, [timeframe]);
+  }, [timeframe, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchMyPerformance();
@@ -176,6 +178,9 @@ const Profile = () => {
                 {t.label}
               </button>
             ))}
+            <input aria-label="Performance start date" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <input aria-label="Performance end date" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            {(dateFrom || dateTo) && <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} style={{ fontSize: "12px", color: "#2563EB", fontWeight: 700 }}>Clear</button>}
           </div>
         </div>
 
