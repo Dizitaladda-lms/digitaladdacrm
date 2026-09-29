@@ -68,9 +68,9 @@
 
 /* Welcome Banner */
 .perf-welcome-banner {
-  background: linear-gradient(135deg, #1e293b, #0f172a);
-  color: #ffffff;
-  border-radius: 1rem;
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 14px;
   padding: 1.5rem 2rem;
   display: flex;
   justify-content: space-between;
@@ -78,7 +78,8 @@
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1.5rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .banner-profile {
@@ -91,19 +92,20 @@
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: #ffffff;
+  background: #eef2ff;
+  color: #4f46e5;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 700;
+  border: 1px solid #c7d2fe;
 }
 
 .banner-profile h2 {
   font-size: 1.35rem;
-  font-weight: 700;
-  color: #ffffff;
+  font-weight: 750;
+  color: #0f172a;
 }
 
 .banner-meta {
@@ -116,16 +118,16 @@
 .badge-code {
   font-size: 0.75rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.1);
+  background: #f1f5f9;
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
-  color: #cbd5e1;
+  color: #475569;
 }
 
 .badge-role {
   font-size: 0.75rem;
   font-weight: 600;
-  background: #2563eb;
+  background: #4f46e5;
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
   color: #ffffff;
@@ -133,13 +135,13 @@
 
 .badge-desig {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #64748b;
   padding: 0.2rem 0.4rem;
 }
 
 .banner-conversion {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
   border-radius: 0.75rem;
   padding: 1rem 1.5rem;
   text-align: right;
@@ -150,20 +152,23 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.8125rem;
-  color: #93c5fd;
-  font-weight: 500;
+  color: #475569;
+  font-weight: 650;
 }
 
 .conversion-number {
   font-size: 1.75rem;
   font-weight: 800;
-  color: #34d399;
+  color: #16a34a;
   margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
 }
 
 .conversion-sub {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #64748b;
+  font-weight: 500;
 }
 
 /* Stat Cards */
@@ -224,17 +229,20 @@
 }
 
 .card-value {
-  font-size: 1.6rem;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   color: #0f172a;
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
 }
 
 .card-sub-link {
   font-size: 0.78rem;
-  color: #2563eb;
+  color: #4f46e5;
   margin-top: 0.35rem;
-  font-weight: 600;
+  font-weight: 650;
   display: flex;
   align-items: center;
   gap: 0.25rem;

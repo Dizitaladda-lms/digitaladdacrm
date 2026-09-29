@@ -101,6 +101,60 @@
   color: #9ca3af;
 }
 
+/* ── Date Filter Inputs ──────────────────────────────────── */
+.date-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-icon {
+  position: absolute;
+  left: 11px;
+  color: #9ca3af;
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.date-input-wrap:focus-within .date-icon {
+  color: #4f46e5;
+}
+
+.filter-date-input,
+.filter-group input[type="date"] {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px 0 34px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  background: #f9fafb;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.filter-date-input:focus,
+.filter-group input[type="date"]:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.filter-date-input::-webkit-calendar-picker-indicator,
+.filter-group input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  filter: invert(0.2);
+  transition: opacity 0.15s ease;
+}
+
+.filter-date-input:hover::-webkit-calendar-picker-indicator,
+.filter-group input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
 .filter-group select {
   height: 38px;
   padding: 0 12px;

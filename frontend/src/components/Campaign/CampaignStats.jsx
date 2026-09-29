@@ -5,6 +5,13 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+const formatNumber = (val) => {
+  if (val === null || val === undefined) return "0";
+  if (typeof val === "string" && val.includes("%")) return val;
+  const num = Number(val);
+  return isNaN(num) ? val : num.toLocaleString("en-IN");
+};
+
 const CampaignStats = ({
   stats = {},
   loading = false,
@@ -58,7 +65,7 @@ const CampaignStats = ({
 
             <div className="stat-card-body">
               <h2 className="stat-card-value">
-                {loading ? "--" : card.value}
+                {loading ? "--" : formatNumber(card.value)}
               </h2>
               <span className="stat-card-subtitle">{card.subtitle}</span>
             </div>

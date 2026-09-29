@@ -1,121 +1,112 @@
-.summary-card{
+/* ==========================================================
+   DIZITALADDA CRM — Employee Summary Card (Light Theme)
+   ========================================================== */
 
-    background:#ffffff;
-    border-radius:18px;
-    padding:24px;
-
-    border:1px solid #e5e7eb;
-
-    box-shadow:0 8px 24px rgba(15,23,42,.06);
-
-    transition:.3s;
-
-    cursor:pointer;
-
+.summary-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  border: 1px solid #e8eaf0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.summary-card:hover{
-
-    transform:translateY(-6px);
-
-    box-shadow:0 18px 35px rgba(15,23,42,.10);
-
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
 }
 
-.summary-card-top{
-
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-
+/* Colored accent line on left */
+.summary-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
 }
 
-.summary-title{
+.summary-card.blue::before   { background: #4f46e5; }
+.summary-card.orange::before { background: #ea580c; }
+.summary-card.green::before  { background: #16a34a; }
+.summary-card.purple::before { background: #7c3aed; }
 
-    display:block;
-    color:#64748b;
-    font-size:15px;
-    margin-bottom:10px;
-
+.summary-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
-.summary-value{
-
-    margin:0;
-    font-size:40px;
-    font-weight:700;
-    color:#1e293b;
-
+.summary-title {
+  display: block;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
 }
 
-.summary-icon{
-
-    width:62px;
-    height:62px;
-
-    border-radius:16px;
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-
+.summary-value {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Blue */
-
-.summary-icon.blue{
-
-    background:#eff6ff;
-    color:#2563eb;
-
+.summary-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-/* Orange */
-
-.summary-icon.orange{
-
-    background:#fff7ed;
-    color:#ea580c;
-
+.summary-icon svg {
+  width: 19px;
+  height: 19px;
 }
 
-/* Green */
-
-.summary-icon.green{
-
-    background:#ecfdf5;
-    color:#16a34a;
-
+.summary-icon.blue {
+  background: #eef2ff;
+  color: #4f46e5;
 }
 
-/* Purple */
-
-.summary-icon.purple{
-
-    background:#faf5ff;
-    color:#9333ea;
-
+.summary-icon.orange {
+  background: #fff7ed;
+  color: #ea580c;
 }
 
-@media(max-width:576px){
-
-.summary-card{
-
-    padding:20px;
-
+.summary-icon.green {
+  background: #f0fdf4;
+  color: #16a34a;
 }
 
-.summary-value{
-
-    font-size:32px;
-
+.summary-icon.purple {
+  background: #f5f3ff;
+  color: #7c3aed;
 }
 
-.summary-icon{
+@media (max-width: 576px) {
+  .summary-card {
+    padding: 14px 16px;
+    border-radius: 12px;
+  }
 
-    width:54px;
-    height:54px;
+  .summary-value {
+    font-size: 24px;
+  }
 
-}
-
+  .summary-icon {
+    width: 34px;
+    height: 34px;
+  }
 }

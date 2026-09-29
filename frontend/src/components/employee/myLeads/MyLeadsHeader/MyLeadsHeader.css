@@ -1,146 +1,105 @@
-.my-leads-header{
+/* ==========================================================
+   DIZITALADDA CRM — My Leads Header (Professional Light Theme)
+   ========================================================== */
 
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    background:#ffffff;
-    padding:24px;
-    border-radius:16px;
-    border:1px solid #e5e7eb;
-    box-shadow:0 4px 12px rgba(15,23,42,.05);
-
+.my-leads-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  padding: 18px 22px;
+  border-radius: 14px;
+  border: 1px solid #e8eaf0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  gap: 16px;
 }
 
-.header-left h2{
-
-    margin:0;
-    font-size:28px;
-    font-weight:700;
-    color:#0f172a;
-
+.header-left h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
-.header-left p{
-
-    margin-top:8px;
-    color:#64748b;
-    font-size:15px;
-
+.header-left p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13.5px;
 }
 
-.header-right{
-
-    display:flex;
-    gap:12px;
-
-}
-
-.export-btn,
-.followup-btn,
-.manual-lead-btn{
-
-    display:flex;
-    align-items:center;
-    gap:8px;
-    padding:12px 18px;
-    border-radius:10px;
-    font-size:14px;
-    font-weight:600;
-    cursor:pointer;
-    transition:.25s;
-
-}
-
-.export-btn{
-
-    background:#fff;
-    border:1px solid #d1d5db;
-    color:#334155;
-
-}
-
-.export-btn:hover{
-
-    background:#f8fafc;
-
-}
-
-.followup-btn{
-
-    background:#2563eb;
-    color:#fff;
-    border:none;
-
-}
-
-.manual-lead-btn{
-    background:#0f766e;
-    color:#fff;
-    border:1px solid #0f766e;
-    box-shadow:0 4px 10px rgba(15,118,110,.18);
-}
-
-.manual-lead-btn:hover{
-    background:#0b5f59;
-    border-color:#0b5f59;
-}
-
-.followup-btn:hover{
-
-    background:#1d4ed8;
-
-}
-
-@media(max-width:768px){
-
-.my-leads-header{
-
-    flex-direction:column;
-    align-items:flex-start;
-    gap:16px;
-    padding:18px;
-
-}
-
-.header-left h2{
-
-    font-size:22px;
-
-}
-
-.header-left p{
-
-    font-size:13px;
-
-}
-
-.header-right{
-
-    width:100%;
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .export-btn,
 .followup-btn,
-.manual-lead-btn{
-
-    padding:10px 12px;
-    font-size:12px;
-    justify-content:center;
-
+.manual-lead-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
+.export-btn {
+  background: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #374151 !important;
 }
 
-@media(max-width:480px){
-
-.header-right{
-
-    grid-template-columns:1fr;
-
+.export-btn:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
 }
 
+.manual-lead-btn {
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+}
+
+.manual-lead-btn:hover {
+  background: #4338ca;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.followup-btn {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1.5px solid #c7d2fe;
+}
+
+.followup-btn:hover {
+  background: #e0e7ff;
+}
+
+@media (max-width: 992px) {
+  .my-leads-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .header-right {
+    width: 100%;
+  }
+
+  .export-btn,
+  .followup-btn,
+  .manual-lead-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }

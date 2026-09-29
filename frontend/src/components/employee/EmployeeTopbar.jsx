@@ -3,16 +3,16 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
+  Calendar,
 } from "lucide-react";
 import ProfileMenu from "../profile/ProfileMenu";
 import NotificationsPopover from "../common/NotificationsPopover/NotificationsPopover";
 
 const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
   const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long",
+    weekday: "short",
     day: "numeric",
-    month: "long",
-    year: "numeric",
+    month: "short",
   });
 
   return (
@@ -23,23 +23,35 @@ const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
           onClick={onMenuClick}
           title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+          {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
         </button>
 
-        <div className="topbar-search">
-          <Search size={18} />
+        <div className="topbar-title-wrap">
+          <h1 className="topbar-title">Counsellor Workspace</h1>
+          <div className="topbar-status">
+            <span className="status-indicator-dot"></span>
+            <span>Connected & Active</span>
+          </div>
+        </div>
+      </div>
 
+      <div className="topbar-center">
+        <div className="topbar-search">
+          <Search size={16} />
           <input
             type="text"
-            placeholder="Search leads, admissions, follow-ups..."
+            placeholder="Search my leads, follow-ups..."
           />
+          <kbd className="search-kbd">⌘K</kbd>
         </div>
       </div>
 
       <div className="topbar-right">
-        <div className="topbar-date">{today}</div>
+        <div className="topbar-date">
+          <Calendar size={14} />
+          <span>{today}</span>
+        </div>
 
         <NotificationsPopover isEmployee />
 

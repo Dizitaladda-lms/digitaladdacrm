@@ -1,6 +1,6 @@
 import React from "react";
 import "./SearchFilterBar.css";
-import { Search, RotateCcw, Filter } from "lucide-react";
+import { Search, RotateCcw, Filter, Calendar } from "lucide-react";
 
 const SearchFilterBar = ({
   search = "",
@@ -32,8 +32,31 @@ const SearchFilterBar = ({
         />
       </div>
 
-      <input aria-label="Leads start date" type="date" value={dateFrom} onChange={(e) => onDateFromChange(e.target.value)} className="filter-select" />
-      <input aria-label="Leads end date" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => onDateToChange(e.target.value)} className="filter-select" />
+      {/* Date Range Inputs */}
+      <div className="date-input-wrap">
+        <Calendar size={15} className="date-icon" />
+        <input
+          aria-label="Leads start date"
+          type="date"
+          value={dateFrom}
+          onChange={(e) => onDateFromChange(e.target.value)}
+          className="filter-date-input"
+          title="From date"
+        />
+      </div>
+
+      <div className="date-input-wrap">
+        <Calendar size={15} className="date-icon" />
+        <input
+          aria-label="Leads end date"
+          type="date"
+          min={dateFrom || undefined}
+          value={dateTo}
+          onChange={(e) => onDateToChange(e.target.value)}
+          className="filter-date-input"
+          title="To date"
+        />
+      </div>
 
       {/* Domain Filter */}
       <select

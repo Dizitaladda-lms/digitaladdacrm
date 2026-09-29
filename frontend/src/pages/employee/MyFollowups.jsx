@@ -21,6 +21,11 @@ import { getFollowups } from "../../services/followupService";
 import { exportToCsv } from "../../utils/exportCsv";
 import { useAuth } from "../../context/AuthContext";
 
+const formatNumber = (val) => {
+  if (val === null || val === undefined || isNaN(Number(val))) return "0";
+  return Number(val).toLocaleString("en-IN");
+};
+
 const MyFollowups = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -219,9 +224,22 @@ const MyFollowups = () => {
             type="button"
             onClick={handleExportFollowupsCsv}
             className="crm-btn-secondary"
-            style={{ height: "42px", backgroundColor: "#F1F5F9" }}
+            style={{
+              height: "40px",
+              padding: "0 16px",
+              fontSize: "13px",
+              fontWeight: 600,
+              backgroundColor: "#FFFFFF",
+              border: "1.5px solid #E2E8F0",
+              color: "#374151",
+              borderRadius: "8px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              cursor: "pointer",
+            }}
           >
-            <Download size={16} />
+            <Download size={15} />
             <span>Export CSV</span>
           </button>
 
@@ -229,10 +247,23 @@ const MyFollowups = () => {
             type="button"
             onClick={() => navigate(leadsPath)}
             className="crm-btn-primary"
-            style={{ height: "42px", padding: "0 18px", fontSize: "13px" }}
+            style={{
+              height: "40px",
+              padding: "0 18px",
+              fontSize: "13px",
+              fontWeight: 650,
+              backgroundColor: "#4F46E5",
+              color: "#FFFFFF",
+              borderRadius: "8px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              cursor: "pointer",
+              border: "none",
+            }}
           >
             <span>{isAdmin ? "Go to All Leads Pipeline" : "Go to My Leads Pipeline"}</span>
-            <ArrowRight size={16} />
+            <ArrowRight size={15} />
           </button>
         </div>
       </div>
@@ -242,113 +273,197 @@ const MyFollowups = () => {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: "12px",
+          gap: "14px",
           marginBottom: "20px",
         }}
       >
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#FEF3C7",
                 color: "#D97706",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <Clock3 size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Due Today
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", margin: 0 }}>
-                {loading ? "—" : stats.dueToday}
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#0F172A",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {loading ? "—" : formatNumber(stats.dueToday)}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#FEF2F2",
                 color: "#DC2626",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <TimerReset size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Overdue Callbacks
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#DC2626", margin: 0 }}>
-                {loading ? "—" : stats.overdue}
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#DC2626",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {loading ? "—" : formatNumber(stats.overdue)}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#DCFCE7",
                 color: "#16A34A",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <CalendarCheck2 size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Completed Calls
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#16A34A", margin: 0 }}>
-                {loading ? "—" : stats.completed}
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#16A34A",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {loading ? "—" : formatNumber(stats.completed)}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#F3E8FF",
                 color: "#9333EA",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <PhoneCall size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Total Pending
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", margin: 0 }}>
-                {loading ? "—" : stats.upcoming}
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#0F172A",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {loading ? "—" : formatNumber(stats.upcoming)}
               </h3>
             </div>
           </div>
@@ -368,24 +483,25 @@ const MyFollowups = () => {
           WebkitOverflowScrolling: "touch",
         }}
       >
-        <Filter size={16} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
+        <Filter size={15} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
         {["All", "Due Today", "Overdue", "Upcoming", "Completed / Closed"].map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveFilter(tab)}
             style={{
-              padding: "8px 16px",
-              borderRadius: "10px",
-              fontSize: "13px",
-              fontWeight: 700,
-              border: "1px solid #E2E8F0",
+              padding: "7px 16px",
+              borderRadius: "8px",
+              fontSize: "12.5px",
+              fontWeight: activeFilter === tab ? 700 : 600,
+              border: activeFilter === tab ? "1px solid #4F46E5" : "1.5px solid #E2E8F0",
               cursor: "pointer",
-              backgroundColor: activeFilter === tab ? "#2563EB" : "#FFFFFF",
+              backgroundColor: activeFilter === tab ? "#4F46E5" : "#FFFFFF",
               color: activeFilter === tab ? "#FFFFFF" : "#64748B",
-              transition: "all 0.2s ease",
+              transition: "all 0.15s ease",
               whiteSpace: "nowrap",
               flexShrink: 0,
+              boxShadow: activeFilter === tab ? "0 1px 3px rgba(79, 70, 229, 0.2)" : "none",
             }}
           >
             {tab}
@@ -417,13 +533,13 @@ const MyFollowups = () => {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", minWidth: "850px", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #E2E8F0", fontSize: "12px", color: "#64748B", textTransform: "uppercase" }}>
-                  <th style={{ padding: "14px 16px" }}>Student Lead</th>
-                  <th style={{ padding: "14px 16px" }}>Interested Course</th>
-                  <th style={{ padding: "14px 16px" }}>Channel</th>
-                  <th style={{ padding: "14px 16px" }}>Next Follow-up Schedule</th>
-                  <th style={{ padding: "14px 16px" }}>Status / Outcome</th>
-                  <th style={{ padding: "14px 16px", textAlign: "right" }}>Actions</th>
+                <tr style={{ borderBottom: "1.5px solid #E2E8F0", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", color: "#64748B", textTransform: "uppercase", backgroundColor: "#F8FAFC" }}>
+                  <th style={{ padding: "12px 16px" }}>Student Lead</th>
+                  <th style={{ padding: "12px 16px" }}>Interested Course</th>
+                  <th style={{ padding: "12px 16px" }}>Channel</th>
+                  <th style={{ padding: "12px 16px" }}>Next Follow-up Schedule</th>
+                  <th style={{ padding: "12px 16px" }}>Status / Outcome</th>
+                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -621,7 +737,7 @@ const MyFollowups = () => {
                             onClick={() => handleOpenUpdateModal(item)}
                             title="Update Callback / Status"
                             className="crm-btn-primary"
-                            style={{ height: "32px", padding: "0 10px", fontSize: "11px", backgroundColor: "#2563EB" }}
+                            style={{ height: "32px", padding: "0 10px", fontSize: "11px", backgroundColor: "#4F46E5" }}
                           >
                             <CheckCircle2 size={13} />
                             <span>Update Callback</span>

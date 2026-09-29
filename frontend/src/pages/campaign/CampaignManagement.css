@@ -170,12 +170,13 @@
 .campaign-stat-card.purple .stat-card-icon { background: #f5f3ff; color: #7c3aed; }
 
 .stat-card-value {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
   color: #0f172a;
-  margin: 0;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  margin: 0 0 2px;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-card-subtitle {

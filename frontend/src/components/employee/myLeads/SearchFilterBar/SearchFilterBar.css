@@ -1,103 +1,171 @@
-.search-filter-bar{
+/* ==========================================================
+   DIZITALADDA CRM — Search & Filter Bar (Professional Light Theme)
+   ========================================================== */
 
-    display:flex;
-    align-items:center;
-    gap:16px;
-    background:#ffffff;
-    padding:20px;
-    border:1px solid #e5e7eb;
-    border-radius:16px;
-    box-shadow:0 4px 12px rgba(15,23,42,.05);
-    flex-wrap:wrap;
-
+.search-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  padding: 16px 18px;
+  border: 1px solid #e8eaf0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  flex-wrap: wrap;
 }
 
-.search-box{
-
-    flex:1;
-    min-width:280px;
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding:0 14px;
-    height:46px;
-    border:1px solid #d1d5db;
-    border-radius:10px;
-    background:#fff;
-
+.search-box {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  height: 38px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #9ca3af;
+  transition: all 0.15s ease;
 }
 
-.search-box input{
-
-    flex:1;
-    border:none;
-    outline:none;
-    font-size:14px;
-    background:transparent;
-
+.search-box:focus-within {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
 }
 
-.search-filter-bar select{
-
-    min-width:170px;
-    height:46px;
-    border:1px solid #d1d5db;
-    border-radius:10px;
-    padding:0 12px;
-    background:#fff;
-    cursor:pointer;
-    font-size:14px;
-
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  color: #0f172a;
+  background: transparent;
 }
 
-.reset-filter-btn{
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    height:46px;
-    padding:0 18px;
-    border:none;
-    border-radius:10px;
-    background:#ef4444;
-    color:#fff;
-    cursor:pointer;
-    font-weight:600;
-    transition:.3s;
-
+.search-box input::placeholder {
+  color: #9ca3af;
 }
 
-.reset-filter-btn:hover{
-
-    background:#dc2626;
-
+/* ── Date Inputs ─────────────────────────────────────────── */
+.date-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-@media(max-width:992px){
-
-.search-box{
-
-    min-width:100%;
-
+.date-icon {
+  position: absolute;
+  left: 11px;
+  color: #9ca3af;
+  pointer-events: none;
+  transition: color 0.15s ease;
 }
 
-@media(max-width:576px){
-    .search-filter-bar { padding: 14px; gap: 10px; }
-    .search-box, .search-filter-bar select { min-width: 100%; width: 100%; }
+.date-input-wrap:focus-within .date-icon {
+  color: #4f46e5;
 }
 
-.search-filter-bar select{
-
-    flex:1;
-    min-width:180px;
-
+.filter-date-input {
+  height: 38px;
+  padding: 0 10px 0 34px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  background: #f9fafb;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.reset-filter-btn{
-
-    width:100%;
-
+.filter-date-input:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
+.filter-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  filter: invert(0.2);
+  transition: opacity 0.15s ease;
+}
+
+.filter-date-input:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+/* ── Select Dropdowns ────────────────────────────────────── */
+.search-filter-bar select,
+.filter-select {
+  height: 38px;
+  min-width: 140px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.search-filter-bar select:focus,
+.filter-select:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* ── Reset Button ────────────────────────────────────────── */
+.reset-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.reset-filter-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 992px) {
+  .search-box {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .search-filter-bar {
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .search-box,
+  .date-input-wrap,
+  .filter-date-input,
+  .search-filter-bar select,
+  .reset-filter-btn {
+    width: 100%;
+  }
 }

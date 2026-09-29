@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Filter,
   Users,
+  Calendar,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -136,27 +137,27 @@ const Profile = () => {
 
       {/* PERFORMANCE SCORECARD CARD SECTION */}
       <div className="crm-card" style={{ marginBottom: "24px", padding: "20px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ padding: "10px", borderRadius: "10px", backgroundColor: "#EFF6FF", color: "#2563EB" }}>
-              <TrendingUp size={22} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ padding: "10px", borderRadius: "10px", backgroundColor: "#EEF2FF", color: "#4F46E5" }}>
+              <TrendingUp size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>
+              <h3 style={{ fontSize: "16px", fontWeight: 750, color: "#0F172A", margin: 0 }}>
                 My Counselling Performance Analytics
               </h3>
-              <p style={{ fontSize: "12px", color: "#64748B", margin: 0 }}>
+              <p style={{ fontSize: "12px", color: "#64748B", margin: "2px 0 0 0" }}>
                 Live database analytics for your assigned student leads and fee conversions
               </p>
             </div>
           </div>
 
-          {/* Timeframe Filter Buttons */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Filter size={16} style={{ color: "#64748B", marginRight: "4px" }} />
+          {/* Timeframe Filter Buttons & Professional Date Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <Filter size={15} style={{ color: "#64748B", marginRight: "2px" }} />
             {[
-              { id: "week", label: "This Week (7 Days)" },
-              { id: "month", label: "This Month (30 Days)" },
+              { id: "week", label: "This Week" },
+              { id: "month", label: "This Month" },
               { id: "all", label: "All Time" },
             ].map((t) => (
               <button
@@ -167,20 +168,81 @@ const Profile = () => {
                   padding: "6px 14px",
                   borderRadius: "8px",
                   fontSize: "12px",
-                  fontWeight: 700,
-                  border: "1px solid #CBD5E1",
+                  fontWeight: timeframe === t.id ? 700 : 600,
+                  border: timeframe === t.id ? "1px solid #4F46E5" : "1.5px solid #CBD5E1",
                   cursor: "pointer",
-                  backgroundColor: timeframe === t.id ? "#2563EB" : "#FFFFFF",
+                  backgroundColor: timeframe === t.id ? "#4F46E5" : "#FFFFFF",
                   color: timeframe === t.id ? "#FFFFFF" : "#64748B",
-                  transition: "all 0.2s ease",
+                  transition: "all 0.15s ease",
+                  boxShadow: timeframe === t.id ? "0 1px 3px rgba(79, 70, 229, 0.2)" : "none",
                 }}
               >
                 {t.label}
               </button>
             ))}
-            <input aria-label="Performance start date" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            <input aria-label="Performance end date" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            {(dateFrom || dateTo) && <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} style={{ fontSize: "12px", color: "#2563EB", fontWeight: 700 }}>Clear</button>}
+
+            <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+              <Calendar size={13} style={{ position: "absolute", left: "9px", color: "#64748B", pointerEvents: "none" }} />
+              <input
+                aria-label="Performance start date"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                style={{
+                  height: "34px",
+                  paddingLeft: "28px",
+                  paddingRight: "8px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  borderRadius: "7px",
+                  border: "1.5px solid #CBD5E1",
+                  backgroundColor: "#FFFFFF",
+                  color: "#334155",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+              <Calendar size={13} style={{ position: "absolute", left: "9px", color: "#64748B", pointerEvents: "none" }} />
+              <input
+                aria-label="Performance end date"
+                type="date"
+                min={dateFrom || undefined}
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                style={{
+                  height: "34px",
+                  paddingLeft: "28px",
+                  paddingRight: "8px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  borderRadius: "7px",
+                  border: "1.5px solid #CBD5E1",
+                  backgroundColor: "#FFFFFF",
+                  color: "#334155",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                style={{
+                  fontSize: "12px",
+                  color: "#4F46E5",
+                  fontWeight: 700,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                }}
+              >
+                Reset
+              </button>
+            )}
           </div>
         </div>
 
@@ -193,38 +255,118 @@ const Profile = () => {
             marginBottom: "20px",
           }}
         >
-          <div className="crm-card" style={{ marginBottom: 0, padding: "16px", backgroundColor: "#F8FAFC" }}>
+          <div
+            className="crm-card"
+            style={{
+              marginBottom: 0,
+              padding: "16px 18px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "12px",
+              border: "1.5px solid #F1F5F9",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            }}
+          >
             <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 700, textTransform: "uppercase" }}>
               Total Assigned Leads
             </span>
-            <h3 style={{ fontSize: "22px", fontWeight: 800, color: "#0F172A", margin: "4px 0 0 0" }}>
-              {loadingPerf ? "—" : summary.total_leads}
+            <h3
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                color: "#0F172A",
+                margin: "4px 0 0 0",
+                fontVariantNumeric: "tabular-nums",
+                letterSpacing: "-0.025em",
+                lineHeight: 1.1,
+              }}
+            >
+              {loadingPerf ? "—" : Number(summary.total_leads || 0).toLocaleString("en-IN")}
             </h3>
           </div>
 
-          <div className="crm-card" style={{ marginBottom: 0, padding: "16px", backgroundColor: "#FFFBEB" }}>
+          <div
+            className="crm-card"
+            style={{
+              marginBottom: 0,
+              padding: "16px 18px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "12px",
+              border: "1.5px solid #F1F5F9",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            }}
+          >
             <span style={{ fontSize: "11px", color: "#D97706", fontWeight: 700, textTransform: "uppercase" }}>
               Pending Callbacks
             </span>
-            <h3 style={{ fontSize: "22px", fontWeight: 800, color: "#D97706", margin: "4px 0 0 0" }}>
-              {loadingPerf ? "—" : summary.pending_followups}
+            <h3
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                color: "#D97706",
+                margin: "4px 0 0 0",
+                fontVariantNumeric: "tabular-nums",
+                letterSpacing: "-0.025em",
+                lineHeight: 1.1,
+              }}
+            >
+              {loadingPerf ? "—" : Number(summary.pending_followups || 0).toLocaleString("en-IN")}
             </h3>
           </div>
 
-          <div className="crm-card" style={{ marginBottom: 0, padding: "16px", backgroundColor: "#F0FDF4" }}>
+          <div
+            className="crm-card"
+            style={{
+              marginBottom: 0,
+              padding: "16px 18px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "12px",
+              border: "1.5px solid #F1F5F9",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            }}
+          >
             <span style={{ fontSize: "11px", color: "#16A34A", fontWeight: 700, textTransform: "uppercase" }}>
               Enrolled Admissions
             </span>
-            <h3 style={{ fontSize: "22px", fontWeight: 800, color: "#16A34A", margin: "4px 0 0 0" }}>
-              {loadingPerf ? "—" : summary.enrolled_conversions}
+            <h3
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                color: "#16A34A",
+                margin: "4px 0 0 0",
+                fontVariantNumeric: "tabular-nums",
+                letterSpacing: "-0.025em",
+                lineHeight: 1.1,
+              }}
+            >
+              {loadingPerf ? "—" : Number(summary.enrolled_conversions || 0).toLocaleString("en-IN")}
             </h3>
           </div>
 
-          <div className="crm-card" style={{ marginBottom: 0, padding: "16px", backgroundColor: "#EFF6FF" }}>
-            <span style={{ fontSize: "11px", color: "#2563EB", fontWeight: 700, textTransform: "uppercase" }}>
+          <div
+            className="crm-card"
+            style={{
+              marginBottom: 0,
+              padding: "16px 18px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "12px",
+              border: "1.5px solid #F1F5F9",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            }}
+          >
+            <span style={{ fontSize: "11px", color: "#4F46E5", fontWeight: 700, textTransform: "uppercase" }}>
               Revenue Generated
             </span>
-            <h3 style={{ fontSize: "22px", fontWeight: 800, color: "#2563EB", margin: "4px 0 0 0" }}>
+            <h3
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                color: "#4F46E5",
+                margin: "4px 0 0 0",
+                fontVariantNumeric: "tabular-nums",
+                letterSpacing: "-0.025em",
+                lineHeight: 1.1,
+              }}
+            >
               {loadingPerf ? "—" : `₹${Number(summary.total_revenue || 0).toLocaleString("en-IN")}`}
             </h3>
           </div>

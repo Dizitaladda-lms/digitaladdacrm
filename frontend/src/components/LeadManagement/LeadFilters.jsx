@@ -4,6 +4,7 @@ import {
   Search,
   RotateCcw,
   Filter,
+  Calendar,
 } from "lucide-react";
 
 const LeadFilters = ({
@@ -28,7 +29,7 @@ const LeadFilters = ({
 
           <p>
 
-            Filter leads by status, source, campaign, course and counsellor.
+            Filter leads by date range, status, source, campaign, course and counsellor.
 
           </p>
 
@@ -36,7 +37,7 @@ const LeadFilters = ({
 
         <div className="filter-icon">
 
-          <Filter size={22}/>
+          <Filter size={18}/>
 
         </div>
 
@@ -56,13 +57,13 @@ const LeadFilters = ({
 
           <div className="search-box">
 
-            <Search size={18}/>
+            <Search size={16}/>
 
             <input
 
               type="text"
 
-              placeholder="Name / Mobile / Email"
+              placeholder="Search by name, phone or email..."
 
               value={filters.search}
 
@@ -84,16 +85,33 @@ const LeadFilters = ({
 
         </div>
 
-        {/* Status */}
-
+        {/* From Date */}
         <div className="filter-group">
           <label>From Date</label>
-          <input type="date" value={filters.date_from || ""} onChange={(e) => onChange("date_from", e.target.value)} />
+          <div className="date-input-wrap">
+            <Calendar size={15} className="date-icon" />
+            <input
+              type="date"
+              className="filter-date-input"
+              value={filters.date_from || ""}
+              onChange={(e) => onChange("date_from", e.target.value)}
+            />
+          </div>
         </div>
 
+        {/* To Date */}
         <div className="filter-group">
           <label>To Date</label>
-          <input type="date" min={filters.date_from || undefined} value={filters.date_to || ""} onChange={(e) => onChange("date_to", e.target.value)} />
+          <div className="date-input-wrap">
+            <Calendar size={15} className="date-icon" />
+            <input
+              type="date"
+              className="filter-date-input"
+              min={filters.date_from || undefined}
+              value={filters.date_to || ""}
+              onChange={(e) => onChange("date_to", e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="filter-group">

@@ -112,12 +112,12 @@ const MyPerformance = () => {
             </div>
           </div>
 
-          {/* Interactive Core Metric Cards */}
+          {/* Interactive Core Metric Cards (4 Balanced Cards) */}
           <div className="my-perf-stats-grid">
             {/* 1. Total Leads Assigned */}
             <div
               className="perf-card blue clickable"
-              onClick={() => navigate("/employee/my-leads")}
+              onClick={() => navigate("/employee/leads")}
               role="button"
               tabIndex={0}
               title="Click to view all your assigned leads"
@@ -126,7 +126,7 @@ const MyPerformance = () => {
                 <span>Total Leads Assigned</span>
                 <div className="icon-wrap blue"><Users size={20} /></div>
               </div>
-              <div className="card-value">{summary.total_assigned || 0}</div>
+              <div className="card-value">{Number(summary.total_assigned || 0).toLocaleString("en-IN")}</div>
               <div className="card-sub-link">
                 <span>View Leads</span>
                 <ArrowRight size={13} />
@@ -145,33 +145,14 @@ const MyPerformance = () => {
                 <span>Pending Follow-ups</span>
                 <div className="icon-wrap amber"><Clock size={20} /></div>
               </div>
-              <div className="card-value">{summary.pending_leads || 0}</div>
+              <div className="card-value">{Number(summary.pending_leads || 0).toLocaleString("en-IN")}</div>
               <div className="card-sub-link">
                 <span>Open Follow-ups</span>
                 <ArrowRight size={13} />
               </div>
             </div>
 
-            {/* 3. Leads Completed */}
-            <div
-              className="perf-card green clickable"
-              onClick={() => navigate("/employee/followups")}
-              role="button"
-              tabIndex={0}
-              title="Click to view follow-up history"
-            >
-              <div className="card-top">
-                <span>Leads Completed / Closed</span>
-                <div className="icon-wrap green"><CheckCircle2 size={20} /></div>
-              </div>
-              <div className="card-value">{summary.completed_leads || 0}</div>
-              <div className="card-sub-link">
-                <span>View Completed</span>
-                <ArrowRight size={13} />
-              </div>
-            </div>
-
-            {/* 4. Admissions Enrolled */}
+            {/* 3. Admissions Enrolled */}
             <div
               className="perf-card purple clickable"
               onClick={() => navigate("/employee/admissions")}
@@ -183,16 +164,16 @@ const MyPerformance = () => {
                 <span>Admissions Enrolled</span>
                 <div className="icon-wrap purple"><GraduationCap size={20} /></div>
               </div>
-              <div className="card-value">{summary.enrolled_count || 0}</div>
+              <div className="card-value">{Number(summary.enrolled_count || 0).toLocaleString("en-IN")}</div>
               <div className="card-sub-link">
                 <span>View Admissions</span>
                 <ArrowRight size={13} />
               </div>
             </div>
 
-            {/* 5. Fee Revenue Collected */}
+            {/* 4. Fee Revenue Collected */}
             <div
-              className="perf-card orange clickable"
+              className="perf-card green clickable"
               onClick={() => navigate("/employee/admissions")}
               role="button"
               tabIndex={0}
@@ -200,12 +181,12 @@ const MyPerformance = () => {
             >
               <div className="card-top">
                 <span>Fee Revenue Collected</span>
-                <div className="icon-wrap orange"><IndianRupee size={20} /></div>
+                <div className="icon-wrap green"><IndianRupee size={20} /></div>
               </div>
-              <div className="card-value">
-                ?{Number(summary.total_fees_collected || 0).toLocaleString("en-IN")}
+              <div className="card-value" style={{ color: "#16A34A" }}>
+                ₹{Number(summary.total_fees_collected || 0).toLocaleString("en-IN")}
               </div>
-              <div className="card-sub-link">
+              <div className="card-sub-link" style={{ color: "#16A34A" }}>
                 <span>Fee Collection</span>
                 <ArrowRight size={13} />
               </div>

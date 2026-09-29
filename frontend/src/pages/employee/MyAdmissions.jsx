@@ -164,9 +164,22 @@ const MyAdmissions = () => {
             type="button"
             onClick={handleExportAdmissionsCsv}
             className="crm-btn-secondary"
-            style={{ height: "42px", backgroundColor: "#F1F5F9" }}
+            style={{
+              height: "40px",
+              padding: "0 16px",
+              fontSize: "13px",
+              fontWeight: 600,
+              backgroundColor: "#FFFFFF",
+              border: "1.5px solid #E2E8F0",
+              color: "#374151",
+              borderRadius: "8px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              cursor: "pointer",
+            }}
           >
-            <Download size={16} />
+            <Download size={15} />
             <span>Export CSV</span>
           </button>
 
@@ -174,7 +187,19 @@ const MyAdmissions = () => {
             type="button"
             onClick={() => navigate(leadsPath)}
             className="crm-btn-secondary"
-            style={{ height: "42px" }}
+            style={{
+              height: "40px",
+              padding: "0 16px",
+              fontSize: "13px",
+              fontWeight: 600,
+              backgroundColor: "#FFFFFF",
+              border: "1.5px solid #E2E8F0",
+              color: "#374151",
+              borderRadius: "8px",
+              display: "inline-flex",
+              alignItems: "center",
+              cursor: "pointer",
+            }}
           >
             <span>{isAdmin ? "All Leads Pipeline" : "My Leads Pipeline"}</span>
           </button>
@@ -183,10 +208,23 @@ const MyAdmissions = () => {
             type="button"
             onClick={() => navigate(followupsPath)}
             className="crm-btn-primary"
-            style={{ height: "42px", padding: "0 18px", fontSize: "13px" }}
+            style={{
+              height: "40px",
+              padding: "0 18px",
+              fontSize: "13px",
+              fontWeight: 650,
+              backgroundColor: "#4F46E5",
+              color: "#FFFFFF",
+              borderRadius: "8px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              cursor: "pointer",
+              border: "none",
+            }}
           >
             <span>Follow-up Planner</span>
-            <ArrowRight size={16} />
+            <ArrowRight size={15} />
           </button>
         </div>
       </div>
@@ -196,112 +234,196 @@ const MyAdmissions = () => {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: "12px",
+          gap: "14px",
           marginBottom: "20px",
         }}
       >
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#EFF6FF",
-                color: "#2563EB",
+                color: "#4F46E5",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <GraduationCap size={22} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Total Enrolled Students
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", margin: 0 }}>
-                {loading ? "—" : summary.total_admissions}
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#0F172A",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {loading ? "—" : Number(summary.total_admissions || 0).toLocaleString("en-IN")}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#DCFCE7",
                 color: "#16A34A",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <IndianRupee size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Total Revenue Collected
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#16A34A", margin: 0 }}>
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#16A34A",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
                 {loading ? "—" : `₹${Number(summary.total_paid || 0).toLocaleString("en-IN")}`}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#FEF2F2",
                 color: "#DC2626",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <CreditCard size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Total Outstanding Dues
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#DC2626", margin: 0 }}>
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#DC2626",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
                 {loading ? "—" : `₹${Number(summary.total_pending || 0).toLocaleString("en-IN")}`}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="crm-card" style={{ marginBottom: 0, padding: "18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div
+          className="crm-card"
+          style={{
+            marginBottom: 0,
+            padding: "18px 20px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "14px",
+            border: "1.5px solid #F1F5F9",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "42px",
-                width: "42px",
+                height: "44px",
+                width: "44px",
                 borderRadius: "10px",
                 backgroundColor: "#F3E8FF",
                 color: "#9333EA",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               <CheckCircle2 size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
+              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
                 Expected Total Fee
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", margin: 0 }}>
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: "#0F172A",
+                  margin: "2px 0 0 0",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                }}
+              >
                 {loading ? "—" : `₹${Number(summary.total_revenue || 0).toLocaleString("en-IN")}`}
               </h3>
             </div>
@@ -329,7 +451,13 @@ const MyAdmissions = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="crm-input has-icon"
-            style={{ height: "42px" }}
+            style={{
+              height: "38px",
+              borderRadius: "8px",
+              border: "1.5px solid #E2E8F0",
+              backgroundColor: "#FFFFFF",
+              fontSize: "13px",
+            }}
           />
         </div>
 
@@ -345,24 +473,25 @@ const MyAdmissions = () => {
             WebkitOverflowScrolling: "touch",
           }}
         >
-          <Filter size={16} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
+          <Filter size={15} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
           {["All", "Pending Fee Dues", "Fully Paid"].map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
               style={{
-                padding: "8px 16px",
-                borderRadius: "10px",
-                fontSize: "13px",
-                fontWeight: 700,
-                border: "1px solid #E2E8F0",
+                padding: "7px 16px",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: activeTab === tab ? 700 : 600,
+                border: activeTab === tab ? "1px solid #4F46E5" : "1.5px solid #E2E8F0",
                 cursor: "pointer",
-                backgroundColor: activeTab === tab ? "#2563EB" : "#FFFFFF",
+                backgroundColor: activeTab === tab ? "#4F46E5" : "#FFFFFF",
                 color: activeTab === tab ? "#FFFFFF" : "#64748B",
-                transition: "all 0.2s ease",
+                transition: "all 0.15s ease",
                 whiteSpace: "nowrap",
                 flexShrink: 0,
+                boxShadow: activeTab === tab ? "0 1px 3px rgba(79, 70, 229, 0.2)" : "none",
               }}
             >
               {tab}
@@ -395,15 +524,15 @@ const MyAdmissions = () => {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", minWidth: "850px", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #E2E8F0", fontSize: "12px", color: "#64748B", textTransform: "uppercase" }}>
-                  <th style={{ padding: "14px 16px" }}>Student & Code</th>
-                  <th style={{ padding: "14px 16px" }}>Course & Campus</th>
-                  <th style={{ padding: "14px 16px" }}>Total Fee</th>
-                  <th style={{ padding: "14px 16px" }}>Paid Fee</th>
-                  <th style={{ padding: "14px 16px" }}>Pending Due</th>
-                  <th style={{ padding: "14px 16px" }}>Receipt #</th>
-                  <th style={{ padding: "14px 16px" }}>Status</th>
-                  <th style={{ padding: "14px 16px", textAlign: "right" }}>Actions</th>
+                <tr style={{ borderBottom: "1.5px solid #E2E8F0", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", color: "#64748B", textTransform: "uppercase", backgroundColor: "#F8FAFC" }}>
+                  <th style={{ padding: "12px 16px" }}>Student & Code</th>
+                  <th style={{ padding: "12px 16px" }}>Course & Campus</th>
+                  <th style={{ padding: "12px 16px" }}>Total Fee</th>
+                  <th style={{ padding: "12px 16px" }}>Paid Fee</th>
+                  <th style={{ padding: "12px 16px" }}>Pending Due</th>
+                  <th style={{ padding: "12px 16px" }}>Receipt #</th>
+                  <th style={{ padding: "12px 16px" }}>Status</th>
+                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>

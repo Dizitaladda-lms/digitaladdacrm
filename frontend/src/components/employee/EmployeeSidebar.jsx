@@ -79,7 +79,6 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
             type="button"
             onClick={onToggle}
             className="sidebar-collapse-btn"
-            style={{ background: "#1e293b", borderColor: "#334155", color: "#94a3b8" }}
             title="Close sidebar"
           >
             <PanelLeftClose size={18} />
