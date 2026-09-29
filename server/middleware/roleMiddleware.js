@@ -13,7 +13,11 @@ const roleMiddleware = (...allowedRoles) => {
       );
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    // Super Admin retains access to every Manager/Admin capability; individual
+    // routes can still be explicitly limited to SUPER_ADMIN.
+    const isSuperAdmin = req.user.role === "SUPER_ADMIN";
+
+    if (!isSuperAdmin && !allowedRoles.includes(req.user.role)) {
       return next(
         new ApiError(
           403,

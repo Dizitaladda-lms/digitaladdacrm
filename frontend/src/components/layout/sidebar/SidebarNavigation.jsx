@@ -6,6 +6,7 @@ import {
   KeyRound,
   LogOut,
   Radio,
+  FileBarChart2,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -13,7 +14,7 @@ import { NavLink } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 
-const menuItems = [
+const managerMenuItems = [
   {
     title: "Dashboard",
     icon: LayoutDashboard,
@@ -34,16 +35,19 @@ const menuItems = [
     icon: BriefcaseBusiness,
     path: "/employees",
   },
-  {
-    title: "Call Recording",
-    icon: Radio,
-    path: "/telephony",
-  },
 ];
 
 const SidebarNavigation = ({ onClose }) => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const menuItems = isSuperAdmin
+    ? [
+        ...managerMenuItems,
+        { title: "Reports", icon: FileBarChart2, path: "/reports" },
+        { title: "Call Recording", icon: Radio, path: "/telephony" },
+      ]
+    : managerMenuItems;
 
   const handleNavClick = () => {
     if (typeof window !== "undefined" && window.innerWidth <= 768 && onClose) {

@@ -31,6 +31,7 @@ import { useAuth } from "../../context/AuthContext";
 import { exportToCsv } from "../../utils/exportCsv";
 const LeadManagement = () => {
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [outreachModalOpen, setOutreachModalOpen] = useState(false);
   const [outreachChannel, setOutreachChannel] = useState("WHATSAPP");
 
@@ -529,6 +530,7 @@ const openAssignModal = () => {
             onAssign={openAssignModal}
             onExport={handleBulkExport}
             onDelete={handleBulkDeleteClick}
+            canDelete={isSuperAdmin}
             onClear={() => setSelectedLeads([])}
           />
         )
@@ -543,6 +545,7 @@ const openAssignModal = () => {
   onAssign={handleSingleAssign}
   onFollowUp={(lead) => console.log("Follow Up", lead)}
   onDelete={handleDeleteClick}
+  canDelete={isSuperAdmin}
 />
 
    <LeadPagination
@@ -569,7 +572,7 @@ const openAssignModal = () => {
   lead={selectedLead}
   onClose={handleCloseDrawer}
   onStatusUpdated={loadLeads}
-  role="admin"
+  role={user?.role}
 />
 
 <DeleteLeadModal
@@ -585,7 +588,7 @@ const openAssignModal = () => {
 <CreateLeadModal
   open={createModalOpen}
   employees={employees}
-  currentUserRole="ADMIN"
+  currentUserRole={user?.role}
   onClose={() => setCreateModalOpen(false)}
   onSuccess={loadLeads}
 />

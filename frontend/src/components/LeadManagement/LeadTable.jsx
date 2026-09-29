@@ -116,6 +116,7 @@ const LeadTable = ({
   onAssign,
   onFollowUp,
   onDelete,
+  canDelete = false,
 }) => {
 
   /*
@@ -799,13 +800,13 @@ active:scale-95 hover:bg-blue-100 hover:text-blue-600"
 
             </button>
 
-            <button
+            {canDelete && <button
   onClick={() => onDelete?.(lead)}
   className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
   title="Delete Lead"
 >
   <Trash2 size={18} />
-</button>
+</button>}
 
             {
   !lead.assigned_employee && (

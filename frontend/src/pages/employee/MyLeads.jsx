@@ -8,6 +8,7 @@ import { getMyLeads } from "../../services/employeeLeadService";
 import { getLeadStats } from "../../services/leadService";
 import { exportToCsv } from "../../utils/exportCsv";
 import { useAuth } from "../../context/AuthContext";
+import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 
 const MyLeads = () => {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ const MyLeads = () => {
     conversion_rate: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Live Active Filter State
   const [search, setSearch] = useState("");
@@ -93,6 +95,7 @@ const MyLeads = () => {
     <div className="my-leads-page">
       <MyLeadsHeader
         onExport={handleExportCsv}
+        onCreateLead={() => setCreateModalOpen(true)}
       />
 
       <LeadStats
@@ -119,6 +122,13 @@ const MyLeads = () => {
         loading={loading}
         onRefresh={fetchMyLeads}
         currentUser={user || {}}
+      />
+
+      <CreateLeadModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onSuccess={fetchMyLeads}
+        currentUserRole="COUNSELLOR"
       />
     </div>
   );

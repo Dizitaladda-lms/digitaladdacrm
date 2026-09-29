@@ -128,12 +128,25 @@ export const createLeadService = async (
   currentUser,
   req
 ) => {
-  if (currentUser.role !== ROLES.ADMIN) {
+  const isCounsellor = currentUser.role === ROLES.COUNSELLOR;
+  const isManagerOrSuperAdmin = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(currentUser.role);
+
+  if (!isManagerOrSuperAdmin && !isCounsellor) {
     throw new ApiError(
       403,
-      "Only administrators are authorized to manually create new leads."
+      "You are not authorized to manually create new leads."
     );
   }
+
+  // A counsellor may create only a lead they own. Never trust an employee ID
+  // supplied by the browser: the account's linked employee record is canonical.
+  const counsellorEmployeeId = isCounsellor
+    ? await resolveEmployeeIdForCounsellor(currentUser)
+    : null;
+
+  const normalizedLeadData = isCounsellor
+    ? { ...leadData, assigned_to: counsellorEmployeeId }
+    : leadData;
 
   const client = await pool.connect();
 
@@ -142,15 +155,19 @@ export const createLeadService = async (
     await client.query("BEGIN");
 
     /* Duplicate Lead Check (by Mobile or Email) */
-    const existingMobile = await findLeadByMobileRepository(leadData.mobile);
-    const existingEmail = leadData.email ? await findLeadByEmailRepository(leadData.email) : null;
+    const existingMobile = await findLeadByMobileRepository(normalizedLeadData.mobile);
+    const existingEmail = normalizedLeadData.email ? await findLeadByEmailRepository(normalizedLeadData.email) : null;
     const existingLead = existingMobile || existingEmail;
 
     if (existingLead) {
+      // A duplicate must not let a counsellor view or amend another
+      // counsellor's lead through the manual-entry endpoint.
+      await assertLeadOwnership(existingLead, currentUser);
+
       const newCount = (Number(existingLead.received_count) || 1) + 1;
       const firstSource = existingLead.first_source || existingLead.source || "UNKNOWN";
       const previousSource = existingLead.source || "UNKNOWN";
-      const newSource = leadData.source || "MANUAL";
+      const newSource = normalizedLeadData.source || "MANUAL";
 
       // Parse existing source_history
       let history = [];
@@ -177,8 +194,8 @@ export const createLeadService = async (
       history.push({
         count: newCount,
         source: newSource,
-        domain: leadData.domain || existingLead.domain || null,
-        course: leadData.interested_course || existingLead.interested_course || null,
+        domain: normalizedLeadData.domain || existingLead.domain || null,
+        course: normalizedLeadData.interested_course || existingLead.interested_course || null,
         captured_at: new Date().toISOString(),
       });
 
@@ -186,7 +203,7 @@ export const createLeadService = async (
         client,
         existingLead.id,
         {
-          ...leadData,
+          ...normalizedLeadData,
           first_source: firstSource,
           previous_source: previousSource,
           source: newSource,
@@ -196,7 +213,7 @@ export const createLeadService = async (
         }
       );
 
-      const reinquiryDesc = `Manual Re-inquiry #${newCount} recorded from ${newSource} (${currentUser.role}). (1st source: ${firstSource}). Remarks: ${leadData.remarks || "Direct follow-up"}`;
+      const reinquiryDesc = `Manual Re-inquiry #${newCount} recorded from ${newSource} (${currentUser.role}). (1st source: ${firstSource}). Remarks: ${normalizedLeadData.remarks || "Direct follow-up"}`;
 
       await addTimelineEventService({
         leadId: existingLead.id,
@@ -236,7 +253,7 @@ export const createLeadService = async (
         client,
         {
 
-          ...leadData,
+          ...normalizedLeadData,
 
           lead_code: leadCode,
 
@@ -1214,7 +1231,7 @@ export const importLeadsService = async (
   currentUser,
   req
 ) => {
-  if (currentUser.role !== ROLES.ADMIN) {
+  if (![ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(currentUser.role)) {
     throw new ApiError(403, "Only administrators are authorized to import leads.");
   }
 

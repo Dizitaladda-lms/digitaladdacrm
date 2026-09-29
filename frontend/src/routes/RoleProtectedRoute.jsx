@@ -14,7 +14,7 @@ const RoleProtectedRoute = ({ roles }) => {
 
   if (!roles.includes(user.role)) {
 
-    if (user.role === "ADMIN") {
+    if (["MANAGER", "SUPER_ADMIN"].includes(user.role)) {
       return <Navigate to="/dashboard" replace />;
     }
 

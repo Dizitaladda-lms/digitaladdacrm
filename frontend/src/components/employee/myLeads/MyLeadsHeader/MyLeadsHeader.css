@@ -36,7 +36,8 @@
 }
 
 .export-btn,
-.followup-btn{
+.followup-btn,
+.manual-lead-btn{
 
     display:flex;
     align-items:center;
@@ -70,6 +71,18 @@
     color:#fff;
     border:none;
 
+}
+
+.manual-lead-btn{
+    background:#0f766e;
+    color:#fff;
+    border:1px solid #0f766e;
+    box-shadow:0 4px 10px rgba(15,118,110,.18);
+}
+
+.manual-lead-btn:hover{
+    background:#0b5f59;
+    border-color:#0b5f59;
 }
 
 .followup-btn:hover{
@@ -111,7 +124,8 @@
 }
 
 .export-btn,
-.followup-btn{
+.followup-btn,
+.manual-lead-btn{
 
     padding:10px 12px;
     font-size:12px;

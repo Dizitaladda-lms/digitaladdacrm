@@ -10,7 +10,7 @@ const API_LEADS = '/api/leads';
 const adminEmail = `role.admin.${Date.now()}@example.com`;
 const counsellorEmail = `role.counsellor.${Date.now()}@example.com`;
 
-const ADMIN = { full_name: 'Role Admin', email: adminEmail, password: 'Admin@1234', role: 'ADMIN' };
+const ADMIN = { full_name: 'Role Manager', email: adminEmail, password: 'Admin@1234', role: 'MANAGER' };
 const COUNSELLOR = { full_name: 'Role Counsellor', email: counsellorEmail, password: 'Counsellor@1234', role: 'COUNSELLOR' };
 
 let adminToken;
@@ -18,7 +18,7 @@ let counsellorToken;
 
 beforeAll(async () => {
   await request(app).post(`${API_AUTH}/register`).send(ADMIN).expect(201);
-  await pool.query("UPDATE users SET role = 'ADMIN' WHERE email = $1", [ADMIN.email]);
+  await pool.query("UPDATE users SET role = 'MANAGER' WHERE email = $1", [ADMIN.email]);
   const a = await request(app).post(`${API_AUTH}/login`).send({ email: ADMIN.email, password: ADMIN.password }).expect(200);
   adminToken = a.body.data.accessToken;
 
@@ -27,7 +27,7 @@ beforeAll(async () => {
   counsellorToken = c.body.data.accessToken;
 });
 
-test('COUNSELLOR cannot create lead (ADMIN only)', async () => {
+test('COUNSELLOR without an employee profile cannot create a manual lead', async () => {
   const payload = { full_name: 'Forbidden Lead', mobile: `9${Math.floor(100000000 + Math.random() * 900000000)}`, source: 'MANUAL' };
 
   await request(app)
@@ -37,7 +37,7 @@ test('COUNSELLOR cannot create lead (ADMIN only)', async () => {
     .expect(403);
 });
 
-test('ADMIN can create lead', async () => {
+test('MANAGER can create lead', async () => {
   const payload = { full_name: 'Allowed Lead', mobile: `9${Math.floor(100000000 + Math.random() * 900000000)}`, source: 'MANUAL' };
 
   const res = await request(app)

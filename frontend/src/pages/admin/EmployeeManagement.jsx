@@ -382,7 +382,7 @@ const EmployeeManagement = () => {
             <option value="">All Roles</option>
             <option value="COUNSELLOR">Counsellor</option>
             <option value="MANAGER">Manager</option>
-            <option value="ADMIN">Admin</option>
+            <option value="MANAGER">Manager Admin</option>
           </select>
 
           <select
@@ -781,7 +781,7 @@ const EmployeeManagement = () => {
                   >
                     <option value="COUNSELLOR">Counsellor</option>
                     <option value="MANAGER">Manager</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="MANAGER">Manager Admin</option>
                   </select>
                 </div>
 

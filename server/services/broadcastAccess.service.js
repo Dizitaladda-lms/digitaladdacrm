@@ -25,7 +25,7 @@ export const getAuthorizedBroadcastLeads = async ({ leadIds, currentUser = {} })
   }
 
   const role = String(currentUser.role || "").toUpperCase();
-  if (![ROLES.ADMIN, ROLES.COUNSELLOR].includes(role)) {
+  if (![ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.COUNSELLOR].includes(role)) {
     throw new ApiError(403, "You are not authorized to send bulk messages.");
   }
 

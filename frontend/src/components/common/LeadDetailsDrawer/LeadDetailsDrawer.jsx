@@ -27,8 +27,8 @@ const LeadDetailsDrawer = ({
 }) => {
   const isCounsellor = role === "counsellor" || role === "employee";
   const isEditable = isCounsellor;
-  // Recording is globally enabled; counsellors can access only their assigned leads.
-  const canAccessCallRecordings = ["admin", "counsellor"].includes(String(role).toLowerCase());
+  // Call recordings are confidential and available in the admin drawer only.
+  const canAccessCallRecordings = String(role).toUpperCase() === "SUPER_ADMIN";
 
   const [loading, setLoading] = useState(false);
   const [leadDetails, setLeadDetails] = useState(null);

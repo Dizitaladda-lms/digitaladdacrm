@@ -41,7 +41,8 @@ const LoginForm = () => {
         const role = response?.data?.user?.role || response?.user?.role;
 
         switch (role) {
-          case "ADMIN":
+          case "MANAGER":
+          case "SUPER_ADMIN":
             navigate("/dashboard", { replace: true });
             break;
 

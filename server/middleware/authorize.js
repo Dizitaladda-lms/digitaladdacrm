@@ -6,6 +6,10 @@ import PERMISSIONS from "../constants/permissions.js";
 
 const ROLE_PERMISSIONS = Object.freeze({
 
+    [ROLES.SUPER_ADMIN]: [
+        ...Object.values(PERMISSIONS),
+    ],
+
     [ROLES.ADMIN]: [
         ...Object.values(PERMISSIONS),
     ],

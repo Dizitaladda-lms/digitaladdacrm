@@ -1,9 +1,9 @@
 import React from "react";
 import "./MyLeadsHeader.css";
-import { Calendar, GraduationCap, Award, Download } from "lucide-react";
+import { Calendar, GraduationCap, Award, Download, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const MyLeadsHeader = ({ onExport = () => {} }) => {
+const MyLeadsHeader = ({ onExport = () => {}, onCreateLead = () => {} }) => {
   const navigate = useNavigate();
 
   return (
@@ -16,6 +16,16 @@ const MyLeadsHeader = ({ onExport = () => {} }) => {
       </div>
 
       <div className="header-right" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+
+        <button
+          type="button"
+          className="manual-lead-btn"
+          onClick={onCreateLead}
+          title="Add a lead from a direct enquiry"
+        >
+          <Plus size={18} />
+          <span>Add Manual Lead</span>
+        </button>
 
         <button
           type="button"

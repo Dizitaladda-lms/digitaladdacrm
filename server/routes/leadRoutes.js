@@ -66,7 +66,7 @@ router.post(
 router.post(
   "/",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
   createLeadValidator,
   validate,
   createLead
@@ -93,7 +93,7 @@ router.get(
 router.post(
   "/bulk-delete",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   deleteBulkLeadValidator,
   validate,
   deleteBulkLeads
@@ -124,7 +124,7 @@ router.put(
 router.delete(
   "/:id",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   deleteLead
 );
 

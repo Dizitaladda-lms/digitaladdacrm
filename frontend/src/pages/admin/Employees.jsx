@@ -128,7 +128,7 @@ const Employees = () => {
     ["Total Employees", employees.length, "From database", Users, "blue"],
     ["Active Counsellors", counsellors.filter((item) => item.status === "ACTIVE").length, "Available for assignments", UserCheck, "green"],
     ["Auto-routing Enabled", routedIds.size, "Mapped to domain & course", Route, "purple"],
-    ["Managers & Admins", employees.filter((item) => item.role === "ADMIN").length, "System administrators", UserCog, "orange"],
+    ["Manager Admins", employees.filter((item) => item.role === "MANAGER").length, "Operational management access", UserCog, "orange"],
   ];
 
   const toggleDomain = (id) =>

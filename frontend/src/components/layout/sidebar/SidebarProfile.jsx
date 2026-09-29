@@ -1,6 +1,15 @@
 import { ShieldCheck } from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
 
 const SidebarProfile = () => {
+  const { user } = useAuth();
+  const roleLabel = user?.role === "SUPER_ADMIN" ? "Super Admin" : "Manager Admin";
+  const initials = (user?.full_name || "User")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
 
@@ -8,15 +17,15 @@ const SidebarProfile = () => {
 
       <div className="profile-avatar">
 
-        DM
+        {initials}
 
       </div>
 
       <div className="profile-content">
 
-        <h3>Divyanshu Mishra</h3>
+        <h3>{user?.full_name || "CRM User"}</h3>
 
-        <p>Administrator</p>
+        <p>{roleLabel}</p>
 
         <span className="profile-status">
 

@@ -44,7 +44,7 @@ const AppRoutes = () => {
 
       <Route element={<ProtectedRoute />}>
 
-        <Route element={<RoleProtectedRoute roles={["ADMIN"]} />}>
+        <Route element={<RoleProtectedRoute roles={["MANAGER", "SUPER_ADMIN"]} />}>
 
           <Route element={<MainLayout />}>
 
@@ -78,18 +78,19 @@ const AppRoutes = () => {
 
             <Route path="/students" element={<AdminWorkspace page="students" />} />
 
-            <Route path="/reports" element={<AdminWorkspace page="reports" />} />
+            <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN"]} />}>
+              <Route path="/reports" element={<AdminWorkspace page="reports" />} />
+              <Route
+                path="/telephony"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <TelephonySettings />
+                  </Suspense>
+                }
+              />
+            </Route>
 
             <Route path="/settings" element={<AdminSettings />} />
-
-            <Route
-              path="/telephony"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <TelephonySettings />
-                </Suspense>
-              }
-            />
 
             <Route path="/campaigns/new" element={<CampaignForm />} />
 

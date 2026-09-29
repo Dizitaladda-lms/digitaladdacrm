@@ -27,7 +27,7 @@ router.post("/webhook", handleWebhook);
 router.post(
   "/call",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   initiateCall
 );
 
@@ -38,30 +38,30 @@ router.post(
 router.get(
   "/lead/:leadId",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   getLeadCallLogs
 );
 
 /**
  * Admin only: all call logs report
  */
-router.get("/logs", authMiddleware, roleMiddleware(ROLES.ADMIN), getAllCallLogs);
+router.get("/logs", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN), getAllCallLogs);
 
 router.get(
   "/recordings/:callId",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   streamCallRecording
 );
 
 /**
  * Domain-specific caller ID / virtual number management (Admin only)
  */
-router.get("/domains", authMiddleware, roleMiddleware(ROLES.ADMIN), getTelephonyDomains);
+router.get("/domains", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN), getTelephonyDomains);
 router.put(
   "/domains/:domainId/caller-id",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   updateDomainCallerId
 );
 
@@ -73,7 +73,7 @@ if (process.env.NODE_ENV !== "production") {
   router.post(
     "/simulate-complete/:callId",
     authMiddleware,
-    roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+    roleMiddleware(ROLES.SUPER_ADMIN),
     simulateMockComplete
   );
 }

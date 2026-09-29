@@ -18,6 +18,7 @@ const BulkActionBar = ({
   onAssign,
   onExport,
   onDelete,
+  canDelete = false,
   onClear,
 }) => {
   if (selectedLeads.length === 0) {
@@ -79,10 +80,10 @@ const BulkActionBar = ({
           Export
         </button>
 
-        <button className="delete-btn" onClick={onDelete}>
+        {canDelete && <button className="delete-btn" onClick={onDelete}>
           <Trash2 size={16} />
           Delete
-        </button>
+        </button>}
 
         <button className="clear-btn" onClick={onClear}>
           <X size={16} />
