@@ -86,12 +86,15 @@
 .auth-brand__logo {
   width: 270px;
   height: 48px;
+
 }
 
 .auth-brand__logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  filter: none;
+  opacity: 1;
 }
 
 .auth-brand__text h1 {
