@@ -354,6 +354,31 @@ export const changePasswordService = async (
         hashedPassword
       );
 
+    // Password-change events are confidential. Notify Super Admins without
+    // storing any password, hash, or other credential material.
+    if (String(user.role).toUpperCase() === ROLES.COUNSELLOR) {
+      await client.query(
+        `
+          INSERT INTO user_notifications
+            (user_id, actor_user_id, type, category, title, message, link, priority)
+          SELECT
+            id,
+            $1,
+            'COUNSELLOR_PASSWORD_CHANGED',
+            'SECURITY',
+            'Counsellor password changed',
+            $2,
+            '/employees',
+            'WARNING'
+          FROM users
+          WHERE role = 'SUPER_ADMIN'
+            AND is_active = TRUE
+            AND is_deleted = FALSE;
+        `,
+        [userId, `${user.full_name} changed their account password.`]
+      );
+    }
+
     auditLogger({
       action: "PASSWORD_CHANGED",
       module: "AUTH",

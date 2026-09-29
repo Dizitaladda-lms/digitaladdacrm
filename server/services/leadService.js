@@ -262,6 +262,18 @@ export const createLeadService = async (
         }
       );
 
+    // Record direct assignment at creation time too. This powers the
+    // counsellor's new-lead notification just like later reassignment does.
+    if (lead.assigned_to) {
+      await createAssignmentHistoryRepository(client, {
+        lead_id: lead.id,
+        assigned_by: currentUser.id,
+        assigned_to: lead.assigned_to,
+        previous_assigned_to: null,
+        remarks: "Assigned when lead was created.",
+      });
+    }
+
     await addTimelineEventService({
       leadId: lead.id,
       employeeId: lead.assigned_to || null,

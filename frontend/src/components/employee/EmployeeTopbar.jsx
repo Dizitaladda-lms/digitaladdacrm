@@ -3,9 +3,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Bell,
 } from "lucide-react";
 import ProfileMenu from "../profile/ProfileMenu";
+import NotificationsPopover from "../common/NotificationsPopover/NotificationsPopover";
 
 const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
   const today = new Date().toLocaleDateString("en-IN", {
@@ -41,10 +41,7 @@ const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
       <div className="topbar-right">
         <div className="topbar-date">{today}</div>
 
-        <button className="notification-btn">
-          <Bell size={21} />
-          <span className="notification-badge">0</span>
-        </button>
+        <NotificationsPopover isEmployee />
 
         <ProfileMenu />
       </div>

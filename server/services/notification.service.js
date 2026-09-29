@@ -1,167 +1,70 @@
 import pool from "../config/db.js";
 import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
 
-/**
- * Role-Based Notification Service
- * Admin: Unassigned leads, confirmed admissions, system-wide overdue follow-ups
- * Employee/Counsellor: Today's calls, overdue calls, newly assigned leads, and Student Fee Due Alerts!
- */
-export const getRoleNotificationsService = async (user) => {
-  const isAdmin = user.role === "ADMIN";
+const item = (row, data) => ({ time: row.created_at || new Date().toISOString(), priority: "INFO", ...data });
 
-  if (isAdmin) {
-    const [unassignedLeads, admissions, overdueFollowups] = await Promise.all([
-      pool.query(`
-        SELECT id, lead_code, full_name, mobile, status, created_at
-        FROM leads
-        WHERE assigned_to IS NULL AND is_deleted = FALSE
-        ORDER BY created_at DESC LIMIT 10
-      `),
-      pool.query(`
-        SELECT id, lead_code, full_name, mobile, status, updated_at
-        FROM leads
-        WHERE UPPER(status) IN ('ADMISSION', 'ADMISSION_DONE', 'ENROLLED') AND is_deleted = FALSE
-        ORDER BY updated_at DESC LIMIT 10
-      `),
-      pool.query(`
-        SELECT id, lead_code, full_name, mobile, status, next_followup
-        FROM leads
-        WHERE DATE(next_followup) < CURRENT_DATE AND is_deleted = FALSE
-        ORDER BY next_followup ASC LIMIT 10
-      `),
+// The frontend polls this role-scoped endpoint. It only sounds an alert for
+// items that appear after the initial poll, so opening the CRM is quiet.
+export const getRoleNotificationsService = async (user) => {
+  const role = String(user.role || "").toUpperCase();
+  const isManager = ["ADMIN", "MANAGER"].includes(role);
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  const notifications = [];
+
+  if (isManager || isSuperAdmin) {
+    const { rows } = await pool.query(`
+      SELECT id, lead_code, full_name, interested_course, created_at FROM leads
+      WHERE assigned_to IS NULL AND is_deleted = FALSE ORDER BY created_at DESC LIMIT 10;
+    `);
+    notifications.push(...rows.map((lead) => item(lead, {
+      id: `unassigned_${lead.id}`, type: "UNASSIGNED_LEAD", category: "LEAD",
+      title: "New lead needs assignment",
+      message: `${lead.full_name} inquired for ${lead.interested_course || "a course"}.`,
+      link: "/leads", priority: "HIGH",
+    })));
+  }
+
+  if (isSuperAdmin) {
+    const { rows } = await pool.query(`
+      SELECT id, type, category, title, message, link, priority, created_at
+      FROM user_notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20;
+    `, [user.id]);
+    notifications.push(...rows.map((event) => item(event, {
+      id: `security_${event.id}`, type: event.type, category: event.category,
+      title: event.title, message: event.message, link: event.link || "/employees",
+      priority: event.priority, time: event.created_at,
+    })));
+  }
+
+  if (!isManager && !isSuperAdmin) {
+    const employee = await findEmployeeByUserIdRepository(user.id);
+    if (!employee) return { notifications: [], total_count: 0, unread_count: 0 };
+
+    const [dueNow, today, overdue, assignments] = await Promise.all([
+      pool.query(`SELECT f.id, f.next_followup_at, l.full_name, l.mobile FROM lead_followups f JOIN leads l ON l.id=f.lead_id WHERE f.employee_id=$1 AND f.status='PENDING' AND f.is_deleted=FALSE AND f.next_followup_at <= NOW() AND f.next_followup_at > NOW() - INTERVAL '2 minutes' ORDER BY f.next_followup_at ASC`, [employee.id]),
+      pool.query(`SELECT f.id, f.next_followup_at, l.full_name, l.mobile FROM lead_followups f JOIN leads l ON l.id=f.lead_id WHERE f.employee_id=$1 AND f.status='PENDING' AND f.is_deleted=FALSE AND f.next_followup_at::date=CURRENT_DATE ORDER BY f.next_followup_at ASC LIMIT 10`, [employee.id]),
+      pool.query(`SELECT f.id, f.next_followup_at, l.full_name, l.mobile FROM lead_followups f JOIN leads l ON l.id=f.lead_id WHERE f.employee_id=$1 AND f.status='PENDING' AND f.is_deleted=FALSE AND f.next_followup_at < NOW() - INTERVAL '2 minutes' ORDER BY f.next_followup_at ASC LIMIT 10`, [employee.id]),
+      pool.query(`SELECT la.id AS assignment_id, la.assigned_at, l.full_name, l.interested_course FROM lead_assignments la JOIN leads l ON l.id=la.lead_id WHERE la.assigned_to=$1 AND l.is_deleted=FALSE ORDER BY la.assigned_at DESC LIMIT 10`, [employee.id]),
     ]);
 
-    const notifications = [
-      ...unassignedLeads.rows.map((l) => ({
-        id: `unassigned-${l.id}`,
-        type: "UNASSIGNED_LEAD",
-        category: "Action Required",
-        title: "Unassigned New Lead",
-        message: `Lead ${l.full_name} (${l.lead_code || "NEW"}) requires assignment to a counsellor.`,
-        leadId: l.id,
-        createdAt: l.created_at,
-        isRead: false,
-      })),
-      ...admissions.rows.map((l) => ({
-        id: `admission-${l.id}`,
-        type: "ADMISSION_CONFIRMED",
-        category: "Admissions",
-        title: "Confirmed Admission",
-        message: `Student ${l.full_name} (${l.lead_code || "ENROLLED"}) confirmed admission.`,
-        leadId: l.id,
-        createdAt: l.updated_at,
-        isRead: false,
-      })),
-      ...overdueFollowups.rows.map((l) => ({
-        id: `overdue-${l.id}`,
-        type: "OVERDUE_FOLLOWUP",
-        category: "Follow-ups",
-        title: "Overdue Follow-up Alert",
-        message: `Follow-up for ${l.full_name} is overdue.`,
-        leadId: l.id,
-        createdAt: l.next_followup,
-        isRead: false,
-      })),
-    ];
-
-    return {
-      unreadCount: notifications.length,
-      notifications,
-    };
+    notifications.push(...dueNow.rows.map((row) => item(row, {
+      id: `due_now_${row.id}_${new Date(row.next_followup_at).toISOString()}`, type: "FOLLOWUP_DUE_NOW", category: "FOLLOWUP", title: "Follow-up due now",
+      message: `It's time to call ${row.full_name} (${row.mobile}).`, time: row.next_followup_at, link: "/employee/followups", priority: "URGENT",
+    })));
+    notifications.push(...today.rows.map((row) => item(row, {
+      id: `today_${row.id}`, type: "TODAY_FOLLOWUP", category: "FOLLOWUP", title: "Follow-up scheduled today",
+      message: `Call ${row.full_name} (${row.mobile}) today.`, time: row.next_followup_at, link: "/employee/followups", priority: "HIGH",
+    })));
+    notifications.push(...overdue.rows.map((row) => item(row, {
+      id: `overdue_${row.id}`, type: "OVERDUE_FOLLOWUP", category: "FOLLOWUP", title: "Overdue follow-up",
+      message: `Callback to ${row.full_name} was missed.`, time: row.next_followup_at, link: "/employee/followups", priority: "URGENT",
+    })));
+    notifications.push(...assignments.rows.map((row) => item(row, {
+      id: `assigned_${row.assignment_id}`, type: "NEW_ASSIGNED", category: "LEAD", title: "New lead assigned to you",
+      message: `${row.full_name} — ${row.interested_course || "course inquiry"}.`, time: row.assigned_at, link: "/employee/leads",
+    })));
   }
 
-  // COUNSELLOR / EMPLOYEE PORTAL
-  const employee = await findEmployeeByUserIdRepository(user.id);
-  const employeeId = employee ? employee.id : null;
-
-  if (!employeeId) {
-    return { unreadCount: 0, notifications: [] };
-  }
-
-  const [todayCalls, overdueCalls, newAssigned, feeDues] = await Promise.all([
-    pool.query(
-      `
-      SELECT id, lead_code, full_name, mobile, status, next_followup
-      FROM leads
-      WHERE assigned_to = $1 AND DATE(next_followup) = CURRENT_DATE AND is_deleted = FALSE
-      ORDER BY next_followup ASC LIMIT 10
-    `,
-      [employeeId]
-    ),
-    pool.query(
-      `
-      SELECT id, lead_code, full_name, mobile, status, next_followup
-      FROM leads
-      WHERE assigned_to = $1 AND DATE(next_followup) < CURRENT_DATE AND is_deleted = FALSE
-      ORDER BY next_followup ASC LIMIT 10
-    `,
-      [employeeId]
-    ),
-    pool.query(
-      `
-      SELECT id, lead_code, full_name, mobile, status, created_at
-      FROM leads
-      WHERE assigned_to = $1 AND UPPER(status) = 'NEW' AND is_deleted = FALSE
-      ORDER BY created_at DESC LIMIT 10
-    `,
-      [employeeId]
-    ),
-    pool.query(
-      `
-      SELECT id, lead_id, admission_code, student_name, mobile, pending_fee, receipt_no, next_due_date, course_name
-      FROM admissions
-      WHERE assigned_to = $1 AND pending_fee > 0 AND (next_due_date IS NULL OR next_due_date <= CURRENT_DATE + INTERVAL '2 days')
-      ORDER BY next_due_date ASC LIMIT 10
-    `,
-      [employeeId]
-    ),
-  ]);
-
-  const notifications = [
-    ...feeDues.rows.map((adm) => ({
-      id: `fee-due-${adm.id}`,
-      type: "FEE_DUE_REMINDER",
-      category: "Admissions",
-      title: "Student Fee Installment Due Alert",
-      message: `Fee installment of ₹${Number(adm.pending_fee).toLocaleString("en-IN")} for ${adm.student_name} (${adm.course_name}) is due ${adm.next_due_date ? new Date(adm.next_due_date).toLocaleDateString("en-IN") : "soon"}. Send WhatsApp reminder!`,
-      leadId: adm.lead_id,
-      createdAt: adm.next_due_date || new Date(),
-      isRead: false,
-    })),
-    ...todayCalls.rows.map((l) => ({
-      id: `today-${l.id}`,
-      type: "TODAY_CALL",
-      category: "Follow-ups",
-      title: "Today's Scheduled Call",
-      message: `Call scheduled today for ${l.full_name} (${l.mobile}).`,
-      leadId: l.id,
-      createdAt: l.next_followup,
-      isRead: false,
-    })),
-    ...overdueCalls.rows.map((l) => ({
-      id: `overdue-emp-${l.id}`,
-      type: "OVERDUE_CALL",
-      category: "Follow-ups",
-      title: "Overdue Call Reminder",
-      message: `Follow-up for ${l.full_name} is overdue. Please call ASAP.`,
-      leadId: l.id,
-      createdAt: l.next_followup,
-      isRead: false,
-    })),
-    ...newAssigned.rows.map((l) => ({
-      id: `new-assigned-${l.id}`,
-      type: "NEW_ASSIGNED",
-      category: "All",
-      title: "New Lead Assigned",
-      message: `New lead ${l.full_name} (${l.lead_code || "LEAD"}) assigned to you.`,
-      leadId: l.id,
-      createdAt: l.created_at,
-      isRead: false,
-    })),
-  ];
-
-  return {
-    unreadCount: notifications.length,
-    notifications,
-  };
+  notifications.sort((a, b) => new Date(b.time) - new Date(a.time));
+  return { notifications, total_count: notifications.length, unread_count: notifications.length };
 };

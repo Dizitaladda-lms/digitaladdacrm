@@ -13,7 +13,8 @@ import {
   ArrowRight,
   RefreshCw,
   X,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { getNotifications } from "../../../services/notificationService";
 import "./NotificationsPopover.css";
@@ -35,12 +36,57 @@ const NotificationsPopover = ({ isEmployee = false }) => {
     }
   });
   const [filterTab, setFilterTab] = useState("ALL");
+  const initializedRef = useRef(false);
+  const seenIdsRef = useRef(new Set());
+
+  const playAlertTone = () => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      const context = new AudioContextClass();
+      const playBeep = (at, frequency) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(0.12, at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.24);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start(at);
+        oscillator.stop(at + 0.25);
+      };
+      playBeep(context.currentTime, 880);
+      playBeep(context.currentTime + 0.32, 1046);
+      setTimeout(() => context.close(), 900);
+    } catch {
+      // Browsers may block audio until the user has interacted with the page.
+    }
+  };
 
   const fetchNotifs = async () => {
     setLoading(true);
     try {
       const res = await getNotifications();
       const list = res?.data?.notifications || res?.notifications || [];
+      const incomingIds = new Set(list.map((notification) => notification.id));
+
+      if (initializedRef.current) {
+        const freshAlerts = list.filter((notification) =>
+          !seenIdsRef.current.has(notification.id) &&
+          ["NEW_ASSIGNED", "FOLLOWUP_DUE_NOW", "COUNSELLOR_PASSWORD_CHANGED"].includes(notification.type)
+        );
+        if (freshAlerts.length > 0) {
+          playAlertTone();
+          if ("Notification" in window && Notification.permission === "granted") {
+            freshAlerts.forEach((notification) => {
+              new Notification(notification.title, { body: notification.message, tag: notification.id });
+            });
+          }
+        }
+      }
+
+      seenIdsRef.current = incomingIds;
+      initializedRef.current = true;
       setNotifications(list);
     } catch (err) {
       console.warn("Notifications load notice:", err);
@@ -51,8 +97,8 @@ const NotificationsPopover = ({ isEmployee = false }) => {
 
   useEffect(() => {
     fetchNotifs();
-    // Poll every 45 seconds for fresh notifications
-    const interval = setInterval(fetchNotifs, 45000);
+    // A 30-second poll keeps due-follow-up alerts close to their scheduled time.
+    const interval = setInterval(fetchNotifs, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -104,6 +150,8 @@ const NotificationsPopover = ({ isEmployee = false }) => {
         return <GraduationCap size={16} className="text-green-600" />;
       case "FEE_DUE":
         return <IndianRupee size={16} className="text-amber-600" />;
+      case "COUNSELLOR_PASSWORD_CHANGED":
+        return <ShieldCheck size={16} className="text-red-600" />;
       default:
         return <Bell size={16} className="text-blue-600" />;
     }
@@ -138,7 +186,12 @@ const NotificationsPopover = ({ isEmployee = false }) => {
       <button
         type="button"
         className={`notif-bell-btn ${isOpen ? "active" : ""}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+          }
+        }}
         title="Notifications & Alerts"
       >
         <Bell size={20} />

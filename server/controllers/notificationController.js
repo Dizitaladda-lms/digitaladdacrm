@@ -11,12 +11,35 @@ import ApiResponse from "../utils/ApiResponse.js";
 export const getNotificationsController = asyncHandler(async (req, res) => {
   const user = req.user;
   const role = String(user.role || "").toUpperCase();
-  const isAdmin = role === "ADMIN" || role === "MANAGER";
+  const isAdmin = ["ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
 
   const notifications = [];
 
   try {
     if (isAdmin) {
+      if (role === "SUPER_ADMIN") {
+        const { rows: securityEvents } = await pool.query(`
+          SELECT n.id, n.type, n.category, n.title, n.message, n.link, n.priority, n.created_at
+          FROM user_notifications n
+          WHERE n.user_id = $1
+          ORDER BY n.created_at DESC
+          LIMIT 10;
+        `, [user.id]);
+        securityEvents.forEach((event) => {
+          notifications.push({
+            id: `security_${event.id}`,
+            type: event.type,
+            category: event.category,
+            title: event.title,
+            message: event.message,
+            time: event.created_at,
+            link: event.link,
+            priority: event.priority,
+            icon: "ShieldCheck",
+          });
+        });
+      }
+
       // 1. Admin: Unassigned Leads
       const { rows: unassigned } = await pool.query(`
         SELECT id, lead_code, full_name, mobile, interested_course, created_at
@@ -122,6 +145,34 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
           });
         });
 
+        // This narrow event is used by the browser alarm. It is intentionally
+        // separate from the all-day reminder list so sound is played only when
+        // a follow-up actually becomes due, not whenever the page is opened.
+        const { rows: dueNow } = await pool.query(`
+          SELECT f.id, f.next_followup_at, l.full_name, l.mobile
+          FROM lead_followups f
+          JOIN leads l ON f.lead_id = l.id
+          WHERE f.employee_id = $1
+            AND f.status = 'PENDING'
+            AND f.is_deleted = FALSE
+            AND f.next_followup_at <= NOW()
+            AND f.next_followup_at > NOW() - INTERVAL '2 minutes'
+          ORDER BY f.next_followup_at ASC;
+        `, [employeeId]);
+        dueNow.forEach((f) => {
+          notifications.push({
+            id: `due_now_${f.id}_${new Date(f.next_followup_at).toISOString()}`,
+            type: "FOLLOWUP_DUE_NOW",
+            category: "FOLLOWUP",
+            title: "Follow-up due now",
+            message: `It's time to call ${f.full_name} (${f.mobile}).`,
+            time: f.next_followup_at,
+            link: "/employee/followups",
+            priority: "URGENT",
+            icon: "PhoneCall",
+          });
+        });
+
         // 2. Overdue Follow-ups
         const { rows: overdueFollowups } = await pool.query(`
           SELECT f.id, f.lead_id, f.next_followup_at, l.full_name, l.mobile
@@ -151,21 +202,23 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
 
         // 3. New Leads Assigned
         const { rows: newAssigned } = await pool.query(`
-          SELECT id, lead_code, full_name, mobile, interested_course, created_at
-          FROM leads
-          WHERE assigned_to = $1 AND status = 'NEW' AND is_deleted = FALSE
-          ORDER BY created_at DESC
+          SELECT la.id AS assignment_id, la.assigned_at, l.id, l.lead_code, l.full_name, l.mobile, l.interested_course
+          FROM lead_assignments la
+          JOIN leads l ON l.id = la.lead_id
+          WHERE la.assigned_to = $1
+            AND l.is_deleted = FALSE
+          ORDER BY la.assigned_at DESC
           LIMIT 5;
         `, [employeeId]);
         newAssigned.forEach((l) => {
           notifications.push({
-            id: `assigned_${l.id}`,
+            id: `assigned_${l.assignment_id}`,
             type: "NEW_ASSIGNED",
             category: "LEAD",
             title: "New Lead Assigned to You",
             message: `${l.full_name} has been assigned for ${l.interested_course || "program inquiry"}.`,
-            time: l.created_at,
-            link: "/employee/my-leads",
+            time: l.assigned_at,
+            link: "/employee/leads",
             priority: "INFO",
             icon: "UserCheck",
           });
