@@ -1,41 +1,28 @@
-.lead-management-page{
+/* ==========================================================
+   DIZITALADDA CRM — Lead Management Page
+   Professional Light Theme
+   ========================================================== */
 
-    width:100%;
-
-    min-height:100vh;
-
-    display:flex;
-
-    flex-direction:column;
-
-    gap:28px;
-
-    padding:30px;
-
-    background:#F8FAFC;
-
+.lead-management-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  background: #f8fafc;
 }
 
-@media(max-width:992px){
-
-.lead-management-page{
-
-padding:20px;
-
-gap:22px;
-
+@media (max-width: 992px) {
+  .lead-management-page {
+    padding: 18px 16px;
+    gap: 18px;
+  }
 }
 
-}
-
-@media(max-width:768px){
-
-.lead-management-page{
-
-padding:16px;
-
-gap:18px;
-
-}
-
+@media (max-width: 768px) {
+  .lead-management-page {
+    padding: 14px 10px;
+    gap: 14px;
+  }
 }

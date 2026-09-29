@@ -10,7 +10,6 @@ const LeadPagination = ({
   limit = 10,
   onPageChange,
 }) => {
-
   const start =
     totalRecords === 0
       ? 0
@@ -22,106 +21,54 @@ const LeadPagination = ({
   );
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-
-      {/* Left */}
-
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-white px-5 py-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] sm:flex-row sm:items-center sm:justify-between">
+      {/* Left: Summary */}
       <div>
-
-        <p className="text-sm text-slate-500">
-
-          Showing
-
-          <span className="mx-1 font-semibold text-slate-800">
-
-            {start}-{end}
-
-          </span>
-
-          of
-
-          <span className="mx-1 font-semibold text-slate-800">
-
+        <p className="text-xs font-medium text-slate-500">
+          Showing{" "}
+          <span className="font-bold text-slate-900">
+            {start}–{end}
+          </span>{" "}
+          of{" "}
+          <span className="font-bold text-slate-900">
             {totalRecords}
-
-          </span>
-
+          </span>{" "}
           Leads
-
         </p>
-
       </div>
 
-      {/* Right */}
-
-      <div className="flex items-center gap-2">
-
+      {/* Right: Controls */}
+      <div className="flex items-center gap-1.5 self-end sm:self-auto">
         <button
-          disabled={page === 1}
+          type="button"
+          disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="
-            flex
-            h-10
-            w-10
-            items-center
-            justify-center
-            rounded-xl
-            border
-            border-slate-300
-            bg-white
-            transition
-            hover:bg-slate-50
-            disabled:cursor-not-allowed
-            disabled:opacity-50
-          "
+          className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+          title="Previous page"
         >
-
-          <ChevronLeft size={18} />
-
+          <ChevronLeft size={16} />
         </button>
 
-        {/* Current Page */}
-
-        <div className="flex h-10 min-w-[42px] items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white">
-
+        {/* Current Page Pill */}
+        <div className="flex h-8.5 min-w-[34px] items-center justify-center rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white shadow-2xs">
           {page}
-
         </div>
 
         {/* Total Pages */}
-
-        <span className="px-2 text-sm text-slate-500">
-
-          of {totalPages}
-
+        <span className="px-1 text-xs font-semibold text-slate-500">
+          of {totalPages || 1}
         </span>
 
         <button
+          type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="
-            flex
-            h-10
-            w-10
-            items-center
-            justify-center
-            rounded-xl
-            border
-            border-slate-300
-            bg-white
-            transition
-            hover:bg-slate-50
-            disabled:cursor-not-allowed
-            disabled:opacity-50
-          "
+          className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+          title="Next page"
         >
-
-          <ChevronRight size={18} />
-
+          <ChevronRight size={16} />
         </button>
-
       </div>
-
     </div>
   );
 };

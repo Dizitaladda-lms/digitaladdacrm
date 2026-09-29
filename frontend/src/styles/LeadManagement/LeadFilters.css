@@ -1,211 +1,174 @@
-.lead-filters{
+/* ==========================================================
+   DIZITALADDA CRM — Lead Filters (Professional Light Theme)
+   ========================================================== */
 
-background:#fff;
-
-padding:28px;
-
-border-radius:18px;
-
-border:1px solid #E2E8F0;
-
-box-shadow:0 8px 24px rgba(15,23,42,.05);
-
+.lead-filters {
+  background: #ffffff;
+  padding: 18px 22px;
+  border-radius: 14px;
+  border: 1px solid #e8eaf0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-.lead-filter-header{
-
-display:flex;
-
-justify-content:space-between;
-
-align-items:center;
-
-margin-bottom:28px;
-
+.lead-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.lead-filter-header h3{
-
-font-size:22px;
-
-font-weight:700;
-
-color:#0F172A;
-
+.lead-filter-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 2px;
+  letter-spacing: -0.01em;
 }
 
-.lead-filter-header p{
-
-margin-top:6px;
-
-font-size:14px;
-
-color:#64748B;
-
+.lead-filter-header p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #64748b;
 }
 
-.filter-icon{
-
-width:54px;
-
-height:54px;
-
-display:flex;
-
-justify-content:center;
-
-align-items:center;
-
-border-radius:14px;
-
-background:#EFF6FF;
-
-color:#2563EB;
-
+.filter-icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #4f46e5;
+  flex-shrink: 0;
 }
 
-.lead-filter-grid{
-
-display:grid;
-
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-
-gap:22px;
-
+.lead-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px 16px;
 }
 
-.filter-search{
-
-grid-column:span 2;
-
+.filter-search {
+  grid-column: span 2;
 }
 
-.filter-group{
-
-display:flex;
-
-flex-direction:column;
-
-gap:8px;
-
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.filter-group label{
-
-font-size:13px;
-
-font-weight:600;
-
-color:#475569;
-
+.filter-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+  letter-spacing: 0.01em;
 }
 
-.search-box{
-
-display:flex;
-
-align-items:center;
-
-gap:10px;
-
-padding:0 14px;
-
-height:48px;
-
-border:1px solid #CBD5E1;
-
-border-radius:12px;
-
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  height: 38px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #9ca3af;
+  transition: all 0.15s ease;
 }
 
-.search-box input{
-
-border:none;
-
-outline:none;
-
-flex:1;
-
-font-size:14px;
-
-background:transparent;
-
+.search-box:focus-within {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
 }
 
-.filter-group select{
-
-height:48px;
-
-padding:0 14px;
-
-border:1px solid #CBD5E1;
-
-border-radius:12px;
-
-font-size:14px;
-
-outline:none;
-
-background:#fff;
-
+.search-box input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 13.5px;
+  color: #0f172a;
+  background: transparent;
 }
 
-.lead-filter-footer{
-
-display:flex;
-
-justify-content:flex-end;
-
-margin-top:28px;
-
+.search-box input::placeholder {
+  color: #9ca3af;
 }
 
-.reset-btn{
-
-display:flex;
-
-align-items:center;
-
-gap:10px;
-
-padding:12px 18px;
-
-background:#F8FAFC;
-
-border:none;
-
-border-radius:12px;
-
-cursor:pointer;
-
-font-weight:600;
-
-transition:.25s;
-
+.filter-group select {
+  height: 38px;
+  padding: 0 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  outline: none;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.reset-btn:hover{
-
-background:#E2E8F0;
-
+.filter-group select:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-@media(max-width:992px){
-
-.filter-search{
-
-grid-column:span 1;
-
+.lead-filter-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
 }
 
+.reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
 }
 
-@media(max-width:768px){
-
-.lead-filter-grid{
-
-grid-template-columns:1fr;
-
+.reset-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
 
+@media (max-width: 992px) {
+  .filter-search {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .lead-filters {
+    padding: 16px 14px;
+  }
+
+  .lead-filter-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .reset-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }

@@ -1,299 +1,175 @@
-.lead-header{
+/* ==========================================================
+   DIZITALADDA CRM — Lead Header (Professional Light Theme)
+   ========================================================== */
 
-display:flex;
-
-justify-content:space-between;
-
-align-items:center;
-
-gap:40px;
-
-padding:30px;
-
-background:#ffffff;
-
-border-radius:18px;
-
-border:1px solid #E2E8F0;
-
-box-shadow:0 8px 25px rgba(15,23,42,.05);
-
+.lead-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 22px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e8eaf0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-.lead-header-left{
-
-flex:1;
-
+.lead-header-left {
+  flex: 1;
 }
 
-.lead-badge{
-
-display:inline-flex;
-
-padding:6px 14px;
-
-background:#EFF6FF;
-
-color:#2563EB;
-
-border-radius:999px;
-
-font-size:12px;
-
-font-weight:700;
-
-letter-spacing:.5px;
-
-text-transform:uppercase;
-
+.lead-badge {
+  display: inline-flex;
+  padding: 4px 12px;
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
-.lead-header-left h1{
-
-margin-top:16px;
-
-font-size:34px;
-
-font-weight:700;
-
-color:#0F172A;
-
+.lead-header-left h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
-.lead-header-left p{
-
-margin-top:10px;
-
-max-width:650px;
-
-font-size:15px;
-
-line-height:1.7;
-
-color:#64748B;
-
+.lead-header-left p {
+  margin: 0;
+  max-width: 620px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #64748b;
 }
 
-.lead-header-right{
-
-display:flex;
-
-flex-direction:column;
-
-align-items:flex-end;
-
-gap:18px;
-
+.lead-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
 }
 
-.lead-date-card{
-
-display:flex;
-
-align-items:center;
-
-gap:12px;
-
-padding:15px 18px;
-
-border-radius:14px;
-
-background:#F8FAFC;
-
-border:1px solid #E2E8F0;
-
+.lead-date-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: #f8fafc;
+  border: 1px solid #e8eaf0;
+  color: #64748b;
 }
 
-.lead-date-card span{
-
-display:block;
-
-font-size:12px;
-
-color:#64748B;
-
+.lead-date-card span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.lead-date-card strong{
-
-font-size:14px;
-
-color:#0F172A;
-
+.lead-date-card strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
-.lead-header-actions{
-
-display:flex;
-
-gap:12px;
-
+.lead-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .refresh-btn,
-
-.create-btn{
-
-display:flex;
-
-align-items:center;
-
-gap:8px;
-
-padding:12px 18px;
-
-border:none;
-
-border-radius:12px;
-
-font-size:14px;
-
-font-weight:600;
-
-cursor:pointer;
-
-transition:.25s;
-
+.create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.refresh-btn{
-
-background:#F1F5F9;
-
-color:#334155;
-
+.refresh-btn {
+  background: #ffffff !important;
+  color: #374151 !important;
+  border: 1.5px solid #e2e8f0 !important;
 }
 
-.refresh-btn:hover{
-
-background:#E2E8F0;
-
+.refresh-btn:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
 }
 
-.create-btn{
-
-background:#2563EB;
-
-color:#fff;
-
+.create-btn {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border: none !important;
 }
 
-.create-btn:hover{
-
-background:#1D4ED8;
-
+.create-btn:hover {
+  background: #4338ca !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
 }
 
-.spin{
-
-animation:spin 1s linear infinite;
-
+.spin {
+  animation: spin 1s linear infinite;
 }
 
-@keyframes spin{
-
-100%{
-
-transform:rotate(360deg);
-
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
+/* ==========================================================
+   RESPONSIVE
+========================================================== */
+
+@media (max-width: 992px) {
+  .lead-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .lead-header-right {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .lead-date-card {
+    justify-content: space-between;
+  }
 }
 
-@media(max-width:992px){
+@media (max-width: 640px) {
+  .lead-header-left h1 {
+    font-size: 18px;
+  }
 
-.lead-header{
+  .lead-header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
 
-flex-direction:column;
-
-align-items:flex-start;
-
-}
-
-.lead-header-right{
-
-width:100%;
-
-align-items:stretch;
-
-}
-
-.lead-header-actions{
-
-width:100%;
-
-}
-
-.refresh-btn,
-
-.create-btn{
-
-flex:1;
-
-justify-content:center;
-
-}
-
-}
-
-@media(max-width:768px){
-
-.lead-header{
-
-padding:18px;
-gap:16px;
-
-}
-
-.lead-header-left h1{
-
-font-size:24px;
-margin-top:10px;
-
-}
-
-.lead-header-left p{
-
-font-size:13px;
-line-height:1.5;
-
-}
-
-.lead-date-card{
-
-width:100%;
-justify-content:center;
-padding:10px 14px;
-
-}
-
-.lead-header-actions{
-
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:8px;
-width:100%;
-
-}
-
-.refresh-btn,
-
-.create-btn{
-
-padding:10px 12px;
-font-size:13px;
-justify-content:center;
-
-}
-
-}
-
-@media(max-width:480px){
-
-.lead-header-actions{
-
-grid-template-columns:1fr;
-
-}
-
+  .refresh-btn,
+  .create-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }

@@ -308,67 +308,39 @@ const LeadTable = ({
 
   return (
 
-  <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
+  <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
     {/* ====================================== */}
     {/* Header */}
     {/* ====================================== */}
-
-    <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
-
+    <div className="flex flex-col gap-3 border-b border-slate-200/90 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-
-        <h2 className="text-xl font-bold text-slate-800">
-
+        <h2 className="text-base font-bold text-slate-900 tracking-tight">
           Incoming Leads
-
         </h2>
-
-        <p className="mt-1 text-sm text-slate-500">
-
-          Manage and assign all captured leads from Meta Ads,
-          Google Ads, Website and other sources.
-
+        <p className="mt-0.5 text-xs font-medium text-slate-500">
+          Manage and assign all captured leads from Meta Ads, Google Ads, Website and other sources.
         </p>
-
       </div>
 
-      <div className="flex items-center gap-3">
-
-        <div className="rounded-xl bg-blue-50 px-4 py-2">
-
-          <p className="text-xs text-slate-500">
-
+      <div className="flex items-center gap-2.5">
+        <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 px-3 py-1.5 text-center">
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-indigo-500">
             Total Leads
-
           </p>
-
-          <h3 className="text-lg font-bold text-blue-700">
-
+          <h3 className="text-base font-extrabold text-indigo-700 leading-tight">
             {sortedLeads.length}
-
           </h3>
-
         </div>
 
-        <div className="rounded-xl bg-emerald-50 px-4 py-2">
-
-          <p className="text-xs text-slate-500">
-
+        <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-1.5 text-center">
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-500">
             Selected
-
           </p>
-
-          <h3 className="text-lg font-bold text-emerald-700">
-
+          <h3 className="text-base font-extrabold text-emerald-700 leading-tight">
             {selectedLeads.length}
-
           </h3>
-
         </div>
-
       </div>
-
     </div>
 
     {/* ====================================== */}
@@ -383,91 +355,51 @@ const LeadTable = ({
         {/* Table Head */}
         {/* ============================== */}
 
-        <thead className="sticky top-0 z-30 border-b border-slate-200 bg-white shadow-md">
-
+        <thead className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50 shadow-2xs">
           <tr className="border-b border-slate-200">
-
-            <th className="sticky left-0 z-30 bg-white px-4 py-4">
-
+            <th className="sticky left-0 z-30 bg-slate-50 px-4 py-3">
               <input
-
                 type="checkbox"
-
-                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600"
-
+                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 accent-indigo-600"
                 checked={isAllSelected}
-
                 onChange={(e)=>
-
                   handleSelectAll(
-
                     e.target.checked
-
                   )
-
                 }
-
               />
-
             </th>
 
-            <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-
+            <th className="px-4 py-3 text-left text-[11.5px] font-bold uppercase tracking-wider text-slate-600">
               #
-
             </th>
 
             {
-
               [
-
                 ["lead_code","Lead Code"],
-
                 ["domain","Domain"],
-
                 ["full_name","Student"],
-
                 ["mobile","Mobile"],
-
                 ["course_name","Course"],
-
                 ["source","Source"],
-
                 ["status","Status"],
-
                 ["priority","Priority"],
-
                 ["assigned_employee","Assigned To"],
-
                 ["next_followup","Follow-up"],
-
                 ["created_at","Created"],
-
               ].map(([key,label])=>(
-
                 <th
-
                   key={key}
-
                   onClick={()=>handleSort(key)}
-
-                  className="cursor-pointer select-none px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
-
+                  className="cursor-pointer select-none px-4 py-3 text-left text-[11.5px] font-bold uppercase tracking-wider text-slate-600 transition-colors hover:text-slate-900"
                 >
-
-                 <div className="flex items-center gap-2">
-
+                 <div className="flex items-center gap-1.5">
   <span>
-
     {label}
-
   </span>
-
   {
-
     sortConfig.key === key ? (
-
-      <span className="text-blue-600">
+      <span className="text-indigo-600 font-extrabold">
 
         {
 
@@ -568,78 +500,48 @@ const LeadTable = ({
 
         </td>
 
-     {/* Lead Code */}
-
-<td className="px-4 py-4">
-
-  <span className="font-mono font-semibold text-blue-700">
-
-    {lead.lead_code}
-
-  </span>
-
-</td>
+        {/* Lead Code */}
+        <td className="px-4 py-3">
+          <span className="font-mono font-bold text-indigo-600">
+            {lead.lead_code}
+          </span>
+        </td>
 
         {/* Domain */}
-
-        <td className="px-4 py-4">
-
-          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
-
+        <td className="px-4 py-3">
+          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 border border-indigo-200">
             {lead.domain || "DizitalAdda"}
-
           </span>
-
         </td>
 
         {/* Student */}
-
-        <td className="px-4 py-4">
-
+        <td className="px-4 py-3">
           <div>
-
-            <p className="font-medium text-slate-800">
-
+            <p className="font-bold text-slate-900 leading-tight">
               {lead.full_name}
-
             </p>
-
-            <p className="text-xs text-slate-500">
-
+            <p className="text-xs text-slate-500 mt-0.5">
               {lead.email || "--"}
-
             </p>
-
           </div>
-
         </td>
 
         {/* Mobile */}
-
-      <td className="px-4 py-4">
-
-  <a
-    href={`tel:${lead.mobile}`}
-    className="font-medium text-slate-700 hover:text-blue-600"
-  >
-
-    {lead.mobile}
-
-  </a>
-
-</td>
+        <td className="px-4 py-3">
+          <a
+            href={`tel:${lead.mobile}`}
+            className="font-bold text-slate-800 hover:text-indigo-600 transition-colors"
+          >
+            {lead.mobile}
+          </a>
+        </td>
 
         {/* Course */}
-
-      <td className="px-4 py-4">
-
-  <span className="rounded-lg bg-slate-100 px-3 py-1 text-sm">
-
-    {lead.course_name || "Not Selected"}
-
-  </span>
-
-</td>
+        <td className="px-4 py-3">
+          <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-800 border border-slate-200">
+            {lead.course_name || "Not Selected"}
+          </span>
+        </td>
 
         {/* Source */}
 
@@ -690,90 +592,51 @@ const LeadTable = ({
         </td>
 
         {/* Priority */}
-
-        <td className="px-4 py-4">
-
+        <td className="px-4 py-3">
           <span
-            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
               PRIORITY_CONFIG[lead.priority]?.className ||
               "bg-slate-100 text-slate-700"
             }`}
           >
-
             {PRIORITY_CONFIG[lead.priority]?.label || lead.priority}
-
           </span>
-
         </td>
 
         {/* Assigned Employee */}
-
-        <td className="px-4 py-4">
-
-          {
-  lead.assigned_employee ? (
-
-    <div>
-
-      <p className="font-semibold text-slate-800">
-
-        {lead.assigned_employee}
-
-      </p>
-
-      <span className="mt-1 inline-flex rounded-full bg-green-100 px-2 py-1 text-[11px] font-semibold text-green-700">
-
-        Assigned
-
-      </span>
-
-    </div>
-
-  ) : (
-
-    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-
-      Unassigned
-
-    </span>
-
-  )
-}
-
+        <td className="px-4 py-3">
+          {lead.assigned_employee ? (
+            <div>
+              <p className="font-bold text-slate-900 leading-tight">
+                {lead.assigned_employee}
+              </p>
+              <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">
+                Assigned
+              </span>
+            </div>
+          ) : (
+            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">
+              Unassigned
+            </span>
+          )}
         </td>
 
         {/* Follow-up */}
-
-        <td className="px-4 py-4">
-
-          {
-  lead.next_followup ? (
-
-    <span className="text-slate-700">
-
-      {formatDate(lead.next_followup)}
-
-    </span>
-
-  ) : (
-
-    <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
-
-      Pending
-
-    </span>
-
-  )
-}
-
+        <td className="px-4 py-3">
+          {lead.next_followup ? (
+            <span className="font-semibold text-slate-800">
+              {formatDate(lead.next_followup)}
+            </span>
+          ) : (
+            <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-600 border border-rose-200">
+              Pending
+            </span>
+          )}
         </td>
 
         {/* Created */}
-
-        <td className="px-4 py-4">
-
+        <td className="px-4 py-3 text-xs font-medium text-slate-600">
           {formatDate(lead.created_at)}
-
         </td>
 
         {/* Actions */}

@@ -202,8 +202,8 @@
 .profile-content h3 {
   margin: 0;
   font-size: 13.5px;
-  font-weight: 600;
-  color: #111827;
+  font-weight: 700;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -255,11 +255,11 @@
 
 /* ── Section label ──────────────────────────────────────── */
 .menu-title {
-  margin: 8px 10px 6px;
-  font-size: 10px;
+  margin: 10px 10px 6px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9ca3af;
+  color: #64748b;
   font-weight: 700;
 }
 
@@ -272,10 +272,10 @@
   padding: 10px 12px;
   margin-bottom: 2px;
   border-radius: 9px;
-  color: #4b5563;
+  color: #334155;
   text-decoration: none;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   transition: background 0.13s ease, color 0.13s ease;
   border: 1.5px solid transparent;
 }
@@ -284,7 +284,7 @@
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  color: #9ca3af;
+  color: #64748b;
   transition: color 0.13s ease;
 }
 
@@ -303,7 +303,7 @@
 .sidebar-item.active {
   background: var(--sidebar-active-bg);
   color: var(--sidebar-active-text);
-  font-weight: 600;
+  font-weight: 700;
   border-color: #c7d2fe;
 }
 
@@ -316,7 +316,7 @@
   position: absolute;
   left: 0;
   top: 20%;
-  width: 3px;
+  width: 3.5px;
   height: 60%;
   background: var(--primary);
   border-radius: 0 3px 3px 0;
@@ -343,7 +343,8 @@
   border: 1.5px solid transparent;
   background: none;
   cursor: pointer;
-  color: #6b7280;
+  color: #4b5563;
+  font-weight: 600;
   border-radius: 9px;
 }
 

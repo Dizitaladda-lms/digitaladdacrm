@@ -149,7 +149,7 @@
 .stat-card-title {
   font-size: 12px;
   font-weight: 700;
-  color: #9ca3af;
+  color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -181,8 +181,8 @@
 .stat-card-subtitle {
   display: block;
   font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
+  color: #64748b;
+  font-weight: 600;
   margin-top: 6px;
 }
 
