@@ -205,7 +205,7 @@ const AdmissionManagement = () => {
         </button>
       </div>
 
-      {/* Financial Analytics Grid */}
+      {/* Financial Analytics Grid (4 Essential Cards) */}
       <div className="adm-stats-grid">
         <div
           className={`adm-stat-card active-adm-card ${statusFilter === "ALL" ? "selected" : ""}`}
@@ -219,7 +219,7 @@ const AdmissionManagement = () => {
           </div>
           <div>
             <div className="adm-stat-label">Total Enrolled Students</div>
-            <div className="adm-stat-value">{stats.total_admissions || 0}</div>
+            <div className="adm-stat-value">{Number(stats.total_admissions || 0).toLocaleString("en-IN")}</div>
           </div>
         </div>
 
@@ -264,7 +264,7 @@ const AdmissionManagement = () => {
           onClick={() => setStatusFilter("PARTIAL")}
           role="button"
           tabIndex={0}
-          title="Click to filter Partial Dues admissions"
+          title="Click to filter Outstanding Dues"
         >
           <div className="adm-stat-icon amber">
             <Clock size={22} />
@@ -274,22 +274,6 @@ const AdmissionManagement = () => {
             <div className="adm-stat-value amber-text">
               ₹{Number(stats.total_pending || 0).toLocaleString("en-IN")}
             </div>
-          </div>
-        </div>
-
-        <div
-          className={`adm-stat-card active-adm-card ${statusFilter === "OVERDUE" ? "selected" : ""}`}
-          onClick={() => setStatusFilter("OVERDUE")}
-          role="button"
-          tabIndex={0}
-          title="Click to filter Overdue admissions"
-        >
-          <div className="adm-stat-icon red">
-            <AlertCircle size={22} />
-          </div>
-          <div>
-            <div className="adm-stat-label">Overdue Installments</div>
-            <div className="adm-stat-value red-text">{stats.overdue_count || 0}</div>
           </div>
         </div>
       </div>
@@ -329,7 +313,7 @@ const AdmissionManagement = () => {
             className={`filter-pill overdue ${statusFilter === "OVERDUE" ? "active" : ""}`}
             onClick={() => setStatusFilter("OVERDUE")}
           >
-            ?? Overdue Dues
+            Overdue Dues
           </button>
         </div>
       </div>
@@ -401,9 +385,9 @@ const AdmissionManagement = () => {
                     {/* Fee Breakdown */}
                     <td>
                       <div className="fee-numbers">
-                        <span className="paid-amount">?{paid.toLocaleString("en-IN")}</span>
+                        <span className="paid-amount">₹{paid.toLocaleString("en-IN")}</span>
                         <span className="fee-divider">/</span>
-                        <span className="total-amount">?{total.toLocaleString("en-IN")}</span>
+                        <span className="total-amount">₹{total.toLocaleString("en-IN")}</span>
                       </div>
                       <div className="fee-progress-bar">
                         <div
@@ -413,9 +397,9 @@ const AdmissionManagement = () => {
                       </div>
                       <div className="fee-subtext">
                         {pending > 0 ? (
-                          <span className="pending-text">?{pending.toLocaleString("en-IN")} pending</span>
+                          <span className="pending-text">₹{pending.toLocaleString("en-IN")} pending</span>
                         ) : (
-                          <span className="cleared-text">? 100% Cleared</span>
+                          <span className="cleared-text">✓ 100% Cleared</span>
                         )}
                       </div>
                     </td>
@@ -423,7 +407,7 @@ const AdmissionManagement = () => {
                     {/* Status Badge */}
                     <td>
                       {isOverdue ? (
-                        <span className="adm-badge badge-overdue">?? Overdue</span>
+                        <span className="adm-badge badge-overdue">Overdue</span>
                       ) : adm.fee_status === "FULLY_PAID" ? (
                         <span className="adm-badge badge-paid">
                           <CheckCircle2 size={13} /> Paid
@@ -449,7 +433,7 @@ const AdmissionManagement = () => {
                           </span>
                         </div>
                       ) : (
-                        <span className="no-due">�</span>
+                        <span className="no-due">—</span>
                       )}
                     </td>
 
@@ -513,22 +497,22 @@ const AdmissionManagement = () => {
             <div className="modal-fee-banner">
               <div>
                 <span>Total Course Fee</span>
-                <strong>?{Number(selectedAdmission.total_fee || 0).toLocaleString("en-IN")}</strong>
+                <strong>₹{Number(selectedAdmission.total_fee || 0).toLocaleString("en-IN")}</strong>
               </div>
               <div>
                 <span>Already Paid</span>
-                <strong className="green-text">?{Number(selectedAdmission.paid_fee || 0).toLocaleString("en-IN")}</strong>
+                <strong className="green-text">₹{Number(selectedAdmission.paid_fee || 0).toLocaleString("en-IN")}</strong>
               </div>
               <div>
                 <span>Current Balance Due</span>
-                <strong className="amber-text">?{Number(selectedAdmission.pending_fee || 0).toLocaleString("en-IN")}</strong>
+                <strong className="amber-text">₹{Number(selectedAdmission.pending_fee || 0).toLocaleString("en-IN")}</strong>
               </div>
             </div>
 
             <form onSubmit={handlePaymentSubmit} className="modal-form">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Installment Amount (?) *</label>
+                  <label>Installment Amount (₹) *</label>
                   <input
                     type="number"
                     min="1"
@@ -623,7 +607,7 @@ const AdmissionManagement = () => {
             <div className="adm-drawer-header">
               <div>
                 <h2>Student Fee Ledger</h2>
-                <p>{selectedAdmission.student_name} � {selectedAdmission.course_name}</p>
+                <p>{selectedAdmission.student_name} • {selectedAdmission.course_name}</p>
               </div>
               <button className="btn-close" onClick={() => setIsLedgerDrawerOpen(false)}>
                 <X size={20} />
@@ -634,15 +618,15 @@ const AdmissionManagement = () => {
               <div className="drawer-summary-grid">
                 <div className="d-card">
                   <span>Total Course Fee</span>
-                  <strong>?{Number(selectedAdmission.total_fee || 0).toLocaleString("en-IN")}</strong>
+                  <strong>₹{Number(selectedAdmission.total_fee || 0).toLocaleString("en-IN")}</strong>
                 </div>
                 <div className="d-card green">
                   <span>Total Paid</span>
-                  <strong>?{Number(selectedAdmission.paid_fee || 0).toLocaleString("en-IN")}</strong>
+                  <strong>₹{Number(selectedAdmission.paid_fee || 0).toLocaleString("en-IN")}</strong>
                 </div>
                 <div className="d-card amber">
                   <span>Remaining Due</span>
-                  <strong>?{Number(selectedAdmission.pending_fee || 0).toLocaleString("en-IN")}</strong>
+                  <strong>₹{Number(selectedAdmission.pending_fee || 0).toLocaleString("en-IN")}</strong>
                 </div>
               </div>
 

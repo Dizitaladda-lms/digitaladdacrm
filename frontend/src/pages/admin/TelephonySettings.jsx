@@ -251,17 +251,17 @@ const TelephonySettings = () => {
                         style={{
                           width: "150px", fontSize: "13px",
                           padding: "7px 10px", borderRadius: "7px",
-                          border: "1.5px solid #2563EB", outline: "none",
+                          border: "1.5px solid #4F46E5", outline: "none",
                         }}
                       />
                       <button
                         onClick={() => saveCallerId(domain.id)}
                         disabled={saving}
                         style={{
-                          backgroundColor: "#2563EB", color: "#fff",
+                          backgroundColor: "#4F46E5", color: "#fff",
                           border: "none", borderRadius: "7px",
                           padding: "7px 14px", cursor: "pointer",
-                          fontSize: "12px", fontWeight: "600",
+                          fontSize: "12px", fontWeight: "650",
                           display: "flex", alignItems: "center", gap: "5px",
                         }}
                       >
@@ -332,12 +332,12 @@ const TelephonySettings = () => {
             <p style={{ margin: 0, fontSize: "13px", color: "#64748B" }}>Abhi tak koi call nahi hui</p>
           </div>
         ) : (
-          <div style={{ overflowX: "auto", borderRadius: "10px", border: "1px solid #E2E8F0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+          <div style={{ overflowX: "auto", borderRadius: "14px", border: "1.5px solid #E2E8F0", backgroundColor: "#FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+                <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1.5px solid #E2E8F0" }}>
                   {["Date & Time", "Lead", "Counsellor", "From → To", "Duration", "Status", "Recording"].map((h) => (
-                    <th key={h} style={{ padding: "10px 12px", textAlign: "left", color: "#64748B", fontWeight: "600", fontSize: "11px", whiteSpace: "nowrap" }}>
+                    <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#475569", fontWeight: "700", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
                       {h}
                     </th>
                   ))}

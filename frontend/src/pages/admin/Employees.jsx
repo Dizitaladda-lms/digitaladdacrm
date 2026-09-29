@@ -299,7 +299,7 @@ const Employees = () => {
             <div className="lead-stat-top">
               <div>
                 <span>{title}</span>
-                <h2>{loading ? "—" : value}</h2>
+                <h2>{loading ? "—" : Number(value || 0).toLocaleString("en-IN")}</h2>
                 <p>{subtitle}</p>
               </div>
               <div className="lead-stat-icon">
@@ -397,7 +397,7 @@ const Employees = () => {
                         className="view-more-btn"
                         type="button"
                         onClick={() => openPerformanceModal(employee)}
-                        style={{ backgroundColor: "#2563EB", color: "#FFFFFF" }}
+                        style={{ backgroundColor: "#4F46E5", color: "#FFFFFF" }}
                       >
                         <TrendingUp size={15} />
                         <span>Performance</span>

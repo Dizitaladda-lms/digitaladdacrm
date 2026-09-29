@@ -429,10 +429,8 @@ const LeadTable = ({
 
             }
 
-            <th className="sticky right-0 z-30 bg-white px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
-
+            <th className="sticky right-0 z-30 bg-slate-50 px-4 py-3 text-center text-[11.5px] font-bold uppercase tracking-wider text-slate-600">
               Actions
-
             </th>
 
           </tr>
