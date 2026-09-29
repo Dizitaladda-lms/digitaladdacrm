@@ -503,7 +503,15 @@ export const getMyLeadsService = async (
   const employee = await ensureEmployeeProfileForUser(userId);
 
   if (!employee) {
-    throw new Error("Employee profile could not be linked.");
+    return {
+      leads: [],
+      pagination: {
+        page: Number(filters?.page || 1),
+        limit: Number(filters?.limit || 10),
+        totalRecords: 0,
+        totalPages: 1,
+      },
+    };
   }
 
   return await getMyLeadsRepository({

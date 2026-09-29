@@ -435,3 +435,164 @@
   gap: 0.35rem;
   margin-top: 0.2rem;
 }
+
+/* Performance Insights (Pipeline Stages & Top Courses) */
+.perf-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+
+@media (max-width: 900px) {
+  .perf-insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.perf-insight-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.stage-chips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.stage-chip-box {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.stage-chip-box.blue { border-color: #bfdbfe; background: #eff6ff; }
+.stage-chip-box.purple { border-color: #ddd6fe; background: #f5f3ff; }
+.stage-chip-box.amber { border-color: #fde68a; background: #fffbeb; }
+.stage-chip-box.green { border-color: #bbf7d0; background: #f0fdf4; }
+.stage-chip-box.rose { border-color: #fecaca; background: #fef2f2; }
+
+.stage-chip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.stage-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.stage-count {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.stage-bar-track {
+  height: 5px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.stage-bar-fill {
+  height: 100%;
+  background: #4f46e5;
+  border-radius: 10px;
+}
+
+.courses-perf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.course-perf-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+}
+
+.course-perf-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.course-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.course-meta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.course-perf-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge-enrolled {
+  font-size: 11.5px;
+  font-weight: 750;
+  color: #6b21a8;
+  background: #f3e8ff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #e9d5ff;
+}
+
+.badge-rate {
+  font-size: 11px;
+  font-weight: 700;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid #bbf7d0;
+}
+
+.lead-mini-actions {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #edf2f7;
+}
+
+.mini-wa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.mini-wa-btn:hover {
+  background: #dcfce7;
+  color: #166534;
+  transform: translateY(-1px);
+}
+

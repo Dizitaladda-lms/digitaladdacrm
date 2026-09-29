@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { sendBulkWhatsApp } from "../../services/whatsappService";
+import WhatsAppIcon from "../common/WhatsAppIcon";
 import "./BulkWhatsAppModal.css";
 
 const TEMPLATES = [
@@ -448,7 +449,7 @@ const BulkWhatsAppModal = ({
         <div className="space-y-3 lg:col-span-5 employee-wa-outreach__preview">
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-              <MessageCircle size={15} className="text-emerald-600" />
+              <WhatsAppIcon size={16} className="text-emerald-600" />
               <span>Live WhatsApp Preview</span>
             </span>
 
@@ -596,9 +597,9 @@ const BulkWhatsAppModal = ({
             <button
               type="button"
               onClick={() => handleLaunchWhatsApp(currentPreviewLead)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-1.5 text-[13px] font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-[13px] font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors"
             >
-              <MessageCircle size={16} />
+              <WhatsAppIcon size={16} />
               <span>
                 Send via WhatsApp ({previewIndex + 1}/{validLeads.length})
               </span>

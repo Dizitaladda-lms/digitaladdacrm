@@ -504,6 +504,7 @@ export const getMyLeadsRepository = async (filters = {}) => {
     status,
     priority,
     domain,
+    source,
     date_from,
     date_to,
     sortBy = "created_at",
@@ -577,6 +578,15 @@ export const getMyLeadsRepository = async (filters = {}) => {
       AND UPPER(l.domain) = $${index}
     `;
     values.push(String(domain).toUpperCase());
+    index++;
+  }
+
+  // Source
+  if (source && String(source).toLowerCase() !== "all") {
+    whereClause += `
+      AND UPPER(l.source) = $${index}
+    `;
+    values.push(String(source).toUpperCase());
     index++;
   }
 

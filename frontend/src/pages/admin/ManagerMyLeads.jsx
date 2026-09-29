@@ -45,20 +45,26 @@ const ManagerMyLeads = () => {
       if (dateFrom) params.date_from = dateFrom;
       if (dateTo) params.date_to = dateTo;
 
-      const [response, statsResponse] = await Promise.all([
+      const [leadsRes, statsRes] = await Promise.allSettled([
         getMyLeads(params),
         getLeadStats(params),
       ]);
 
-      const list =
-        response?.data?.leads || response?.leads || response?.data || [];
-      setLeads(Array.isArray(list) ? list : []);
+      if (leadsRes.status === "fulfilled") {
+        const response = leadsRes.value;
+        const list =
+          response?.data?.leads || response?.leads || response?.data || [];
+        setLeads(Array.isArray(list) ? list : []);
+      } else {
+        console.warn("Failed fetching my leads:", leadsRes.reason);
+        setLeads([]);
+      }
 
-      if (statsResponse?.data) {
-        setStats(statsResponse.data);
+      if (statsRes.status === "fulfilled" && statsRes.value?.data) {
+        setStats(statsRes.value.data);
       }
     } catch (error) {
-      console.error("Error fetching manager leads:", error);
+      console.error("Error in fetchLeads:", error);
     } finally {
       setLoading(false);
     }

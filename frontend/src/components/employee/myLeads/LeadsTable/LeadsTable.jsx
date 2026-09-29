@@ -2,13 +2,12 @@
  
   import {
     Phone,
-    MessageCircle,
     Eye,
-    Send,
   } from "lucide-react";
   import { useState } from "react";
   import LeadDetailsDrawer from "../../../common/LeadDetailsDrawer/LeadDetailsDrawer";
   import BulkWhatsAppModal from "../../../LeadManagement/BulkWhatsAppModal";
+  import WhatsAppIcon from "../../../common/WhatsAppIcon";
 
   const STATUS_LABELS = {
     INTERESTED: "Interested",
@@ -80,24 +79,33 @@
 
     return (
       <div className="leads-table-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
-            <input
-              type="checkbox"
-              checked={allSelectableLeadsSelected}
-              onChange={toggleAllLeadSelection}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            Select all valid WhatsApp leads ({selectableLeads.length})
-          </label>
+        <div className="leads-bulk-toolbar">
+          <div className="bulk-toolbar-left">
+            <label className="bulk-checkbox-label">
+              <input
+                type="checkbox"
+                checked={allSelectableLeadsSelected}
+                onChange={toggleAllLeadSelection}
+                className="bulk-checkbox"
+              />
+              <span className="bulk-checkbox-text">
+                Select all valid WhatsApp leads ({selectableLeads.length})
+              </span>
+            </label>
+            {selectedLeads.length > 0 && (
+              <span className="bulk-selected-badge">
+                {selectedLeads.length} Selected
+              </span>
+            )}
+          </div>
           <button
             type="button"
             disabled={selectedLeads.length === 0}
             onClick={() => setIsBulkMessageOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="bulk-wa-btn"
           >
-            <Send size={16} />
-            Message selected ({selectedLeads.length})
+            <WhatsAppIcon size={16} />
+            <span>Send Bulk WhatsApp ({selectedLeads.length})</span>
           </button>
         </div>
         <div className="leads-table-scroll">
@@ -245,13 +253,14 @@
                     </button>
 
                     <a
-                      href={`https://wa.me/91${lead.mobile}`}
+                      href={`https://wa.me/91${String(lead.mobile || "").replace(/\D/g, "").slice(-10)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="action-btn whatsapp-btn"
                       title={`WhatsApp ${lead.full_name}`}
                     >
-                      <MessageCircle size={16} />
+                      <WhatsAppIcon size={15} />
+                      <span>WhatsApp</span>
                     </a>
 
                     {isMobile && (

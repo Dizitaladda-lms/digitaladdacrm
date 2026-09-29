@@ -915,12 +915,13 @@ export const getEmployeePerformanceRepository = async (employeeId, timeframe = "
       dateClause = " AND l.created_at >= CURRENT_DATE - INTERVAL '30 days'";
     }
 
-    const [summaryResult, revenueResult, leadsResult] = await Promise.all([
+    const [summaryResult, revenueResult, leadsResult, statusBreakdownResult, courseBreakdownResult, weekWiseResult] = await Promise.all([
         pool.query(`
           SELECT
             COUNT(DISTINCT l.id) FILTER (WHERE l.is_deleted = FALSE ${dateClause}) AS total_leads,
-            COUNT(DISTINCT l.id) FILTER (WHERE l.is_deleted = FALSE AND UPPER(l.status) IN ('FOLLOW_UP', 'NEW', 'PENDING') ${dateClause}) AS pending_followups,
+            COUNT(DISTINCT l.id) FILTER (WHERE l.is_deleted = FALSE AND UPPER(l.status) IN ('FOLLOW_UP', 'NEW', 'PENDING', 'INTERESTED', 'CONTACTED') ${dateClause}) AS pending_followups,
             COUNT(DISTINCT l.id) FILTER (WHERE l.is_deleted = FALSE AND UPPER(l.status) IN ('ENROLLED', 'ADMISSION', 'ADMISSION_DONE', 'COMPLETED') ${dateClause}) AS enrolled_conversions,
+            COUNT(DISTINCT l.id) FILTER (WHERE l.is_deleted = FALSE AND UPPER(l.status) IN ('WALK_IN', 'WALKIN') ${dateClause}) AS walkin_count,
             COUNT(DISTINCT l.id) FILTER (WHERE l.is_deleted = FALSE AND UPPER(l.status) = 'NOT_INTERESTED' ${dateClause}) AS rejected_leads
           FROM employees e
           LEFT JOIN leads l ON l.assigned_to = e.id
@@ -941,12 +942,49 @@ export const getEmployeePerformanceRepository = async (employeeId, timeframe = "
           ORDER BY l.created_at DESC
           LIMIT 20;
         `, params),
+        pool.query(`
+          SELECT
+            COALESCE(UPPER(l.status), 'NEW') AS status,
+            COUNT(*) AS count
+          FROM leads l
+          WHERE l.assigned_to = $1 AND l.is_deleted = FALSE ${dateClause}
+          GROUP BY UPPER(l.status)
+          ORDER BY count DESC;
+        `, params),
+        pool.query(`
+          SELECT
+            COALESCE(NULLIF(TRIM(l.interested_course), ''), 'General Inquiry') AS course,
+            COUNT(*) AS total_leads,
+            COUNT(*) FILTER (WHERE UPPER(l.status) IN ('ENROLLED', 'ADMISSION', 'ADMISSION_DONE', 'COMPLETED')) AS enrolled
+          FROM leads l
+          WHERE l.assigned_to = $1 AND l.is_deleted = FALSE ${dateClause}
+          GROUP BY COALESCE(NULLIF(TRIM(l.interested_course), ''), 'General Inquiry')
+          ORDER BY total_leads DESC
+          LIMIT 6;
+        `, params),
+        pool.query(`
+          SELECT
+            TO_CHAR(DATE_TRUNC('week', l.created_at), 'YYYY-"W"IW') AS week_code,
+            'Week ' || TO_CHAR(DATE_TRUNC('week', l.created_at), 'IW') AS week_name,
+            TO_CHAR(DATE_TRUNC('week', l.created_at), 'DD Mon') || ' - ' || TO_CHAR(DATE_TRUNC('week', l.created_at) + INTERVAL '6 days', 'DD Mon') AS week_label,
+            COUNT(*) AS assigned_count,
+            COUNT(*) FILTER (WHERE UPPER(l.status) IN ('ENROLLED', 'ADMISSION', 'ADMISSION_DONE', 'COMPLETED')) AS enrolled_count,
+            COUNT(*) FILTER (WHERE UPPER(l.status) IN ('ENROLLED', 'ADMISSION', 'ADMISSION_DONE', 'COMPLETED', 'NOT_INTERESTED')) AS completed_count,
+            COUNT(*) FILTER (WHERE UPPER(l.status) IN ('FOLLOW_UP', 'NEW', 'PENDING', 'INTERESTED', 'CONTACTED')) AS pending_count
+          FROM leads l
+          WHERE l.assigned_to = $1 AND l.is_deleted = FALSE
+            AND l.created_at >= CURRENT_DATE - INTERVAL '8 weeks'
+          GROUP BY DATE_TRUNC('week', l.created_at)
+          ORDER BY DATE_TRUNC('week', l.created_at) DESC
+          LIMIT 8;
+        `, [employeeId]),
     ]);
 
     const summaryRow = summaryResult.rows[0] || {};
     const totalLeads = Number(summaryRow.total_leads || 0);
     const enrolledCount = Number(summaryRow.enrolled_conversions || 0);
     const pendingCount = Number(summaryRow.pending_followups || 0);
+    const walkinCount = Number(summaryRow.walkin_count || 0);
     const rejectedCount = Number(summaryRow.rejected_leads || 0);
     const totalRevenue = Number(revenueResult.rows[0]?.total_revenue || 0);
 
@@ -955,13 +993,22 @@ export const getEmployeePerformanceRepository = async (employeeId, timeframe = "
     return {
         summary: {
             total_leads: totalLeads,
+            total_assigned: totalLeads,
             pending_followups: pendingCount,
+            pending_leads: pendingCount,
             enrolled_conversions: enrolledCount,
+            enrolled_count: enrolledCount,
+            walkin_count: walkinCount,
             rejected_leads: rejectedCount,
             total_revenue: totalRevenue,
+            total_fees_collected: totalRevenue,
             conversion_rate: conversionRate,
             timeframe,
         },
         leads: leadsResult.rows,
+        recent_leads: leadsResult.rows,
+        status_breakdown: statusBreakdownResult ? statusBreakdownResult.rows : [],
+        course_breakdown: courseBreakdownResult ? courseBreakdownResult.rows : [],
+        week_wise: weekWiseResult ? weekWiseResult.rows : [],
     };
 };

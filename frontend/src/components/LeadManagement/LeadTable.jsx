@@ -7,6 +7,7 @@ import {
   Trash2,
   ArrowUpDown,
 } from "lucide-react";
+import WhatsAppIcon from "../common/WhatsAppIcon";
 const STATUS_CONFIG = {
   INTERESTED: {
     label: "Interested",
@@ -639,56 +640,55 @@ const LeadTable = ({
 
         {/* Actions */}
 
-        <td className="sticky right-0 z-10 bg-white px-4 py-4">
+        <td className="sticky right-0 z-10 bg-white px-4 py-3 group-hover:bg-slate-50/80 transition-colors">
 
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-1.5">
 
             <button
 
               onClick={() => onView?.(lead)}
 
-              title="View Lead"
+              title="View Lead Details"
 
-              className="rounded-xl p-2 text-slate-500 transition-all duration-200 hover:-translate-y-0.5
-
-hover:scale-105
-
-active:scale-95 hover:bg-blue-100 hover:text-blue-600"
+              className="rounded-lg p-2 text-slate-500 transition-all duration-150 hover:bg-indigo-50 hover:text-indigo-600 hover:scale-105 active:scale-95"
 
             >
 
-              <Eye size={18} />
+              <Eye size={17} />
 
             </button>
 
-            {canDelete && <button
-  onClick={() => onDelete?.(lead)}
-  className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
-  title="Delete Lead"
->
-  <Trash2 size={18} />
-</button>}
+            {lead.mobile && (
+              <a
+                href={`https://wa.me/91${String(lead.mobile).replace(/\D/g, "").slice(-10)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`WhatsApp ${lead.full_name || "Lead"}`}
+                className="rounded-lg p-2 text-emerald-600 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-700 hover:scale-105 active:scale-95"
+              >
+                <WhatsAppIcon size={17} />
+              </a>
+            )}
 
-            {
-  !lead.assigned_employee && (
+            {canDelete && (
+              <button
+                onClick={() => onDelete?.(lead)}
+                className="rounded-lg p-2 text-rose-500 transition-all duration-150 hover:bg-rose-50 hover:text-rose-600 hover:scale-105 active:scale-95"
+                title="Delete Lead"
+              >
+                <Trash2 size={17} />
+              </button>
+            )}
 
-    <button
-      onClick={() => onAssign?.(lead)}
-      title="Assign Lead"
-      className="rounded-xl p-2 text-slate-500 transition-all duration-200
-      hover:-translate-y-0.5
-      hover:scale-105
-      active:scale-95
-      hover:bg-emerald-100
-      hover:text-emerald-600"
-    >
-
-      <UserCheck size={18} />
-
-    </button>
-
-  )
-}
+            {!lead.assigned_employee && (
+              <button
+                onClick={() => onAssign?.(lead)}
+                title="Assign Lead"
+                className="rounded-lg p-2 text-amber-600 transition-all duration-150 hover:bg-amber-50 hover:text-amber-700 hover:scale-105 active:scale-95"
+              >
+                <UserCheck size={17} />
+              </button>
+            )}
 
           </div>
 

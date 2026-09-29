@@ -310,6 +310,8 @@ export const getMyLeadsController = async (
 
       domain: req.query.domain,
 
+      source: req.query.source,
+
       date_from: req.query.date_from,
 
       date_to: req.query.date_to,
