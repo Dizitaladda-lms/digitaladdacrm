@@ -242,7 +242,7 @@ const BulkWhatsAppModal = ({
   return (
     <Modal
       open={open}
-      title="Bulk WhatsApp Campaign & Broadcast"
+      title="Bulk WhatsApp Messages"
       subtitle={`Send customized message templates & course graphics to ${validLeads.length} selected students.`}
       size="xl"
       onClose={onClose}

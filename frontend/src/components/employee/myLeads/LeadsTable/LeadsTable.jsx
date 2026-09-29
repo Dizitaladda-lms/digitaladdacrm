@@ -4,10 +4,11 @@
     Phone,
     MessageCircle,
     Eye,
-    CalendarPlus,
+    Send,
   } from "lucide-react";
   import { useState } from "react";
   import LeadDetailsDrawer from "../../../common/LeadDetailsDrawer/LeadDetailsDrawer";
+  import BulkWhatsAppModal from "../../../LeadManagement/BulkWhatsAppModal";
 
   const STATUS_LABELS = {
     INTERESTED: "Interested",
@@ -27,10 +28,30 @@
   leads = [],
   loading = false,
   onRefresh,
+  currentUser = {},
 }) => {
 
   const [selectedLead, setSelectedLead] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedLeadIds, setSelectedLeadIds] = useState(new Set());
+  const [isBulkMessageOpen, setIsBulkMessageOpen] = useState(false);
+
+  const selectableLeads = leads.filter((lead) => String(lead.mobile || "").replace(/\D/g, "").length >= 10);
+  const selectedLeads = selectableLeads.filter((lead) => selectedLeadIds.has(lead.id));
+  const allSelectableLeadsSelected = selectableLeads.length > 0 && selectedLeads.length === selectableLeads.length;
+
+  const toggleLeadSelection = (leadId) => {
+    setSelectedLeadIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  };
+
+  const toggleAllLeadSelection = () => {
+    setSelectedLeadIds(allSelectableLeadsSelected ? new Set() : new Set(selectableLeads.map((lead) => lead.id)));
+  };
 
     const isMobile =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -59,12 +80,35 @@
 
     return (
       <div className="leads-table-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={allSelectableLeadsSelected}
+              onChange={toggleAllLeadSelection}
+              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            Select all valid WhatsApp leads ({selectableLeads.length})
+          </label>
+          <button
+            type="button"
+            disabled={selectedLeads.length === 0}
+            onClick={() => setIsBulkMessageOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Send size={16} />
+            Message selected ({selectedLeads.length})
+          </button>
+        </div>
         <div className="leads-table-scroll">
           <table className="leads-table">
 
           <thead>
 
             <tr>
+              <th>
+                <span className="sr-only">Select</span>
+              </th>
               <th>Lead</th>
               <th>Domain</th>
               <th>Mobile</th>
@@ -82,6 +126,16 @@
 
             {leads.map((lead) => (
               <tr key={lead.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedLeadIds.has(lead.id)}
+                    disabled={!selectableLeads.some((selectableLead) => selectableLead.id === lead.id)}
+                    onChange={() => toggleLeadSelection(lead.id)}
+                    aria-label={`Select ${lead.full_name || "lead"} for a WhatsApp message`}
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                </td>
                 <td>
                   <div
                     className="lead-info"
@@ -223,6 +277,17 @@
           onClose={() => setIsDrawerOpen(false)}
           onStatusUpdated={onRefresh}
           role="counsellor"
+        />
+
+        <BulkWhatsAppModal
+          open={isBulkMessageOpen}
+          leads={selectedLeads}
+          currentUser={currentUser}
+          onClose={() => setIsBulkMessageOpen(false)}
+          onSuccess={() => {
+            setSelectedLeadIds(new Set());
+            onRefresh?.();
+          }}
         />
       </div>
     );

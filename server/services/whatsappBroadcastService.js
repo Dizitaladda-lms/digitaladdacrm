@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
+import { getAuthorizedBroadcastLeads } from "./broadcastAccess.service.js";
 
 /**
  * Clean phone number to 10 digits
@@ -48,21 +49,10 @@ export const sendBulkWhatsAppService = async ({
     throw new ApiError(400, "Message template cannot be empty.");
   }
 
-  // 1. Fetch leads
-  const leadsRes = await pool.query(
-    `SELECT id, full_name, mobile, domain, interested_course, preferred_centre, assigned_to
-     FROM leads
-     WHERE id = ANY($1::bigint[]) AND is_deleted = FALSE`,
-    [leadIds]
-  );
-
-  const leads = leadsRes.rows;
-  if (leads.length === 0) {
-    throw new ApiError(404, "No active leads found for the selected IDs.");
-  }
+  // Fetch only leads the caller is authorized to contact.
+  const { leads, employeeId } = await getAuthorizedBroadcastLeads({ leadIds, currentUser });
 
   const counsellorName = currentUser.full_name || "Admissions Team";
-  const employeeId = currentUser.id || null;
 
   const results = [];
   let successCount = 0;

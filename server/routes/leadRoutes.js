@@ -46,12 +46,14 @@ const router = express.Router();
 router.post(
   "/bulk-whatsapp",
   authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
   handleBulkWhatsAppBroadcast
 );
 
 router.post(
   "/bulk-broadcast",
   authMiddleware,
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
   handleBulkBroadcast
 );
 

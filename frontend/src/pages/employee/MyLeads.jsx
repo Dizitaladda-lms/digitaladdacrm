@@ -7,8 +7,10 @@ import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable"
 import { getMyLeads } from "../../services/employeeLeadService";
 import { getLeadStats } from "../../services/leadService";
 import { exportToCsv } from "../../utils/exportCsv";
+import { useAuth } from "../../context/AuthContext";
 
 const MyLeads = () => {
+  const { user } = useAuth();
   const [leads, setLeads] = useState([]);
   const [stats, setStats] = useState({
     total_leads: 0,
@@ -116,6 +118,7 @@ const MyLeads = () => {
         leads={leads}
         loading={loading}
         onRefresh={fetchMyLeads}
+        currentUser={user || {}}
       />
     </div>
   );
