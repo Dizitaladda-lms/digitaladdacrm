@@ -194,8 +194,8 @@ const CampaignTable = ({
   return (
 
     <div className="campaign-table-container">
-
-      <table className="campaign-table">
+      <div className="campaign-table-scroll">
+        <table className="campaign-table">
 
         <thead>
 
@@ -507,6 +507,7 @@ const CampaignTable = ({
         </tbody>
 
       </table>
+      </div>
 
       <div className="campaign-table-footer">
 

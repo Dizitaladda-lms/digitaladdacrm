@@ -1,238 +1,212 @@
-.campaign-form-page{
+/* ==========================================================
+   DIZITALADDA CRM — Campaign Form (Add/Edit Campaign)
+   Professional Light Theme
+   ========================================================== */
 
-    padding:32px;
-
-    background:#f8fafc;
-
-    min-height:100vh;
-
+.campaign-form-page {
+  padding: 24px;
+  background: #f8fafc;
+  min-height: 100vh;
 }
 
-.campaign-breadcrumb{
-
-    margin-bottom:20px;
-
+.campaign-breadcrumb {
+  margin-bottom: 16px;
 }
 
-.campaign-breadcrumb a{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    gap:8px;
-
-    text-decoration:none;
-
-    color:#2563eb;
-
-    font-weight:600;
-
+.campaign-breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: #4f46e5;
+  font-weight: 600;
+  font-size: 13.5px;
+  transition: color 0.15s ease;
 }
 
-.campaign-header{
-
-    margin-bottom:30px;
-
+.campaign-breadcrumb a:hover {
+  color: #4338ca;
 }
 
-.campaign-header h1{
-
-    font-size:34px;
-
-    font-weight:700;
-
-    color:#0f172a;
-
+.campaign-form-header,
+.campaign-form-page .campaign-header {
+  margin-bottom: 22px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
 }
 
-.campaign-header p{
-
-    margin-top:8px;
-
-    color:#64748b;
-
+.campaign-form-header h1,
+.campaign-form-page .campaign-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
 }
 
-.campaign-form{
-
-    display:flex;
-
-    flex-direction:column;
-
-    gap:24px;
-
+.campaign-form-header p,
+.campaign-form-page .campaign-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13.5px;
 }
 
-.campaign-card{
-
-    background:#fff;
-
-    border:1px solid #e5e7eb;
-
-    border-radius:16px;
-
-    padding:28px;
-
+.campaign-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 960px;
 }
 
-.campaign-card h2{
-
-    font-size:22px;
-
-    color:#0f172a;
-
+.campaign-card {
+  background: #ffffff;
+  border: 1px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-.campaign-footer{
-
-    display:flex;
-
-    justify-content:flex-end;
-
-    gap:16px;
-
+.campaign-card h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.btn-secondary{
-
-    padding:12px 24px;
-
-    border-radius:10px;
-
-    border:1px solid #d1d5db;
-
-    background:#fff;
-
-    cursor:pointer;
-
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 20px;
 }
 
-.btn-primary{
-
-    padding:12px 26px;
-
-    border:none;
-
-    border-radius:10px;
-
-    background:#2563eb;
-
-    color:#fff;
-
-    cursor:pointer;
-
-    font-weight:600;
-
+.form-group {
+  display: flex;
+  flex-direction: column;
 }
 
-.form-grid{
-
-    display:grid;
-
-    grid-template-columns:repeat(2,1fr);
-
-    gap:24px;
-
-}
-
-.form-group{
-
-    display:flex;
-
-    flex-direction:column;
-
-}
-
-.form-group label{
-
-    font-size:14px;
-
-    font-weight:600;
-
-    color:#334155;
-
-    margin-bottom:8px;
-
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
 }
 
 .form-group input,
-
 .form-group select,
+.form-group textarea {
+  height: 40px;
+  padding: 0 13px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  background: #f9fafb;
+  outline: none;
+  transition: all 0.15s ease;
+}
 
-.form-group textarea{
-
-    padding:14px 16px;
-
-    border:1px solid #d1d5db;
-
-    border-radius:10px;
-
-    font-size:15px;
-
-    outline:none;
-
-    transition:.25s;
-
+.form-group textarea {
+  height: auto;
+  min-height: 100px;
+  padding: 10px 13px;
+  resize: vertical;
 }
 
 .form-group input:focus,
-
 .form-group select:focus,
-
-.form-group textarea:focus{
-
-    border-color:#2563eb;
-
-    box-shadow:0 0 0 3px rgba(37,99,235,.12);
-
+.form-group textarea:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.full-width{
-
-    grid-column:1/-1;
-
+.full-width {
+  grid-column: 1 / -1;
 }
 
-textarea{
-
-    resize:vertical;
-
-    min-height:120px;
-
+.error {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #dc2626;
+  font-weight: 500;
 }
 
-@media(max-width:900px){
-  .form-grid{
-    grid-template-columns:1fr;
+.campaign-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.btn-secondary {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #374151;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.btn-primary {
+  height: 40px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #4338ca;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 }
 
-@media(max-width:640px){
-  .campaign-form-page{
-    padding:16px;
+@media (max-width: 640px) {
+  .campaign-form-page {
+    padding: 14px 10px;
   }
-  .campaign-card{
-    padding:18px 16px;
-    border-radius:12px;
+
+  .campaign-card {
+    padding: 16px 14px;
+    border-radius: 12px;
   }
-  .campaign-header h1{
-    font-size:24px;
+
+  .campaign-footer {
+    flex-direction: column-reverse;
+    gap: 8px;
   }
-  .campaign-footer{
-    flex-direction:column-reverse;
-    gap:10px;
-  }
+
   .btn-primary,
-  .btn-secondary{
-    width:100%;
-    text-align:center;
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
   }
-}
-
-.error{
-  margin-top:6px;
-  font-size:13px;
-  color:#dc2626;
-  font-weight:500;
 }

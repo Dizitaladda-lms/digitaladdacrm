@@ -1,582 +1,373 @@
 /* ==========================================================
-   CAMPAIGN MANAGEMENT
-========================================================== */
+   DIZITALADDA CRM — Campaign Management (Professional Light Theme)
+   ========================================================== */
 
-.campaign-page{
-
-    display:flex;
-
-    flex-direction:column;
-
-    gap:24px;
-
-    padding:24px;
-
-    background:#f8fafc;
-
-    min-height:100%;
-
+.campaign-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  background: #f8fafc;
+  min-height: 100%;
 }
-
 
 /* ==========================================================
    HEADER
 ========================================================== */
 
-.campaign-header{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    padding:24px;
-
-    border:1px solid #e2e8f0;
-
-    border-radius:20px;
-
-    background:#ffffff;
-
-    box-shadow:0 8px 25px rgba(15,23,42,.05);
-
+.campaign-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  border: 1px solid #e8eaf0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-.campaign-title h1{
-
-    margin:0;
-
-    font-size:28px;
-
-    font-weight:700;
-
-    color:#0f172a;
-
+.campaign-title h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
-.campaign-title p{
-
-    margin-top:6px;
-
-    color:#64748b;
-
-    font-size:15px;
-
+.campaign-title p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13.5px;
 }
 
-
-/* ==========================================================
-   BUTTON
-========================================================== */
-
-.add-campaign-btn{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    padding:12px 20px;
-
-    border:none;
-
-    border-radius:12px;
-
-    background:#2563eb;
-
-    color:#fff;
-
-    font-size:14px;
-
-    font-weight:600;
-
-    cursor:pointer;
-
-    transition:.25s;
-
+.campaign-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.add-campaign-btn:hover{
-
-    background:#1d4ed8;
-
-    transform:translateY(-2px);
-
-    box-shadow:0 10px 20px rgba(37,99,235,.25);
-
+/* Generic Campaign Buttons */
+.campaign-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
+.campaign-btn-primary,
+.add-campaign-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.campaign-btn-primary:hover,
+.add-campaign-btn:hover {
+  background: #4338ca;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.campaign-btn-outline {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  color: #374151;
+}
+
+.campaign-btn-outline:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
 
 /* ==========================================================
    STATS GRID
 ========================================================== */
 
-.campaign-stats{
-
-    display:grid;
-
-    grid-template-columns:repeat(4,1fr);
-
-    gap:20px;
-
+.campaign-stats-grid,
+.campaign-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
 }
 
-.stat-card{
-
-    background:#fff;
-
-    border:1px solid #e2e8f0;
-
-    border-radius:18px;
-
-    padding:22px;
-
-    transition:.25s;
-
-    box-shadow:0 5px 15px rgba(15,23,42,.05);
-
+.campaign-stat-card {
+  background: #ffffff;
+  border: 1px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.stat-card:hover{
-
-    transform:translateY(-4px);
-
-    box-shadow:0 15px 30px rgba(15,23,42,.08);
-
+.campaign-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
 }
 
-.stat-card h5{
-
-    margin:0;
-
-    color:#64748b;
-
-    font-size:13px;
-
-    font-weight:600;
-
+/* Colored Accent Bar on Left */
+.campaign-stat-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
 }
 
-.stat-card h2{
+.campaign-stat-card.blue::before   { background: #4f46e5; }
+.campaign-stat-card.green::before  { background: #16a34a; }
+.campaign-stat-card.orange::before { background: #ea580c; }
+.campaign-stat-card.purple::before { background: #7c3aed; }
 
-    margin-top:12px;
-
-    color:#0f172a;
-
-    font-size:30px;
-
-    font-weight:700;
-
+.stat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
+.stat-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.campaign-stat-card.blue .stat-card-icon   { background: #eef2ff; color: #4f46e5; }
+.campaign-stat-card.green .stat-card-icon  { background: #f0fdf4; color: #16a34a; }
+.campaign-stat-card.orange .stat-card-icon { background: #fff7ed; color: #ea580c; }
+.campaign-stat-card.purple .stat-card-icon { background: #f5f3ff; color: #7c3aed; }
+
+.stat-card-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.stat-card-subtitle {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-top: 6px;
+}
 
 /* ==========================================================
-   FILTER
+   FILTER BAR
 ========================================================== */
 
-.campaign-filter{
-
-    display:flex;
-
-    flex-wrap:wrap;
-
-    gap:15px;
-
-    padding:20px;
-
-    border-radius:18px;
-
-    background:#fff;
-
-    border:1px solid #e2e8f0;
-
+.campaign-filter-card,
+.campaign-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e8eaf0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
-.campaign-filter input,
-
-.campaign-filter select{
-
-    height:46px;
-
-    min-width:220px;
-
-    padding:0 15px;
-
-    border:1px solid #cbd5e1;
-
-    border-radius:12px;
-
-    outline:none;
-
-    transition:.25s;
-
+.campaign-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 260px;
 }
 
-.campaign-filter input:focus,
-
-.campaign-filter select:focus{
-
-    border-color:#2563eb;
-
-    box-shadow:0 0 0 3px rgba(37,99,235,.15);
-
+.campaign-search-wrap input,
+.campaign-filter input {
+  width: 100%;
+  height: 38px;
+  padding: 0 14px 0 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  background: #f9fafb;
+  outline: none;
+  transition: all 0.15s ease;
 }
 
-
-/* ==========================================================
-   TABLE
-========================================================== */
-
-.campaign-table{
-
-    overflow:hidden;
-
-    border-radius:18px;
-
-    background:#fff;
-
-    border:1px solid #e2e8f0;
-
-    box-shadow:0 5px 15px rgba(15,23,42,.05);
-
+.campaign-search-wrap input:focus,
+.campaign-filter input:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.campaign-table table{
-
-    width:100%;
-
-    border-collapse:collapse;
-
+.search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
 }
 
-.campaign-table thead{
-
-    background:#f8fafc;
-
+.campaign-filter-selects {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.campaign-table th{
-
-    padding:18px;
-
-    text-align:left;
-
-    font-size:12px;
-
-    font-weight:700;
-
-    color:#64748b;
-
-    text-transform:uppercase;
-
-    border-bottom:1px solid #e2e8f0;
-
+.campaign-select,
+.campaign-filter select {
+  height: 38px;
+  min-width: 140px;
+  padding: 0 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #374151;
+  background: #f9fafb;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.campaign-table td{
-
-    padding:18px;
-
-    border-bottom:1px solid #f1f5f9;
-
-    color:#334155;
-
-    font-size:14px;
-
+.campaign-select:focus,
+.campaign-filter select:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.campaign-table tbody tr{
-
-    transition:.25s;
-
+.campaign-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.campaign-table tbody tr:hover{
-
-    background:#f8fbff;
-
+.campaign-reset-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
-
-
-/* ==========================================================
-   PLATFORM BADGE
-========================================================== */
-
-.platform-badge{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    padding:6px 14px;
-
-    border-radius:999px;
-
-    font-size:12px;
-
-    font-weight:600;
-
-}
-
-.platform-meta{
-
-    background:#dbeafe;
-
-    color:#2563eb;
-
-}
-
-.platform-google{
-
-    background:#fee2e2;
-
-    color:#dc2626;
-
-}
-
-.platform-website{
-
-    background:#e2e8f0;
-
-    color:#475569;
-
-}
-
-.platform-referral{
-
-    background:#dcfce7;
-
-    color:#16a34a;
-
-}
-
-.platform-instagram{
-
-    background:#fce7f3;
-
-    color:#db2777;
-
-}
-
-.platform-walkin{
-
-    background:#fef3c7;
-
-    color:#ca8a04;
-
-}
-
-
-/* ==========================================================
-   STATUS
-========================================================== */
-
-.status{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    padding:6px 14px;
-
-    border-radius:999px;
-
-    font-size:12px;
-
-    font-weight:700;
-
-}
-
-.active{
-
-    background:#dcfce7;
-
-    color:#15803d;
-
-}
-
-.running{
-
-    background:#dbeafe;
-
-    color:#2563eb;
-
-}
-
-.paused{
-
-    background:#fef3c7;
-
-    color:#ca8a04;
-
-}
-
-.completed{
-
-    background:#e2e8f0;
-
-    color:#475569;
-
-}
-
-
-/* ==========================================================
-   ACTIONS
-========================================================== */
-
-.action-buttons{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-}
-
-.action-btn{
-
-    width:38px;
-
-    height:38px;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    border:none;
-
-    border-radius:10px;
-
-    cursor:pointer;
-
-    transition:.25s;
-
-    background:#f8fafc;
-
-}
-
-.action-btn:hover{
-
-    transform:translateY(-2px);
-
-}
-
-.view-btn:hover{
-
-    background:#dbeafe;
-
-    color:#2563eb;
-
-}
-
-.edit-btn:hover{
-
-    background:#dcfce7;
-
-    color:#16a34a;
-
-}
-
-.delete-btn:hover{
-
-    background:#fee2e2;
-
-    color:#dc2626;
-
-}
-
-
-/* ==========================================================
-   PAGINATION
-========================================================== */
-
-.campaign-pagination{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    padding:18px 24px;
-
-    border-top:1px solid #e2e8f0;
-
-    background:#fff;
-
-}
-
 
 /* ==========================================================
    RESPONSIVE
 ========================================================== */
 
-@media(max-width:1200px){
-
-.campaign-stats{
-
-    grid-template-columns:repeat(2,1fr);
-
+@media (max-width: 1200px) {
+  .campaign-stats-grid,
+  .campaign-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
+@media (max-width: 768px) {
+  .campaign-page {
+    padding: 14px 10px;
+    gap: 14px;
+  }
+
+  .campaign-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .campaign-header-actions {
+    width: 100%;
+  }
+
+  .campaign-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .campaign-stats-grid,
+  .campaign-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .campaign-stat-card {
+    padding: 14px 16px;
+    border-radius: 12px;
+  }
+
+  .stat-card-value {
+    font-size: 22px;
+  }
+
+  .campaign-filter-card,
+  .campaign-filter {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .campaign-search-wrap {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .campaign-filter-selects {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .campaign-select,
+  .campaign-reset-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
-@media(max-width:768px){
-    .campaign-page{
-        padding:15px;
-        gap:16px;
-    }
-
-    .campaign-header{
-        flex-direction:column;
-        align-items:stretch;
-        gap:16px;
-        padding:18px;
-    }
-
-    .add-campaign-btn{
-        width:100%;
-        justify-content:center;
-    }
-
-    .campaign-stats{
-        grid-template-columns:repeat(2, 1fr);
-        gap:12px;
-    }
-
-    .stat-card{
-        padding:14px 16px;
-        border-radius:14px;
-    }
-
-    .stat-card h2{
-        font-size:24px;
-        margin-top:6px;
-    }
-
-    .campaign-filter{
-        flex-direction:column;
-        padding:16px;
-    }
-
-    .campaign-filter input,
-    .campaign-filter select{
-        width:100%;
-        min-width:0;
-    }
-
-    .campaign-table{
-        overflow-x:auto;
-    }
-}
-
-@media(max-width:380px){
-    .campaign-stats{
-        grid-template-columns:1fr;
-    }
+@media (max-width: 380px) {
+  .campaign-stats-grid,
+  .campaign-stats {
+    grid-template-columns: 1fr;
+  }
 }

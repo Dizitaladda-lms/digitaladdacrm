@@ -7,44 +7,34 @@ const CampaignHeader = ({
 }) => {
   return (
     <div className="campaign-header">
-
       <div className="campaign-title">
-
         <h1>Campaign Management</h1>
-
         <p>
-          Manage all marketing campaigns across Meta, Google,
-          Website and other lead sources.
+          Track and optimize performance across Meta, Google, Website, and lead channels.
         </p>
-
       </div>
 
-      <div className="flex items-center gap-3">
-
+      <div className="campaign-header-actions">
         <button
-          className="add-campaign-btn"
+          className="campaign-btn campaign-btn-outline"
           onClick={onRefresh}
           disabled={loading}
         >
           <RefreshCw
-            size={18}
+            size={16}
             className={loading ? "animate-spin" : ""}
           />
-
-          Refresh
+          <span>Refresh</span>
         </button>
 
         <button
-          className="add-campaign-btn"
+          className="campaign-btn campaign-btn-primary"
           onClick={onAdd}
         >
-          <Plus size={18} />
-
-          Add Campaign
+          <Plus size={16} />
+          <span>Add Campaign</span>
         </button>
-
       </div>
-
     </div>
   );
 };

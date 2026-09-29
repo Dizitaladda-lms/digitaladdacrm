@@ -7,7 +7,6 @@ const CampaignPagination = ({
   limit,
   onPageChange,
 }) => {
-
   const start =
     totalRecords === 0
       ? 0
@@ -19,101 +18,38 @@ const CampaignPagination = ({
   );
 
   return (
-
     <div className="campaign-pagination">
-
       <div className="pagination-info">
-
-        Showing
-
-        <strong>
-
-          {" "}
-
-          {start}-{end}
-
-        </strong>
-
-        of
-
-        <strong>
-
-          {" "}
-
-          {totalRecords}
-
-        </strong>
-
-        Campaigns
-
+        Showing <strong>{start}–{end}</strong> of <strong>{totalRecords}</strong> campaigns
       </div>
 
       <div className="pagination-actions">
-
         <button
-
-          disabled={page === 1}
-
-          onClick={() =>
-            onPageChange(page - 1)
-          }
-
+          type="button"
+          className="pagination-btn"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
         >
-
-          <ChevronLeft size={18} />
-
-          Previous
-
+          <ChevronLeft size={16} />
+          <span>Previous</span>
         </button>
 
-        <span>
-
-          Page
-
-          <strong>
-
-            {" "}
-
-            {page}
-
-          </strong>
-
-          {" "}
-
-          of
-
-          <strong>
-
-            {" "}
-
-            {totalPages}
-
-          </strong>
-
+        <span className="pagination-current">
+          Page <strong>{page}</strong> of <strong>{totalPages || 1}</strong>
         </span>
 
         <button
-
-          disabled={page === totalPages}
-
-          onClick={() =>
-            onPageChange(page + 1)
-          }
-
+          type="button"
+          className="pagination-btn"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
         >
-
-          Next
-
-          <ChevronRight size={18} />
-
+          <span>Next</span>
+          <ChevronRight size={16} />
         </button>
-
       </div>
-
     </div>
-
   );
-
 };
 
 export default CampaignPagination;
