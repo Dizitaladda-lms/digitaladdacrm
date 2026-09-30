@@ -18,6 +18,9 @@ const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
 const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
 const TelephonySettings = lazy(() => import("../pages/admin/TelephonySettings"));
 const ManagerMyLeads = lazy(() => import("../pages/admin/ManagerMyLeads"));
+const OperationsDashboard = lazy(() => import("../pages/reports/OperationsDashboard"));
+const DailyReportForm = lazy(() => import("../components/reports/DailyReportForm"));
+const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -41,11 +44,11 @@ const AppRoutes = () => {
         <Route path="/" element={<Login />} />
       </Route>
 
-      {/* ================= ADMIN ================= */}
+      {/* ================= ADMIN / MANAGER / HR WORKSPACE ================= */}
 
       <Route element={<ProtectedRoute />}>
 
-        <Route element={<RoleProtectedRoute roles={["MANAGER", "SUPER_ADMIN"]} />}>
+        <Route element={<RoleProtectedRoute roles={["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"]} />}>
 
           <Route element={<MainLayout />}>
 
@@ -88,8 +91,34 @@ const AppRoutes = () => {
 
             <Route path="/students" element={<AdminWorkspace page="students" />} />
 
+            <Route
+              path="/reports"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <OperationsDashboard />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/daily-report"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <DailyReportForm />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/team-reports"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <TeamReports />
+                </Suspense>
+              }
+            />
+
             <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN"]} />}>
-              <Route path="/reports" element={<AdminWorkspace page="reports" />} />
               <Route
                 path="/telephony"
                 element={
@@ -117,11 +146,11 @@ const AppRoutes = () => {
 
       </Route>
 
-      {/* ================= COUNSELLOR ================= */}
+      {/* ================= COUNSELLOR / EMPLOYEE / TRAINER / INTERN / TL ================= */}
 
       <Route element={<ProtectedRoute />}>
 
-        <Route element={<RoleProtectedRoute roles={["COUNSELLOR"]} />}>
+        <Route element={<RoleProtectedRoute roles={["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "HR"]} />}>
 
           <Route
             path="/employee/*"

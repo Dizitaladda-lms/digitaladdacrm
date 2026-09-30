@@ -28,21 +28,29 @@ export const capturePublicLeadValidator = [
   body("source")
     .notEmpty()
     .withMessage("Source is required.")
-    .isIn([
-      "META",
-      "GOOGLE",
-      "WEBSITE",
-      "LANDING_PAGE",
-      "INSTAGRAM",
-      "WHATSAPP",
-      "REFERRAL",
-      "OFFLINE",
-      "CALL",
-      "MANUAL",
-      "DIRECT",
-      "OTHER"
-    ])
-    .withMessage("Invalid lead source."),
+    .custom((val) => {
+      const allowed = [
+        "META",
+        "GOOGLE",
+        "WEBSITE",
+        "MAIN_WEBSITE",
+        "MAIN WEBSITE",
+        "LANDING_PAGE",
+        "INSTAGRAM",
+        "WHATSAPP",
+        "REFERRAL",
+        "OFFLINE",
+        "CALL",
+        "MANUAL",
+        "DIRECT",
+        "OTHER",
+      ];
+      const norm = String(val || "").toUpperCase().replace(/\s+/g, "_");
+      if (allowed.includes(norm) || allowed.includes(String(val || "").toUpperCase())) {
+        return true;
+      }
+      throw new Error("Invalid lead source.");
+    }),
 
   body("utm_source")
     .optional()

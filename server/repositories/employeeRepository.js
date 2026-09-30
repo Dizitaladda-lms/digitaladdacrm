@@ -25,6 +25,8 @@ const EMPLOYEE_SELECT_COLUMNS = `
     e.designation,
     e.role,
     e.employment_type,
+    e.reporting_manager_id,
+    m.full_name AS reporting_manager_name,
     e.status,
     e.joining_date,
     e.date_of_birth,
@@ -46,6 +48,8 @@ const EMPLOYEE_BASE_QUERY = `
     FROM employees e
     LEFT JOIN departments d
         ON d.id = e.department_id
+    LEFT JOIN employees m
+        ON m.id = e.reporting_manager_id
     WHERE e.is_deleted = FALSE
 `;
 
@@ -289,6 +293,7 @@ export const createEmployeeRepository = async (
             designation,
             role,
             employment_type,
+            reporting_manager_id,
             status,
             joining_date,
             date_of_birth,
@@ -303,9 +308,9 @@ export const createEmployeeRepository = async (
 
         VALUES (
 
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,
-            $10,$11,$12,$13,$14,$15,$16,
-            $17,$18
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+            $11,$12,$13,$14,$15,$16,$17,$18,
+            $19
 
         )
 
@@ -323,6 +328,7 @@ export const createEmployeeRepository = async (
         employee.designation,
         employee.role,
         employee.employment_type,
+        employee.reporting_manager_id || null,
         employee.status,
         employee.joining_date,
         employee.date_of_birth,
@@ -363,18 +369,19 @@ export const updateEmployeeRepository = async (
             designation = $4,
             role = $5,
             employment_type = $6,
-            status = $7,
-            joining_date = $8,
-            date_of_birth = $9,
-            gender = $10,
-            profile_image = $11,
-            address = $12,
-            emergency_contact_name = $13,
-            emergency_contact = $14,
-            updated_by = $15,
+            reporting_manager_id = $7,
+            status = $8,
+            joining_date = $9,
+            date_of_birth = $10,
+            gender = $11,
+            profile_image = $12,
+            address = $13,
+            emergency_contact_name = $14,
+            emergency_contact = $15,
+            updated_by = $16,
             updated_at = CURRENT_TIMESTAMP
 
-        WHERE id = $16
+        WHERE id = $17
         AND is_deleted = FALSE
 
         RETURNING *;
@@ -388,6 +395,7 @@ export const updateEmployeeRepository = async (
         employee.designation,
         employee.role,
         employee.employment_type,
+        employee.reporting_manager_id !== undefined ? employee.reporting_manager_id : null,
         employee.status,
         employee.joining_date,
         employee.date_of_birth,

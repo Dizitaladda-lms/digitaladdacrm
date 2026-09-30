@@ -13,6 +13,7 @@ const router = express.Router();
 const KNOWN_SOURCES = [
   "META",
   "GOOGLE",
+  "MAIN_WEBSITE",
   "WEBSITE",
   "LANDING_PAGE",
   "INSTAGRAM",
@@ -61,40 +62,12 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.campaign_id = req.body.campaignId;
     }
 
-    // Source normalization: ensure it always matches accepted enum while keeping details
-    const rawSource = String(
-      req.body.source || req.body.leadSource || "LANDING_PAGE"
-    ).trim();
-    const upperSource = rawSource.toUpperCase();
-
-    if (KNOWN_SOURCES.includes(upperSource)) {
-      req.body.source = upperSource;
-    } else if (
-      upperSource.includes("META") ||
-      upperSource.includes("FB") ||
-      upperSource.includes("FACEBOOK")
-    ) {
-      req.body.source = "META";
-    } else if (
-      upperSource.includes("GOOGLE") ||
-      upperSource.includes("GADS") ||
-      upperSource.includes("ADWORDS")
-    ) {
-      req.body.source = "GOOGLE";
-    } else if (upperSource.includes("INSTA")) {
-      req.body.source = "INSTAGRAM";
-    } else if (upperSource.includes("WHATSAPP")) {
-      req.body.source = "WHATSAPP";
-    } else {
-      req.body.source = "LANDING_PAGE";
-    }
-
     if (!req.body.landing_page_url) {
       req.body.landing_page_url =
         req.body.page_url || req.body.pageUrl || req.body.url || req.headers.referer || null;
     }
 
-    // Domain normalization: automatically detect and normalize to registered DB domain
+    // 1. Domain normalization: identify main websites and registered brands
     let rawDomain =
       req.body.domain ||
       req.body.websiteDomain ||
@@ -112,7 +85,7 @@ const normalizePublicLeadPayload = (req, res, next) => {
           const urlObj = new URL(
             urlCandidate.startsWith("http") ? urlCandidate : `https://${urlCandidate}`
           );
-          rawDomain = urlObj.hostname.replace(/^www\./i, "");
+          rawDomain = urlObj.hostname;
         } catch {
           rawDomain = urlCandidate;
         }
@@ -120,10 +93,17 @@ const normalizePublicLeadPayload = (req, res, next) => {
     }
 
     const domainLower = String(rawDomain).toLowerCase();
-    if (domainLower.includes("nigape")) {
-      req.body.domain = "Nigape";
-    } else if (domainLower.includes("nidads")) {
-      req.body.domain = "Nidads";
+    let isMainWebsite = false;
+
+    if (domainLower.includes("nidads")) {
+      req.body.domain = "www.nidads.com";
+      isMainWebsite = true;
+    } else if (domainLower.includes("nipage") || domainLower.includes("nigape")) {
+      req.body.domain = "www.nipage.com";
+      isMainWebsite = true;
+    } else if (domainLower.includes("iidad")) {
+      req.body.domain = "www.iidad.com";
+      isMainWebsite = true;
     } else if (domainLower.includes("nihacs")) {
       req.body.domain = "Nihacs";
     } else if (domainLower.includes("hackingvidya")) {
@@ -134,8 +114,6 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.domain = "DesigningVidya";
     } else if (domainLower.includes("nifase")) {
       req.body.domain = "Nifase";
-    } else if (domainLower.includes("iidad")) {
-      req.body.domain = "IIDAD";
     } else if (domainLower.includes("dizitaladda")) {
       req.body.domain = "DizitalAdda";
     } else if (rawDomain) {
@@ -144,12 +122,41 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.domain = "DizitalAdda";
     }
 
-    // Force LANDING_PAGE for Nidads or any landing-page url submissions
-    if (req.body.domain === "Nidads" && req.body.source === "WEBSITE") {
-      req.body.source = "LANDING_PAGE";
-    }
-    if (req.body.landing_page_url && req.body.source === "WEBSITE") {
-      req.body.source = "LANDING_PAGE";
+    // 2. Source normalization: main websites automatically get "MAIN_WEBSITE"
+    const rawSource = String(
+      req.body.source || req.body.leadSource || ""
+    ).trim();
+    const upperSource = rawSource.toUpperCase().replace(/\s+/g, "_");
+
+    if (
+      isMainWebsite ||
+      upperSource === "MAIN_WEBSITE" ||
+      upperSource === "MAIN WEBSITE" ||
+      rawSource.toLowerCase().includes("main website")
+    ) {
+      req.body.source = "MAIN_WEBSITE";
+    } else if (KNOWN_SOURCES.includes(upperSource)) {
+      req.body.source = upperSource;
+    } else if (
+      upperSource.includes("META") ||
+      upperSource.includes("FB") ||
+      upperSource.includes("FACEBOOK")
+    ) {
+      req.body.source = "META";
+    } else if (
+      upperSource.includes("GOOGLE") ||
+      upperSource.includes("GADS") ||
+      upperSource.includes("ADWORDS")
+    ) {
+      req.body.source = "GOOGLE";
+    } else if (upperSource.includes("INSTA")) {
+      req.body.source = "INSTAGRAM";
+    } else if (upperSource.includes("WHATSAPP")) {
+      req.body.source = "WHATSAPP";
+    } else if (upperSource.includes("WEB")) {
+      req.body.source = isMainWebsite ? "MAIN_WEBSITE" : "WEBSITE";
+    } else {
+      req.body.source = isMainWebsite ? "MAIN_WEBSITE" : "LANDING_PAGE";
     }
 
     if (!req.body.redirect_url && req.body.redirect) {

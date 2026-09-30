@@ -46,7 +46,15 @@ const LoginForm = () => {
             navigate("/dashboard", { replace: true });
             break;
 
+          case "HR":
+            navigate("/reports", { replace: true });
+            break;
+
           case "COUNSELLOR":
+          case "EMPLOYEE":
+          case "TRAINER":
+          case "INTERN":
+          case "TL":
             navigate("/employee/dashboard", { replace: true });
             break;
 

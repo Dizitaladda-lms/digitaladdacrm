@@ -25,6 +25,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import employeePortalRoutes from "./routes/employeePortal.routes.js";
 import admissionRoutes from "./routes/admissionRoutes.js";
 import telephonyRoutes from "./routes/telephonyRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 
 /* Middlewares */
 import { globalLimiter } from "./middleware/rateLimiter.js";
@@ -40,6 +41,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+const allowedMainWebsitesRegex = /^(https?:\/\/)?(www\.)?(nidads\.com|nipage\.com|iidad\.com|dizitaladda\.com)(:\d+)?$/i;
 const explicitOrigins = [process.env.CLIENT_URL || "", process.env.ALLOWED_ORIGINS || ""]
   .join(",")
   .split(",")
@@ -50,6 +52,7 @@ const isOriginAllowed = (origin) => {
   if (!origin) return false;
   if (process.env.NODE_ENV !== "production" && localOriginRegex.test(origin)) return true;
   if (explicitOrigins.includes(origin.replace(/\/$/, ""))) return true;
+  if (allowedMainWebsitesRegex.test(origin)) return true;
   return false;
 };
 
@@ -64,8 +67,9 @@ validateEnv();
 app.use(cors((req, callback) => {
   const origin = req.header("Origin");
   const isAllowed = isOriginAllowed(origin);
+  const isPublicLeadRoute = req.path.startsWith("/api/public") || req.url.startsWith("/api/public");
 
-  if (!origin || isAllowed) {
+  if (!origin || isAllowed || isPublicLeadRoute) {
     return callback(null, {
       origin: origin || true,
       credentials: true,
@@ -152,6 +156,7 @@ app.use("/api/lead-routing", leadRoutingRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admissions", admissionRoutes);
 app.use("/api/telephony", telephonyRoutes);
+app.use("/api/reports", reportRoutes);
 
 /**
  * 404 Handler

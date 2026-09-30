@@ -8,6 +8,8 @@ import {
   Radio,
   FileBarChart2,
   UserCircle,
+  CalendarCheck,
+  CheckSquare,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -47,13 +49,13 @@ const SidebarNavigation = ({ onClose }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const menuItems = isSuperAdmin
-    ? [
-        ...managerMenuItems,
-        { title: "Reports", icon: FileBarChart2, path: "/reports" },
-        { title: "Call Recording", icon: Radio, path: "/telephony" },
-      ]
-    : managerMenuItems;
+  const menuItems = [
+    ...managerMenuItems,
+    { title: "Operations & Reports", icon: FileBarChart2, path: "/reports" },
+    { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
+    { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+    ...(isSuperAdmin ? [{ title: "Call Recording", icon: Radio, path: "/telephony" }] : []),
+  ];
 
   const handleNavClick = () => {
     if (typeof window !== "undefined" && window.innerWidth <= 768 && onClose) {

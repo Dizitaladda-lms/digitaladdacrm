@@ -8,6 +8,8 @@ import {
   Settings,
   LogOut,
   PanelLeftClose,
+  CalendarCheck,
+  UsersRound,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import "./EmployeeSidebar.css";
@@ -19,6 +21,16 @@ const menuItems = [
     title: "Dashboard",
     icon: LayoutDashboard,
     path: "/employee/dashboard",
+  },
+  {
+    title: "Daily Work Report",
+    icon: CalendarCheck,
+    path: "/employee/daily-report",
+  },
+  {
+    title: "Team Reports",
+    icon: UsersRound,
+    path: "/employee/team-reports",
   },
   {
     title: "My Leads",

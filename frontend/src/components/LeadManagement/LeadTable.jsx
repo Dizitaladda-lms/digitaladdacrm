@@ -65,6 +65,14 @@ const SOURCE_CONFIG = {
     label: "Google",
     className: "bg-purple-100 text-purple-700",
   },
+  MAIN_WEBSITE: {
+    label: "Main Website",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
+  },
+  "MAIN WEBSITE": {
+    label: "Main Website",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
+  },
   WEBSITE: {
     label: "Website",
     className: "bg-slate-100 text-slate-700",

@@ -18,7 +18,11 @@ const RoleProtectedRoute = ({ roles }) => {
       return <Navigate to="/dashboard" replace />;
     }
 
-    if (user.role === "COUNSELLOR") {
+    if (user.role === "HR") {
+      return <Navigate to="/reports" replace />;
+    }
+
+    if (["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL"].includes(user.role)) {
       return <Navigate to="/employee/dashboard" replace />;
     }
 

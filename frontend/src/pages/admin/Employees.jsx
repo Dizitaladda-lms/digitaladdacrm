@@ -33,10 +33,12 @@ const initialForm = {
   mobile: "",
   department_id: "",
   designation: "Counsellor",
+  role: "COUNSELLOR",
+  reporting_manager_id: "",
   password: "",
   domains: [],
   courses: "",
-  auto_assign: true,
+  auto_assign: false,
 };
 
 const initials = (name = "") =>
@@ -206,9 +208,10 @@ const Employees = () => {
         mobile: form.mobile,
         department_id: Number(form.department_id),
         designation: form.designation,
-        role: "COUNSELLOR",
+        role: form.role || "COUNSELLOR",
+        reporting_manager_id: form.reporting_manager_id ? Number(form.reporting_manager_id) : null,
         password: form.password,
-        employment_type: "FULL_TIME",
+        employment_type: form.role === "INTERN" ? "INTERN" : "FULL_TIME",
         status: "ACTIVE",
       });
 
@@ -327,9 +330,10 @@ const Employees = () => {
             <thead>
               <tr>
                 <th>Employee</th>
+                <th>Role / Access</th>
                 <th>Status</th>
                 <th>Assigned Domains</th>
-                <th>Department</th>
+                <th>Department & Mentor</th>
                 <th style={{ textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
@@ -343,6 +347,48 @@ const Employees = () => {
                         <strong>{employee.full_name}</strong>
                         <small>{employee.email}</small>
                       </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "fit-content",
+                          padding: "3px 8px",
+                          borderRadius: "12px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          letterSpacing: "0.02em",
+                          backgroundColor:
+                            employee.role === "HR"
+                              ? "#FCE7F3"
+                              : employee.role === "TRAINER"
+                              ? "#FEF3C7"
+                              : employee.role === "TL"
+                              ? "#EDE9FE"
+                              : employee.role === "INTERN"
+                              ? "#E0F2FE"
+                              : employee.role === "MANAGER" || employee.role === "ADMIN"
+                              ? "#DCFCE7"
+                              : "#F1F5F9",
+                          color:
+                            employee.role === "HR"
+                              ? "#9D174D"
+                              : employee.role === "TRAINER"
+                              ? "#B45309"
+                              : employee.role === "TL"
+                              ? "#6D28D9"
+                              : employee.role === "INTERN"
+                              ? "#0369A1"
+                              : employee.role === "MANAGER" || employee.role === "ADMIN"
+                              ? "#15803D"
+                              : "#334155",
+                        }}
+                      >
+                        {employee.role || "COUNSELLOR"}
+                      </span>
+                      <small style={{ color: "#64748B", fontSize: "11px" }}>{employee.designation}</small>
                     </div>
                   </td>
                   <td>
@@ -374,7 +420,16 @@ const Employees = () => {
                       )}
                     </div>
                   </td>
-                  <td>{employee.department_name || "Admissions"}</td>
+                  <td>
+                    <div>
+                      <strong>{employee.department_name || "Admissions"}</strong>
+                      {employee.reporting_manager_name && (
+                        <div style={{ fontSize: "11px", color: "#0F766E", marginTop: "2px", fontWeight: 500 }}>
+                          Mentor: {employee.reporting_manager_name}
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ textAlign: "right" }}>
                     <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                       <button
@@ -478,6 +533,50 @@ const Employees = () => {
                       ))}
                     </select>
                   </label>
+                  <label>
+                    Role / System Access
+                    <select
+                      value={form.role}
+                      onChange={(event) => {
+                        const newRole = event.target.value;
+                        let defaultDesig = form.designation;
+                        if (newRole === "HR") defaultDesig = "HR Manager";
+                        else if (newRole === "TRAINER") defaultDesig = "Faculty Trainer";
+                        else if (newRole === "TL") defaultDesig = "Team Lead";
+                        else if (newRole === "INTERN") defaultDesig = "Intern";
+                        else if (newRole === "COUNSELLOR") defaultDesig = "Counsellor";
+                        else if (newRole === "EMPLOYEE") defaultDesig = "Executive";
+                        setForm({ ...form, role: newRole, designation: defaultDesig });
+                      }}
+                      required
+                    >
+                      <option value="COUNSELLOR">Counsellor (Admissions / Sales)</option>
+                      <option value="HR">HR (Human Resources & Operations)</option>
+                      <option value="TRAINER">Trainer (Faculty / Classes & Training)</option>
+                      <option value="TL">Team Lead (TL / Supervisor)</option>
+                      <option value="EMPLOYEE">Employee (Staff / Dev / Design / Marketing)</option>
+                      <option value="INTERN">Intern</option>
+                    </select>
+                  </label>
+
+                  {form.role === "INTERN" && (
+                    <label>
+                      Assigned Team Lead / Mentor
+                      <select
+                        value={form.reporting_manager_id}
+                        onChange={(event) => setForm({ ...form, reporting_manager_id: event.target.value })}
+                      >
+                        <option value="">Select Team Lead / Trainer</option>
+                        {employees
+                          .filter((emp) => emp.role !== "INTERN")
+                          .map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.full_name} ({emp.designation || emp.role})
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
                   <label>
                     Designation
                     <input

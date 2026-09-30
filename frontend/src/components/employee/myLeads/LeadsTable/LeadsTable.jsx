@@ -194,7 +194,7 @@
 
                 <td>
                   <div className="flex flex-col gap-0.5 items-start">
-                    <span className="font-medium text-slate-700">{lead.source || "-"}</span>
+                    <span className="font-medium text-slate-700">{lead.source === "MAIN_WEBSITE" ? "Main Website" : (lead.source || "-")}</span>
                     {Number(lead.received_count) > 1 && (
                       <span
                         className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200"
