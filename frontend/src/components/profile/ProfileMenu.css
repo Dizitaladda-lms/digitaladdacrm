@@ -136,6 +136,18 @@
   color: #0f172a;
 }
 
+.profile-menu-dropdown button.profile-menu-signout {
+  margin-top: 4px;
+  border-top: 1px solid #f1f5f9;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.profile-menu-dropdown button.profile-menu-signout:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 /* ── Editor modal ───────────────────────────────────────── */
 .profile-editor-backdrop {
   position: fixed;

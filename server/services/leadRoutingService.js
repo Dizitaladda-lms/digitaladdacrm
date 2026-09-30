@@ -66,14 +66,14 @@ export const removeRoutingAssignmentService = (id) => withTransaction(async (cli
 
 export const autoAssignLeadService = async (client, lead) => {
   // ====================================================
-  // AUTO_ASSIGN KILL SWITCH
-  // Set AUTO_ASSIGN_ENABLED=false in server/.env to pause
-  // all automatic lead routing. Leads will sit unassigned
-  // and must be manually assigned by admin/manager.
+  // AUTO_ASSIGN MODE: OFF BY DEFAULT (MANUAL ASSIGNMENT ACTIVE)
+  // Auto-assignment is completely disabled so all incoming leads
+  // sit unassigned for manual assignment by admin/manager.
+  // Set AUTO_ASSIGN_ENABLED=true in server/.env to re-enable.
   // ====================================================
-  if (process.env.AUTO_ASSIGN_ENABLED === "false") {
-    console.log(`[AUTO-ASSIGN PAUSED] Lead #${lead.id} (${lead.domain}) will NOT be auto-assigned. Manual assignment required.`);
-    return { assigned: false, reason: "Auto-assignment is currently paused by admin. Please assign manually." };
+  if (process.env.AUTO_ASSIGN_ENABLED !== "true") {
+    console.log(`[MANUAL ASSIGNMENT MODE] Lead #${lead.id} (${lead.domain || "Unknown"}) kept unassigned. Manual assignment required by admin/manager.`);
+    return { assigned: false, reason: "Manual assignment mode active. Lead kept unassigned." };
   }
 
   const leadDomain = (lead.domain || "").trim();

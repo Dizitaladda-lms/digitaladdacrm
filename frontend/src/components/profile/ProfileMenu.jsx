@@ -81,7 +81,7 @@ const ProfileMenu = ({ compact = false }) => {
           <div><strong>{displayName}</strong><span>{user?.email}</span></div>
         </div>
         <button type="button" onClick={openEditor}><Pencil size={16} /> Edit profile</button>
-        <button type="button" onClick={logout}><LogOut size={16} /> Sign out</button>
+        <button type="button" className="profile-menu-signout" onClick={logout}><LogOut size={16} /> Sign out</button>
       </div>}
 
       {editing && <div className="profile-editor-backdrop" role="presentation" onMouseDown={() => !saving && setEditing(false)}>

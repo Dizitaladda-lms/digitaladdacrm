@@ -21,6 +21,7 @@ const validateEnv = () => {
   process.env.NODE_ENV ||= "development";
   process.env.LOG_LEVEL ||= "info";
   process.env.EMPLOYEE_CODE_PREFIX ||= "EMP";
+  process.env.AUTO_ASSIGN_ENABLED ||= "false";
 
   /**
    * -------------------------------------
