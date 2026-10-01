@@ -265,6 +265,12 @@ export async function initDatabaseSchema() {
         VALUES (1, 'Admissions & Sales', 'Admissions & Student Counselling', TRUE)
         ON CONFLICT (id) DO NOTHING;
 
+        INSERT INTO departments (department_name, description, status)
+        VALUES
+          ('Sales', 'Sales, lead follow-up, counselling and admissions conversion', TRUE),
+          ('Operations', 'Daily business operations, coordination and service delivery', TRUE)
+        ON CONFLICT (department_name) DO NOTHING;
+
         INSERT INTO employees (id, user_id, employee_code, full_name, email, mobile, department_id, designation, role, status)
         VALUES 
           (1, 1, 'EMP000001', 'System Administrator', 'admin@dizitaladda.com', '9876543200', 1, 'Director', 'ADMIN', 'ACTIVE'),
