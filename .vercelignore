@@ -2,7 +2,7 @@
 .github
 node_modules
 logs
-reports
+/reports
 docs
 *.log
 docker-compose.yml
