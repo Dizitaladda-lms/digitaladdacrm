@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS employees (
     email                   VARCHAR(255) NOT NULL UNIQUE,
     mobile                  VARCHAR(20) NOT NULL UNIQUE,
     department_id           BIGINT REFERENCES departments(id) ON DELETE SET NULL,
+    reporting_manager_id    BIGINT REFERENCES employees(id) ON DELETE SET NULL,
     designation             VARCHAR(100),
     role                    VARCHAR(30) NOT NULL DEFAULT 'COUNSELLOR',
     employment_type         VARCHAR(30) NOT NULL DEFAULT 'FULL_TIME',
@@ -75,6 +76,8 @@ CREATE TABLE IF NOT EXISTS employees (
     CONSTRAINT employees_status_check CHECK (status IN ('ACTIVE', 'INACTIVE', 'ON_LEAVE', 'SUSPENDED')),
     CONSTRAINT employees_employment_type_check CHECK (employment_type IN ('FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'))
 );
+
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS reporting_manager_id BIGINT REFERENCES employees(id) ON DELETE SET NULL;
 
 -- Campaigns Table
 CREATE TABLE IF NOT EXISTS campaigns (
