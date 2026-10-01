@@ -5,10 +5,24 @@ import {
   Search,
   Calendar,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 import ProfileMenu from "../profile/ProfileMenu";
 import NotificationsPopover from "../common/NotificationsPopover/NotificationsPopover";
 
 const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
+  const { user } = useAuth();
+  const role = user?.role || "EMPLOYEE";
+  const isCounsellor = role === "COUNSELLOR";
+
+  const getWorkspaceTitle = () => {
+    if (isCounsellor) return "Admissions & Sales Workspace";
+    if (role === "TRAINER") return "Faculty & Academic Workspace";
+    if (role === "INTERN") return "Intern Learning & Work Portal";
+    if (role === "HR") return "Human Resources Workspace";
+    if (role === "TL") return "Team Lead Operations Workspace";
+    return user?.designation ? `${user.designation} Workspace` : "Academic & Operations Workspace";
+  };
+
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "short",
     day: "numeric",
@@ -28,7 +42,7 @@ const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
         </button>
 
         <div className="topbar-title-wrap">
-          <h1 className="topbar-title">Counsellor Workspace</h1>
+          <h1 className="topbar-title">{getWorkspaceTitle()}</h1>
           <div className="topbar-status">
             <span className="status-indicator-dot"></span>
             <span>Connected & Active</span>
@@ -41,7 +55,7 @@ const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
           <Search size={16} />
           <input
             type="text"
-            placeholder="Search my leads, follow-ups..."
+            placeholder={isCounsellor ? "Search my leads, follow-ups..." : "Search tasks, reports, classes..."}
           />
           <kbd className="search-kbd">⌘K</kbd>
         </div>

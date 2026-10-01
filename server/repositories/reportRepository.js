@@ -516,6 +516,7 @@ export const findHROverviewRepository = async (targetDate) => {
  */
 export const findAllCompanyReportsRepository = async ({
   departmentId,
+  employeeId,
   date,
   startDate,
   endDate,
@@ -534,6 +535,10 @@ export const findAllCompanyReportsRepository = async ({
   if (departmentId) {
     whereClauses.push(`r.department_id = $${paramIdx++}`);
     values.push(departmentId);
+  }
+  if (employeeId) {
+    whereClauses.push(`r.employee_id = $${paramIdx++}`);
+    values.push(employeeId);
   }
   if (date) {
     whereClauses.push(`r.report_date = $${paramIdx++}`);

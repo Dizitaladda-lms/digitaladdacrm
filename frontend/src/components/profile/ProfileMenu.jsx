@@ -16,6 +16,7 @@ const ProfileMenu = ({ compact = false }) => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
+  const [desig, setDesig] = useState("");
   const [photo, setPhoto] = useState("");
   const [saving, setSaving] = useState(false);
   const menuRef = useRef(null);
@@ -34,6 +35,7 @@ const ProfileMenu = ({ compact = false }) => {
 
   const openEditor = () => {
     setName(displayName);
+    setDesig(user?.designation || "");
     setPhoto(photoUrl || "");
     setEditing(true);
     setOpen(false);
@@ -55,7 +57,7 @@ const ProfileMenu = ({ compact = false }) => {
     event.preventDefault();
     setSaving(true);
     try {
-      await updateProfile({ full_name: name, profile_image: photo });
+      await updateProfile({ full_name: name, designation: desig, profile_image: photo });
       toast.success("Profile updated.");
       setEditing(false);
     } catch (error) {
@@ -71,14 +73,14 @@ const ProfileMenu = ({ compact = false }) => {
         <div className="profile-menu-avatar">
           {photoUrl ? <img src={photoUrl} alt="Profile" /> : initialsFor(displayName)}
         </div>
-        {!compact && <div className="profile-menu-details"><strong>{displayName}</strong><span>{role}</span></div>}
+        {!compact && <div className="profile-menu-details"><strong>{displayName}</strong><span>{user?.designation || role}</span></div>}
         <ChevronDown size={17} />
       </button>
 
       {open && <div className="profile-menu-dropdown">
         <div className="profile-menu-summary">
           <div className="profile-menu-avatar">{photoUrl ? <img src={photoUrl} alt="Profile" /> : initialsFor(displayName)}</div>
-          <div><strong>{displayName}</strong><span>{user?.email}</span></div>
+          <div><strong>{displayName}</strong><span>{user?.designation ? `${user.designation} • ` : ""}{user?.email}</span></div>
         </div>
         <button type="button" onClick={openEditor}><Pencil size={16} /> Edit profile</button>
         <button type="button" className="profile-menu-signout" onClick={logout}><LogOut size={16} /> Sign out</button>
@@ -86,7 +88,7 @@ const ProfileMenu = ({ compact = false }) => {
 
       {editing && <div className="profile-editor-backdrop" role="presentation" onMouseDown={() => !saving && setEditing(false)}>
         <form className="profile-editor" onSubmit={saveProfile} onMouseDown={(event) => event.stopPropagation()}>
-          <div className="profile-editor-heading"><UserRound size={20} /><div><h2>Edit profile</h2><p>Update the name and photo shown in your portal.</p></div></div>
+          <div className="profile-editor-heading"><UserRound size={20} /><div><h2>Edit profile</h2><p>Update the name, designation, and photo shown in your portal.</p></div></div>
           <label className="profile-photo-picker">
             <div className="profile-photo-preview">{photo ? <img src={photo} alt="Selected profile" /> : initialsFor(name)}</div>
             <span><Camera size={16} /> Choose photo</span>
@@ -94,6 +96,7 @@ const ProfileMenu = ({ compact = false }) => {
           </label>
           {photo && <button type="button" className="profile-remove-photo" onClick={() => setPhoto("")}>Remove photo</button>}
           <label className="profile-name-field">Display name<input value={name} onChange={(event) => setName(event.target.value)} minLength="3" maxLength="100" required /></label>
+          <label className="profile-name-field" style={{ marginTop: "8px" }}>Designation<input value={desig} onChange={(event) => setDesig(event.target.value)} maxLength="100" placeholder="e.g. Full Stack Developer" /></label>
           <div className="profile-editor-actions"><button type="button" onClick={() => setEditing(false)} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button></div>
         </form>
       </div>}

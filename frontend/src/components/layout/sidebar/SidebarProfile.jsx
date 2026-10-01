@@ -25,7 +25,7 @@ const SidebarProfile = () => {
 
         <h3>{user?.full_name || "CRM User"}</h3>
 
-        <p>{roleLabel}</p>
+        <p>{user?.designation || roleLabel}</p>
 
         <span className="profile-status">
 

@@ -1,4 +1,3 @@
-import React from "react";
 import {
   LayoutDashboard,
   Users,
@@ -10,58 +9,44 @@ import {
   PanelLeftClose,
   CalendarCheck,
   UsersRound,
+  TrendingUp,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import "./EmployeeSidebar.css";
 import { useAuth } from "../../context/AuthContext";
 import logo from "../../assets/logo/dizitaladda-logo.png";
 
-const menuItems = [
-  {
-    title: "Dashboard",
-    icon: LayoutDashboard,
-    path: "/employee/dashboard",
-  },
-  {
-    title: "Daily Work Report",
-    icon: CalendarCheck,
-    path: "/employee/daily-report",
-  },
-  {
-    title: "Team Reports",
-    icon: UsersRound,
-    path: "/employee/team-reports",
-  },
-  {
-    title: "My Leads",
-    icon: Users,
-    path: "/employee/leads",
-  },
-  {
-    title: "My Follow-ups",
-    icon: PhoneCall,
-    path: "/employee/followups",
-  },
-  {
-    title: "My Admissions",
-    icon: GraduationCap,
-    path: "/employee/admissions",
-  },
-  {
-    title: "Profile",
-    icon: User,
-    path: "/employee/profile",
-  },
-  {
-    title: "Settings",
-    icon: Settings,
-    path: "/employee/settings",
-  },
-];
-
 const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const role = user?.role || "EMPLOYEE";
+  const isCounsellor = role === "COUNSELLOR";
+  const isTL = role === "TL";
+
+  let menuItems = [];
+
+  if (isCounsellor) {
+    // Sales Department Counsellor
+    menuItems = [
+      { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Leads", icon: Users, path: "/employee/leads" },
+      { title: "My Follow-ups", icon: PhoneCall, path: "/employee/followups" },
+      { title: "My Admissions", icon: GraduationCap, path: "/employee/admissions" },
+      { title: "Daily Work Report", icon: CalendarCheck, path: "/employee/daily-report" },
+      { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "Settings", icon: Settings, path: "/employee/settings" },
+    ];
+  } else {
+    // Operations & Training Department (TRAINER, EMPLOYEE, INTERN, TL) — NO LEADS
+    menuItems = [
+      { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "Daily Work Report", icon: CalendarCheck, path: "/employee/daily-report" },
+      ...(isTL ? [{ title: "Team Reports", icon: UsersRound, path: "/employee/team-reports" }] : []),
+      { title: "My Performance", icon: TrendingUp, path: "/employee/performance" },
+      { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "Settings", icon: Settings, path: "/employee/settings" },
+    ];
+  }
 
   const handleLogout = () => {
     logout();

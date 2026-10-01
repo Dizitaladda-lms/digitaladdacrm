@@ -77,3 +77,8 @@ export const getEmployeePerformance = async (id) => {
   const response = await axiosInstance.get(`/employees/${id}/performance`);
   return response.data;
 };
+
+export const getMyPerformance = async (params = {}) => {
+  const response = await axiosInstance.get("/employees/my-performance", { params });
+  return response.data;
+};

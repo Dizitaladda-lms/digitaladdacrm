@@ -12,10 +12,12 @@ import {
   TrendingUp,
   Building2,
   Check,
+  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createEmployee, getEmployees } from "../../services/employeeService";
+import { createEmployee, deleteEmployee, getEmployees } from "../../services/employeeService";
 import { getDepartments } from "../../services/departmentService";
+import { useAuth } from "../../context/AuthContext";
 import {
   createDomainCourse,
   createRoutingAssignment,
@@ -50,6 +52,10 @@ const initials = (name = "") =>
     .toUpperCase();
 
 const Employees = () => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canAddEmployee = isSuperAdmin || user?.role === "HR" || user?.role === "MANAGER" || user?.role === "ADMIN";
+
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
 
@@ -197,6 +203,20 @@ const Employees = () => {
     }
   };
 
+  const handleDeleteEmployee = async (employee) => {
+    if (!window.confirm(`Are you sure you want to remove ${employee.full_name} (${employee.employee_code || employee.designation}) from the CRM? This will revoke their system access.`)) {
+      return;
+    }
+    try {
+      await deleteEmployee(employee.id);
+      toast.success(`${employee.full_name} has been removed successfully.`);
+      await load();
+    } catch (err) {
+      console.error("Failed to delete employee:", err);
+      toast.error(err?.response?.data?.message || "Could not remove employee.");
+    }
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     if (!form.department_id) return toast.error("Please select a department.");
@@ -288,9 +308,11 @@ const Employees = () => {
             <button className="refresh-btn" type="button" onClick={load} disabled={loading}>
               <RefreshCw size={17} className={loading ? "spin" : ""} /> Refresh
             </button>
-            <button className="create-btn" type="button" onClick={() => setFormOpen(true)}>
-              <Plus size={18} /> Add Employee
-            </button>
+            {canAddEmployee && (
+              <button className="create-btn" type="button" onClick={() => setFormOpen(true)}>
+                <Plus size={18} /> Add Employee
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -320,9 +342,11 @@ const Employees = () => {
             <h2>Employee Directory & Performance</h2>
             <p>View counselling workload, assigned domains, and live conversion statistics.</p>
           </div>
-          <button type="button" onClick={() => setFormOpen(true)}>
-            <Plus size={17} /> Add Employee
-          </button>
+          {canAddEmployee && (
+            <button type="button" onClick={() => setFormOpen(true)}>
+              <Plus size={17} /> Add Employee
+            </button>
+          )}
         </div>
 
         <div className="employee-table-wrap">
@@ -457,6 +481,24 @@ const Employees = () => {
                         <TrendingUp size={15} />
                         <span>Performance</span>
                       </button>
+
+                      {isSuperAdmin && (
+                        <button
+                          className="view-more-btn"
+                          type="button"
+                          onClick={() => handleDeleteEmployee(employee)}
+                          style={{
+                            backgroundColor: "#FEF2F2",
+                            color: "#DC2626",
+                            border: "1px solid #FECACA",
+                            fontWeight: 600,
+                          }}
+                          title={`Remove ${employee.full_name} from CRM`}
+                        >
+                          <Trash2 size={14} />
+                          <span>Remove</span>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -578,12 +620,67 @@ const Employees = () => {
                     </label>
                   )}
                   <label>
-                    Designation
+                    Designation (Choose suggestion or type manually)
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "6px 0" }}>
+                      {[
+                        "Full Stack Developer",
+                        "Frontend Developer",
+                        "Backend Developer",
+                        "Faculty Trainer",
+                        "Senior Academic Trainer",
+                        "Admissions Counsellor",
+                        "Senior Admissions Counsellor",
+                        "Graphic Designer",
+                        "Video Editor",
+                        "Operations Executive",
+                        "HR Executive",
+                        "Team Lead",
+                      ].map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setForm({ ...form, designation: item })}
+                          style={{
+                            fontSize: "11px",
+                            padding: "3px 8px",
+                            borderRadius: "12px",
+                            border: form.designation === item ? "1.5px solid #2563EB" : "1px solid #E2E8F0",
+                            backgroundColor: form.designation === item ? "#EFF6FF" : "#F8FAFC",
+                            color: form.designation === item ? "#1D4ED8" : "#475569",
+                            cursor: "pointer",
+                            fontWeight: form.designation === item ? "700" : "500",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
                     <input
+                      list="designation-suggestions"
                       value={form.designation}
                       onChange={(event) => setForm({ ...form, designation: event.target.value })}
+                      placeholder="e.g. Full Stack Developer (or type custom designation)"
                       required
                     />
+                    <datalist id="designation-suggestions">
+                      <option value="Full Stack Developer" />
+                      <option value="Frontend Developer" />
+                      <option value="Backend Developer" />
+                      <option value="Software Developer" />
+                      <option value="Web Developer" />
+                      <option value="Faculty Trainer" />
+                      <option value="Senior Academic Trainer" />
+                      <option value="Admissions Counsellor" />
+                      <option value="Senior Admissions Counsellor" />
+                      <option value="Graphic Designer" />
+                      <option value="Video Editor" />
+                      <option value="Digital Marketing Executive" />
+                      <option value="Operations Executive" />
+                      <option value="HR Manager" />
+                      <option value="HR Executive" />
+                      <option value="Team Lead" />
+                    </datalist>
                   </label>
                   <label>
                     Temporary password

@@ -24,6 +24,7 @@ import {
   getClassesAuditFeed,
   reviewReportAsHR,
 } from "../../services/reportService";
+import { getEmployees } from "../../services/employeeService";
 import DailyReportForm from "../../components/reports/DailyReportForm";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
 import { useAuth } from "../../context/AuthContext";
@@ -40,9 +41,14 @@ const OperationsDashboard = () => {
   const [overview, setOverview] = useState(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
 
+  // Staff List for Inspection
+  const [staffList, setStaffList] = useState([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+
   // All Reports Data
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -76,12 +82,42 @@ const OperationsDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    const loadStaff = async () => {
+      try {
+        const res = await getEmployees({ limit: 150 });
+        const list = res?.data?.employees || res?.data || [];
+        setStaffList(list);
+      } catch (e) {
+        console.error("Failed to load staff list:", e);
+      }
+    };
+    loadStaff();
+  }, []);
+
   // Load All Reports
   const fetchAllReports = async () => {
     try {
       setReportsLoading(true);
+
+      let startDate = undefined;
+      let endDate = undefined;
+      let dateParam = undefined;
+
+      if (selectedMonth) {
+        const [yr, mo] = selectedMonth.split("-");
+        const lastDay = new Date(parseInt(yr, 10), parseInt(mo, 10), 0).getDate();
+        startDate = `${selectedMonth}-01`;
+        endDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
+      } else if (!selectedEmployeeId) {
+        dateParam = selectedDate || undefined;
+      }
+
       const res = await getAllCompanyReports({
-        date: selectedDate || undefined,
+        date: dateParam,
+        startDate,
+        endDate,
+        employeeId: selectedEmployeeId || undefined,
         departmentId: deptFilter || undefined,
         status: statusFilter || undefined,
         roleType: roleFilter || undefined,
@@ -121,7 +157,7 @@ const OperationsDashboard = () => {
     if (activeTab === "overview") fetchOverview();
     else if (activeTab === "all-reports") fetchAllReports();
     else if (activeTab === "classes-audit") fetchClassesAudit();
-  }, [activeTab, selectedDate, deptFilter, statusFilter, roleFilter, tookClassFilter]);
+  }, [activeTab, selectedDate, selectedEmployeeId, deptFilter, statusFilter, roleFilter, tookClassFilter]);
 
   const handleOpenHRReview = (report) => {
     setReviewingReport(report);
@@ -349,13 +385,38 @@ const OperationsDashboard = () => {
                             <td>{emp.designation || emp.employment_type || "Staff"}</td>
                             <td>{emp.mobile || "—"}</td>
                             <td>
-                              <button
-                                className="whatsapp-nudge-btn"
-                                onClick={() => handleWhatsAppNudge(emp)}
-                                title="Send WhatsApp Reminder"
-                              >
-                                <MessageCircle size={14} /> Send Reminder
-                              </button>
+                              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                <button
+                                  className="whatsapp-nudge-btn"
+                                  onClick={() => handleWhatsAppNudge(emp)}
+                                  title="Send WhatsApp Reminder"
+                                >
+                                  <MessageCircle size={14} /> Reminder
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedEmployeeId(String(emp.id));
+                                    setActiveTab("all-reports");
+                                  }}
+                                  title="Inspect this employee's reports & performance"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    background: "#eff6ff",
+                                    color: "#2563eb",
+                                    border: "1px solid #bfdbfe",
+                                    borderRadius: "6px",
+                                    padding: "5px 10px",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <Eye size={13} /> Inspect
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -369,9 +430,85 @@ const OperationsDashboard = () => {
         </div>
       )}
 
-      {/* TAB 2: ALL COMPANY REPORTS */}
+      {/* TAB 2: ALL COMPANY REPORTS / SINGLE EMPLOYEE INSPECTION */}
       {activeTab === "all-reports" && (
         <div className="all-reports-tab-content">
+          {/* Single Employee Inspection Banner */}
+          {selectedEmployeeId && (
+            (() => {
+              const emp = staffList.find((e) => String(e.id) === String(selectedEmployeeId));
+              const empName = emp?.full_name || reports[0]?.user_name || "Selected Employee";
+              const empCode = emp?.employee_code || reports[0]?.employee_code || "EMP";
+              const empRole = emp?.role || reports[0]?.role_type || "Staff";
+              const empDept = emp?.department_name || reports[0]?.department_name || "Operations";
+              const totalHours = reports.reduce((s, r) => s + (parseFloat(r.total_hours_worked) || 0), 0);
+              const totalClasses = reports.reduce((s, r) => s + (r.classes?.length || (r.took_class ? 1 : 0)), 0);
+              const approvedCount = reports.filter((r) => r.status === "HR_APPROVED").length;
+
+              return (
+                <div style={{
+                  background: "#ffffff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: "12px",
+                  padding: "18px 24px",
+                  marginBottom: "20px",
+                  boxShadow: "0 2px 8px rgba(37, 99, 235, 0.08)",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: "700", background: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: "12px" }}>
+                          EMPLOYEE INSPECTION MODE
+                        </span>
+                        <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: 0 }}>
+                          {empName} ({empCode})
+                        </h2>
+                      </div>
+                      <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
+                        {empRole} • {empDept} • Viewing individual daily work reports & performance
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEmployeeId("")}
+                      style={{
+                        background: "#f1f5f9",
+                        border: "1px solid #cbd5e1",
+                        color: "#334155",
+                        fontWeight: "600",
+                        fontSize: "13px",
+                        padding: "7px 14px",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕ View All Company Reports
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
+                    <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                      <span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "600", textTransform: "uppercase" }}>Reports Found</span>
+                      <strong style={{ fontSize: "18px", color: "#0f172a" }}>{reports.length}</strong>
+                    </div>
+                    <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                      <span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "600", textTransform: "uppercase" }}>Total Hours</span>
+                      <strong style={{ fontSize: "18px", color: "#2563eb" }}>{totalHours.toFixed(1)} hrs</strong>
+                    </div>
+                    <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                      <span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "600", textTransform: "uppercase" }}>Classes Taken</span>
+                      <strong style={{ fontSize: "18px", color: "#4f46e5" }}>{totalClasses}</strong>
+                    </div>
+                    <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                      <span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "600", textTransform: "uppercase" }}>HR Approved</span>
+                      <strong style={{ fontSize: "18px", color: "#16a34a" }}>{approvedCount}</strong>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          )}
+
           {/* Filters Bar */}
           <div className="all-reports-filters">
             <div className="search-wrap">
@@ -385,17 +522,82 @@ const OperationsDashboard = () => {
               />
             </div>
 
+            {/* Month Filter */}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="ops-select"
+                title="Filter reports by month (Month-Wise View)"
+                style={{ minWidth: "150px", height: "38px" }}
+              />
+              {selectedMonth && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedMonth("")}
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 8px",
+                    background: "#f1f5f9",
+                    color: "#475569",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                  }}
+                  title="Clear month filter"
+                >
+                  ✕ Clear Month
+                </button>
+              )}
+            </div>
+
+            {/* Role Filter (Interns, Employees, Trainers, etc.) */}
             <select
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
+              onChange={(e) => {
+                const newRole = e.target.value;
+                setRoleFilter(newRole);
+                if (selectedEmployeeId) {
+                  const curr = staffList.find((x) => String(x.id) === String(selectedEmployeeId));
+                  if (curr && newRole && curr.role !== newRole) setSelectedEmployeeId("");
+                }
+              }}
               className="ops-select"
+              style={{ fontWeight: roleFilter ? "700" : "500", borderColor: roleFilter ? "#2563eb" : "" }}
             >
               <option value="">All Roles</option>
-              <option value="TRAINER">Trainers</option>
-              <option value="EMPLOYEE">Employees</option>
-              <option value="INTERN">Interns</option>
-              <option value="TL">Team Leads</option>
-              <option value="HR">HR Staff</option>
+              <option value="INTERN">🎓 Interns Only</option>
+              <option value="EMPLOYEE">💼 Regular Employees</option>
+              <option value="TRAINER">👨‍🏫 Trainers & Faculty</option>
+              <option value="TL">👑 Team Leads</option>
+              <option value="HR">🏢 HR Staff</option>
+            </select>
+
+            {/* Single Employee / Intern Selection Dropdown */}
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="ops-select"
+              style={{ minWidth: "220px", fontWeight: selectedEmployeeId ? "700" : "500", borderColor: selectedEmployeeId ? "#2563eb" : "" }}
+            >
+              <option value="">
+                {roleFilter === "INTERN"
+                  ? "🎓 All Interns"
+                  : roleFilter === "TRAINER"
+                  ? "👨‍🏫 All Trainers"
+                  : roleFilter === "EMPLOYEE"
+                  ? "💼 All Employees"
+                  : "👤 All Staff Members"}
+              </option>
+              {staffList
+                .filter((emp) => !roleFilter || emp.role === roleFilter)
+                .map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.full_name} ({emp.employee_code || emp.role}) {emp.designation ? `— ${emp.designation}` : ""}
+                  </option>
+                ))}
             </select>
 
             <select
@@ -452,8 +654,12 @@ const OperationsDashboard = () => {
                   <tbody>
                     {reports.map((row) => (
                       <tr key={row.id}>
-                        <td>
-                          <strong>{row.user_name}</strong>
+                        <td
+                          style={{ cursor: "pointer" }}
+                          onClick={() => setSelectedEmployeeId(String(row.employee_id))}
+                          title="Click to inspect this employee's full reports & performance"
+                        >
+                          <strong style={{ color: "#2563eb" }}>{row.user_name}</strong>
                           <span className="text-muted block-code">
                             {row.employee_code || row.user_email}
                           </span>

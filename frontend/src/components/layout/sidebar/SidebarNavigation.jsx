@@ -48,14 +48,55 @@ const managerMenuItems = [
 const SidebarNavigation = ({ onClose }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const menuItems = [
-    ...managerMenuItems,
-    { title: "Operations & Reports", icon: FileBarChart2, path: "/reports" },
-    { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
-    { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
-    ...(isSuperAdmin ? [{ title: "Call Recording", icon: Radio, path: "/telephony" }] : []),
-  ];
+  const role = user?.role || "";
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isHR = role === "HR";
+  const isOperationsDept = isHR || (user?.department_name && /operation|hr|academic|training/i.test(user.department_name));
+
+  // Build clean role-specific menu
+  let menuItems = [];
+
+  if (isHR) {
+    // Operations & HR Department ONLY — NO LEADS
+    menuItems = [
+      { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
+      { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+    ];
+  } else if (isSuperAdmin) {
+    // Super Admin: Has access to both Sales and Operations
+    menuItems = [
+      { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Campaigns", icon: Megaphone, path: "/campaigns" },
+      { title: "Lead Management", icon: UsersRound, path: "/leads" },
+      { title: "My Leads", icon: UserCircle, path: "/my-leads" },
+      { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Operations & HR", icon: FileBarChart2, path: "/reports" },
+      { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
+      { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+      { title: "Call Recording", icon: Radio, path: "/telephony" },
+    ];
+  } else if (isOperationsDept) {
+    // Operations / HR Manager
+    menuItems = [
+      { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
+      { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+    ];
+  } else {
+    // Sales Department Head / Manager
+    menuItems = [
+      { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Campaigns", icon: Megaphone, path: "/campaigns" },
+      { title: "Lead Management", icon: UsersRound, path: "/leads" },
+      { title: "My Leads", icon: UserCircle, path: "/my-leads" },
+      { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
+      { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+    ];
+  }
 
   const handleNavClick = () => {
     if (typeof window !== "undefined" && window.innerWidth <= 768 && onClose) {

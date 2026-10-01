@@ -764,13 +764,67 @@ const EmployeeManagement = () => {
                 </div>
 
                 <div className="form-field">
-                  <label>Designation</label>
+                  <label>Designation (Choose suggestion or type manually)</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "6px 0" }}>
+                    {[
+                      "Full Stack Developer",
+                      "Frontend Developer",
+                      "Backend Developer",
+                      "Faculty Trainer",
+                      "Senior Academic Trainer",
+                      "Admissions Counsellor",
+                      "Senior Admissions Counsellor",
+                      "Graphic Designer",
+                      "Video Editor",
+                      "Operations Executive",
+                      "HR Executive",
+                      "Team Lead",
+                    ].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, designation: item })}
+                        style={{
+                          fontSize: "11px",
+                          padding: "3px 8px",
+                          borderRadius: "12px",
+                          border: formData.designation === item ? "1.5px solid #2563EB" : "1px solid #E2E8F0",
+                          backgroundColor: formData.designation === item ? "#EFF6FF" : "#F8FAFC",
+                          color: formData.designation === item ? "#1D4ED8" : "#475569",
+                          cursor: "pointer",
+                          fontWeight: formData.designation === item ? "700" : "500",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
                   <input
+                    list="emp-mgmt-designation-options"
                     type="text"
                     value={formData.designation}
                     onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    placeholder="e.g. Senior Admissions Counsellor"
+                    placeholder="e.g. Full Stack Developer (or type custom designation)"
                   />
+                  <datalist id="emp-mgmt-designation-options">
+                    <option value="Full Stack Developer" />
+                    <option value="Frontend Developer" />
+                    <option value="Backend Developer" />
+                    <option value="Software Developer" />
+                    <option value="Web Developer" />
+                    <option value="Faculty Trainer" />
+                    <option value="Senior Academic Trainer" />
+                    <option value="Admissions Counsellor" />
+                    <option value="Senior Admissions Counsellor" />
+                    <option value="Graphic Designer" />
+                    <option value="Video Editor" />
+                    <option value="Digital Marketing Executive" />
+                    <option value="Operations Executive" />
+                    <option value="HR Manager" />
+                    <option value="HR Executive" />
+                    <option value="Team Lead" />
+                  </datalist>
                 </div>
 
                 <div className="form-field">

@@ -111,6 +111,11 @@ export const updateProfileValidator = [
     .withMessage("Profile image is too large.")
     .matches(/^data:image\/(png|jpeg|webp);base64,/)
     .withMessage("Use a PNG, JPEG, or WebP image."),
+  body("designation")
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Designation must be between 2 and 100 characters."),
 ];
 
 export const forgotPasswordValidator = [

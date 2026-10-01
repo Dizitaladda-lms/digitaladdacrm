@@ -20,9 +20,22 @@ import {
 import { getMyPerformance } from "../../services/employeeService";
 import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDetailsDrawer";
 import WhatsAppIcon from "../../components/common/WhatsAppIcon";
+import AcademicOperationsPerformance from "../../components/employee/dashboard/AcademicOperationsPerformance";
+import { useAuth } from "../../context/AuthContext";
 import "./MyPerformance.css";
 
 const MyPerformance = () => {
+  const { user } = useAuth();
+
+  // If user is from Academics, Operations, IT/Dev, HR, Trainer, etc. render their dedicated scorecard
+  if (user?.role && user.role !== "COUNSELLOR") {
+    return <AcademicOperationsPerformance />;
+  }
+
+  return <CounsellorPerformance />;
+};
+
+const CounsellorPerformance = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [perfData, setPerfData] = useState(null);

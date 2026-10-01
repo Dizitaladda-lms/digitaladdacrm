@@ -213,6 +213,7 @@ export const getAllCompanyReportsService = async (query) => {
   const startDate = query.startDate ? getFormattedDate(query.startDate) : undefined;
   const endDate = query.endDate ? getFormattedDate(query.endDate) : undefined;
   const departmentId = query.departmentId || undefined;
+  const employeeId = query.employeeId || undefined;
   const roleType = query.roleType || undefined;
   const status = query.status || undefined;
   const tookClass = query.tookClass;
@@ -220,6 +221,7 @@ export const getAllCompanyReportsService = async (query) => {
 
   return await findAllCompanyReportsRepository({
     departmentId,
+    employeeId,
     date,
     startDate,
     endDate,

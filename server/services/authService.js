@@ -812,8 +812,9 @@ async (
 
 export const updateOwnProfileService = async (userId, profile) => {
   const user = await updateOwnProfileRepository(userId, {
-    full_name: profile.full_name.trim(),
+    full_name: profile.full_name?.trim(),
     profile_image: profile.profile_image || null,
+    designation: profile.designation?.trim() || null,
   });
 
   if (!user) throw new ApiError(404, "User not found.");

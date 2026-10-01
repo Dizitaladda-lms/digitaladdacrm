@@ -104,23 +104,26 @@ async (email) => {
  * Used For Login
  * =====================================================
  */
-export const findUserByEmailWithPasswordRepository =
-async (email) => {
-
+export const findUserByEmailWithPasswordRepository = async (email) => {
   const query = `
-    SELECT *
-    FROM users
-    WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
-      AND is_deleted = FALSE;
+    SELECT 
+      u.*,
+      e.id AS employee_id,
+      e.employee_code,
+      COALESCE(e.designation, u.role) AS designation,
+      e.mobile,
+      e.department_id,
+      d.department_name,
+      e.employment_type
+    FROM users u
+    LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE
+    LEFT JOIN departments d ON e.department_id = d.id
+    WHERE LOWER(TRIM(u.email)) = LOWER(TRIM($1))
+      AND u.is_deleted = FALSE;
   `;
 
-  const result = await pool.query(
-    query,
-    [email]
-  );
-
+  const result = await pool.query(query, [email]);
   return result.rows[0];
-
 };
 
 /**
@@ -128,34 +131,36 @@ async (email) => {
  * Find User By ID
  * =====================================================
  */
-export const findUserByIdRepository =
-async (id) => {
-
+export const findUserByIdRepository = async (id) => {
   const query = `
     SELECT
-      id,
-      full_name,
-      email,
-      role,
-      profile_image,
-      is_active,
-      is_deleted,
-      email_verified,
-      last_login,
-      created_at,
-      updated_at
-    FROM users
-    WHERE id = $1
-      AND is_deleted = FALSE;
+      u.id,
+      u.full_name,
+      u.email,
+      u.role,
+      u.profile_image,
+      u.is_active,
+      u.is_deleted,
+      u.email_verified,
+      u.last_login,
+      u.created_at,
+      u.updated_at,
+      e.id AS employee_id,
+      e.employee_code,
+      COALESCE(e.designation, u.role) AS designation,
+      e.mobile,
+      e.department_id,
+      d.department_name,
+      e.employment_type
+    FROM users u
+    LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE
+    LEFT JOIN departments d ON e.department_id = d.id
+    WHERE u.id = $1
+      AND u.is_deleted = FALSE;
   `;
 
-  const result = await pool.query(
-    query,
-    [id]
-  );
-
+  const result = await pool.query(query, [id]);
   return result.rows[0];
-
 };
 
 export const updateOwnProfileRepository = async (userId, profile) => {
@@ -174,7 +179,16 @@ export const updateOwnProfileRepository = async (userId, profile) => {
     userId,
   ]);
 
-  return result.rows[0];
+  if (profile.designation) {
+    await pool.query(
+      `UPDATE employees 
+       SET designation = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE user_id = $2 AND is_deleted = FALSE;`,
+      [profile.designation, userId]
+    );
+  }
+
+  return await findUserByIdRepository(userId);
 };
 
 /**
