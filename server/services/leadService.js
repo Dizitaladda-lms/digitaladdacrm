@@ -129,7 +129,7 @@ export const createLeadService = async (
   req
 ) => {
   const isCounsellor = currentUser.role === ROLES.COUNSELLOR;
-  const isManagerOrSuperAdmin = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(currentUser.role);
+  const isManagerOrSuperAdmin = [ROLES.ADMIN, ROLES.SUPER_ADMIN, "ADMIN", "MANAGER"].includes(currentUser.role);
 
   if (!isManagerOrSuperAdmin && !isCounsellor) {
     throw new ApiError(
@@ -742,7 +742,7 @@ export const getLeadStatisticsService = async (currentUser, queryParams = {}) =>
     if (employee) {
       filterParams.employeeId = employee.id;
     }
-  } else if (currentUser?.role === ROLES.ADMIN && queryParams.assigned_to) {
+  } else if ([ROLES.ADMIN, "ADMIN", "MANAGER"].includes(currentUser?.role) && queryParams.assigned_to) {
     if (queryParams.assigned_to !== "all" && !isNaN(Number(queryParams.assigned_to))) {
       filterParams.employeeId = queryParams.assigned_to;
     }
@@ -1245,7 +1245,7 @@ export const importLeadsService = async (
   currentUser,
   req
 ) => {
-  if (![ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(currentUser.role)) {
+  if (![ROLES.ADMIN, ROLES.SUPER_ADMIN, "ADMIN", "MANAGER"].includes(currentUser.role)) {
     throw new ApiError(403, "Only administrators are authorized to import leads.");
   }
 

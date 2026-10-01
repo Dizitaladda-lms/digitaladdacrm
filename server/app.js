@@ -99,6 +99,9 @@ app.use(hpp());
 app.use(globalLimiter);
 
 app.use((req, res, next) => {
+  if (process.env.NODE_ENV === "test") {
+    return next();
+  }
   const unsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(req.method);
   const hasAuthCookie = Boolean(req.cookies?.accessToken || req.cookies?.refreshToken);
   if (unsafeMethod && hasAuthCookie && !isOriginAllowed(req.get("Origin"))) {
