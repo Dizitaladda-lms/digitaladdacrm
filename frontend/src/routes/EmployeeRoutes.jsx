@@ -9,8 +9,8 @@ const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
 const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
 const Profile = lazy(() => import("../pages/employee/Profile"));
 const Settings = lazy(() => import("../pages/employee/Settings"));
-const MyDailyReport = lazy(() => import("../pages/employee/MyDailyReport"));
-const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
+const MyDailyReport = lazy(() => import("../pages/employee/MyDailyReport.jsx"));
+const TeamReports = lazy(() => import("../pages/employee/TeamReports.jsx"));
 
 const LoadingFallback = () => (
   <div style={{ padding: "40px", textAlign: "center", fontWeight: 600, color: "#64748B" }}>

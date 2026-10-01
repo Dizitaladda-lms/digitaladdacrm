@@ -77,7 +77,7 @@ const LeadDetailsDrawer = ({
       setAcademicData((prev) => ({
         ...prev,
         interested_course:
-          leadData.interested_course || leadData.course_name || "BCA",
+          leadData.interested_course || leadData.course_name || "",
         preferred_centre: leadData.preferred_centre || "",
       }));
 

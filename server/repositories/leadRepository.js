@@ -438,7 +438,7 @@ export const getLeadsRepository = async (filters) => {
     SELECT
       l.*,
       e.full_name AS assigned_employee,
-      cp.campaign_name AS course_name
+      COALESCE(NULLIF(TRIM(l.interested_course), ''), cp.campaign_name) AS course_name
 
     FROM leads l
 
@@ -642,6 +642,7 @@ export const getMyLeadsRepository = async (filters = {}) => {
     SELECT
       l.*,
       cp.campaign_name,
+      COALESCE(NULLIF(TRIM(l.interested_course), ''), cp.campaign_name) AS course_name,
       e.full_name AS assigned_employee
 
     FROM leads l

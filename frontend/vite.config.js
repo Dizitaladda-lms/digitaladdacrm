@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  resolve: {
+    extensions: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".json"],
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

@@ -236,9 +236,13 @@ const LeadTable = ({
 
     items.sort((a, b) => {
 
-      const valueA = a[sortConfig.key] ?? "";
+      let valueA = a[sortConfig.key] ?? "";
+      let valueB = b[sortConfig.key] ?? "";
 
-      const valueB = b[sortConfig.key] ?? "";
+      if (sortConfig.key === "course_name") {
+        valueA = a.interested_course || a.course_name || "";
+        valueB = b.interested_course || b.course_name || "";
+      }
 
       if (valueA < valueB) {
 
@@ -546,7 +550,7 @@ const LeadTable = ({
         {/* Course */}
         <td className="px-4 py-3">
           <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-800 border border-slate-200">
-            {lead.course_name || "Not Selected"}
+            {lead.interested_course || lead.course_name || "Not Selected"}
           </span>
         </td>
 

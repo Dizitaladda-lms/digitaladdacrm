@@ -129,7 +129,7 @@ const LeadAcademicInfoCard = ({ lead }) => {
           />
           <InfoRow
             label="Interested Course"
-            value={lead.course_name || lead.interested_course}
+            value={lead.interested_course || lead.course_name || "Not Specified"}
             icon={<Building size={15} className="text-slate-400" />}
           />
           <InfoRow

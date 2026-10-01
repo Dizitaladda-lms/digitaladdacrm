@@ -18,9 +18,9 @@ const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
 const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
 const TelephonySettings = lazy(() => import("../pages/admin/TelephonySettings"));
 const ManagerMyLeads = lazy(() => import("../pages/admin/ManagerMyLeads"));
-const OperationsDashboard = lazy(() => import("../pages/reports/OperationsDashboard"));
-const DailyReportForm = lazy(() => import("../components/reports/DailyReportForm"));
-const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
+const OperationsDashboard = lazy(() => import("../pages/reports/OperationsDashboard.jsx"));
+const DailyReportForm = lazy(() => import("../components/reports/DailyReportForm.jsx"));
+const TeamReports = lazy(() => import("../pages/employee/TeamReports.jsx"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";

@@ -50,10 +50,64 @@ const normalizePublicLeadPayload = (req, res, next) => {
       const cleaned = String(req.body.mobile).replace(/\D/g, "");
       req.body.mobile = cleaned.length >= 10 ? cleaned.slice(-10) : cleaned;
     }
-    if (!req.body.interested_course) {
-      req.body.interested_course =
-        req.body.course || req.body.interestedCourse || req.body.program || "";
+    // Course normalization from multiple possible input formats / names
+    const extractCourse = (obj) => {
+      if (!obj || typeof obj !== "object") return "";
+      const raw =
+        obj.interested_course ||
+        obj.interestedCourse ||
+        obj.course ||
+        obj.course_name ||
+        obj.courseName ||
+        obj.courses ||
+        obj.selectedCourse ||
+        obj.selected_course ||
+        obj.select_course ||
+        obj.selectCourse ||
+        obj.choose_course ||
+        obj.chooseCourse ||
+        obj.program ||
+        obj.programs ||
+        obj.program_name ||
+        obj.programName ||
+        obj.subject ||
+        obj.subjects ||
+        obj.training ||
+        obj.stream ||
+        obj.service ||
+        obj.service_name ||
+        obj.serviceName ||
+        obj.interest ||
+        obj.interested_in ||
+        obj.interestedIn ||
+        obj.qualification ||
+        "";
+
+      if (Array.isArray(raw)) {
+        return raw
+          .map((item) => (typeof item === "object" ? item?.name || item?.label || item?.title || item?.value || "" : item))
+          .filter(Boolean)
+          .join(", ");
+      }
+      if (typeof raw === "object" && raw !== null) {
+        return raw.name || raw.label || raw.title || raw.value || "";
+      }
+      return String(raw || "").trim();
+    };
+
+    let courseVal = extractCourse(req.body);
+    if (!courseVal && req.body.formData) courseVal = extractCourse(req.body.formData);
+    if (!courseVal && req.body.data) courseVal = extractCourse(req.body.data);
+    if (!courseVal && req.body.fields) courseVal = extractCourse(req.body.fields);
+    if (!courseVal && req.body.payload) courseVal = extractCourse(req.body.payload);
+    if (!courseVal && req.query) courseVal = extractCourse(req.query);
+
+    if (courseVal) {
+      req.body.interested_course = courseVal;
+      req.body.course = courseVal;
+      req.body.course_name = courseVal;
     }
+
     if (!req.body.preferred_centre) {
       req.body.preferred_centre =
         req.body.centre || req.body.preferredCentre || req.body.campus || req.body.branch || "";

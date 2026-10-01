@@ -41,7 +41,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
-const allowedMainWebsitesRegex = /^(https?:\/\/)?(www\.)?(nidads\.com|nipage\.com|iidad\.com|dizitaladda\.com)(:\d+)?$/i;
+const allowedMainWebsitesRegex = /^(https?:\/\/)?(www\.)?(nidads\.com|nipage\.com|nigape\.com|iidad\.com|dizitaladda\.com)(:\d+)?$/i;
 const explicitOrigins = [process.env.CLIENT_URL || "", process.env.ALLOWED_ORIGINS || ""]
   .join(",")
   .split(",")

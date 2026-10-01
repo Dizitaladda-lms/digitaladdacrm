@@ -66,20 +66,29 @@ const AcademicInformationTab = ({
             <label className="crm-label">
               Interested Program / Course <span className="crm-required">*</span>
             </label>
-            <select
+            <input
+              type="text"
               disabled={!canEdit}
-              value={formData.interested_course || lead?.interested_course || "BCA"}
+              list="common-courses-list"
+              value={formData.interested_course ?? (lead?.interested_course || lead?.course_name || "")}
               onChange={(e) => handleChange("interested_course", e.target.value)}
-              className="crm-select"
-              style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "pointer" }}
-            >
-              <option value="BCA">BCA - Bachelor of Computer Applications</option>
-              <option value="BBA">BBA - Bachelor of Business Administration</option>
-              <option value="B.Tech">B.Tech - Computer Science & Engineering</option>
-              <option value="Event Management">Diploma in Event Management</option>
-              <option value="Data Science">Post Graduate Data Science</option>
-              <option value="MBA">MBA - Master of Business Administration</option>
-            </select>
+              placeholder="e.g. Data Science, Digital Marketing, AI..."
+              className="crm-input"
+              style={{ backgroundColor: !canEdit ? "#F1F5F9" : "#FFFFFF", cursor: !canEdit ? "not-allowed" : "text" }}
+            />
+            <datalist id="common-courses-list">
+              <option value="Data Science & AI Bootcamp" />
+              <option value="DATA SCIENCE & DATA ANALYTICS" />
+              <option value="Generative AI & Autonomous AI Agents" />
+              <option value="Digital Marketing Masterclass" />
+              <option value="Expert in Digital Marketing (12 Months)" />
+              <option value="Cyber Security & Ethical Hacking" />
+              <option value="Full Stack Web Development" />
+              <option value="Graphic Design & Video Editing" />
+              <option value="BCA" />
+              <option value="BBA" />
+              <option value="B.Tech" />
+            </datalist>
           </div>
 
           {/* Preferred Batch */}
