@@ -3,21 +3,32 @@ import pool from "../../config/db.js";
 
 const requiredTables = ["refresh_tokens", "password_resets", "users"];
 
+export const isTestDatabase = () => {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return false;
+  try {
+    const databaseName = new URL(connectionString).pathname.replace(/^\//, "");
+    return /(^|[_-])test$/i.test(databaseName);
+  } catch {
+    return false;
+  }
+};
+
 const assertTestDatabase = () => {
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
-    throw new Error("DATABASE_URL must be set in server/.env.test before running tests.");
+    throw new Error("DATABASE_URL must be set before running tests.");
   }
 
   let databaseName;
   try {
     databaseName = new URL(connectionString).pathname.replace(/^\//, "");
   } catch {
-    throw new Error("DATABASE_URL in server/.env.test must be a valid PostgreSQL URL.");
+    throw new Error("DATABASE_URL must be a valid PostgreSQL URL.");
   }
 
-  if (!/(^|[_-])test$/i.test(databaseName)) {
+  if (!isTestDatabase()) {
     throw new Error(
       `Refusing to run destructive tests against database "${databaseName}". Use a database name ending in _test.`
     );

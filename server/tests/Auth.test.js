@@ -8,9 +8,11 @@ import ROLES from "../constants/roles.js";
 // this import — the rest of the tests don't depend on how it's exported.
 import app from "../app.js";
 
-import { resetAuthTables, createTestUser, closeTestPool } from "./helpers/testDb.js";
+import { resetAuthTables, createTestUser, closeTestPool, isTestDatabase } from "./helpers/testDb.js";
 
-describe("Auth: login", () => {
+const describeAuth = describe.skipIf(!isTestDatabase());
+
+describeAuth("Auth: login", () => {
   beforeEach(async () => {
     await resetAuthTables();
   });
@@ -69,7 +71,7 @@ describe("Auth: login", () => {
   });
 });
 
-describe("Auth: protected routes", () => {
+describeAuth("Auth: protected routes", () => {
   beforeEach(async () => {
     await resetAuthTables();
   });
@@ -106,7 +108,7 @@ describe("Auth: protected routes", () => {
   });
 });
 
-describe("Auth: refresh token rotation", () => {
+describeAuth("Auth: refresh token rotation", () => {
   beforeEach(async () => {
     await resetAuthTables();
   });
@@ -149,7 +151,7 @@ describe("Auth: refresh token rotation", () => {
   });
 });
 
-describe("Auth: logout", () => {
+describeAuth("Auth: logout", () => {
   beforeEach(async () => {
     await resetAuthTables();
   });
@@ -183,7 +185,7 @@ describe("Auth: logout", () => {
   });
 });
 
-describe("Auth: role is reflected correctly on login", () => {
+describeAuth("Auth: role is reflected correctly on login", () => {
   beforeEach(async () => {
     await resetAuthTables();
   });
