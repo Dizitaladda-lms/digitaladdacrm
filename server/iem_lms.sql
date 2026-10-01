@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT users_email_key UNIQUE (email),
-    CONSTRAINT users_role_check CHECK (role IN ('ADMIN', 'SUPER_ADMIN', 'MANAGER', 'COUNSELLOR', 'EMPLOYEE', 'admin', 'super_admin', 'manager', 'counsellor', 'employee'))
+    CONSTRAINT users_role_check CHECK (role IN ('ADMIN', 'SUPER_ADMIN', 'MANAGER', 'COUNSELLOR', 'EMPLOYEE', 'HR', 'TL', 'TRAINER', 'INTERN', 'admin', 'super_admin', 'manager', 'counsellor', 'employee', 'hr', 'tl', 'trainer', 'intern'))
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT;
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS employees (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at              TIMESTAMPTZ,
     is_deleted              BOOLEAN NOT NULL DEFAULT FALSE,
-    CONSTRAINT employees_role_check CHECK (role IN ('ADMIN', 'SUPER_ADMIN', 'MANAGER', 'COUNSELLOR', 'EMPLOYEE')),
+    CONSTRAINT employees_role_check CHECK (role IN ('ADMIN', 'SUPER_ADMIN', 'MANAGER', 'COUNSELLOR', 'EMPLOYEE', 'HR', 'TL', 'TRAINER', 'INTERN')),
     CONSTRAINT employees_status_check CHECK (status IN ('ACTIVE', 'INACTIVE', 'ON_LEAVE', 'SUSPENDED')),
     CONSTRAINT employees_employment_type_check CHECK (employment_type IN ('FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'))
 );
