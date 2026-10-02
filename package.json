@@ -13,6 +13,7 @@
     "server": "npm run dev --prefix server",
     "server:start": "npm start --prefix server",
     "db:init": "node server/scripts/init-db.js",
+    "db:migrate": "node server/scripts/migrate.js",
     "db:seed:test": "node server/scripts/seed-test-db.js",
     "create:admin": "node server/scripts/create-admin.js"
   }

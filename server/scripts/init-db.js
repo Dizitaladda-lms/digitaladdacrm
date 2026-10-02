@@ -9,11 +9,8 @@ const __dirname = dirname(__filename);
 
 dotenv.config({ path: resolve(__dirname, "../.env") });
 
-import { existsSync } from "fs";
-
 const dizitalAddaSql = resolve(__dirname, "../dizitaladda_crm.sql");
-const fallbackSql = resolve(__dirname, "../iem_lms.sql");
-const sqlFilePath = existsSync(dizitalAddaSql) ? dizitalAddaSql : fallbackSql;
+const sqlFilePath = dizitalAddaSql;
 
 const run = async () => {
   try {

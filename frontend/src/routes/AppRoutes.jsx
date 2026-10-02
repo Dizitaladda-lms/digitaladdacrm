@@ -6,8 +6,6 @@ import ChangePassword from "../pages/auth/ChangePassword/ChangePassword";
 
 import Dashboard from "../pages/dashboard/Dashboard";
 import LeadManagement from "../pages/Lead/LeadManagement";
-import CampaignManagement from "../pages/campaign/CampaignManagement";
-import CampaignForm from "../pages/campaign/CampaignForm";
 import LeadSources from "../pages/leadSources/LeadSources";
 import AdminWorkspace from "../pages/admin/AdminWorkspace";
 import AdminSettings from "../pages/admin/Settings";
@@ -64,8 +62,6 @@ const AppRoutes = () => {
                 </Suspense>
               }
             />
-
-            <Route path="/campaigns" element={<CampaignManagement />} />
 
             <Route path="/lead-sources" element={<LeadSources />} />
 
@@ -130,10 +126,6 @@ const AppRoutes = () => {
             </Route>
 
             <Route path="/settings" element={<AdminSettings />} />
-
-            <Route path="/campaigns/new" element={<CampaignForm />} />
-
-            <Route path="/campaigns/edit/:id" element={<CampaignForm />} />
 
             <Route
               path="/change-password"

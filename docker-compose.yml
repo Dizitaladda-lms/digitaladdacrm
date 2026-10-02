@@ -44,7 +44,7 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./server/iem_lms.sql:/docker-entrypoint-initdb.d/01-iem_lms.sql:ro
+      - ./server/dizitaladda_crm.sql:/docker-entrypoint-initdb.d/01-dizitaladda-crm.sql:ro
 
 volumes:
 

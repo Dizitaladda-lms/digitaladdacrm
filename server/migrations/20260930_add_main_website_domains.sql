@@ -13,7 +13,12 @@ ON CONFLICT (name) DO UPDATE SET is_active = true, is_deleted = false;
 -- 2. Fix misspelling 'Nigape' -> 'Nipage' if present in lead_domains
 UPDATE lead_domains 
 SET name = 'Nipage', updated_at = CURRENT_TIMESTAMP 
-WHERE LOWER(name) = 'nigape';
+WHERE name = 'Nigape'
+    AND NOT EXISTS (
+        SELECT 1
+        FROM lead_domains canonical
+        WHERE canonical.name = 'Nipage'
+    );
 
 -- 3. Also update any historical leads with 'Nigape' -> 'Nipage'
 UPDATE leads 

@@ -24,11 +24,6 @@ const sidebarMenu = [
     path: "/admin/leads",
   },
   {
-    title: "Campaigns",
-    icon: Megaphone,
-    path: "/admin/campaigns",
-  },
-  {
     title: "Employees",
     icon: UserCheck,
     path: "/admin/employees",

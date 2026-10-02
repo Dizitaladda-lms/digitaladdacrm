@@ -13,9 +13,10 @@ import {
   Building2,
   Check,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createEmployee, deleteEmployee, getEmployees } from "../../services/employeeService";
+import { createEmployee, deleteEmployee, updateEmployee, getEmployees } from "../../services/employeeService";
 import { getDepartments } from "../../services/departmentService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -75,6 +76,19 @@ const Employees = () => {
   const [selectedEmployeeForDomain, setSelectedEmployeeForDomain] = useState(null);
   const [assignedDomainIds, setAssignedDomainIds] = useState([]);
   const [domainSaving, setDomainSaving] = useState(false);
+
+  // Edit Department & Profile Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    department_id: "",
+    role: "COUNSELLOR",
+    designation: "",
+    status: "ACTIVE",
+    reporting_manager_id: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
 
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -214,6 +228,43 @@ const Employees = () => {
     } catch (err) {
       console.error("Failed to delete employee:", err);
       toast.error(err?.response?.data?.message || "Could not remove employee.");
+    }
+  };
+
+  const openEditModal = (employee) => {
+    setEditingEmployee(employee);
+    setEditForm({
+      full_name: employee.full_name || "",
+      department_id: employee.department_id || "",
+      role: employee.role || "COUNSELLOR",
+      designation: employee.designation || "",
+      status: employee.status || "ACTIVE",
+      reporting_manager_id: employee.reporting_manager_id || "",
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editForm.department_id) return toast.error("Please select a department.");
+    setEditSaving(true);
+    try {
+      await updateEmployee(editingEmployee.id, {
+        full_name: editForm.full_name,
+        department_id: Number(editForm.department_id),
+        role: editForm.role,
+        designation: editForm.designation,
+        status: editForm.status,
+        reporting_manager_id: editForm.reporting_manager_id ? Number(editForm.reporting_manager_id) : null,
+      });
+      toast.success(`${editingEmployee.full_name}'s department and role updated successfully!`);
+      setEditModalOpen(false);
+      await load();
+    } catch (err) {
+      console.error("Failed to update employee:", err);
+      toast.error(err?.response?.data?.message || "Could not update employee.");
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -471,6 +522,24 @@ const Employees = () => {
                         <Route size={15} />
                         <span>Assign Domain</span>
                       </button>
+
+                      {canAddEmployee && (
+                        <button
+                          className="view-more-btn"
+                          type="button"
+                          onClick={() => openEditModal(employee)}
+                          style={{
+                            backgroundColor: "#F8FAFC",
+                            color: "#334155",
+                            border: "1px solid #CBD5E1",
+                            fontWeight: 600,
+                          }}
+                          title={`Change department or role for ${employee.full_name}`}
+                        >
+                          <Pencil size={14} />
+                          <span>Change Dept</span>
+                        </button>
+                      )}
 
                       <button
                         className="view-more-btn"
@@ -814,6 +883,202 @@ const Employees = () => {
               >
                 {domainSaving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}
                 {domainSaving ? "Saving..." : "Save Domains"}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+
+      {/* Change Department & Edit Employee Modal (For HR & Super Admin) */}
+      {editModalOpen && editingEmployee && (
+        <div className="employee-modal-overlay">
+          <form className="employee-modal" onSubmit={handleSaveEdit}>
+            <header>
+              <div>
+                <span>HR & Operations Access Control</span>
+                <h2>Change Department & Role</h2>
+                <p>
+                  Update {editingEmployee.full_name}'s department and role. Changing the department immediately updates their system permissions.
+                </p>
+              </div>
+              <button type="button" onClick={() => setEditModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </header>
+
+            <div className="employee-modal-body">
+              <section>
+                <div
+                  style={{
+                    backgroundColor: "#EFF6FF",
+                    border: "1px solid #BFDBFE",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    marginBottom: "16px",
+                    fontSize: "12px",
+                    color: "#1E40AF",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  💡 <strong>Access Control Notice:</strong> Moving an employee to <strong>Sales</strong> grants Leads and Admissions access. Moving them to <strong>Operations, Academics, or HR</strong> automatically hides Leads and activates Daily Work Reporting & Video Proof compliance.
+                </div>
+
+                <div className="employee-form-grid">
+                  <label>
+                    Full Name
+                    <input
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Assigned Department *
+                    <select
+                      value={editForm.department_id}
+                      onChange={(e) => setEditForm({ ...editForm, department_id: e.target.value })}
+                      required
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.department_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Role / System Access Level *
+                    <select
+                      value={editForm.role}
+                      onChange={(e) => {
+                        const newRole = e.target.value;
+                        let defaultDesig = editForm.designation;
+                        if (newRole === "HR") defaultDesig = "HR Manager";
+                        else if (newRole === "TRAINER") defaultDesig = "Faculty Trainer";
+                        else if (newRole === "TL") defaultDesig = "Team Lead";
+                        else if (newRole === "INTERN") defaultDesig = "Intern";
+                        else if (newRole === "COUNSELLOR") defaultDesig = "Counsellor";
+                        else if (newRole === "EMPLOYEE") defaultDesig = "Executive";
+                        setEditForm({ ...editForm, role: newRole, designation: defaultDesig });
+                      }}
+                      required
+                    >
+                      <option value="COUNSELLOR">Counsellor (Admissions / Sales)</option>
+                      <option value="HR">HR (Human Resources & Operations)</option>
+                      <option value="TRAINER">Trainer (Faculty / Classes & Training)</option>
+                      <option value="TL">Team Lead (TL / Supervisor)</option>
+                      <option value="EMPLOYEE">Employee (Staff / Dev / Design / Marketing)</option>
+                      <option value="INTERN">Intern</option>
+                      {isSuperAdmin && <option value="MANAGER">Manager / Department Head</option>}
+                    </select>
+                  </label>
+
+                  <label>
+                    Status
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    >
+                      <option value="ACTIVE">Active (Can Login)</option>
+                      <option value="INACTIVE">Inactive (Suspended)</option>
+                    </select>
+                  </label>
+
+                  {editForm.role === "INTERN" && (
+                    <label>
+                      Assigned Team Lead / Mentor
+                      <select
+                        value={editForm.reporting_manager_id}
+                        onChange={(e) => setEditForm({ ...editForm, reporting_manager_id: e.target.value })}
+                      >
+                        <option value="">Select Team Lead / Trainer</option>
+                        {employees
+                          .filter((emp) => emp.id !== editingEmployee.id && emp.role !== "INTERN")
+                          .map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.full_name} ({emp.designation || emp.role})
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
+
+                  <label style={{ gridColumn: "1 / -1" }}>
+                    Designation (Select suggestion or type custom)
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "6px 0" }}>
+                      {[
+                        "Full Stack Developer",
+                        "Frontend Developer",
+                        "Backend Developer",
+                        "Faculty Trainer",
+                        "Senior Academic Trainer",
+                        "Admissions Counsellor",
+                        "Senior Admissions Counsellor",
+                        "Graphic Designer",
+                        "Video Editor",
+                        "Operations Executive",
+                        "HR Executive",
+                        "Team Lead",
+                      ].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, designation: d })}
+                          style={{
+                            fontSize: "11px",
+                            padding: "3px 8px",
+                            borderRadius: "12px",
+                            border: editForm.designation === d ? "1.5px solid #2563EB" : "1px solid #E2E8F0",
+                            backgroundColor: editForm.designation === d ? "#EFF6FF" : "#F8FAFC",
+                            color: editForm.designation === d ? "#1D4ED8" : "#475569",
+                            cursor: "pointer",
+                            fontWeight: editForm.designation === d ? "700" : "500",
+                          }}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      list="edit-designation-suggestions"
+                      value={editForm.designation}
+                      onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
+                      placeholder="e.g. Full Stack Developer"
+                      required
+                    />
+                    <datalist id="edit-designation-suggestions">
+                      <option value="Full Stack Developer" />
+                      <option value="Frontend Developer" />
+                      <option value="Backend Developer" />
+                      <option value="Software Developer" />
+                      <option value="Web Developer" />
+                      <option value="Faculty Trainer" />
+                      <option value="Senior Academic Trainer" />
+                      <option value="Admissions Counsellor" />
+                      <option value="Senior Admissions Counsellor" />
+                      <option value="Graphic Designer" />
+                      <option value="Video Editor" />
+                      <option value="Digital Marketing Executive" />
+                      <option value="Operations Executive" />
+                      <option value="HR Manager" />
+                      <option value="HR Executive" />
+                      <option value="Team Lead" />
+                    </datalist>
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <footer>
+              <button type="button" onClick={() => setEditModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={editSaving}>
+                {editSaving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}
+                {editSaving ? "Saving Changes..." : "Update Department & Role"}
               </button>
             </footer>
           </form>

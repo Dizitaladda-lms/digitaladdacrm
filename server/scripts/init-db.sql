@@ -3,6 +3,6 @@
 
 \echo 'Creating schema and seeding initial data...'
 
-\i iem_lms.sql
+\i dizitaladda_crm.sql
 
 \echo 'Database initialization complete.'

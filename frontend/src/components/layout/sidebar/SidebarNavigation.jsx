@@ -24,11 +24,6 @@ const managerMenuItems = [
     path: "/dashboard",
   },
   {
-    title: "Campaigns",
-    icon: Megaphone,
-    path: "/campaigns",
-  },
-  {
     title: "Lead Management",
     icon: UsersRound,
     path: "/leads",
@@ -65,10 +60,9 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   } else if (isSuperAdmin) {
-    // Super Admin: Has access to both Sales and Operations
+    // Super Admin: Has access to both Sales and Operations (No Campaigns)
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-      { title: "Campaigns", icon: Megaphone, path: "/campaigns" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
@@ -78,7 +72,7 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Call Recording", icon: Radio, path: "/telephony" },
     ];
   } else if (isOperationsDept) {
-    // Operations / HR Manager
+    // Operations / HR Staff
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
@@ -86,15 +80,12 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   } else {
-    // Sales Department Head / Manager
+    // Sales Manager: ONLY Leads Management & Sales Team Reports
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-      { title: "Campaigns", icon: Megaphone, path: "/campaigns" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
-      { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
-      { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
-      { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+      { title: "Sales Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   }
 

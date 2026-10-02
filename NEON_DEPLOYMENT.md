@@ -3,8 +3,10 @@
 1. In the Neon Console, open **Connect** and copy the **pooled connection
    string**. Its hostname includes `-pooler`; Neon recommends it for deployed
    application traffic.
-2. In the Neon SQL Editor, run [server/iem_lms.sql](server/iem_lms.sql) once.
-   It creates the application tables and loads the current seed data.
+2. In the Neon SQL Editor, run [server/dizitaladda_crm.sql](server/dizitaladda_crm.sql) once.
+   This is the consolidated, idempotent schema for the current CRM tables,
+   migrations, indexes, constraints, and required reference data. It does not
+   create user accounts or change existing account roles.
 3. Deploy the Render service with [render.yaml](render.yaml). In Render's
    Environment settings, set `DATABASE_URL` to the complete Neon pooled
    connection string. Keep `DB_SSL=true` and `DB_POOL_MAX=5`.
