@@ -85,7 +85,7 @@ const OperationsDashboard = () => {
   useEffect(() => {
     const loadStaff = async () => {
       try {
-        const res = await getEmployees({ limit: 150 });
+        const res = await getEmployees({ limit: 100 });
         const list = res?.data?.employees || res?.data || [];
         setStaffList(list);
       } catch (e) {
