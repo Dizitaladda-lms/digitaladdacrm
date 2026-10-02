@@ -57,21 +57,23 @@ const normalizeEmployeeData = (employeeData) => ({
     mobile: employeeData.mobile.trim(),
 });
 
-const ensureEmployeeCanBeCreated = async (employeeData) => {
+const ensureEmployeeCanBeCreated = async (employeeData, isApproval = false) => {
     if (!isValidRole(employeeData.role)) {
         throw new ApiError(400, "Invalid employee role.");
     }
 
-    if (await findEmployeeByEmailRepository(employeeData.email)) {
-        throw new ApiError(409, "Employee email already exists.");
-    }
+    if (!isApproval) {
+        if (await findEmployeeByEmailRepository(employeeData.email)) {
+            throw new ApiError(409, "Employee email already exists.");
+        }
 
-    if (await findUserByEmailRepository(employeeData.email)) {
-        throw new ApiError(409, "User email already exists.");
-    }
+        if (await findUserByEmailRepository(employeeData.email)) {
+            throw new ApiError(409, "User email already exists.");
+        }
 
-    if (await findEmployeeByMobileRepository(employeeData.mobile)) {
-        throw new ApiError(409, "Mobile number already exists.");
+        if (await findEmployeeByMobileRepository(employeeData.mobile)) {
+            throw new ApiError(409, "Mobile number already belongs to an existing employee.");
+        }
     }
 };
 
@@ -82,44 +84,80 @@ const createEmployeeWithinTransaction = async (
     req,
     passwordHash
 ) => {
-    const sequence = await getNextEmployeeCodeRepository(client);
-    const employeeCode = generateEmployeeCode(sequence);
-    const user = await createUserRepository(client, {
-        full_name: employeeData.full_name,
-        email: employeeData.email,
-        password: passwordHash,
-        role: employeeData.role,
-    });
-    const employee = await createEmployeeRepository(client, {
-        ...employeeData,
-        user_id: user.id,
-        employee_code: employeeCode,
-        created_by: currentUser.id,
-    });
-
-    if (Array.isArray(employeeData.routing_assignments)) {
-        for (const routing of employeeData.routing_assignments) {
-            if (!routing?.domain_id) continue;
-            await createRoutingAssignmentRepository(client, {
-                employeeId: employee.id,
-                domainId: routing.domain_id,
-                courseId: routing.course_id || null,
-                autoAssign: routing.auto_assign !== false,
+    try {
+        let user = await findUserByEmailRepository(employeeData.email);
+        if (!user) {
+            user = await createUserRepository(client, {
+                full_name: employeeData.full_name,
+                email: employeeData.email,
+                password: passwordHash,
+                role: employeeData.role,
+            });
+        } else {
+            await updateUserRepository(client, user.id, {
+                full_name: employeeData.full_name,
+                role: employeeData.role,
             });
         }
+
+        let employee = await findEmployeeByUserIdRepository(user.id);
+        if (!employee && employeeData.mobile) {
+            employee = await findEmployeeByMobileRepository(employeeData.mobile);
+        }
+
+        if (employee) {
+            employee = await updateEmployeeRepository(client, employee.id, {
+                ...employeeData,
+                user_id: user.id,
+                status: "ACTIVE",
+                updated_by: currentUser.id,
+            });
+        } else {
+            const sequence = await getNextEmployeeCodeRepository(client);
+            const employeeCode = generateEmployeeCode(sequence);
+            employee = await createEmployeeRepository(client, {
+                ...employeeData,
+                user_id: user.id,
+                employee_code: employeeCode,
+                created_by: currentUser.id,
+            });
+        }
+
+        if (Array.isArray(employeeData.routing_assignments)) {
+            for (const routing of employeeData.routing_assignments) {
+                if (!routing?.domain_id) continue;
+                await createRoutingAssignmentRepository(client, {
+                    employeeId: employee.id,
+                    domainId: routing.domain_id,
+                    courseId: routing.course_id || null,
+                    autoAssign: routing.auto_assign !== false,
+                });
+            }
+        }
+
+        safeAuditLog({
+            action: "EMPLOYEE_CREATED",
+            module: "EMPLOYEE",
+            userId: currentUser.id,
+            role: currentUser.role,
+            entityId: employee.id,
+            requestId: req.requestId,
+            ip: req.ip,
+        });
+
+        return employee;
+    } catch (dbErr) {
+        if (dbErr.code === "23505") {
+            if (dbErr.constraint?.includes("mobile")) {
+                throw new ApiError(409, "Mobile number already belongs to an existing employee.");
+            }
+            if (dbErr.constraint?.includes("email")) {
+                throw new ApiError(409, "Email address already belongs to an existing employee.");
+            }
+            throw new ApiError(409, "Employee with this email or mobile number already exists.");
+        }
+        throw dbErr;
     }
-
-    safeAuditLog({
-        action: "EMPLOYEE_CREATED",
-        module: "EMPLOYEE",
-        userId: currentUser.id,
-        role: currentUser.role,
-        entityId: employee.id,
-        requestId: req.requestId,
-        ip: req.ip,
-    });
-
-    return employee;
 };
 
 const getEmployeePasswordHash = async (employeeData) => {
@@ -189,7 +227,7 @@ export const approveEmployeeApprovalRequestService = async (id, currentUser, req
         }
 
         const employeeData = request.employee_data;
-        await ensureEmployeeCanBeCreated(employeeData);
+        await ensureEmployeeCanBeCreated(employeeData, true);
         const employee = await createEmployeeWithinTransaction(
             client,
             employeeData,
