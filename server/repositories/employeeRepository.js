@@ -28,6 +28,15 @@ const EMPLOYEE_SELECT_COLUMNS = `
     e.reporting_manager_id,
     m.full_name AS reporting_manager_name,
     e.status,
+    COALESCE(da.status, 'NOT_CHECKED_IN') AS today_attendance_status,
+    da.check_in_time AS today_check_in_time,
+    ROUND(
+      COALESCE(
+        da.total_hours, 
+        CASE WHEN da.check_in_time IS NOT NULL THEN EXTRACT(EPOCH FROM (COALESCE(da.check_out_time, CURRENT_TIMESTAMP) - da.check_in_time))/3600.0 ELSE 0 END
+      ), 
+      2
+    ) AS today_hours,
     e.joining_date,
     e.date_of_birth,
     e.gender,
@@ -50,6 +59,8 @@ const EMPLOYEE_BASE_QUERY = `
         ON d.id = e.department_id
     LEFT JOIN employees m
         ON m.id = e.reporting_manager_id
+    LEFT JOIN daily_attendance da
+        ON da.employee_id = e.id AND da.date = CURRENT_DATE
     WHERE e.is_deleted = FALSE
 `;
 

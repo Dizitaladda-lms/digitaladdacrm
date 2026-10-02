@@ -32,11 +32,11 @@ const SidebarNavigation = ({ onClose }) => {
   let menuItems = [];
 
   if (isHR) {
-    // Operations & HR Department ONLY — Dedicated Agency Leads & Attendance Reports
+    // Operations & HR Department ONLY — Dedicated Agency Leads & Company Attendance
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
-      { title: "Attendance Reports", icon: ShieldCheck, path: "/attendance-reports" },
+      { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
@@ -49,7 +49,7 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
-      { title: "Attendance Reports", icon: ShieldCheck, path: "/attendance-reports" },
+      { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
       { title: "Operations & HR", icon: FileBarChart2, path: "/reports" },
@@ -61,6 +61,7 @@ const SidebarNavigation = ({ onClose }) => {
     // Operations / HR Staff
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
       { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },

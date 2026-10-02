@@ -10,6 +10,10 @@ import {
   Eye,
   CheckCheck,
   Search,
+  PhoneCall,
+  GraduationCap,
+  TrendingUp,
+  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getTeamReports, reviewReportAsTL } from "../../services/reportService";
@@ -18,6 +22,10 @@ import "./TeamReports.css";
 
 const TeamReports = () => {
   const [reports, setReports] = useState([]);
+  const [salesMetrics, setSalesMetrics] = useState({
+    kpi: { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 },
+    counsellors: [],
+  });
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -38,8 +46,9 @@ const TeamReports = () => {
         status: statusFilter || undefined,
         roleType: roleFilter || undefined,
       });
-      if (res?.data?.reports) {
-        setReports(res.data.reports);
+      if (res?.data) {
+        if (res.data.reports) setReports(res.data.reports);
+        if (res.data.salesMetrics) setSalesMetrics(res.data.salesMetrics);
       }
     } catch (err) {
       console.error("Failed to fetch team reports:", err);
@@ -80,22 +89,19 @@ const TeamReports = () => {
     }
   };
 
-  // Metrics
-  const totalReports = reports.length;
-  const directInternsCount = reports.filter((r) => r.is_direct_intern || r.role_type === "INTERN").length;
-  const classesLogged = reports.filter((r) => r.took_class).length;
-  const pendingReview = reports.filter((r) => r.status === "SUBMITTED").length;
-  const verifiedCount = reports.filter((r) => r.status === "TL_REVIEWED" || r.status === "HR_APPROVED").length;
+  // KPI Metrics (Strictly Top 4 Imported Cards)
+  const kpi = salesMetrics.kpi || { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 };
+  const counsellors = salesMetrics.counsellors || [];
 
   return (
     <div className="team-reports-page">
       {/* Header */}
       <div className="team-reports-header">
         <div>
-          <span className="team-eyebrow">Team Leadership Workspace</span>
-          <h1 className="team-heading">Team Daily Reports & Video Proof Verification</h1>
+          <span className="team-eyebrow">Team Leadership & Sales Performance Workspace</span>
+          <h1 className="team-heading">Sales Team Performance & Work Reports</h1>
           <p className="team-subheading">
-            Review and verify daily work, task progress, and class video recording links for your team members and interns.
+            Live team analytics, call activity, enrolment conversions, and daily work report verifications.
           </p>
         </div>
 
@@ -136,54 +142,157 @@ const TeamReports = () => {
         </div>
       </div>
 
-      {/* Metrics Row */}
+      {/* STRICTLY 4 TOP KPI SUMMARY CARDS */}
       <div className="team-stats-grid">
         <div className="stat-card">
           <div className="stat-icon-wrap blue">
             <Users size={20} />
           </div>
           <div>
-            <span className="stat-label">Reports Submitted</span>
-            <strong className="stat-number">{totalReports}</strong>
+            <span className="stat-label">Assigned Leads & Calls</span>
+            <strong className="stat-number">
+              {kpi.totalLeads} <span style={{ fontSize: "14px", fontWeight: 500, color: "#64748b" }}>/ {kpi.totalCalls} calls</span>
+            </strong>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon-wrap amber">
-            <AlertCircle size={20} />
+            <PhoneCall size={20} />
           </div>
           <div>
-            <span className="stat-label">Pending TL Review</span>
-            <strong className="stat-number">{pendingReview}</strong>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrap orange">
-            <Video size={20} />
-          </div>
-          <div>
-            <span className="stat-label">Classes Conducted</span>
-            <strong className="stat-number">{classesLogged}</strong>
+            <span className="stat-label">Connected Calls</span>
+            <strong className="stat-number">{kpi.connectedCalls}</strong>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon-wrap green">
-            <CheckCircle size={20} />
+            <GraduationCap size={20} />
           </div>
           <div>
-            <span className="stat-label">Verified Reports</span>
-            <strong className="stat-number">{verifiedCount}</strong>
+            <span className="stat-label">Admissions Closed</span>
+            <strong className="stat-number">{kpi.totalAdmissions}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon-wrap orange">
+            <TrendingUp size={20} />
+          </div>
+          <div>
+            <span className="stat-label">Fee Revenue Collected</span>
+            <strong className="stat-number">
+              ₹ {Number(kpi.totalRevenue || 0).toLocaleString("en-IN")}
+            </strong>
           </div>
         </div>
       </div>
 
-      {/* Reports Table Card */}
+      {/* COUNSELLOR SALES BREAKDOWN TABLE */}
+      <div className="team-table-card" style={{ marginBottom: "28px" }}>
+        <div className="team-table-top">
+          <div>
+            <h3 className="team-table-title">Sales Counsellors Breakdown</h3>
+            <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: "13px" }}>
+              Individual counsellor call activity, today's attendance, admissions, and conversion metrics.
+            </p>
+          </div>
+          <span className="team-count-tag">{counsellors.length} Active Counsellors</span>
+        </div>
+
+        <div className="table-responsive">
+          <table className="team-reports-table">
+            <thead>
+              <tr>
+                <th>Counsellor</th>
+                <th>Today Attendance</th>
+                <th>Assigned Leads</th>
+                <th>Calls / Connected</th>
+                <th>Admissions</th>
+                <th>Revenue (₹)</th>
+                <th>Conversion Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {counsellors.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
+                    No sales counsellors found for the selected filter.
+                  </td>
+                </tr>
+              ) : (
+                counsellors.map((c) => (
+                  <tr key={c.employee_id}>
+                    <td>
+                      <div className="member-info-cell">
+                        <div className="member-avatar">
+                          {c.employee_name?.slice(0, 2).toUpperCase() || "CN"}
+                        </div>
+                        <div>
+                          <strong>{c.employee_name}</strong>
+                          <span className="member-code">{c.employee_code || c.email}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: "12px",
+                          backgroundColor: c.today_attendance_status === "PRESENT" ? "#DCFCE7" : "#FEE2E2",
+                          color: c.today_attendance_status === "PRESENT" ? "#15803D" : "#B91C1C",
+                        }}
+                      >
+                        {c.today_attendance_status === "PRESENT"
+                          ? `Present (${c.today_hours || 0}h)`
+                          : "Not Checked In"}
+                      </span>
+                    </td>
+                    <td>
+                      <strong style={{ color: "#2563EB" }}>{c.assigned_leads_count}</strong>
+                    </td>
+                    <td>
+                      <span>
+                        <strong>{c.total_calls_count}</strong> <span style={{ color: "#64748b" }}>({c.connected_calls_count} connected)</span>
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 700, color: "#16A34A" }}>{c.admissions_count}</span>
+                    </td>
+                    <td>
+                      <strong style={{ color: "#4F46E5" }}>
+                        ₹ {Number(c.total_revenue || 0).toLocaleString("en-IN")}
+                      </strong>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          background: Number(c.conversion_rate) > 0 ? "#EEF2FF" : "#F1F5F9",
+                          color: Number(c.conversion_rate) > 0 ? "#4338CA" : "#64748B",
+                        }}
+                      >
+                        {c.conversion_rate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* DAILY WORK REPORTS TABLE */}
       <div className="team-table-card">
         <div className="team-table-top">
           <h3 className="team-table-title">
-            Department Submissions for {selectedDate}
+            Department Daily Submissions for {selectedDate}
           </h3>
           <span className="team-count-tag">{reports.length} Submissions</span>
         </div>

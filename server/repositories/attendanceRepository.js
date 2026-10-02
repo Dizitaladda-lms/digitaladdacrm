@@ -166,85 +166,183 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
   const values = [];
   let index = 1;
 
-  let whereClause = ` WHERE 1=1 `;
+  const targetDate = date_from || new Date().toISOString().split("T")[0];
+  const isSingleDateMode = !date_from || (date_from && date_to && date_from === date_to);
 
-  if (search) {
-    whereClause += `
-      AND (
-        e.full_name ILIKE $${index}
-        OR e.employee_code ILIKE $${index}
-        OR u.email ILIKE $${index}
-      )
-    `;
-    values.push(`%${search}%`);
-    index++;
-  }
+  if (isSingleDateMode) {
+    let whereClause = ` WHERE e.status = 'ACTIVE' AND e.is_deleted = FALSE `;
 
-  if (status && String(status).toUpperCase() !== "ALL") {
-    whereClause += ` AND UPPER(a.status) = $${index} `;
-    values.push(String(status).toUpperCase());
-    index++;
-  }
-
-  if (date_from) {
-    whereClause += ` AND a.date >= $${index}::date `;
-    values.push(date_from);
-    index++;
-  }
-
-  if (date_to) {
-    whereClause += ` AND a.date <= $${index}::date `;
-    values.push(date_to);
-    index++;
-  }
-
-  const countQuery = `
-    SELECT COUNT(*) AS total
-    FROM daily_attendance a
-    JOIN employees e ON a.employee_id = e.id
-    LEFT JOIN users u ON e.user_id = u.id
-    ${whereClause}
-  `;
-
-  const countResult = await pool.query(countQuery, values);
-  const totalRecords = Number(countResult.rows[0]?.total || 0);
-
-  const query = `
-    SELECT 
-      a.*,
-      e.full_name AS employee_name,
-      e.employee_code,
-      e.designation,
-      e.role,
-      d.department_name,
-      ROUND(
-        COALESCE(
-          a.total_hours, 
-          EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0
-        ), 
-        2
-      ) AS live_hours
-    FROM daily_attendance a
-    JOIN employees e ON a.employee_id = e.id
-    LEFT JOIN users u ON e.user_id = u.id
-    LEFT JOIN departments d ON e.department_id = d.id
-    ${whereClause}
-    ORDER BY a.date DESC, a.check_in_time DESC
-    LIMIT $${index} OFFSET $${index + 1};
-  `;
-
-  values.push(Number(limit));
-  values.push((Number(page) - 1) * Number(limit));
-
-  const result = await pool.query(query, values);
-
-  return {
-    attendance: result.rows,
-    pagination: {
-      page: Number(page),
-      limit: Number(limit),
-      totalRecords,
-      totalPages: Math.ceil(totalRecords / Number(limit)) || 1,
+    if (search) {
+      whereClause += `
+        AND (
+          e.full_name ILIKE $${index}
+          OR e.employee_code ILIKE $${index}
+          OR u.email ILIKE $${index}
+        )
+      `;
+      values.push(`%${search}%`);
+      index++;
     }
-  };
+
+    values.push(targetDate);
+    const dateParamIndex = index;
+    index++;
+
+    if (status && String(status).toUpperCase() !== "ALL") {
+      const upperStatus = String(status).toUpperCase();
+      if (upperStatus === "ABSENT" || upperStatus === "NOT_CHECKED_IN") {
+        whereClause += ` AND (a.id IS NULL OR UPPER(a.status) = 'ABSENT') `;
+      } else {
+        whereClause += ` AND UPPER(a.status) = $${index} `;
+        values.push(upperStatus);
+        index++;
+      }
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM employees e
+      LEFT JOIN users u ON e.user_id = u.id
+      LEFT JOIN daily_attendance a ON a.employee_id = e.id AND a.date = $${dateParamIndex}::date
+      ${whereClause}
+    `;
+
+    const countResult = await pool.query(countQuery, values);
+    const totalRecords = Number(countResult.rows[0]?.total || 0);
+
+    const query = `
+      SELECT 
+        COALESCE(a.id, 0) AS id,
+        e.id AS employee_id,
+        $${dateParamIndex}::date AS date,
+        a.check_in_time,
+        a.check_out_time,
+        a.ip_address,
+        COALESCE(a.is_office_wifi, false) AS is_office_wifi,
+        COALESCE(a.status, 'NOT_CHECKED_IN') AS status,
+        e.full_name AS employee_name,
+        e.employee_code,
+        e.designation,
+        e.role,
+        d.department_name,
+        ROUND(
+          CASE 
+            WHEN a.check_in_time IS NOT NULL THEN
+              COALESCE(
+                a.total_hours, 
+                EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0
+              )
+            ELSE 0.00
+          END, 
+          2
+        ) AS live_hours
+      FROM employees e
+      LEFT JOIN users u ON e.user_id = u.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN daily_attendance a ON a.employee_id = e.id AND a.date = $${dateParamIndex}::date
+      ${whereClause}
+      ORDER BY 
+        CASE WHEN a.check_in_time IS NOT NULL THEN 0 ELSE 1 END,
+        a.check_in_time DESC,
+        e.full_name ASC
+      LIMIT $${index} OFFSET $${index + 1};
+    `;
+
+    values.push(Number(limit));
+    values.push((Number(page) - 1) * Number(limit));
+
+    const result = await pool.query(query, values);
+
+    return {
+      attendance: result.rows,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        totalRecords,
+        totalPages: Math.ceil(totalRecords / Number(limit)) || 1,
+      }
+    };
+  } else {
+    let whereClause = ` WHERE e.is_deleted = FALSE `;
+
+    if (search) {
+      whereClause += `
+        AND (
+          e.full_name ILIKE $${index}
+          OR e.employee_code ILIKE $${index}
+          OR u.email ILIKE $${index}
+        )
+      `;
+      values.push(`%${search}%`);
+      index++;
+    }
+
+    if (status && String(status).toUpperCase() !== "ALL") {
+      whereClause += ` AND UPPER(a.status) = $${index} `;
+      values.push(String(status).toUpperCase());
+      index++;
+    }
+
+    if (date_from) {
+      whereClause += ` AND a.date >= $${index}::date `;
+      values.push(date_from);
+      index++;
+    }
+
+    if (date_to) {
+      whereClause += ` AND a.date <= $${index}::date `;
+      values.push(date_to);
+      index++;
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM daily_attendance a
+      JOIN employees e ON a.employee_id = e.id
+      LEFT JOIN users u ON e.user_id = u.id
+      ${whereClause}
+    `;
+
+    const countResult = await pool.query(countQuery, values);
+    const totalRecords = Number(countResult.rows[0]?.total || 0);
+
+    const query = `
+      SELECT 
+        a.*,
+        e.full_name AS employee_name,
+        e.employee_code,
+        e.designation,
+        e.role,
+        d.department_name,
+        ROUND(
+          COALESCE(
+            a.total_hours, 
+            EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0
+          ), 
+          2
+        ) AS live_hours
+      FROM daily_attendance a
+      JOIN employees e ON a.employee_id = e.id
+      LEFT JOIN users u ON e.user_id = u.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      ${whereClause}
+      ORDER BY a.date DESC, a.check_in_time DESC
+      LIMIT $${index} OFFSET $${index + 1};
+    `;
+
+    values.push(Number(limit));
+    values.push((Number(page) - 1) * Number(limit));
+
+    const result = await pool.query(query, values);
+
+    return {
+      attendance: result.rows,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        totalRecords,
+        totalPages: Math.ceil(totalRecords / Number(limit)) || 1,
+      }
+    };
+  }
 };

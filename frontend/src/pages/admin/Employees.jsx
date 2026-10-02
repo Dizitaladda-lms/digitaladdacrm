@@ -528,6 +528,7 @@ const Employees = () => {
                 <th>Employee</th>
                 <th>Role / Access</th>
                 <th>Status</th>
+                <th>Today's Attendance</th>
                 <th>Assigned Domains</th>
                 <th>Department & Mentor</th>
                 <th style={{ textAlign: "right" }}>Actions</th>
@@ -590,6 +591,23 @@ const Employees = () => {
                   <td>
                     <span className={`employee-status ${employee.status === "ACTIVE" ? "active" : "inactive"}`}>
                       {employee.status}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        padding: "3px 8px",
+                        borderRadius: "12px",
+                        backgroundColor: employee.today_attendance_status === "PRESENT" ? "#DCFCE7" : "#FEE2E2",
+                        color: employee.today_attendance_status === "PRESENT" ? "#15803D" : "#B91C1C",
+                      }}
+                    >
+                      {employee.today_attendance_status === "PRESENT"
+                        ? `Present (${employee.today_hours || 0} hrs)`
+                        : "Not Checked In"}
                     </span>
                   </td>
                   <td>

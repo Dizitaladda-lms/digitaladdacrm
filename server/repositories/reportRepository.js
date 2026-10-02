@@ -367,15 +367,145 @@ export const findTeamReportsRepository = async ({
   values.push(limit, offset);
 
   const result = await pool.query(query, values);
+  const salesMetrics = await getSalesTeamMetricsRepository({ date, startDate, endDate });
 
   return {
     reports: result.rows,
+    salesMetrics,
     pagination: {
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit) || 1,
     },
+  };
+};
+
+/**
+ * Get Sales Team Live Analytics & Metrics
+ */
+export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }) => {
+  const targetStartDate = startDate || date || null;
+  const targetEndDate = endDate || date || null;
+
+  const query = `
+    SELECT 
+      e.id AS employee_id,
+      e.full_name AS employee_name,
+      e.employee_code,
+      e.email,
+      e.role,
+      e.designation,
+      d.department_name,
+      COALESCE(da.status, 'NOT_CHECKED_IN') AS today_attendance_status,
+      da.check_in_time AS today_check_in_time,
+      ROUND(
+        COALESCE(
+          da.total_hours, 
+          CASE WHEN da.check_in_time IS NOT NULL THEN EXTRACT(EPOCH FROM (COALESCE(da.check_out_time, CURRENT_TIMESTAMP) - da.check_in_time))/3600.0 ELSE 0 END
+        ), 
+        2
+      ) AS today_hours,
+
+      (
+        SELECT COUNT(*) 
+        FROM leads l 
+        WHERE l.assigned_counsellor_id = e.id 
+          AND l.is_agency_lead = FALSE
+          AND ($1::date IS NULL OR l.created_at::date >= $1::date)
+          AND ($2::date IS NULL OR l.created_at::date <= $2::date)
+      ) AS assigned_leads_count,
+
+      (
+        SELECT COUNT(*) 
+        FROM lead_followups f 
+        WHERE f.employee_id = e.id 
+          AND f.is_deleted = FALSE
+          AND ($1::date IS NULL OR f.created_at::date >= $1::date)
+          AND ($2::date IS NULL OR f.created_at::date <= $2::date)
+      ) AS total_calls_count,
+
+      (
+        SELECT COUNT(*) 
+        FROM lead_followups f 
+        WHERE f.employee_id = e.id 
+          AND f.is_deleted = FALSE
+          AND f.status = 'COMPLETED'
+          AND ($1::date IS NULL OR f.updated_at::date >= $1::date)
+          AND ($2::date IS NULL OR f.updated_at::date <= $2::date)
+      ) AS connected_calls_count,
+
+      (
+        SELECT COUNT(*) 
+        FROM leads l 
+        WHERE l.assigned_counsellor_id = e.id 
+          AND UPPER(l.stage) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED')
+          AND ($1::date IS NULL OR l.updated_at::date >= $1::date)
+          AND ($2::date IS NULL OR l.updated_at::date <= $2::date)
+      ) AS admissions_count,
+
+      (
+        SELECT COALESCE(SUM(COALESCE(l.budget, 0)), 0)
+        FROM leads l 
+        WHERE l.assigned_counsellor_id = e.id 
+          AND UPPER(l.stage) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED')
+          AND ($1::date IS NULL OR l.updated_at::date >= $1::date)
+          AND ($2::date IS NULL OR l.updated_at::date <= $2::date)
+      ) AS total_revenue
+
+    FROM employees e
+    LEFT JOIN users u ON e.user_id = u.id
+    LEFT JOIN departments d ON e.department_id = d.id
+    LEFT JOIN daily_attendance da ON da.employee_id = e.id AND da.date = CURRENT_DATE
+    WHERE e.status = 'ACTIVE' 
+      AND e.is_deleted = FALSE
+      AND (e.role IN ('COUNSELLOR', 'TL', 'MANAGER', 'SUPER_ADMIN') OR e.department_id = 1)
+    ORDER BY admissions_count DESC, total_calls_count DESC, e.full_name ASC;
+  `;
+
+  const { rows } = await pool.query(query, [targetStartDate, targetEndDate]);
+
+  let sumLeads = 0;
+  let sumCalls = 0;
+  let sumConnected = 0;
+  let sumAdmissions = 0;
+  let sumRevenue = 0;
+
+  const counsellors = rows.map((row) => {
+    const leads = Number(row.assigned_leads_count || 0);
+    const calls = Number(row.total_calls_count || 0);
+    const connected = Number(row.connected_calls_count || 0);
+    const admissions = Number(row.admissions_count || 0);
+    const revenue = Number(row.total_revenue || 0);
+
+    sumLeads += leads;
+    sumCalls += calls;
+    sumConnected += connected;
+    sumAdmissions += admissions;
+    sumRevenue += revenue;
+
+    const conversionRate = leads > 0 ? ((admissions / leads) * 100).toFixed(1) : "0.0";
+
+    return {
+      ...row,
+      assigned_leads_count: leads,
+      total_calls_count: calls,
+      connected_calls_count: connected,
+      admissions_count: admissions,
+      total_revenue: revenue,
+      conversion_rate: conversionRate,
+    };
+  });
+
+  return {
+    kpi: {
+      totalLeads: sumLeads,
+      totalCalls: sumCalls,
+      connectedCalls: sumConnected,
+      totalAdmissions: sumAdmissions,
+      totalRevenue: sumRevenue,
+    },
+    counsellors,
   };
 };
 
