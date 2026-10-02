@@ -19,6 +19,7 @@ import {
 import {
   createLead,
   getAllLeads,
+  getAgencyLeads,
   getLeadById,
   updateLead,
   deleteLead,
@@ -83,6 +84,13 @@ router.get(
  * IMPORTANT:
  * Static routes must come before /:id
  */
+
+router.get(
+  "/agency-leads",
+  authMiddleware,
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  getAgencyLeads
+);
 
 router.get(
   "/statistics",

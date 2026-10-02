@@ -291,6 +291,7 @@ export const getLeadsRepository = async (filters) => {
     date_to,
     sortBy = "created_at",
     order = "DESC",
+    is_agency_lead = false,
   } = filters;
 
   const values = [];
@@ -299,6 +300,16 @@ export const getLeadsRepository = async (filters) => {
   let whereClause = `
     WHERE l.is_deleted = FALSE
   `;
+
+  if (is_agency_lead) {
+    whereClause += `
+      AND (l.is_agency_lead = TRUE OR UPPER(COALESCE(l.source, '')) = 'AGENCY_WEBSITE' OR COALESCE(l.domain, '') ILIKE '%dizitaladdaagency%' OR COALESCE(l.domain, '') ILIKE '%clients%')
+    `;
+  } else {
+    whereClause += `
+      AND (l.is_agency_lead IS NOT TRUE AND UPPER(COALESCE(l.source, '')) != 'AGENCY_WEBSITE' AND COALESCE(l.domain, '') NOT ILIKE '%dizitaladdaagency%' AND COALESCE(l.domain, '') NOT ILIKE '%clients%')
+    `;
+  }
 
   // ==========================
   // Search
@@ -531,6 +542,7 @@ export const getMyLeadsRepository = async (filters = {}) => {
     WHERE
       l.is_deleted = FALSE
       AND l.assigned_to = $1
+      AND (l.is_agency_lead IS NOT TRUE AND UPPER(COALESCE(l.source, '')) != 'AGENCY_WEBSITE' AND COALESCE(l.domain, '') NOT ILIKE '%dizitaladdaagency%' AND COALESCE(l.domain, '') NOT ILIKE '%clients%')
   `;
 
   // ==========================

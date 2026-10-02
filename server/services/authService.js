@@ -43,6 +43,8 @@ import {
 
 import auditLogger from "../utils/auditLogger.js";
 import { verifyStoredPassword } from "../utils/passwordUtils.js";
+import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
+import { createAttendanceCheckInRepository } from "../repositories/attendanceRepository.js";
 
 /**
  * =====================================================
@@ -189,6 +191,22 @@ export const loginUserService = async (
   }
 
   await updateLastLoginRepository(user.id);
+
+  // Auto-start login check-in & shift hours count from the exact moment user logs in
+  try {
+    const employee = await findEmployeeByUserIdRepository(user.id);
+    if (employee) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      await createAttendanceCheckInRepository(null, {
+        employee_id: employee.id,
+        date: todayStr,
+        is_office_wifi: true,
+        status: "PRESENT",
+      });
+    }
+  } catch (attErr) {
+    console.log("Auto login attendance check-in notice:", attErr.message);
+  }
 
   const accessToken = generateAccessToken(user);
 

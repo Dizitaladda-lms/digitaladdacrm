@@ -19,6 +19,9 @@ const ManagerMyLeads = lazy(() => import("../pages/admin/ManagerMyLeads"));
 const OperationsDashboard = lazy(() => import("../pages/admin/OperationsDashboard"));
 const DailyReportForm = lazy(() => import("../pages/admin/DailyReportForm"));
 const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
+const AgencyLeads = lazy(() => import("../pages/hr/AgencyLeads"));
+const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
+const AttendanceReports = lazy(() => import("../pages/hr/AttendanceReports"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -110,6 +113,33 @@ const AppRoutes = () => {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <TeamReports />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/agency-leads"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AgencyLeads />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/my-attendance"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyAttendance />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/attendance-reports"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AttendanceReports />
                 </Suspense>
               }
             />

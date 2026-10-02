@@ -14,6 +14,16 @@ export const getLeads = async (params = {}) => {
 
 };
 
+export const getAgencyLeads = async (params = {}) => {
+
+  const response = await axiosInstance.get("/leads/agency-leads", {
+    params,
+  });
+
+  return response.data;
+
+};
+
 // ===============================
 // Get Lead By Id
 // ===============================

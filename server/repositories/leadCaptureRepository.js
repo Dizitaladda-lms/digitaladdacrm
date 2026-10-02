@@ -60,13 +60,18 @@ export const createPublicLeadRepository = async (client, lead) => {
       interested_course,
       captured_at,
       status,
-      priority
+      priority,
+      remarks,
+      is_agency_lead,
+      budget,
+      service
     )
     VALUES (
       $1, $2, $3, $4, $5, $6,
       $7, $8, $9, $10, $11,
       $12, $13, $14, $15, $16,
-      $17, $18, $19, $20, $21
+      $17, $18, $19, $20, $21,
+      $22, $23, $24, $25
     )
     RETURNING *;
   `;
@@ -92,7 +97,11 @@ export const createPublicLeadRepository = async (client, lead) => {
     lead.interested_course || null,
     lead.captured_at || new Date(),
     "INTERESTED",
-    "HIGH"
+    "HIGH",
+    lead.remarks || null,
+    lead.is_agency_lead ? true : false,
+    lead.budget || null,
+    lead.service || null
   ];
 
   const result = await client.query(query, values);
@@ -139,10 +148,14 @@ export const updateExistingLeadRepository = async (client, id, lead) => {
       domain = COALESCE($13, domain),
       landing_page_url = COALESCE($14, landing_page_url),
       interested_course = COALESCE($15, interested_course),
+      remarks = COALESCE($16, remarks),
+      is_agency_lead = COALESCE($17, is_agency_lead),
+      budget = COALESCE($18, budget),
+      service = COALESCE($19, service),
       is_duplicate = TRUE,
       last_received_at = CURRENT_TIMESTAMP,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $16
+    WHERE id = $20
     RETURNING *;
   `;
 
@@ -162,6 +175,10 @@ export const updateExistingLeadRepository = async (client, id, lead) => {
     lead.domain || null,
     lead.landing_page_url || null,
     lead.interested_course || null,
+    lead.remarks || null,
+    lead.is_agency_lead !== undefined ? lead.is_agency_lead : null,
+    lead.budget || null,
+    lead.service || null,
     id
   ];
 

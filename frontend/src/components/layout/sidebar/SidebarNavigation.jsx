@@ -10,35 +10,15 @@ import {
   UserCircle,
   CalendarCheck,
   CheckSquare,
+  Globe,
+  Fingerprint,
+  ShieldCheck,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
 
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
-
-const managerMenuItems = [
-  {
-    title: "Dashboard",
-    icon: LayoutDashboard,
-    path: "/dashboard",
-  },
-  {
-    title: "Lead Management",
-    icon: UsersRound,
-    path: "/leads",
-  },
-  {
-    title: "My Leads",
-    icon: UserCircle,
-    path: "/my-leads",
-  },
-  {
-    title: "Employees",
-    icon: BriefcaseBusiness,
-    path: "/employees",
-  },
-];
 
 const SidebarNavigation = ({ onClose }) => {
   const navigate = useNavigate();
@@ -52,19 +32,25 @@ const SidebarNavigation = ({ onClose }) => {
   let menuItems = [];
 
   if (isHR) {
-    // Operations & HR Department ONLY — NO LEADS
+    // Operations & HR Department ONLY — Dedicated Agency Leads & Attendance Reports
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
+      { title: "Attendance Reports", icon: ShieldCheck, path: "/attendance-reports" },
+      { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   } else if (isSuperAdmin) {
-    // Super Admin: Has access to both Sales and Operations (No Campaigns)
+    // Super Admin: Has access to Sales, Agency Leads, Operations, and Attendance
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
+      { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
+      { title: "Attendance Reports", icon: ShieldCheck, path: "/attendance-reports" },
+      { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
       { title: "Operations & HR", icon: FileBarChart2, path: "/reports" },
       { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
@@ -75,16 +61,18 @@ const SidebarNavigation = ({ onClose }) => {
     // Operations / HR Staff
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
       { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   } else {
-    // Sales Manager: ONLY Leads Management & Sales Team Reports
+    // Sales Manager & Counsellors
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
+      { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "Sales Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   }

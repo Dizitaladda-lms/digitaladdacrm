@@ -32,6 +32,7 @@ const runMigrations = async () => {
     const executedSet = new Set(executedRes.rows.map((r) => r.filename));
 
     // 3. Read all .sql files in migrations directory
+    await fs.mkdir(migrationsDir, { recursive: true });
     const files = await fs.readdir(migrationsDir);
     const sqlFiles = files
       .filter((f) => f.endsWith(".sql"))

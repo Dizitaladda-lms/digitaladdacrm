@@ -74,6 +74,23 @@ export const getAllLeads = asyncHandler(async (req, res) => {
 
 });
 
+export const getAgencyLeads = asyncHandler(async (req, res) => {
+
+  const leads = await getAllLeadsService(
+    { ...req.query, is_agency_lead: true },
+    req.user
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      leads,
+      "Agency client leads fetched successfully."
+    )
+  );
+
+});
+
 /**
  * =====================================================
  * Get Lead By ID

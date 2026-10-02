@@ -121,9 +121,10 @@ const normalizePublicLeadPayload = (req, res, next) => {
         req.body.page_url || req.body.pageUrl || req.body.url || req.headers.referer || null;
     }
 
-    // 1. Domain normalization: identify main websites and registered brands
+    // 1. Domain normalization: identify main websites, agency, and registered brands
     let rawDomain =
       req.body.domain ||
+      req.body.domains ||
       req.body.websiteDomain ||
       req.body.sourceDomain ||
       req.body.brand ||
@@ -146,10 +147,25 @@ const normalizePublicLeadPayload = (req, res, next) => {
       }
     }
 
+    const rawSource = String(
+      req.body.source || req.body.leadSource || ""
+    ).trim();
+
     const domainLower = String(rawDomain).toLowerCase();
+    const sourceLower = rawSource.toLowerCase();
+
+    const isAgency =
+      domainLower.includes("client") ||
+      domainLower.includes("dizitaladdaagency") ||
+      sourceLower.includes("agency");
+
     let isMainWebsite = false;
 
-    if (domainLower.includes("nidads")) {
+    if (isAgency) {
+      req.body.domain = "www.dizitaladdaagency.com";
+      req.body.source = "AGENCY_WEBSITE";
+      req.body.is_agency_lead = true;
+    } else if (domainLower.includes("nidads")) {
       req.body.domain = "www.nidads.com";
       isMainWebsite = true;
     } else if (domainLower.includes("nipage") || domainLower.includes("nigape")) {
@@ -176,13 +192,33 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.domain = "DizitalAdda";
     }
 
-    // 2. Source normalization: main websites automatically get "MAIN_WEBSITE"
-    const rawSource = String(
-      req.body.source || req.body.leadSource || ""
-    ).trim();
+    // Service, Budget, Message / Subject normalization for agency & client leads
+    if (req.body.service) {
+      req.body.service = String(req.body.service).trim();
+      if (!req.body.interested_course) {
+        req.body.interested_course = req.body.service;
+      }
+    }
+    if (req.body.budget) {
+      req.body.budget = String(req.body.budget).trim();
+    }
+
+    const msg = req.body.message || req.body.subject || req.body.remarks || req.body.notes || "";
+    const extraDetails = [];
+    if (req.body.service) extraDetails.push(`Service: ${req.body.service}`);
+    if (req.body.budget) extraDetails.push(`Budget: ${req.body.budget}`);
+    if (msg) extraDetails.push(`Inquiry: ${msg}`);
+
+    if (extraDetails.length > 0 && !req.body.remarks) {
+      req.body.remarks = extraDetails.join(" | ");
+    }
+
+    // 2. Source normalization: agency websites get "AGENCY_WEBSITE", main websites get "MAIN_WEBSITE"
     const upperSource = rawSource.toUpperCase().replace(/\s+/g, "_");
 
-    if (
+    if (isAgency) {
+      req.body.source = "AGENCY_WEBSITE";
+    } else if (
       isMainWebsite ||
       upperSource === "MAIN_WEBSITE" ||
       upperSource === "MAIN WEBSITE" ||

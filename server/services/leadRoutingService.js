@@ -65,6 +65,17 @@ export const removeRoutingAssignmentService = (id) => withTransaction(async (cli
 });
 
 export const autoAssignLeadService = async (client, lead) => {
+  const isAgencyLead =
+    lead.is_agency_lead ||
+    (lead.domain || "").toLowerCase().includes("client") ||
+    (lead.domain || "").toLowerCase().includes("dizitaladdaagency") ||
+    (lead.source || "").toLowerCase().includes("agency");
+
+  if (isAgencyLead) {
+    console.log(`[AGENCY LEAD] Lead #${lead.id} is an Agency Client Lead. Auto-assignment to sales counsellors skipped.`);
+    return { assigned: false, reason: "Agency Client Lead - Kept for HR / Admin management." };
+  }
+
   // ====================================================
   // AUTO_ASSIGN MODE: OFF BY DEFAULT (MANUAL ASSIGNMENT ACTIVE)
   // Auto-assignment is completely disabled so all incoming leads

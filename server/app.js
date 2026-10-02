@@ -26,6 +26,7 @@ import employeePortalRoutes from "./routes/employeePortal.routes.js";
 import admissionRoutes from "./routes/admissionRoutes.js";
 import telephonyRoutes from "./routes/telephonyRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
 
 /* Middlewares */
 import { globalLimiter } from "./middleware/rateLimiter.js";
@@ -160,6 +161,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/admissions", admissionRoutes);
 app.use("/api/telephony", telephonyRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/attendance", attendanceRoutes);
 
 /**
  * 404 Handler
