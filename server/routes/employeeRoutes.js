@@ -11,10 +11,14 @@ import {
   getEmployeePerformanceController,
   getMyPerformanceController,
   getMyLeadsController,
+  getEmployeeApprovalRequestsController,
+  approveEmployeeApprovalRequestController,
+  rejectEmployeeApprovalRequestController,
 } from "../controllers/employeeController.js";
 
 import authenticate from "../middleware/authMiddleware.js";
 import authorize from "../middleware/authorize.js";
+import roleMiddleware from "../middleware/roleMiddleware.js";
 import PERMISSIONS from "../constants/permissions.js";
 
 import {
@@ -48,6 +52,29 @@ router.get(
   authenticate,
   authorize(PERMISSIONS.VIEW_EMPLOYEE),
   getEmployeeStatisticsController
+);
+
+router.get(
+  "/approval-requests",
+  authenticate,
+  roleMiddleware("SUPER_ADMIN"),
+  getEmployeeApprovalRequestsController
+);
+
+router.post(
+  "/approval-requests/:id/approve",
+  authenticate,
+  roleMiddleware("SUPER_ADMIN"),
+  validateEmployeeId,
+  approveEmployeeApprovalRequestController
+);
+
+router.post(
+  "/approval-requests/:id/reject",
+  authenticate,
+  roleMiddleware("SUPER_ADMIN"),
+  validateEmployeeId,
+  rejectEmployeeApprovalRequestController
 );
 
 /**

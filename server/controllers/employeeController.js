@@ -10,6 +10,9 @@ import {
     restoreEmployeeService,
     getEmployeeStatisticsService,
     getEmployeePerformanceService,
+    listPendingEmployeeApprovalRequestsService,
+    approveEmployeeApprovalRequestService,
+    rejectEmployeeApprovalRequestService,
 } from "../services/employeeService.js";
 import { getMyLeadsService } from "../services/employeeService.js";
 /**
@@ -67,6 +70,35 @@ export const getAllEmployeesController = asyncHandler(
 
     }
 );
+
+export const getEmployeeApprovalRequestsController = asyncHandler(async (_req, res) => {
+    const requests = await listPendingEmployeeApprovalRequestsService();
+    return res.status(200).json(
+        new ApiResponse(200, requests, "Pending employee approval requests retrieved.")
+    );
+});
+
+export const approveEmployeeApprovalRequestController = asyncHandler(async (req, res) => {
+    const employee = await approveEmployeeApprovalRequestService(
+        req.params.id,
+        req.user,
+        req
+    );
+    return res.status(200).json(
+        new ApiResponse(200, employee, "Employee request approved and account created.")
+    );
+});
+
+export const rejectEmployeeApprovalRequestController = asyncHandler(async (req, res) => {
+    const result = await rejectEmployeeApprovalRequestService(
+        req.params.id,
+        req.user,
+        String(req.body?.review_note || "").slice(0, 500)
+    );
+    return res.status(200).json(
+        new ApiResponse(200, result, "Employee request rejected.")
+    );
+});
 
 /**
  * =====================================================

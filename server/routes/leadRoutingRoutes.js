@@ -12,8 +12,9 @@ import {
 } from "../controllers/leadRoutingController.js";
 
 const router = Router();
-router.use(authMiddleware, roleMiddleware(ROLES.ADMIN));
-router.get("/", getRoutingSetup);
+router.use(authMiddleware);
+router.get("/", roleMiddleware(ROLES.ADMIN, "HR"), getRoutingSetup);
+router.use(roleMiddleware(ROLES.ADMIN));
 router.post("/domains", createDomain);
 router.post("/courses", createCourse);
 router.post("/assignments", createRoutingAssignment);

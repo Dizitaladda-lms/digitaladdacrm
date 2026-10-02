@@ -29,6 +29,12 @@ import {
 
 import { getMyLeadsRepository } from "../repositories/leadRepository.js";
 import { createRoutingAssignmentRepository } from "../repositories/leadRoutingRepository.js";
+import {
+    createEmployeeApprovalRequestRepository,
+    findEmployeeApprovalRequestForUpdateRepository,
+    listPendingEmployeeApprovalRequestsRepository,
+    reviewEmployeeApprovalRequestRepository,
+} from "../repositories/employeeApprovalRepository.js";
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
 
 const generateEmployeeCode = (sequence) => {
@@ -44,148 +50,179 @@ const safeAuditLog = (payload) => {
     }
 };
 
-/* =====================================================
- * Create Employee
- * ===================================================== */
+const normalizeEmployeeData = (employeeData) => ({
+    ...employeeData,
+    email: employeeData.email.trim().toLowerCase(),
+    full_name: employeeData.full_name.trim(),
+    mobile: employeeData.mobile.trim(),
+});
 
-export const createEmployeeService = async (
+const ensureEmployeeCanBeCreated = async (employeeData) => {
+    if (!isValidRole(employeeData.role)) {
+        throw new ApiError(400, "Invalid employee role.");
+    }
+
+    if (await findEmployeeByEmailRepository(employeeData.email)) {
+        throw new ApiError(409, "Employee email already exists.");
+    }
+
+    if (await findUserByEmailRepository(employeeData.email)) {
+        throw new ApiError(409, "User email already exists.");
+    }
+
+    if (await findEmployeeByMobileRepository(employeeData.mobile)) {
+        throw new ApiError(409, "Mobile number already exists.");
+    }
+};
+
+const createEmployeeWithinTransaction = async (
+    client,
     employeeData,
     currentUser,
-    req
+    req,
+    passwordHash
 ) => {
-     
+    const sequence = await getNextEmployeeCodeRepository(client);
+    const employeeCode = generateEmployeeCode(sequence);
+    const user = await createUserRepository(client, {
+        full_name: employeeData.full_name,
+        email: employeeData.email,
+        password: passwordHash,
+        role: employeeData.role,
+    });
+    const employee = await createEmployeeRepository(client, {
+        ...employeeData,
+        user_id: user.id,
+        employee_code: employeeCode,
+        created_by: currentUser.id,
+    });
 
-
-    // Normalize Data
-    employeeData.email = employeeData.email.trim().toLowerCase();
-    employeeData.full_name = employeeData.full_name.trim();
-    employeeData.mobile = employeeData.mobile.trim();
-
-    // Duplicate Employee Email
-    const existingEmployee =
-        await findEmployeeByEmailRepository(employeeData.email);
-
-    if (existingEmployee) {
-        throw new ApiError(
-            409,
-            "Employee email already exists."
-        );
+    if (Array.isArray(employeeData.routing_assignments)) {
+        for (const routing of employeeData.routing_assignments) {
+            if (!routing?.domain_id) continue;
+            await createRoutingAssignmentRepository(client, {
+                employeeId: employee.id,
+                domainId: routing.domain_id,
+                courseId: routing.course_id || null,
+                autoAssign: routing.auto_assign !== false,
+            });
+        }
     }
 
-    // Duplicate User Email
-    const existingUser =
-        await findUserByEmailRepository(employeeData.email);
+    safeAuditLog({
+        action: "EMPLOYEE_CREATED",
+        module: "EMPLOYEE",
+        userId: currentUser.id,
+        role: currentUser.role,
+        entityId: employee.id,
+        requestId: req.requestId,
+        ip: req.ip,
+    });
 
-    if (existingUser) {
-        throw new ApiError(
-            409,
-            "User email already exists."
-        );
+    return employee;
+};
+
+const getEmployeePasswordHash = async (employeeData) => {
+    const temporaryPassword = employeeData.password || process.env.DEFAULT_EMPLOYEE_PASSWORD;
+
+    if (
+        process.env.NODE_ENV === "production" &&
+        !employeeData.password &&
+        process.env.ALLOW_DEFAULT_EMPLOYEE_PASSWORD !== "true"
+    ) {
+        throw new ApiError(400, "A temporary password is required when creating an employee.");
     }
 
-    // Duplicate Mobile
-    const existingMobile =
-        await findEmployeeByMobileRepository(employeeData.mobile);
-
-    if (existingMobile) {
-        throw new ApiError(
-            409,
-            "Mobile number already exists."
-        );
+    if (!temporaryPassword) {
+        throw new ApiError(400, "A temporary password is required when creating an employee.");
     }
 
-    // Role Validation
-    if (!isValidRole(employeeData.role)) {
-        throw new ApiError(
-            400,
-            "Invalid employee role."
+    return bcrypt.hash(temporaryPassword, 10);
+};
+
+const createEmployeeApprovalRequest = async (employeeData, currentUser) => {
+    await ensureEmployeeCanBeCreated(employeeData);
+    const passwordHash = await getEmployeePasswordHash(employeeData);
+    const { password, ...requestData } = employeeData;
+
+    try {
+        const request = await withTransaction((client) =>
+            createEmployeeApprovalRequestRepository(
+                client,
+                currentUser.id,
+                requestData,
+                passwordHash
+            )
         );
+        return { approvalRequired: true, request };
+    } catch (error) {
+        if (error.code === "23505") {
+            throw new ApiError(409, "An employee request for this email is already pending.");
+        }
+        throw error;
+    }
+};
+
+export const createEmployeeService = async (employeeData, currentUser, req) => {
+    const normalizedData = normalizeEmployeeData(employeeData);
+
+    if (String(currentUser.role || "").toUpperCase() === "HR") {
+        return createEmployeeApprovalRequest(normalizedData, currentUser);
     }
 
-    return await withTransaction(async (client) => {
+    await ensureEmployeeCanBeCreated(normalizedData);
+    const passwordHash = await getEmployeePasswordHash(normalizedData);
+    return withTransaction((client) =>
+        createEmployeeWithinTransaction(client, normalizedData, currentUser, req, passwordHash)
+    );
+};
 
-        // Employee Code
-        const sequence =
-            await getNextEmployeeCodeRepository(client);
+export const listPendingEmployeeApprovalRequestsService = async () =>
+    listPendingEmployeeApprovalRequestsRepository();
 
-        const employeeCode =
-            generateEmployeeCode(sequence);
-
-        // Password
-        const temporaryPassword =
-            employeeData.password ||
-            process.env.DEFAULT_EMPLOYEE_PASSWORD;
-
-        if (
-            process.env.NODE_ENV === "production" &&
-            !employeeData.password &&
-            process.env.ALLOW_DEFAULT_EMPLOYEE_PASSWORD !== "true"
-        ) {
-            throw new ApiError(
-                400,
-                "A temporary password is required when creating an employee."
-            );
+export const approveEmployeeApprovalRequestService = async (id, currentUser, req) =>
+    withTransaction(async (client) => {
+        const request = await findEmployeeApprovalRequestForUpdateRepository(client, id);
+        if (!request) throw new ApiError(404, "Employee approval request not found.");
+        if (request.status !== "PENDING") {
+            throw new ApiError(409, "This employee request has already been reviewed.");
         }
 
-        const hashedPassword =
-            await bcrypt.hash(
-                temporaryPassword,
-                10
-            );
-
-        // Create User
-        const user =
-            await createUserRepository(
-                client,
-                {
-                    full_name: employeeData.full_name,
-                    email: employeeData.email,
-                    password: hashedPassword,
-                    role: employeeData.role,
-                }
-            );
-
-        // Create Employee
-        const employee =
-            await createEmployeeRepository(
-                client,
-                {
-                    ...employeeData,
-                    user_id: user.id,
-                    employee_code: employeeCode,
-                    created_by: currentUser.id,
-                }
-            );
-
-        // Optional domain/course mapping supplied by the admin employee form.
-        // Each active mapping makes this counsellor eligible for auto-routing.
-        if (Array.isArray(employeeData.routing_assignments)) {
-            for (const routing of employeeData.routing_assignments) {
-                if (!routing?.domain_id) continue;
-                await createRoutingAssignmentRepository(client, {
-                    employeeId: employee.id,
-                    domainId: routing.domain_id,
-                    courseId: routing.course_id || null,
-                    autoAssign: routing.auto_assign !== false,
-                });
-            }
-        }
-
-        // Audit Log
-        safeAuditLog({
-            action: "EMPLOYEE_CREATED",
-            module: "EMPLOYEE",
-            userId: currentUser.id,
-            role: currentUser.role,
-            entityId: employee.id,
-            requestId: req.requestId,
-            ip: req.ip,
-        });
+        const employeeData = request.employee_data;
+        await ensureEmployeeCanBeCreated(employeeData);
+        const employee = await createEmployeeWithinTransaction(
+            client,
+            employeeData,
+            currentUser,
+            req,
+            request.password_hash
+        );
+        await reviewEmployeeApprovalRequestRepository(
+            client,
+            id,
+            currentUser.id,
+            "APPROVED"
+        );
 
         return employee;
     });
 
-};
+export const rejectEmployeeApprovalRequestService = async (id, currentUser, reviewNote) =>
+    withTransaction(async (client) => {
+        const request = await findEmployeeApprovalRequestForUpdateRepository(client, id);
+        if (!request) throw new ApiError(404, "Employee approval request not found.");
+        if (request.status !== "PENDING") {
+            throw new ApiError(409, "This employee request has already been reviewed.");
+        }
+
+        return reviewEmployeeApprovalRequestRepository(
+            client,
+            id,
+            currentUser.id,
+            "REJECTED",
+            reviewNote || null
+        );
+    });
 
 /* =====================================================
  * Update Employee
@@ -274,6 +311,17 @@ export const updateEmployeeService = async (
                 400,
                 "Invalid employee role."
             );
+        }
+
+        const currentRole = String(currentUser.role || "").toUpperCase();
+        const requestedRole = String(employeeData.role || "").toUpperCase();
+        const existingRole = String(employee.role || "").toUpperCase();
+        if (
+            currentRole === "HR" &&
+            requestedRole !== existingRole &&
+            ["ADMIN", "MANAGER", "SUPER_ADMIN"].includes(requestedRole)
+        ) {
+            throw new ApiError(403, "HR cannot grant Manager or Super Admin access.");
         }
 
         // Update Employee

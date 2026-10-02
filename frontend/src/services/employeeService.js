@@ -33,6 +33,23 @@ export const createEmployee = async (data) => {
   return response.data;
 };
 
+export const getEmployeeApprovalRequests = async () => {
+  const response = await axiosInstance.get("/employees/approval-requests");
+  return response.data;
+};
+
+export const approveEmployeeApprovalRequest = async (id) => {
+  const response = await axiosInstance.post(`/employees/approval-requests/${id}/approve`);
+  return response.data;
+};
+
+export const rejectEmployeeApprovalRequest = async (id, reviewNote = "") => {
+  const response = await axiosInstance.post(`/employees/approval-requests/${id}/reject`, {
+    review_note: reviewNote,
+  });
+  return response.data;
+};
+
 /**
  * ==========================================
  * Update Employee

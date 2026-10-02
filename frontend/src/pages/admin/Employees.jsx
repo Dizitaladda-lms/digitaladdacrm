@@ -16,7 +16,15 @@ import {
   Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createEmployee, deleteEmployee, updateEmployee, getEmployees } from "../../services/employeeService";
+import {
+  approveEmployeeApprovalRequest,
+  createEmployee,
+  deleteEmployee,
+  getEmployeeApprovalRequests,
+  getEmployees,
+  rejectEmployeeApprovalRequest,
+  updateEmployee,
+} from "../../services/employeeService";
 import { getDepartments } from "../../services/departmentService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -55,6 +63,7 @@ const initials = (name = "") =>
 const Employees = () => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canManageRouting = ["SUPER_ADMIN", "MANAGER", "ADMIN"].includes(user?.role);
   const canAddEmployee = isSuperAdmin || user?.role === "HR" || user?.role === "MANAGER" || user?.role === "ADMIN";
 
   const [formOpen, setFormOpen] = useState(false);
@@ -66,6 +75,8 @@ const Employees = () => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [approvalRequests, setApprovalRequests] = useState([]);
+  const [approvalActionId, setApprovalActionId] = useState(null);
 
   // Performance Modal State
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -100,21 +111,23 @@ const Employees = () => {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [employeeResponse, departmentResponse, routingResponse] = await Promise.all([
+      const [employeeResponse, departmentResponse, routingResponse, approvalResponse] = await Promise.all([
         getEmployees({ limit: 100 }),
         getDepartments(),
         getLeadRoutingSetup(),
+        isSuperAdmin ? getEmployeeApprovalRequests() : Promise.resolve(null),
       ]);
       setEmployees(employeeResponse?.data?.employees || []);
       setDepartments(departmentResponse?.data || []);
       setRouting(routingResponse?.data || { domains: [], assignments: [] });
+      setApprovalRequests(approvalResponse?.data || []);
     } catch (error) {
       console.error("Failed to load employee data:", error);
       toast.error(error?.response?.data?.message || "Could not load employee data.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     load();
@@ -268,12 +281,39 @@ const Employees = () => {
     }
   };
 
+  const handleApproveEmployeeRequest = async (request) => {
+    try {
+      setApprovalActionId(request.id);
+      await approveEmployeeApprovalRequest(request.id);
+      toast.success(`${request.employee_data.full_name} was approved and added.`);
+      await load();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Could not approve employee request.");
+    } finally {
+      setApprovalActionId(null);
+    }
+  };
+
+  const handleRejectEmployeeRequest = async (request) => {
+    if (!window.confirm(`Reject the employee request for ${request.employee_data.full_name}?`)) return;
+    try {
+      setApprovalActionId(request.id);
+      await rejectEmployeeApprovalRequest(request.id);
+      toast.success("Employee request rejected.");
+      await load();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Could not reject employee request.");
+    } finally {
+      setApprovalActionId(null);
+    }
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     if (!form.department_id) return toast.error("Please select a department.");
     try {
       setSaving(true);
-      const result = await createEmployee({
+      const employeePayload = {
         full_name: form.full_name,
         email: form.email,
         mobile: form.mobile,
@@ -284,9 +324,17 @@ const Employees = () => {
         password: form.password,
         employment_type: form.role === "INTERN" ? "INTERN" : "FULL_TIME",
         status: "ACTIVE",
-      });
+      };
+      if (String(user?.role || "").toUpperCase() === "HR") {
+        employeePayload.routing_assignments = form.domains.map((domainId) => ({
+          domain_id: domainId,
+          auto_assign: form.auto_assign,
+        }));
+      }
+      const result = await createEmployee(employeePayload);
 
-      const employee = result?.data;
+      const approvalRequired = Boolean(result?.data?.approvalRequired);
+      const employee = approvalRequired ? null : result?.data;
 
       // Assign domains directly via setEmployeeDomains
       if (employee && form.domains.length > 0) {
@@ -326,7 +374,11 @@ const Employees = () => {
         }
       }
 
-      toast.success("Employee created successfully.");
+      toast.success(
+        approvalRequired
+          ? "Employee request sent to the Super Admin for approval."
+          : "Employee created successfully."
+      );
       setForm(initialForm);
       setFormOpen(false);
       await load();
@@ -367,6 +419,75 @@ const Employees = () => {
           </div>
         </div>
       </section>
+
+      {isSuperAdmin && (
+        <section className="employee-table-card" style={{ marginBottom: "20px" }}>
+          <div className="employee-list-heading">
+            <div>
+              <h2>Employee Approval Requests</h2>
+              <p>HR-submitted employees stay out of the directory until approved.</p>
+            </div>
+            <strong>{approvalRequests.length} pending</strong>
+          </div>
+          {approvalRequests.length ? (
+            <div className="employee-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Requested Employee</th>
+                    <th>Department</th>
+                    <th>Role</th>
+                    <th>Requested By</th>
+                    <th style={{ textAlign: "right" }}>Review</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {approvalRequests.map((request) => {
+                    const employeeData = request.employee_data || {};
+                    const department = departments.find(
+                      (item) => Number(item.id) === Number(employeeData.department_id)
+                    );
+                    const busy = approvalActionId === request.id;
+                    return (
+                      <tr key={request.id}>
+                        <td>
+                          <strong>{employeeData.full_name}</strong>
+                          <small style={{ display: "block" }}>{employeeData.email}</small>
+                        </td>
+                        <td>{department?.department_name || "Department unavailable"}</td>
+                        <td>{employeeData.role}</td>
+                        <td>{request.requester_name || "HR"}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: "8px" }}>
+                            <button
+                              type="button"
+                              className="view-more-btn"
+                              disabled={busy}
+                              onClick={() => handleApproveEmployeeRequest(request)}
+                            >
+                              <Check size={15} /> Approve
+                            </button>
+                            <button
+                              type="button"
+                              className="view-more-btn"
+                              disabled={busy}
+                              onClick={() => handleRejectEmployeeRequest(request)}
+                            >
+                              <X size={15} /> Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p style={{ padding: "16px 20px", color: "#64748B" }}>No pending employee requests.</p>
+          )}
+        </section>
+      )}
 
       {/* Top 4 Stat Cards */}
       <section className="lead-stats employee-stats">
@@ -507,21 +628,23 @@ const Employees = () => {
                   </td>
                   <td style={{ textAlign: "right" }}>
                     <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                      <button
-                        className="view-more-btn"
-                        type="button"
-                        onClick={() => openDomainModal(employee)}
-                        style={{
-                          backgroundColor: "#F0FDFA",
-                          color: "#0F766E",
-                          border: "1px solid #99F6E4",
-                          fontWeight: 600,
-                        }}
-                        title={`Assign domain (Nidads, Nigape, etc.) to ${employee.full_name}`}
-                      >
-                        <Route size={15} />
-                        <span>Assign Domain</span>
-                      </button>
+                      {canManageRouting && (
+                        <button
+                          className="view-more-btn"
+                          type="button"
+                          onClick={() => openDomainModal(employee)}
+                          style={{
+                            backgroundColor: "#F0FDFA",
+                            color: "#0F766E",
+                            border: "1px solid #99F6E4",
+                            fontWeight: 600,
+                          }}
+                          title={`Assign domain to ${employee.full_name}`}
+                        >
+                          <Route size={15} />
+                          <span>Assign Domain</span>
+                        </button>
+                      )}
 
                       {canAddEmployee && (
                         <button
@@ -898,7 +1021,7 @@ const Employees = () => {
                 <span>HR & Operations Access Control</span>
                 <h2>Change Department & Role</h2>
                 <p>
-                  Update {editingEmployee.full_name}'s department and role. Changing the department immediately updates their system permissions.
+                  Update {editingEmployee.full_name}'s department and access role. The role controls their system permissions.
                 </p>
               </div>
               <button type="button" onClick={() => setEditModalOpen(false)}>
@@ -920,7 +1043,7 @@ const Employees = () => {
                     lineHeight: 1.4,
                   }}
                 >
-                  💡 <strong>Access Control Notice:</strong> Moving an employee to <strong>Sales</strong> grants Leads and Admissions access. Moving them to <strong>Operations, Academics, or HR</strong> automatically hides Leads and activates Daily Work Reporting & Video Proof compliance.
+                  💡 <strong>Access Control Notice:</strong> Department changes update organizational assignment. Changing the role updates permissions on the linked login account.
                 </div>
 
                 <div className="employee-form-grid">
