@@ -1,20 +1,10 @@
 import React, { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import EmployeeLayout from "../layouts/EmployeeLayout";
+import UnderMaintenance from "../components/common/UnderMaintenance";
 import { useAuth } from "../context/AuthContext";
 
-const Dashboard = lazy(() => import("../pages/employee/Dashboard"));
-const MyLeads = lazy(() => import("../pages/employee/MyLeads"));
-const LeadDetails = lazy(() => import("../pages/employee/LeadDetails"));
-const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
-const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
-const Profile = lazy(() => import("../pages/employee/Profile"));
-const Settings = lazy(() => import("../pages/employee/Settings"));
-const MyDailyReport = lazy(() => import("../pages/employee/MyDailyReport"));
-const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
-const MyPerformance = lazy(() => import("../pages/employee/MyPerformance"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
-const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 
 const LoadingFallback = () => (
   <div style={{ padding: "40px", textAlign: "center", fontWeight: 600, color: "#64748B" }}>
@@ -23,38 +13,27 @@ const LoadingFallback = () => (
 );
 
 const EmployeeRoutes = () => {
-  const { user } = useAuth();
-  const isCounsellor = user?.role === "COUNSELLOR";
-
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route element={<EmployeeLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
+          {/* Default employee landing page is Mobile Biometric Attendance */}
+          <Route index element={<Navigate to="my-attendance" replace />} />
           <Route path="my-attendance" element={<MyAttendance />} />
-          <Route path="daily-report" element={<MyDailyReport />} />
-          <Route path="performance" element={<MyPerformance />} />
-          <Route path="team-reports" element={<TeamReports />} />
-          <Route path="sales-report" element={<SalesDepartmentReport />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<Settings />} />
 
-          {/* Sales Only Routes (Counsellors only) */}
-          {isCounsellor ? (
-            <>
-              <Route path="leads" element={<MyLeads />} />
-              <Route path="leads/:id" element={<LeadDetails />} />
-              <Route path="followups" element={<MyFollowups />} />
-              <Route path="admissions" element={<MyAdmissions />} />
-            </>
-          ) : (
-            <>
-              <Route path="leads/*" element={<Navigate to="/employee/dashboard" replace />} />
-              <Route path="followups" element={<Navigate to="/employee/dashboard" replace />} />
-              <Route path="admissions" element={<Navigate to="/employee/dashboard" replace />} />
-            </>
-          )}
+          {/* Under Maintenance Modules */}
+          <Route path="dashboard" element={<UnderMaintenance moduleName="Employee Dashboard" />} />
+          <Route path="daily-report" element={<UnderMaintenance moduleName="Daily Work Report" />} />
+          <Route path="performance" element={<UnderMaintenance moduleName="My Performance" />} />
+          <Route path="team-reports" element={<UnderMaintenance moduleName="Team Reports" />} />
+          <Route path="sales-report" element={<UnderMaintenance moduleName="Sales Department Overview" />} />
+          <Route path="profile" element={<UnderMaintenance moduleName="Employee Profile" />} />
+          <Route path="settings" element={<UnderMaintenance moduleName="Employee Settings" />} />
+          <Route path="leads" element={<UnderMaintenance moduleName="My Leads" />} />
+          <Route path="leads/:id" element={<UnderMaintenance moduleName="Lead Details" />} />
+          <Route path="followups" element={<UnderMaintenance moduleName="My Follow-ups" />} />
+          <Route path="admissions" element={<UnderMaintenance moduleName="My Admissions" />} />
+          <Route path="*" element={<Navigate to="/employee/my-attendance" replace />} />
         </Route>
       </Routes>
     </Suspense>

@@ -11,18 +11,38 @@ import {
   MapPin,
   ExternalLink,
   Navigation,
+  RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { getHRAttendanceReports } from "../../services/attendanceService";
+import { getHRAttendanceReports, resetBiometricCredential } from "../../services/attendanceService";
 
 const AttendanceReports = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resettingId, setResettingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalRecords: 0 });
+
+  const handleResetBiometric = async (employeeId, employeeName) => {
+    if (!window.confirm(`Are you sure you want to reset biometric registration for ${employeeName}? They will be able to register a new biometric device on their next check-in.`)) {
+      return;
+    }
+
+    try {
+      setResettingId(employeeId);
+      await resetBiometricCredential(employeeId);
+      toast.success(`Biometric reset successfully for ${employeeName}.`);
+      fetchReports();
+    } catch (err) {
+      console.error("Failed to reset biometric:", err);
+      toast.error(err.response?.data?.message || "Failed to reset biometric credential.");
+    } finally {
+      setResettingId(null);
+    }
+  };
 
   const fetchReports = async () => {
     try {
@@ -237,6 +257,7 @@ const AttendanceReports = () => {
                   <th style={{ padding: "14px 18px" }}>Check-Out (Time & Location)</th>
                   <th style={{ padding: "14px 18px" }}>Shift Hours</th>
                   <th style={{ padding: "14px 18px" }}>Status</th>
+                  <th style={{ padding: "14px 18px", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -321,6 +342,29 @@ const AttendanceReports = () => {
                         >
                           {row.status || "PRESENT"}
                         </span>
+                      </td>
+                      <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                        <button
+                          onClick={() => handleResetBiometric(row.employee_id, row.employee_name)}
+                          disabled={resettingId === row.employee_id}
+                          title="Reset Biometric Lock for Employee"
+                          style={{
+                            background: "#fff1f2",
+                            color: "#e11d48",
+                            border: "1px solid #fecdd3",
+                            padding: "6px 12px",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "5px",
+                          }}
+                        >
+                          <RotateCcw size={13} className={resettingId === row.employee_id ? "spin" : ""} />
+                          Reset Biometric
+                        </button>
                       </td>
                     </tr>
                   );

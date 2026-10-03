@@ -27,10 +27,9 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   let menuItems = [];
 
   if (isCounsellor) {
-    // Sales Department Counsellor
+    // Sales Department Counsellor (Sales Overview hidden from individual counsellors)
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
-      { title: "Sales Dept Overview", icon: TrendingUp, path: "/employee/sales-report" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
       { title: "My Leads", icon: Users, path: "/employee/leads" },
       { title: "My Follow-ups", icon: PhoneCall, path: "/employee/followups" },
@@ -99,6 +98,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
         <nav className="employee-sidebar-menu">
           {menuItems.map((item) => {
             const Icon = item.icon;
+            const isAttendance = item.path.includes("attendance");
 
             return (
               <NavLink
@@ -110,7 +110,23 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
                 onClick={handleNavClick}
               >
                 <Icon size={20} />
-                <span>{item.title}</span>
+                <span style={{ flex: 1 }}>{item.title}</span>
+                {!isAttendance && (
+                  <span
+                    style={{
+                      fontSize: "9px",
+                      background: "rgba(245, 158, 11, 0.15)",
+                      color: "#d97706",
+                      border: "1px solid rgba(217, 119, 6, 0.3)",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                      fontWeight: "600",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    🛠️ Maint.
+                  </span>
+                )}
               </NavLink>
             );
           })}

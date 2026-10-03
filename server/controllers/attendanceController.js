@@ -3,6 +3,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import {
   getMyBiometricStatusService,
   registerBiometricService,
+  resetEmployeeBiometricService,
   checkInAttendanceService,
   checkOutAttendanceService,
   getMyAttendanceHistoryService,
@@ -20,6 +21,12 @@ export const getMyBiometricStatus = asyncHandler(async (req, res) => {
 export const registerBiometric = asyncHandler(async (req, res) => {
   const result = await registerBiometricService(req.body, req.user);
   return res.status(201).json(new ApiResponse(201, result, "Mobile Biometric credential registered and permanently locked."));
+});
+
+export const resetEmployeeBiometric = asyncHandler(async (req, res) => {
+  const targetId = req.params.employeeId || req.body?.employee_id;
+  const result = await resetEmployeeBiometricService(targetId, req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Biometric credential reset successfully. User can now register a new biometric."));
 });
 
 export const checkInAttendance = asyncHandler(async (req, res) => {

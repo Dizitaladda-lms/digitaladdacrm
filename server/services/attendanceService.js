@@ -7,6 +7,7 @@ import {
   deleteWhitelistedIPRepository,
   findEmployeeBiometricRepository,
   saveEmployeeBiometricRepository,
+  deleteEmployeeBiometricRepository,
   findTodayAttendanceRepository,
   createAttendanceCheckInRepository,
   updateAttendanceCheckOutRepository,
@@ -170,4 +171,20 @@ export const addOfficeIPService = async ({ ip_address, label }) => {
 
 export const deleteOfficeIPService = async (id) => {
   return await deleteWhitelistedIPRepository(id);
+};
+
+export const resetEmployeeBiometricService = async (targetEmployeeId, currentUser) => {
+  const isHR = ["HR", "ADMIN", "SUPER_ADMIN"].includes(currentUser.role);
+  let empIdToReset = targetEmployeeId;
+
+  if (!empIdToReset || !isHR) {
+    const employee = await getEmployeeId(currentUser);
+    empIdToReset = employee.id;
+  }
+
+  const deleted = await deleteEmployeeBiometricRepository(empIdToReset);
+  if (!deleted) {
+    throw new ApiError(404, "No biometric registration found for this employee.");
+  }
+  return deleted;
 };

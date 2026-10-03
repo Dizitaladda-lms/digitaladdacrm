@@ -10,6 +10,12 @@ export const registerBiometricCredential = async (payload) => {
   return response.data;
 };
 
+export const resetBiometricCredential = async (employeeId) => {
+  const url = employeeId ? `/attendance/biometric/reset/${employeeId}` : "/attendance/biometric/reset";
+  const response = await axiosInstance.delete(url);
+  return response.data;
+};
+
 export const checkInAttendance = async (payload = {}) => {
   const response = await axiosInstance.post("/attendance/check-in", payload);
   return response.data;

@@ -57,6 +57,14 @@ export const saveEmployeeBiometricRepository = async (client, { employee_id, cre
   return result.rows[0];
 };
 
+export const deleteEmployeeBiometricRepository = async (employee_id) => {
+  const result = await pool.query(
+    `DELETE FROM employee_biometrics WHERE employee_id = $1 RETURNING *;`,
+    [employee_id]
+  );
+  return result.rows[0];
+};
+
 // ==========================================
 // Daily Attendance Tracking
 // ==========================================
