@@ -22,7 +22,8 @@ router.use(authMiddleware);
 // Employee Attendance & Mobile Biometrics
 router.get("/status", getMyBiometricStatus);
 router.post("/biometric/register", registerBiometric);
-router.delete("/biometric/reset/:employeeId?", resetEmployeeBiometric);
+router.delete("/biometric/reset", resetEmployeeBiometric);
+router.delete("/biometric/reset/:employeeId", resetEmployeeBiometric);
 router.post("/check-in", checkInAttendance);
 router.post("/check-out", checkOutAttendance);
 router.get("/my-history", getMyAttendanceHistory);
