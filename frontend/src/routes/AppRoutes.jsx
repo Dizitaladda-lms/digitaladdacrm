@@ -190,7 +190,7 @@ const AppRoutes = () => {
               }
             />
 
-            {/* Attendance Page — ACTIVE & ACCESSIBLE! */}
+            {/* Attendance Page — ACTIVE & ACCESSIBLE FOR ALL EMPLOYEES */}
             <Route
               path="/my-attendance"
               element={
@@ -200,7 +200,7 @@ const AppRoutes = () => {
               }
             />
 
-            {/* Attendance Reports Page — ACTIVE & ACCESSIBLE! */}
+            {/* Attendance Reports Page — ACCESSIBLE TO HR & SUPER ADMIN */}
             <Route
               path="/attendance-reports"
               element={

@@ -477,14 +477,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 : "Checked-In (Shift Active)"
               : "Mark Daily Mobile Attendance"}
           </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
-            <MapPin size={13} style={{ color: "#38bdf8" }} />
-            <span style={{ color: "#38bdf8", fontSize: "12px", fontWeight: "600" }}>
-              Live GPS Location: {locationStatus || "Detecting live location..."}
-            </span>
-          </div>
-          <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>
-            Choose Fingerprint Biometric or Face ID Scan with exact GPS location tracking.
+          <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>
+            Mark Check-In or Check-Out using Fingerprint Biometric or Face ID Selfie Scan.
           </p>
         </div>
 
@@ -645,13 +639,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         </div>
       </div>
 
-      {/* Location Status Message */}
-      {locationStatus && (
-        <div style={{ marginTop: "12px", color: "#38bdf8", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-          <MapPin size={14} /> <span>{locationStatus}</span>
-        </div>
-      )}
-
       {/* Live Check-in Details Bar */}
       {today?.check_in_time && (
         <div
@@ -673,29 +660,11 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </span>
           </div>
 
-          {today.check_in_location && (
-            <div>
-              <strong style={{ color: "#94a3b8" }}>Check-In Location:</strong>{" "}
-              <span style={{ color: "#38bdf8", fontWeight: "600" }}>
-                📍 {today.check_in_location}
-              </span>
-            </div>
-          )}
-
           {today.check_out_time && (
             <div>
               <strong style={{ color: "#94a3b8" }}>Check-Out Time:</strong>{" "}
               <span style={{ color: "#fff", fontWeight: "600" }}>
                 {new Date(today.check_out_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-          )}
-
-          {today.check_out_location && (
-            <div>
-              <strong style={{ color: "#94a3b8" }}>Check-Out Location:</strong>{" "}
-              <span style={{ color: "#f43f5e", fontWeight: "600" }}>
-                📍 {today.check_out_location}
               </span>
             </div>
           )}

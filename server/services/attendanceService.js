@@ -232,7 +232,26 @@ export const getHRAttendanceReportsService = async (filters, currentUser) => {
     throw new ApiError(403, "You are not authorized to view HR attendance reports.");
   }
 
-  return await getHRAttendanceReportsRepository(filters);
+  const reportsData = await getHRAttendanceReportsRepository(filters);
+  const isSuperAdmin = currentUser.role === "SUPER_ADMIN";
+
+  // If user is HR (not Super Admin), sanitize live GPS location coordinates and address fields
+  if (!isSuperAdmin && reportsData?.attendance) {
+    reportsData.attendance = reportsData.attendance.map((row) => {
+      const {
+        check_in_lat,
+        check_in_lng,
+        check_in_location,
+        check_out_lat,
+        check_out_lng,
+        check_out_location,
+        ...sanitizedRow
+      } = row;
+      return sanitizedRow;
+    });
+  }
+
+  return reportsData;
 };
 
 export const getOfficeIPsService = async () => {

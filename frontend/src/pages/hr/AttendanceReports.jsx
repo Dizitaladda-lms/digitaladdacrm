@@ -18,6 +18,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "../../context/AuthContext";
 import {
   getHRAttendanceReports,
   resetBiometricCredential,
@@ -27,6 +28,8 @@ import {
 } from "../../services/attendanceService";
 
 const AttendanceReports = () => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [activeTab, setActiveTab] = useState("REPORTS"); // "REPORTS" | "FACE_APPROVALS"
   const [reports, setReports] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
@@ -172,7 +175,7 @@ const AttendanceReports = () => {
                   border: "1px solid rgba(96, 165, 250, 0.3)",
                 }}
               >
-                <ShieldCheck size={14} /> HR & Executive Control
+                <ShieldCheck size={14} /> Super Admin Control
               </span>
               <span
                 style={{
@@ -602,8 +605,8 @@ const AttendanceReports = () => {
                   <th style={{ padding: "14px 18px" }}>Employee</th>
                   <th style={{ padding: "14px 18px" }}>Department / Role</th>
                   <th style={{ padding: "14px 18px" }}>Date</th>
-                  <th style={{ padding: "14px 18px" }}>Check-In (Time & Location)</th>
-                  <th style={{ padding: "14px 18px" }}>Check-Out (Time & Location)</th>
+                  <th style={{ padding: "14px 18px" }}>Check-In {isSuperAdmin ? "(Time & Location)" : "Time"}</th>
+                  <th style={{ padding: "14px 18px" }}>Check-Out {isSuperAdmin ? "(Time & Location)" : "Time"}</th>
                   <th style={{ padding: "14px 18px" }}>Shift Hours</th>
                   <th style={{ padding: "14px 18px" }}>Status</th>
                   <th style={{ padding: "14px 18px", textAlign: "right" }}>Actions</th>
@@ -633,7 +636,7 @@ const AttendanceReports = () => {
                       </td>
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ color: "#166534", fontWeight: "700", fontSize: "14px" }}>{checkIn}</div>
-                        {row.check_in_location && (
+                        {isSuperAdmin && row.check_in_location && (
                           <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
                             <MapPin size={12} style={{ color: "#2563eb", flexShrink: 0 }} />
                             <span style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.check_in_location}>
@@ -641,7 +644,7 @@ const AttendanceReports = () => {
                             </span>
                           </div>
                         )}
-                        {row.check_in_lat && row.check_in_lng && (
+                        {isSuperAdmin && row.check_in_lat && row.check_in_lng && (
                           <a
                             href={`https://maps.google.com/?q=${row.check_in_lat},${row.check_in_lng}`}
                             target="_blank"
@@ -654,7 +657,7 @@ const AttendanceReports = () => {
                       </td>
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ color: "#9a3412", fontWeight: "700", fontSize: "14px" }}>{checkOut}</div>
-                        {row.check_out_location && (
+                        {isSuperAdmin && row.check_out_location && (
                           <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
                             <MapPin size={12} style={{ color: "#ea580c", flexShrink: 0 }} />
                             <span style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.check_out_location}>
@@ -662,7 +665,7 @@ const AttendanceReports = () => {
                             </span>
                           </div>
                         )}
-                        {row.check_out_lat && row.check_out_lng && (
+                        {isSuperAdmin && row.check_out_lat && row.check_out_lng && (
                           <a
                             href={`https://maps.google.com/?q=${row.check_out_lat},${row.check_out_lng}`}
                             target="_blank"

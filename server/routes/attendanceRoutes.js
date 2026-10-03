@@ -28,7 +28,7 @@ router.post("/biometric/register", registerBiometric);
 router.delete("/biometric/reset", resetEmployeeBiometric);
 router.delete("/biometric/reset/:employeeId", resetEmployeeBiometric);
 
-// HR Face Biometric Approvals
+// HR & Super Admin Face Biometric Approvals
 router.get(
   "/biometric/pending-approvals",
   roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
@@ -49,27 +49,27 @@ router.post("/check-in", checkInAttendance);
 router.post("/check-out", checkOutAttendance);
 router.get("/my-history", getMyAttendanceHistory);
 
-// HR & Super Admin Reports
+// HR & Super Admin Attendance Reports
 router.get(
   "/hr-reports",
   roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   getHRAttendanceReports
 );
 
-// Office Wi-Fi Whitelist Management (HR & Super Admin)
+// Office Wi-Fi Whitelist Management (Super Admin)
 router.get(
   "/office-ips",
-  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   getOfficeIPs
 );
 router.post(
   "/office-ips",
-  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   addOfficeIP
 );
 router.delete(
   "/office-ips/:id",
-  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN),
   deleteOfficeIP
 );
 
