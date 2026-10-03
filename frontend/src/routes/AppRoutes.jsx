@@ -4,10 +4,25 @@ import { Routes, Route } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import ChangePassword from "../pages/auth/ChangePassword/ChangePassword";
 
-import UnderMaintenance from "../components/common/UnderMaintenance";
+import Dashboard from "../pages/dashboard/Dashboard";
+import LeadManagement from "../pages/Lead/LeadManagement";
+import LeadSources from "../pages/leadSources/LeadSources";
+import AdminWorkspace from "../pages/admin/AdminWorkspace";
+import AdminSettings from "../pages/admin/Settings";
+import Employees from "../pages/admin/Employees";
 
+// Lazy-loaded routes
+const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
+const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
+const TelephonySettings = lazy(() => import("../pages/admin/TelephonySettings"));
+const ManagerMyLeads = lazy(() => import("../pages/admin/ManagerMyLeads"));
+const OperationsDashboard = lazy(() => import("../pages/admin/OperationsDashboard"));
+const DailyReportForm = lazy(() => import("../pages/admin/DailyReportForm"));
+const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
+const AgencyLeads = lazy(() => import("../pages/hr/AgencyLeads"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
 const AttendanceReports = lazy(() => import("../pages/hr/AttendanceReports"));
+const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -39,7 +54,88 @@ const AppRoutes = () => {
 
           <Route element={<MainLayout />}>
 
-            {/* Attendance Modules — LIVE & ACTIVE */}
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            <Route path="/leads" element={<LeadManagement />} />
+
+            <Route
+              path="/my-leads"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <ManagerMyLeads />
+                </Suspense>
+              }
+            />
+
+            <Route path="/lead-sources" element={<LeadSources />} />
+
+            <Route path="/employees" element={<Employees />} />
+
+            <Route
+              path="/followups"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyFollowups />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/admissions"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyAdmissions />
+                </Suspense>
+              }
+            />
+
+            <Route path="/students" element={<AdminWorkspace page="students" />} />
+
+            <Route
+              path="/reports"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <OperationsDashboard />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/sales-department-report"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <SalesDepartmentReport />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/daily-report"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <DailyReportForm />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/team-reports"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <TeamReports />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/agency-leads"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AgencyLeads />
+                </Suspense>
+              }
+            />
+
             <Route
               path="/my-attendance"
               element={
@@ -58,27 +154,23 @@ const AppRoutes = () => {
               }
             />
 
+            <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN"]} />}>
+              <Route
+                path="/telephony"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <TelephonySettings />
+                  </Suspense>
+                }
+              />
+            </Route>
+
+            <Route path="/settings" element={<AdminSettings />} />
+
             <Route
               path="/change-password"
               element={<ChangePassword />}
             />
-
-            {/* Under Maintenance Modules */}
-            <Route path="/dashboard" element={<UnderMaintenance moduleName="Admin Dashboard" />} />
-            <Route path="/leads" element={<UnderMaintenance moduleName="Lead Management" />} />
-            <Route path="/my-leads" element={<UnderMaintenance moduleName="My Leads" />} />
-            <Route path="/lead-sources" element={<UnderMaintenance moduleName="Lead Sources" />} />
-            <Route path="/employees" element={<UnderMaintenance moduleName="Employees Directory" />} />
-            <Route path="/followups" element={<UnderMaintenance moduleName="My Follow-ups" />} />
-            <Route path="/admissions" element={<UnderMaintenance moduleName="Admissions Management" />} />
-            <Route path="/students" element={<UnderMaintenance moduleName="Students Portal" />} />
-            <Route path="/reports" element={<UnderMaintenance moduleName="Operations Dashboard" />} />
-            <Route path="/sales-department-report" element={<UnderMaintenance moduleName="Sales Department Overview" />} />
-            <Route path="/daily-report" element={<UnderMaintenance moduleName="Daily Work Report" />} />
-            <Route path="/team-reports" element={<UnderMaintenance moduleName="Team Reports" />} />
-            <Route path="/agency-leads" element={<UnderMaintenance moduleName="Agency Leads" />} />
-            <Route path="/telephony" element={<UnderMaintenance moduleName="Call Recording & Telephony" />} />
-            <Route path="/settings" element={<UnderMaintenance moduleName="Admin Settings" />} />
 
           </Route>
 
