@@ -6,6 +6,9 @@ import {
   getMyBiometricStatus,
   registerBiometric,
   resetEmployeeBiometric,
+  getPendingBiometricApprovals,
+  approveBiometric,
+  rejectBiometric,
   checkInAttendance,
   checkOutAttendance,
   getMyAttendanceHistory,
@@ -24,6 +27,24 @@ router.get("/status", getMyBiometricStatus);
 router.post("/biometric/register", registerBiometric);
 router.delete("/biometric/reset", resetEmployeeBiometric);
 router.delete("/biometric/reset/:employeeId", resetEmployeeBiometric);
+
+// HR Face Biometric Approvals
+router.get(
+  "/biometric/pending-approvals",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  getPendingBiometricApprovals
+);
+router.post(
+  "/biometric/approve/:id",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  approveBiometric
+);
+router.post(
+  "/biometric/reject/:id",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  rejectBiometric
+);
+
 router.post("/check-in", checkInAttendance);
 router.post("/check-out", checkOutAttendance);
 router.get("/my-history", getMyAttendanceHistory);

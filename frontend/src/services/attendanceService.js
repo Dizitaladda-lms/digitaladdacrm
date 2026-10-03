@@ -16,6 +16,21 @@ export const resetBiometricCredential = async (employeeId) => {
   return response.data;
 };
 
+export const getPendingBiometricApprovals = async () => {
+  const response = await axiosInstance.get("/attendance/biometric/pending-approvals");
+  return response.data;
+};
+
+export const approveBiometricRegistration = async (id) => {
+  const response = await axiosInstance.post(`/attendance/biometric/approve/${id}`);
+  return response.data;
+};
+
+export const rejectBiometricRegistration = async (id, reason) => {
+  const response = await axiosInstance.post(`/attendance/biometric/reject/${id}`, { reason });
+  return response.data;
+};
+
 export const checkInAttendance = async (payload = {}) => {
   const response = await axiosInstance.post("/attendance/check-in", payload);
   return response.data;

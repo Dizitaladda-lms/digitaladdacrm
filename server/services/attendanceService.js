@@ -8,6 +8,9 @@ import {
   findEmployeeBiometricRepository,
   saveEmployeeBiometricRepository,
   deleteEmployeeBiometricRepository,
+  getPendingBiometricApprovalsRepository,
+  approveBiometricRepository,
+  rejectBiometricRepository,
   findTodayAttendanceRepository,
   createAttendanceCheckInRepository,
   updateAttendanceCheckOutRepository,
@@ -62,32 +65,34 @@ export const getMyBiometricStatusService = async (currentUser) => {
     employee_id: employee.id,
     is_registered: !!biometric,
     is_locked: biometric ? biometric.is_locked : false,
+    approval_status: biometric ? (biometric.approval_status || "APPROVED") : "NOT_REGISTERED",
+    face_image_url: biometric ? biometric.face_image_url : null,
+    rejection_reason: biometric ? biometric.rejection_reason : null,
     registered_at: biometric ? biometric.registered_at : null,
     today_attendance: todayAttendance || null,
   };
 };
 
 export const registerBiometricService = async (payload = {}, currentUser) => {
-  const { credentialId, publicKey, deviceInfo } = payload || {};
+  const { credentialId, publicKey, deviceInfo, faceImage } = payload || {};
   const employee = await getEmployeeId(currentUser);
   const existing = await findEmployeeBiometricRepository(employee.id);
 
-  if (existing) {
+  if (existing && (existing.approval_status === "APPROVED" || existing.approval_status === "PENDING_APPROVAL")) {
     throw new ApiError(
       400,
-      "Biometric credential is already registered and locked for your account. You cannot edit or re-register it."
+      existing.approval_status === "APPROVED"
+        ? "Face Biometric is already registered and locked for your account. You cannot re-register it."
+        : "Your Face Biometric registration has already been submitted and is pending approval by HR."
     );
-  }
-
-  if (!credentialId) {
-    throw new ApiError(400, "Credential ID is required for WebAuthn biometric registration.");
   }
 
   return await saveEmployeeBiometricRepository(null, {
     employee_id: employee.id,
-    credential_id: credentialId,
-    public_key: publicKey || "FIDO2_WEBAUTHN_KEY",
-    device_info: deviceInfo || "Mobile Biometric Device",
+    credential_id: credentialId || `FACE_ID_${employee.id}_${Date.now()}`,
+    public_key: publicKey || "FIDO2_FACE_ID_KEY",
+    device_info: deviceInfo || "Mobile Face ID Device",
+    face_image_url: faceImage || null,
   });
 };
 
@@ -100,12 +105,27 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   if (!biometric) {
     throw new ApiError(
       400,
-      "Please register your mobile biometric (Fingerprint/FaceID) once before marking attendance."
+      "Please register your Face ID / Mobile Biometric once before marking attendance."
+    );
+  }
+
+  const approvalStatus = biometric.approval_status || "APPROVED";
+  if (approvalStatus === "PENDING_APPROVAL") {
+    throw new ApiError(
+      403,
+      "Your Face Biometric registration is pending approval by HR. Attendance check-in will be enabled once HR approves your face registration."
+    );
+  }
+
+  if (approvalStatus === "REJECTED") {
+    throw new ApiError(
+      403,
+      `Your Face Biometric registration was rejected by HR (${biometric.rejection_reason || 'Please re-register'}). Please re-register your face ID.`
     );
   }
 
   if (credentialId && biometric.credential_id !== credentialId) {
-    throw new ApiError(403, "Biometric signature mismatch. Please use your registered mobile fingerprint.");
+    throw new ApiError(403, "Biometric signature mismatch. Please use your registered mobile Face ID / fingerprint.");
   }
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -187,4 +207,34 @@ export const resetEmployeeBiometricService = async (targetEmployeeId, currentUse
     throw new ApiError(404, "No biometric registration found for this employee.");
   }
   return deleted;
+};
+
+export const getPendingBiometricApprovalsService = async (currentUser) => {
+  const isHR = ["HR", "ADMIN", "SUPER_ADMIN"].includes(currentUser.role);
+  if (!isHR) {
+    throw new ApiError(403, "You are not authorized to view biometric approvals.");
+  }
+  return await getPendingBiometricApprovalsRepository();
+};
+
+export const approveBiometricService = async (biometricId, currentUser) => {
+  const isHR = ["HR", "ADMIN", "SUPER_ADMIN"].includes(currentUser.role);
+  if (!isHR) {
+    throw new ApiError(403, "You are not authorized to approve biometric registrations.");
+  }
+
+  const approved = await approveBiometricRepository(biometricId, currentUser.id);
+  if (!approved) throw new ApiError(404, "Biometric record not found.");
+  return approved;
+};
+
+export const rejectBiometricService = async (biometricId, reason, currentUser) => {
+  const isHR = ["HR", "ADMIN", "SUPER_ADMIN"].includes(currentUser.role);
+  if (!isHR) {
+    throw new ApiError(403, "You are not authorized to reject biometric registrations.");
+  }
+
+  const rejected = await rejectBiometricRepository(biometricId, reason);
+  if (!rejected) throw new ApiError(404, "Biometric record not found.");
+  return rejected;
 };

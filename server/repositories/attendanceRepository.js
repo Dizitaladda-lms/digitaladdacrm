@@ -44,15 +44,25 @@ export const findEmployeeBiometricRepository = async (employee_id) => {
   return result.rows[0];
 };
 
-export const saveEmployeeBiometricRepository = async (client, { employee_id, credential_id, public_key, device_info }) => {
+export const saveEmployeeBiometricRepository = async (client, { employee_id, credential_id, public_key, device_info, face_image_url }) => {
   const dbClient = client || pool;
   const result = await dbClient.query(
     `
-      INSERT INTO employee_biometrics (employee_id, credential_id, public_key, device_info, is_locked)
-      VALUES ($1, $2, $3, $4, TRUE)
+      INSERT INTO employee_biometrics (
+        employee_id, credential_id, public_key, device_info, face_image_url, is_locked, approval_status
+      )
+      VALUES ($1, $2, $3, $4, $5, TRUE, 'PENDING_APPROVAL')
+      ON CONFLICT (employee_id) DO UPDATE SET
+        credential_id = EXCLUDED.credential_id,
+        public_key = EXCLUDED.public_key,
+        device_info = EXCLUDED.device_info,
+        face_image_url = COALESCE(EXCLUDED.face_image_url, employee_biometrics.face_image_url),
+        approval_status = 'PENDING_APPROVAL',
+        is_locked = TRUE,
+        registered_at = CURRENT_TIMESTAMP
       RETURNING *;
     `,
-    [employee_id, credential_id, public_key, device_info || "Mobile Biometric Device"]
+    [employee_id, credential_id, public_key, device_info || "Mobile Biometric Device", face_image_url || null]
   );
   return result.rows[0];
 };
@@ -61,6 +71,61 @@ export const deleteEmployeeBiometricRepository = async (employee_id) => {
   const result = await pool.query(
     `DELETE FROM employee_biometrics WHERE employee_id = $1 RETURNING *;`,
     [employee_id]
+  );
+  return result.rows[0];
+};
+
+export const getPendingBiometricApprovalsRepository = async () => {
+  const result = await pool.query(
+    `
+      SELECT 
+        b.*,
+        e.full_name AS employee_name,
+        e.employee_code,
+        e.designation,
+        e.role,
+        d.department_name,
+        u.email AS employee_email
+      FROM employee_biometrics b
+      JOIN employees e ON b.employee_id = e.id
+      LEFT JOIN users u ON e.user_id = u.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      ORDER BY 
+        CASE WHEN b.approval_status = 'PENDING_APPROVAL' THEN 0 ELSE 1 END,
+        b.registered_at DESC;
+    `
+  );
+  return result.rows;
+};
+
+export const approveBiometricRepository = async (id, approvedByUserId) => {
+  const result = await pool.query(
+    `
+      UPDATE employee_biometrics
+      SET 
+        approval_status = 'APPROVED',
+        approved_by = $1,
+        approved_at = CURRENT_TIMESTAMP,
+        rejection_reason = NULL
+      WHERE id = $2
+      RETURNING *;
+    `,
+    [approvedByUserId, id]
+  );
+  return result.rows[0];
+};
+
+export const rejectBiometricRepository = async (id, reason) => {
+  const result = await pool.query(
+    `
+      UPDATE employee_biometrics
+      SET 
+        approval_status = 'REJECTED',
+        rejection_reason = $1
+      WHERE id = $2
+      RETURNING *;
+    `,
+    [reason || "Face Biometric rejected by HR. Please re-register.", id]
   );
   return result.rows[0];
 };

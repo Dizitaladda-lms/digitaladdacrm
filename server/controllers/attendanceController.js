@@ -4,6 +4,9 @@ import {
   getMyBiometricStatusService,
   registerBiometricService,
   resetEmployeeBiometricService,
+  getPendingBiometricApprovalsService,
+  approveBiometricService,
+  rejectBiometricService,
   checkInAttendanceService,
   checkOutAttendanceService,
   getMyAttendanceHistoryService,
@@ -20,13 +23,29 @@ export const getMyBiometricStatus = asyncHandler(async (req, res) => {
 
 export const registerBiometric = asyncHandler(async (req, res) => {
   const result = await registerBiometricService(req.body, req.user);
-  return res.status(201).json(new ApiResponse(201, result, "Mobile Biometric credential registered and permanently locked."));
+  return res.status(201).json(new ApiResponse(201, result, "Face Biometric registered successfully and sent for HR approval."));
 });
 
 export const resetEmployeeBiometric = asyncHandler(async (req, res) => {
   const targetId = req.params.employeeId || req.body?.employee_id;
   const result = await resetEmployeeBiometricService(targetId, req.user);
   return res.status(200).json(new ApiResponse(200, result, "Biometric credential reset successfully. User can now register a new biometric."));
+});
+
+export const getPendingBiometricApprovals = asyncHandler(async (req, res) => {
+  const result = await getPendingBiometricApprovalsService(req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Pending biometric approvals fetched successfully."));
+});
+
+export const approveBiometric = asyncHandler(async (req, res) => {
+  const result = await approveBiometricService(req.params.id, req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Employee Face Biometric approved successfully."));
+});
+
+export const rejectBiometric = asyncHandler(async (req, res) => {
+  const { reason } = req.body || {};
+  const result = await rejectBiometricService(req.params.id, reason, req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Employee Face Biometric rejected."));
 });
 
 export const checkInAttendance = asyncHandler(async (req, res) => {
