@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
 import { useAuth } from "../../context/AuthContext";
+import { IS_MAINTENANCE_MODE } from "../../config/maintenanceConfig";
 import "./auth.css";
 
 const LoginForm = () => {
@@ -39,6 +40,15 @@ const LoginForm = () => {
         toast.success("Welcome Back 👋");
 
         const role = response?.data?.user?.role || response?.user?.role;
+
+        if (IS_MAINTENANCE_MODE) {
+          if (["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"].includes(role)) {
+            navigate("/my-attendance", { replace: true });
+          } else {
+            navigate("/employee/my-attendance", { replace: true });
+          }
+          return;
+        }
 
         switch (role) {
           case "MANAGER":

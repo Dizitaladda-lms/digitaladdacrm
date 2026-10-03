@@ -17,11 +17,19 @@ const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const MyAssignedWork = lazy(() => import("../pages/employee/MyAssignedWork"));
 
+import UnderMaintenance from "../pages/UnderMaintenance";
+import { IS_MAINTENANCE_MODE } from "../config/maintenanceConfig";
+
 const LoadingFallback = () => (
   <div style={{ padding: "40px", textAlign: "center", fontWeight: 600, color: "#64748B" }}>
     Loading Page...
   </div>
 );
+
+const renderEmpPage = (Component) => {
+  if (IS_MAINTENANCE_MODE) return <UnderMaintenance />;
+  return <Component />;
+};
 
 const EmployeeRoutes = () => {
   const { user } = useAuth();
@@ -36,19 +44,24 @@ const EmployeeRoutes = () => {
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route element={<EmployeeLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="my-attendance" element={<MyAttendance />} />
-          <Route path="daily-report" element={<MyDailyReport />} />
-          <Route path="assigned-work" element={<MyAssignedWork />} />
-          <Route path="performance" element={<MyPerformance />} />
-          <Route path="team-reports" element={<TeamReports />} />
+          <Route index element={<Navigate to={IS_MAINTENANCE_MODE ? "my-attendance" : "dashboard"} replace />} />
+          <Route path="dashboard" element={renderEmpPage(Dashboard)} />
           
-          {/* Sales Report restricted to HR, Super Admin & Department Heads/TLs */}
+          {/* Active Attendance Route */}
+          <Route path="my-attendance" element={<MyAttendance />} />
+
+          <Route path="daily-report" element={renderEmpPage(MyDailyReport)} />
+          <Route path="assigned-work" element={renderEmpPage(MyAssignedWork)} />
+          <Route path="performance" element={renderEmpPage(MyPerformance)} />
+          <Route path="team-reports" element={renderEmpPage(TeamReports)} />
+          
+          {/* Sales Report */}
           <Route
             path="sales-report"
             element={
-              canSeeSalesReport ? (
+              IS_MAINTENANCE_MODE ? (
+                <UnderMaintenance />
+              ) : canSeeSalesReport ? (
                 <SalesDepartmentReport />
               ) : (
                 <Navigate to="/employee/dashboard" replace />
@@ -56,24 +69,14 @@ const EmployeeRoutes = () => {
             }
           />
 
-          <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="profile" element={renderEmpPage(Profile)} />
+          <Route path="settings" element={renderEmpPage(Settings)} />
 
-          {/* Sales Only Routes (Counsellors only) */}
-          {isCounsellor ? (
-            <>
-              <Route path="leads" element={<MyLeads />} />
-              <Route path="leads/:id" element={<LeadDetails />} />
-              <Route path="followups" element={<MyFollowups />} />
-              <Route path="admissions" element={<MyAdmissions />} />
-            </>
-          ) : (
-            <>
-              <Route path="leads/*" element={<Navigate to="/employee/dashboard" replace />} />
-              <Route path="followups" element={<Navigate to="/employee/dashboard" replace />} />
-              <Route path="admissions" element={<Navigate to="/employee/dashboard" replace />} />
-            </>
-          )}
+          {/* Sales Only Routes */}
+          <Route path="leads" element={renderEmpPage(MyLeads)} />
+          <Route path="leads/:id" element={renderEmpPage(LeadDetails)} />
+          <Route path="followups" element={renderEmpPage(MyFollowups)} />
+          <Route path="admissions" element={renderEmpPage(MyAdmissions)} />
         </Route>
       </Routes>
     </Suspense>

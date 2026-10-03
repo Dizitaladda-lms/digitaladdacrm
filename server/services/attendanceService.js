@@ -78,12 +78,10 @@ export const registerBiometricService = async (payload = {}, currentUser) => {
   const employee = await getEmployeeId(currentUser);
   const existing = await findEmployeeBiometricRepository(employee.id);
 
-  if (existing && (existing.approval_status === "APPROVED" || existing.approval_status === "PENDING_APPROVAL")) {
+  if (existing && existing.approval_status === "APPROVED") {
     throw new ApiError(
       400,
-      existing.approval_status === "APPROVED"
-        ? "Face Biometric is already registered and locked for your account. You cannot re-register it."
-        : "Your Face Biometric registration has already been submitted and is pending approval by HR."
+      "Your Face Biometric is already approved by HR and locked. If you need to update your face photo, please ask HR to reset your biometric registration."
     );
   }
 
@@ -92,23 +90,31 @@ export const registerBiometricService = async (payload = {}, currentUser) => {
     credential_id: credentialId || `FACE_ID_${employee.id}_${Date.now()}`,
     public_key: publicKey || "FIDO2_FACE_ID_KEY",
     device_info: deviceInfo || "Mobile Face ID Device",
-    face_image_url: faceImage || null,
+    face_image_url: faceImage || (existing ? existing.face_image_url : null),
   });
 };
 
 export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
-  const { credentialId, latitude, longitude, location_name, verification_method } = payload || {};
+  const { credentialId, latitude, longitude, location_name, faceImage } = payload || {};
+
+  if (!latitude || !longitude || location_name?.includes("Denied") || location_name?.includes("Unavailable")) {
+    throw new ApiError(
+      400,
+      "📍 GPS Location Permission is mandatory to mark attendance! Please enable location access on your device."
+    );
+  }
+
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 
   let biometric = await findEmployeeBiometricRepository(employee.id);
-  if (!biometric) {
-    // Auto-create initial biometric record for seamless check-in
+  if (!biometric || faceImage) {
     biometric = await saveEmployeeBiometricRepository(null, {
       employee_id: employee.id,
-      credential_id: credentialId || `BIO_${employee.id}_${Date.now()}`,
-      public_key: "AUTO_KEY",
+      credential_id: credentialId || `FACE_ID_${employee.id}_${Date.now()}`,
+      public_key: "FACE_ID_KEY",
       device_info: "Mobile Device",
+      face_image_url: faceImage || (biometric ? biometric.face_image_url : null),
     });
   }
 
@@ -119,8 +125,8 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     ip_address: clientIp,
     is_office_wifi: isOfficeWifi,
     status: "PRESENT",
-    check_in_lat: latitude ? Number(latitude) : null,
-    check_in_lng: longitude ? Number(longitude) : null,
+    check_in_lat: Number(latitude),
+    check_in_lng: Number(longitude),
     check_in_location: location_name || null,
   });
 
@@ -129,6 +135,14 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
 
 export const checkOutAttendanceService = async (payload = {}, currentUser, req) => {
   const { latitude, longitude, location_name } = payload || {};
+
+  if (!latitude || !longitude || location_name?.includes("Denied") || location_name?.includes("Unavailable")) {
+    throw new ApiError(
+      400,
+      "📍 GPS Location Permission is mandatory to check-out! Please enable location access on your device."
+    );
+  }
+
   await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 
@@ -141,8 +155,8 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
 
   return await updateAttendanceCheckOutRepository(null, {
     id: todayAttendance.id,
-    check_out_lat: latitude ? Number(latitude) : null,
-    check_out_lng: longitude ? Number(longitude) : null,
+    check_out_lat: Number(latitude),
+    check_out_lng: Number(longitude),
     check_out_location: location_name || null,
   });
 };

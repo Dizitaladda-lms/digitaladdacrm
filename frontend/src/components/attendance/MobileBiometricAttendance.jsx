@@ -94,22 +94,53 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     });
   }, []);
 
+  // Ensure stream is properly attached to <video> ref when modal opens (critical for iOS Safari / iPhone)
+  useEffect(() => {
+    if (showCameraModal && !capturedPhoto && mediaStreamRef.current && videoRef.current) {
+      videoRef.current.srcObject = mediaStreamRef.current;
+      videoRef.current.play().catch((e) => console.log("Video playback catch on iOS:", e));
+    }
+  }, [showCameraModal, capturedPhoto]);
+
   const openCamera = async (mode = "CHECK_IN") => {
     setCameraMode(mode);
     setShowCameraModal(true);
     setCapturedPhoto(null);
+
+    // Stop any previously open stream
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
+      let stream;
+      try {
+        // Ideal user-facing camera constraint for iPhone & iOS Safari
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "user" } },
+          audio: false,
+        });
+      } catch (e1) {
+        console.warn("Fallback basic video constraint for iOS:", e1);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
       mediaStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.log("Autoplay catch on camera open:", playErr);
+        }
       }
     } catch (err) {
       console.error("Camera access error:", err);
-      toast.error("Camera access required for Face ID selfie capture. Please enable camera permissions.");
+      toast.error("Camera access required for Face ID selfie capture. Please allow camera permissions in iPhone Settings -> Safari -> Camera.");
     }
   };
 
@@ -125,11 +156,13 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const takeSelfie = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+    const width = videoRef.current.videoWidth || 640;
+    const height = videoRef.current.videoHeight || 480;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    ctx.drawImage(videoRef.current, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     setCapturedPhoto(dataUrl);
 
     // Stop video stream after capture
@@ -147,38 +180,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      let credentialId = "FACE_ID_MOBILE_" + Date.now();
-      let publicKey = "FIDO2_FACE_KEY_" + Math.random().toString(36).substring(7);
-
-      if (window.PublicKeyCredential && typeof window.PublicKeyCredential === "function") {
-        try {
-          const challenge = new Uint8Array(32);
-          window.crypto.getRandomValues(challenge);
-          const userId = new Uint8Array(16);
-          window.crypto.getRandomValues(userId);
-
-          const credential = await navigator.credentials.create({
-            publicKey: {
-              challenge,
-              rp: { name: "Dizital Adda Face ID Attendance" },
-              user: {
-                id: userId,
-                name: "employee",
-                displayName: "Face ID Biometric",
-              },
-              pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-              authenticatorSelection: { userVerification: "preferred" },
-              timeout: 60000,
-            },
-          });
-
-          if (credential && credential.id) {
-            credentialId = credential.id;
-          }
-        } catch (e) {
-          console.log("WebAuthn Face ID fallback:", e.message);
-        }
-      }
+      const credentialId = "FACE_ID_MOBILE_" + Date.now();
+      const publicKey = "FIDO2_FACE_KEY_" + Math.random().toString(36).substring(7);
 
       const res = await registerBiometricCredential({
         credentialId,
@@ -191,7 +194,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           : "Desktop Face Camera",
       });
 
-      toast.success("Face Biometric registered successfully & sent to HR for approval!");
+      toast.success("Face Biometric selfie captured successfully & sent to HR for approval! 📸");
       closeCamera();
       await loadStatus();
     } catch (err) {
@@ -200,6 +203,22 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const validateGPSLocation = (locationData) => {
+    if (
+      !locationData ||
+      !locationData.latitude ||
+      !locationData.longitude ||
+      !locationData.location_name ||
+      locationData.location_name.includes("Denied") ||
+      locationData.location_name.includes("Unavailable") ||
+      locationData.location_name.includes("Not Supported")
+    ) {
+      toast.error("📍 GPS Location Permission Required! Please allow location access on your device to mark attendance.");
+      return false;
+    }
+    return true;
   };
 
   const handleFaceCheckIn = async () => {
@@ -213,6 +232,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
       const locationData = await getGPSLocation();
       setLocationStatus(locationData.location_name);
+
+      if (!validateGPSLocation(locationData)) {
+        return;
+      }
 
       const credentialId = "FACE_ID_CHECKIN_" + Date.now();
       const res = await checkInAttendance({
@@ -247,6 +270,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       const locationData = await getGPSLocation();
       setLocationStatus(locationData.location_name);
 
+      if (!validateGPSLocation(locationData)) {
+        return;
+      }
+
       const res = await checkOutAttendance({
         latitude: locationData.latitude,
         longitude: locationData.longitude,
@@ -272,6 +299,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
       const locationData = await getGPSLocation();
       setLocationStatus(locationData.location_name);
+
+      if (!validateGPSLocation(locationData)) {
+        return;
+      }
 
       const credentialId = "WEBAUTHN_CHECKIN_" + Date.now();
       const res = await checkInAttendance({
@@ -299,6 +330,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
       const locationData = await getGPSLocation();
       setLocationStatus(locationData.location_name);
+
+      if (!validateGPSLocation(locationData)) {
+        return;
+      }
 
       const res = await checkOutAttendance({
         latitude: locationData.latitude,

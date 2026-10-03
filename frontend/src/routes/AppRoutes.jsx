@@ -32,11 +32,19 @@ import EmployeeRoutes from "./EmployeeRoutes";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleProtectedRoute from "./RoleProtectedRoute";
 
+import UnderMaintenance from "../pages/UnderMaintenance";
+import { IS_MAINTENANCE_MODE } from "../config/maintenanceConfig";
+
 const PageLoader = () => (
   <div style={{ padding: "40px", textAlign: "center", fontWeight: 600, color: "#64748B" }}>
     Loading...
   </div>
 );
+
+const renderPage = (Component) => {
+  if (IS_MAINTENANCE_MODE) return <UnderMaintenance />;
+  return <Component />;
+};
 
 const AppRoutes = () => {
   return (
@@ -55,97 +63,134 @@ const AppRoutes = () => {
 
           <Route element={<MainLayout />}>
 
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={renderPage(Dashboard)} />
 
-            <Route path="/leads" element={<LeadManagement />} />
+            <Route path="/leads" element={renderPage(LeadManagement)} />
 
             <Route
               path="/my-leads"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <ManagerMyLeads />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <ManagerMyLeads />
+                  </Suspense>
+                )
               }
             />
 
-            <Route path="/lead-sources" element={<LeadSources />} />
+            <Route path="/lead-sources" element={renderPage(LeadSources)} />
 
-            <Route path="/employees" element={<Employees />} />
+            <Route path="/employees" element={renderPage(Employees)} />
 
             <Route
               path="/followups"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <MyFollowups />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <MyFollowups />
+                  </Suspense>
+                )
               }
             />
 
             <Route
               path="/admissions"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <MyAdmissions />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <MyAdmissions />
+                  </Suspense>
+                )
               }
             />
 
-            <Route path="/students" element={<AdminWorkspace page="students" />} />
+            <Route path="/students" element={renderPage(AdminWorkspace)} />
 
             <Route
               path="/reports"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <OperationsDashboard />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <OperationsDashboard />
+                  </Suspense>
+                )
               }
             />
 
             <Route
               path="/work-assignments"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminWorkAssignments />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <AdminWorkAssignments />
+                  </Suspense>
+                )
               }
             />
 
             <Route
               path="/sales-department-report"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <SalesDepartmentReport />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <SalesDepartmentReport />
+                  </Suspense>
+                )
               }
             />
 
             <Route
               path="/daily-report"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <DailyReportForm />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <DailyReportForm />
+                  </Suspense>
+                )
               }
             />
 
             <Route
               path="/team-reports"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <TeamReports />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <TeamReports />
+                  </Suspense>
+                )
               }
             />
 
             <Route
               path="/agency-leads"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <AgencyLeads />
-                </Suspense>
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <AgencyLeads />
+                  </Suspense>
+                )
               }
             />
 
+            {/* Attendance Page — ACTIVE & ACCESSIBLE! */}
             <Route
               path="/my-attendance"
               element={
@@ -155,6 +200,7 @@ const AppRoutes = () => {
               }
             />
 
+            {/* Attendance Reports Page — ACTIVE & ACCESSIBLE! */}
             <Route
               path="/attendance-reports"
               element={
@@ -168,18 +214,22 @@ const AppRoutes = () => {
               <Route
                 path="/telephony"
                 element={
-                  <Suspense fallback={<PageLoader />}>
-                    <TelephonySettings />
-                  </Suspense>
+                  IS_MAINTENANCE_MODE ? (
+                    <UnderMaintenance />
+                  ) : (
+                    <Suspense fallback={<PageLoader />}>
+                      <TelephonySettings />
+                    </Suspense>
+                  )
                 }
               />
             </Route>
 
-            <Route path="/settings" element={<AdminSettings />} />
+            <Route path="/settings" element={renderPage(AdminSettings)} />
 
             <Route
               path="/change-password"
-              element={<ChangePassword />}
+              element={renderPage(ChangePassword)}
             />
 
           </Route>
