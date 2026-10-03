@@ -22,6 +22,7 @@ const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
 const AgencyLeads = lazy(() => import("../pages/hr/AgencyLeads"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
 const AttendanceReports = lazy(() => import("../pages/hr/AttendanceReports"));
+const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -95,6 +96,15 @@ const AppRoutes = () => {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <OperationsDashboard />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/sales-department-report"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <SalesDepartmentReport />
                 </Suspense>
               }
             />

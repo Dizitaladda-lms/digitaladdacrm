@@ -13,6 +13,7 @@ import {
   Globe,
   Fingerprint,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -33,9 +34,10 @@ const SidebarNavigation = ({ onClose }) => {
   let menuItems = [];
 
   if (isHR) {
-    // Operations & HR Department ONLY — Dedicated Agency Leads & Company Attendance
+    // Operations & HR Department ONLY — Dedicated Agency Leads, Sales Dept Overview & Company Attendance
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
@@ -47,6 +49,7 @@ const SidebarNavigation = ({ onClose }) => {
     // Super Admin: Has access to Sales, Agency Leads, Operations, and Attendance
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
@@ -82,6 +85,7 @@ const SidebarNavigation = ({ onClose }) => {
     // Sales Manager & Counsellors
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },

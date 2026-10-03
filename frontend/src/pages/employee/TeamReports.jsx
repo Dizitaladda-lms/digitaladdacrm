@@ -18,9 +18,13 @@ import {
 import toast from "react-hot-toast";
 import { getTeamReports, reviewReportAsTL } from "../../services/reportService";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
+import { useAuth } from "../../context/AuthContext";
 import "./TeamReports.css";
 
 const TeamReports = () => {
+  const { user } = useAuth();
+  const isSalesDept = user?.role === "COUNSELLOR" || user?.role === "SUPER_ADMIN" || (user?.department_name && /sales/i.test(user.department_name));
+
   const [reports, setReports] = useState([]);
   const [salesMetrics, setSalesMetrics] = useState({
     kpi: { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 },
@@ -89,19 +93,29 @@ const TeamReports = () => {
     }
   };
 
-  // KPI Metrics (Strictly Top 4 Imported Cards)
+  // KPI Metrics calculation for Non-Sales vs Sales
   const kpi = salesMetrics.kpi || { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 };
   const counsellors = salesMetrics.counsellors || [];
+
+  const totalHoursLogged = reports.reduce((sum, r) => sum + (parseFloat(r.total_hours_worked) || 0), 0);
+  const totalClassesTook = reports.reduce((sum, r) => sum + (r.classes?.length || (r.took_class ? 1 : 0)), 0);
+  const approvedReportsCount = reports.filter((r) => r.status === "HR_APPROVED" || r.status === "HEAD_APPROVED" || r.status === "TL_REVIEWED").length;
 
   return (
     <div className="team-reports-page">
       {/* Header */}
       <div className="team-reports-header">
         <div>
-          <span className="team-eyebrow">Team Leadership & Sales Performance Workspace</span>
-          <h1 className="team-heading">Sales Team Performance & Work Reports</h1>
+          <span className="team-eyebrow">
+            {isSalesDept ? "Sales Department Workspace" : "Operations & Academic Team Workspace"}
+          </span>
+          <h1 className="team-heading">
+            {isSalesDept ? "Sales Team Performance & Work Reports" : "Department Team Performance & Reports"}
+          </h1>
           <p className="team-subheading">
-            Live team analytics, call activity, enrolment conversions, and daily work report verifications.
+            {isSalesDept
+              ? "Live team analytics, call activity, enrolment conversions, and daily work report verifications."
+              : "Real-time employee work logs, class video recording proofs, shift hours, and report approvals."}
           </p>
         </div>
 
@@ -135,59 +149,103 @@ const TeamReports = () => {
           >
             <option value="">All Statuses</option>
             <option value="SUBMITTED">Pending Review</option>
-            <option value="TL_REVIEWED">TL Verified</option>
+            <option value="TL_REVIEWED">Approved by Dept Head</option>
             <option value="HR_APPROVED">HR Approved</option>
             <option value="REVISION_REQUESTED">Revision Requested</option>
           </select>
         </div>
       </div>
 
-      {/* STRICTLY 4 TOP KPI SUMMARY CARDS */}
-      <div className="team-stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon-wrap blue">
-            <Users size={20} />
+      {/* DYNAMIC TOP 4 KPI SUMMARY CARDS BASED ON DEPARTMENT */}
+      {isSalesDept ? (
+        <div className="team-stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon-wrap blue">
+              <Users size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Assigned Leads & Calls</span>
+              <strong className="stat-number">
+                {kpi.totalLeads} <span style={{ fontSize: "14px", fontWeight: 500, color: "#64748b" }}>/ {kpi.totalCalls} calls</span>
+              </strong>
+            </div>
           </div>
-          <div>
-            <span className="stat-label">Assigned Leads & Calls</span>
-            <strong className="stat-number">
-              {kpi.totalLeads} <span style={{ fontSize: "14px", fontWeight: 500, color: "#64748b" }}>/ {kpi.totalCalls} calls</span>
-            </strong>
-          </div>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-icon-wrap amber">
-            <PhoneCall size={20} />
+          <div className="stat-card">
+            <div className="stat-icon-wrap amber">
+              <PhoneCall size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Connected Calls</span>
+              <strong className="stat-number">{kpi.connectedCalls}</strong>
+            </div>
           </div>
-          <div>
-            <span className="stat-label">Connected Calls</span>
-            <strong className="stat-number">{kpi.connectedCalls}</strong>
-          </div>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-icon-wrap green">
-            <GraduationCap size={20} />
+          <div className="stat-card">
+            <div className="stat-icon-wrap green">
+              <GraduationCap size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Admissions Closed</span>
+              <strong className="stat-number">{kpi.totalAdmissions}</strong>
+            </div>
           </div>
-          <div>
-            <span className="stat-label">Admissions Closed</span>
-            <strong className="stat-number">{kpi.totalAdmissions}</strong>
-          </div>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-icon-wrap orange">
-            <TrendingUp size={20} />
-          </div>
-          <div>
-            <span className="stat-label">Fee Revenue Collected</span>
-            <strong className="stat-number">
-              ₹ {Number(kpi.totalRevenue || 0).toLocaleString("en-IN")}
-            </strong>
+          <div className="stat-card">
+            <div className="stat-icon-wrap orange">
+              <TrendingUp size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Fee Revenue Collected</span>
+              <strong className="stat-number">
+                ₹ {Number(kpi.totalRevenue || 0).toLocaleString("en-IN")}
+              </strong>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="team-stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon-wrap blue">
+              <Users size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Total Submissions Logged</span>
+              <strong className="stat-number">{reports.length}</strong>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon-wrap amber">
+              <Clock size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Shift Hours Logged</span>
+              <strong className="stat-number">{totalHoursLogged.toFixed(1)} hrs</strong>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon-wrap purple">
+              <Video size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Classes & Video Proofs</span>
+              <strong className="stat-number">{totalClassesTook}</strong>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon-wrap green">
+              <CheckCircle size={20} />
+            </div>
+            <div>
+              <span className="stat-label">Verified & Approved</span>
+              <strong className="stat-number">{approvedReportsCount}</strong>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* COUNSELLOR SALES BREAKDOWN TABLE */}
       <div className="team-table-card" style={{ marginBottom: "28px" }}>

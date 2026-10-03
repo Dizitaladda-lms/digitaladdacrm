@@ -396,6 +396,7 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       e.email,
       e.role,
       e.designation,
+      u.profile_image AS user_avatar,
       d.department_name,
       COALESCE(da.status, 'NOT_CHECKED_IN') AS today_attendance_status,
       da.check_in_time AS today_check_in_time,

@@ -14,6 +14,7 @@ const MyDailyReport = lazy(() => import("../pages/employee/MyDailyReport"));
 const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
 const MyPerformance = lazy(() => import("../pages/employee/MyPerformance"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
+const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 
 const LoadingFallback = () => (
   <div style={{ padding: "40px", textAlign: "center", fontWeight: 600, color: "#64748B" }}>
@@ -35,6 +36,7 @@ const EmployeeRoutes = () => {
           <Route path="daily-report" element={<MyDailyReport />} />
           <Route path="performance" element={<MyPerformance />} />
           <Route path="team-reports" element={<TeamReports />} />
+          <Route path="sales-report" element={<SalesDepartmentReport />} />
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
 
