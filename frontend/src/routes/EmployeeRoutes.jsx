@@ -13,6 +13,9 @@ const LoadingFallback = () => (
 );
 
 const EmployeeRoutes = () => {
+  const { user } = useAuth();
+  const isCounsellor = user?.role === "COUNSELLOR";
+
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
@@ -26,7 +29,16 @@ const EmployeeRoutes = () => {
           <Route path="daily-report" element={<UnderMaintenance moduleName="Daily Work Report" />} />
           <Route path="performance" element={<UnderMaintenance moduleName="My Performance" />} />
           <Route path="team-reports" element={<UnderMaintenance moduleName="Team Reports" />} />
-          <Route path="sales-report" element={<UnderMaintenance moduleName="Sales Department Overview" />} />
+          <Route
+            path="sales-report"
+            element={
+              isCounsellor ? (
+                <Navigate to="/employee/my-attendance" replace />
+              ) : (
+                <UnderMaintenance moduleName="Sales Department Overview" />
+              )
+            }
+          />
           <Route path="profile" element={<UnderMaintenance moduleName="Employee Profile" />} />
           <Route path="settings" element={<UnderMaintenance moduleName="Employee Settings" />} />
           <Route path="leads" element={<UnderMaintenance moduleName="My Leads" />} />
