@@ -11,6 +11,8 @@ import {
   AlertCircle,
   ShieldCheck,
   FileText,
+  MapPin,
+  ExternalLink,
 } from "lucide-react";
 import { getMyAttendanceHistory } from "../../services/attendanceService";
 import MobileBiometricAttendance from "../../components/attendance/MobileBiometricAttendance";
@@ -161,8 +163,48 @@ const MyAttendance = () => {
                   return (
                     <tr key={row.id} style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.15s ease" }}>
                       <td style={{ padding: "14px 18px", fontWeight: "600", color: "#0f172a" }}>{dateStr}</td>
-                      <td style={{ padding: "14px 18px", color: "#166534", fontWeight: "600" }}>{checkIn}</td>
-                      <td style={{ padding: "14px 18px", color: "#9a3412", fontWeight: "600" }}>{checkOut}</td>
+                      <td style={{ padding: "14px 18px" }}>
+                        <div style={{ color: "#166534", fontWeight: "700", fontSize: "14px" }}>{checkIn}</div>
+                        {row.check_in_location && (
+                          <div style={{ fontSize: "11px", color: "#475569", marginTop: "3px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <MapPin size={11} style={{ color: "#2563eb", flexShrink: 0 }} />
+                            <span style={{ maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.check_in_location}>
+                              {row.check_in_location}
+                            </span>
+                          </div>
+                        )}
+                        {row.check_in_lat && row.check_in_lng && (
+                          <a
+                            href={`https://maps.google.com/?q=${row.check_in_lat},${row.check_in_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: "11px", color: "#2563eb", fontWeight: "600", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "2px", marginTop: "2px" }}
+                          >
+                            📍 View Map <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>
+                        <div style={{ color: "#9a3412", fontWeight: "700", fontSize: "14px" }}>{checkOut}</div>
+                        {row.check_out_location && (
+                          <div style={{ fontSize: "11px", color: "#475569", marginTop: "3px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <MapPin size={11} style={{ color: "#ea580c", flexShrink: 0 }} />
+                            <span style={{ maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.check_out_location}>
+                              {row.check_out_location}
+                            </span>
+                          </div>
+                        )}
+                        {row.check_out_lat && row.check_out_lng && (
+                          <a
+                            href={`https://maps.google.com/?q=${row.check_out_lat},${row.check_out_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: "11px", color: "#ea580c", fontWeight: "600", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "2px", marginTop: "2px" }}
+                          >
+                            📍 View Map <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </td>
                       <td style={{ padding: "14px 18px" }}>
                         <span style={{ fontWeight: "700", color: "#2563eb", background: "#eff6ff", padding: "4px 8px", borderRadius: "6px" }}>
                           {row.live_hours || row.total_hours || "0.0"} hrs

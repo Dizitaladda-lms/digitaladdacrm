@@ -25,7 +25,12 @@ const LoadingFallback = () => (
 
 const EmployeeRoutes = () => {
   const { user } = useAuth();
-  const isCounsellor = user?.role === "COUNSELLOR";
+  const role = user?.role || "";
+  const isCounsellor = role === "COUNSELLOR";
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isHR = role === "HR";
+  const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
+  const canSeeSalesReport = isSuperAdmin || isHR || isHead;
 
   return (
     <Suspense fallback={<LoadingFallback />}>
@@ -39,14 +44,14 @@ const EmployeeRoutes = () => {
           <Route path="performance" element={<MyPerformance />} />
           <Route path="team-reports" element={<TeamReports />} />
           
-          {/* Sales Report restricted from Counsellors */}
+          {/* Sales Report restricted to HR, Super Admin & Department Heads/TLs */}
           <Route
             path="sales-report"
             element={
-              isCounsellor ? (
-                <Navigate to="/employee/dashboard" replace />
-              ) : (
+              canSeeSalesReport ? (
                 <SalesDepartmentReport />
+              ) : (
+                <Navigate to="/employee/dashboard" replace />
               )
             }
           />

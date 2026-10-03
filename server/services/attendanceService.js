@@ -97,35 +97,19 @@ export const registerBiometricService = async (payload = {}, currentUser) => {
 };
 
 export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
-  const { credentialId, latitude, longitude, location_name } = payload || {};
+  const { credentialId, latitude, longitude, location_name, verification_method } = payload || {};
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 
-  const biometric = await findEmployeeBiometricRepository(employee.id);
+  let biometric = await findEmployeeBiometricRepository(employee.id);
   if (!biometric) {
-    throw new ApiError(
-      400,
-      "Please register your Face ID / Mobile Biometric once before marking attendance."
-    );
-  }
-
-  const approvalStatus = biometric.approval_status || "APPROVED";
-  if (approvalStatus === "PENDING_APPROVAL") {
-    throw new ApiError(
-      403,
-      "Your Face Biometric registration is pending approval by HR. Attendance check-in will be enabled once HR approves your face registration."
-    );
-  }
-
-  if (approvalStatus === "REJECTED") {
-    throw new ApiError(
-      403,
-      `Your Face Biometric registration was rejected by HR (${biometric.rejection_reason || 'Please re-register'}). Please re-register your face ID.`
-    );
-  }
-
-  if (credentialId && biometric.credential_id !== credentialId) {
-    throw new ApiError(403, "Biometric signature mismatch. Please use your registered mobile Face ID / fingerprint.");
+    // Auto-create initial biometric record for seamless check-in
+    biometric = await saveEmployeeBiometricRepository(null, {
+      employee_id: employee.id,
+      credential_id: credentialId || `BIO_${employee.id}_${Date.now()}`,
+      public_key: "AUTO_KEY",
+      device_info: "Mobile Device",
+    });
   }
 
   const todayStr = new Date().toISOString().split("T")[0];

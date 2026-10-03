@@ -21,9 +21,17 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getTeamReports, reviewReportAsHR } from "../../services/reportService";
+import { useAuth } from "../../context/AuthContext";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
 
 const SalesDepartmentReport = () => {
+  const { user } = useAuth();
+  const role = user?.role || "";
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isHR = role === "HR";
+  const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
+  const canSeeSalesReport = isSuperAdmin || isHR || isHead;
+
   const [loading, setLoading] = useState(false);
   const [dateRangeMode, setDateRangeMode] = useState("TODAY"); // "TODAY" | "THIS_WEEK" | "THIS_MONTH" | "ALL_TIME" | "CUSTOM"
   const [startDate, setStartDate] = useState(
@@ -42,6 +50,32 @@ const SalesDepartmentReport = () => {
   });
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+
+  if (!canSeeSalesReport) {
+    return (
+      <div style={{ padding: "48px 24px", textAlign: "center", fontFamily: "Inter, sans-serif" }}>
+        <div
+          style={{
+            maxWidth: "480px",
+            margin: "0 auto",
+            background: "#ffffff",
+            borderRadius: "16px",
+            padding: "36px 24px",
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.05)",
+          }}
+        >
+          <AlertCircle size={48} style={{ color: "#ef4444", marginBottom: "16px" }} />
+          <h2 style={{ margin: "0 0 8px 0", color: "#0f172a", fontSize: "20px", fontWeight: "700" }}>
+            Access Restricted
+          </h2>
+          <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.5", margin: 0 }}>
+            The Sales Department Performance & Revenue Overview is strictly restricted to <strong>HR, Super Admin, and Department Heads</strong>.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Helper for quick date range selection
   const handleDatePreset = (mode) => {

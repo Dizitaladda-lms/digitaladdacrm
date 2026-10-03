@@ -29,7 +29,9 @@ const SidebarNavigation = ({ onClose }) => {
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isHR = role === "HR";
   const isTL = role === "TL" || (user?.designation && user.designation.toLowerCase().includes("team lead"));
+  const isHead = Boolean(user?.is_department_head || user?.is_head || isTL || role === "MANAGER" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
   const isOperationsDept = isHR || (user?.department_name && /operation|hr|academic|training/i.test(user.department_name));
+  const canSeeSalesReport = isSuperAdmin || isHR || isHead;
 
   // Build clean role-specific menu
   let menuItems = [];
@@ -39,7 +41,7 @@ const SidebarNavigation = ({ onClose }) => {
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
-      { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
+      ...(canSeeSalesReport ? [{ title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" }] : []),
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
@@ -64,10 +66,12 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Call Recording", icon: Radio, path: "/telephony" },
     ];
-  } else if (isTL) {
-    // Team Lead (TL) Dedicated Portal Menu
+  } else if (isTL || isHead) {
+    // Team Lead (TL) & Department Head Dedicated Portal Menu
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
+      ...(canSeeSalesReport ? [{ title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" }] : []),
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "TL Team & Intern Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
@@ -85,10 +89,10 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   } else {
-    // Sales Manager & Counsellors
+    // Sales Counsellors & Staff (Sales Dept Overview hidden unless Head/TL)
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-      { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
+      ...(canSeeSalesReport ? [{ title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" }] : []),
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },

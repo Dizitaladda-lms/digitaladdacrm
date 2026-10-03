@@ -23,11 +23,14 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   const { logout, user } = useAuth();
   const role = user?.role || "EMPLOYEE";
   const isCounsellor = role === "COUNSELLOR";
-  const isTL = role === "TL";
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isHR = role === "HR";
+  const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
+  const canSeeSalesReport = isSuperAdmin || isHR || isHead;
 
   let menuItems = [];
 
-  if (isCounsellor) {
+  if (isCounsellor && !canSeeSalesReport) {
     // Sales Department Counsellor (Sales Overview hidden from individual counsellors)
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
@@ -40,8 +43,8 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "Profile", icon: User, path: "/employee/profile" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
-  } else if (isTL) {
-    // Team Lead (TL) Portal — Dashboard, Sales Report, My Report, TL Team & Intern Reports, Attendance, Profile, Settings
+  } else if (canSeeSalesReport) {
+    // HR, Super Admin, Department Head, TL, or Manager Portal
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
       { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },

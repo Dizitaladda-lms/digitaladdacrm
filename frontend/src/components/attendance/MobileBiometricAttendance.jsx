@@ -66,6 +66,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   // Camera Selfie State for Face ID
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraMode, setCameraMode] = useState("CHECK_IN"); // "CHECK_IN" | "CHECK_OUT" | "REGISTRATION"
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -86,9 +87,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   useEffect(() => {
     loadStatus();
+    getGPSLocation().then((loc) => {
+      if (loc && loc.location_name) {
+        setLocationStatus(loc.location_name);
+      }
+    });
   }, []);
 
-  const openCamera = async () => {
+  const openCamera = async (mode = "CHECK_IN") => {
+    setCameraMode(mode);
     setShowCameraModal(true);
     setCapturedPhoto(null);
     try {
@@ -195,6 +202,69 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
+  const handleFaceCheckIn = async () => {
+    if (!capturedPhoto) {
+      toast.error("Please capture your selfie photo first.");
+      return;
+    }
+    try {
+      setActionLoading(true);
+      setLocationStatus("Fetching exact GPS location...");
+
+      const locationData = await getGPSLocation();
+      setLocationStatus(locationData.location_name);
+
+      const credentialId = "FACE_ID_CHECKIN_" + Date.now();
+      const res = await checkInAttendance({
+        credentialId,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        location_name: locationData.location_name,
+        faceImage: capturedPhoto,
+      });
+
+      toast.success(`Face ID Attendance Marked! 📍 ${locationData.location_name}`);
+      closeCamera();
+      await loadStatus();
+      if (onCheckInSuccess) onCheckInSuccess(res?.data);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-in.";
+      toast.error(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleFaceCheckOut = async () => {
+    if (!capturedPhoto) {
+      toast.error("Please capture your selfie photo first.");
+      return;
+    }
+    try {
+      setActionLoading(true);
+      setLocationStatus("Fetching exact GPS location...");
+
+      const locationData = await getGPSLocation();
+      setLocationStatus(locationData.location_name);
+
+      const res = await checkOutAttendance({
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        location_name: locationData.location_name,
+        faceImage: capturedPhoto,
+      });
+
+      toast.success(`Face ID Check-Out Marked! 📍 ${locationData.location_name}`);
+      closeCamera();
+      await loadStatus();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-out.";
+      toast.error(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
@@ -211,7 +281,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         location_name: locationData.location_name,
       });
 
-      toast.success(`Attendance marked! 📍 ${locationData.location_name}`);
+      toast.success(`Attendance marked via Fingerprint! 📍 ${locationData.location_name}`);
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(res?.data);
     } catch (err) {
@@ -236,7 +306,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         location_name: locationData.location_name,
       });
 
-      toast.success(`Check-out marked! 📍 ${locationData.location_name}`);
+      toast.success(`Check-out marked via Fingerprint! 📍 ${locationData.location_name}`);
       await loadStatus();
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to check out.";
@@ -279,7 +349,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 border: "1px solid rgba(96, 165, 250, 0.3)",
               }}
             >
-              <Smartphone size={14} /> iPhone & Mobile Face ID Attendance
+              <Smartphone size={14} /> iPhone & Mobile Face ID / Fingerprint
             </span>
 
             {approvalStatus === "APPROVED" && (
@@ -345,99 +415,115 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ? today.check_out_time
                 ? "Attendance Marked & Completed Today"
                 : "Checked-In (Shift Active)"
-              : "Mark Daily Mobile & Face ID Attendance"}
+              : "Mark Daily Mobile Attendance"}
           </h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
+            <MapPin size={13} style={{ color: "#38bdf8" }} />
+            <span style={{ color: "#38bdf8", fontSize: "12px", fontWeight: "600" }}>
+              Live GPS Location: {locationStatus || "Detecting live location..."}
+            </span>
+          </div>
           <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>
-            iPhone FaceID / Biometric verification & live selfie photo with GPS location tracking.
+            Choose Fingerprint Biometric or Face ID Scan with exact GPS location tracking.
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        {/* Action Buttons: Both Fingerprint and Face ID supported */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           {loading ? (
             <div style={{ color: "#94a3b8", fontSize: "14px" }}>Loading Status...</div>
-          ) : approvalStatus === "NOT_REGISTERED" || approvalStatus === "REJECTED" ? (
-            <button
-              onClick={openCamera}
-              disabled={actionLoading}
-              style={{
-                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                color: "#fff",
-                border: "none",
-                padding: "12px 20px",
-                borderRadius: "10px",
-                fontWeight: "700",
-                fontSize: "14px",
-                cursor: actionLoading ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
-              }}
-            >
-              <Camera size={18} /> Register Face ID (Selfie Photo)
-            </button>
-          ) : approvalStatus === "PENDING_APPROVAL" ? (
-            <button
-              onClick={openCamera}
-              style={{
-                background: "rgba(245, 158, 11, 0.2)",
-                border: "1px solid rgba(245, 158, 11, 0.4)",
-                color: "#fbbf24",
-                padding: "12px 20px",
-                borderRadius: "10px",
-                fontWeight: "700",
-                fontSize: "13.5px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <Clock size={16} /> Re-capture Face Photo
-            </button>
           ) : !today?.check_in_time ? (
-            <button
-              onClick={handleCheckIn}
-              disabled={actionLoading}
-              style={{
-                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-                color: "#fff",
-                border: "none",
-                padding: "12px 22px",
-                borderRadius: "10px",
-                fontWeight: "700",
-                fontSize: "14px",
-                cursor: actionLoading ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
-              }}
-            >
-              <Fingerprint size={18} /> {actionLoading ? "Fetching GPS..." : "Mark Attendance (Fingerprint)"}
-            </button>
+            <>
+              {/* Check-In Option 1: Fingerprint */}
+              <button
+                onClick={handleCheckIn}
+                disabled={actionLoading}
+                style={{
+                  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                  color: "#fff",
+                  border: "none",
+                  padding: "12px 18px",
+                  borderRadius: "10px",
+                  fontWeight: "700",
+                  fontSize: "13.5px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
+                }}
+              >
+                <Fingerprint size={18} /> {actionLoading ? "Fetching GPS..." : "Check-In (Fingerprint)"}
+              </button>
+
+              {/* Check-In Option 2: Face ID Scan */}
+              <button
+                onClick={() => openCamera("CHECK_IN")}
+                disabled={actionLoading}
+                style={{
+                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  color: "#fff",
+                  border: "none",
+                  padding: "12px 18px",
+                  borderRadius: "10px",
+                  fontWeight: "700",
+                  fontSize: "13.5px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
+                }}
+              >
+                <Camera size={18} /> Check-In (Face ID)
+              </button>
+            </>
           ) : !today?.check_out_time ? (
-            <button
-              onClick={handleCheckOut}
-              disabled={actionLoading}
-              style={{
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                color: "#fff",
-                border: "none",
-                padding: "12px 22px",
-                borderRadius: "10px",
-                fontWeight: "700",
-                fontSize: "14px",
-                cursor: actionLoading ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
-              }}
-            >
-              <LogOut size={18} /> {actionLoading ? "Fetching GPS..." : "Check-Out & Finish Shift"}
-            </button>
+            <>
+              {/* Check-Out Option 1: Fingerprint */}
+              <button
+                onClick={handleCheckOut}
+                disabled={actionLoading}
+                style={{
+                  background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                  color: "#fff",
+                  border: "none",
+                  padding: "12px 18px",
+                  borderRadius: "10px",
+                  fontWeight: "700",
+                  fontSize: "13.5px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
+                }}
+              >
+                <LogOut size={18} /> {actionLoading ? "Fetching GPS..." : "Check-Out (Fingerprint)"}
+              </button>
+
+              {/* Check-Out Option 2: Face ID Scan */}
+              <button
+                onClick={() => openCamera("CHECK_OUT")}
+                disabled={actionLoading}
+                style={{
+                  background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+                  color: "#fff",
+                  border: "none",
+                  padding: "12px 18px",
+                  borderRadius: "10px",
+                  fontWeight: "700",
+                  fontSize: "13.5px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(139, 92, 246, 0.35)",
+                }}
+              >
+                <Camera size={18} /> Check-Out (Face ID)
+              </button>
+            </>
           ) : (
             <div
               style={{
@@ -455,6 +541,26 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             >
               <CheckCircle2 size={18} /> Shift Complete ({today.total_hours || "0.0"} hrs)
             </div>
+          )}
+
+          {/* Registration / Re-registration helper button */}
+          {(approvalStatus === "NOT_REGISTERED" || approvalStatus === "REJECTED") && (
+            <button
+              onClick={() => openCamera("REGISTRATION")}
+              disabled={actionLoading}
+              style={{
+                background: "rgba(255, 255, 255, 0.1)",
+                color: "#e2e8f0",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                fontWeight: "600",
+                fontSize: "12px",
+                cursor: "pointer",
+              }}
+            >
+              Register Face Photo for HR
+            </button>
           )}
         </div>
       </div>
@@ -556,7 +662,13 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <Camera size={20} style={{ color: "#10b981" }} />
-                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>Face ID & Selfie Registration</h3>
+                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>
+                  {cameraMode === "CHECK_IN"
+                    ? "Face ID Attendance Check-In"
+                    : cameraMode === "CHECK_OUT"
+                    ? "Face ID Attendance Check-Out"
+                    : "Face ID & Selfie Registration"}
+                </h3>
               </div>
               <button
                 onClick={closeCamera}
@@ -567,7 +679,11 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
 
             <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 16px 0" }}>
-              Position your face inside the frame. Your selfie snapshot will be sent to <strong>HR for approval</strong>.
+              {cameraMode === "CHECK_IN"
+                ? "Position your face inside the frame and capture your live selfie to mark check-in."
+                : cameraMode === "CHECK_OUT"
+                ? "Position your face inside the frame and capture your live selfie to mark check-out."
+                : "Position your face inside the frame. Your selfie snapshot will be sent to HR for approval."}
             </p>
 
             {/* Video Stream / Photo Preview Container */}
@@ -643,7 +759,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ) : (
                 <>
                   <button
-                    onClick={openCamera}
+                    onClick={() => openCamera(cameraMode)}
                     disabled={actionLoading}
                     style={{
                       background: "#334155",
@@ -662,7 +778,13 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                     <RefreshCw size={16} /> Retake
                   </button>
                   <button
-                    onClick={submitFaceRegistration}
+                    onClick={
+                      cameraMode === "CHECK_IN"
+                        ? handleFaceCheckIn
+                        : cameraMode === "CHECK_OUT"
+                        ? handleFaceCheckOut
+                        : submitFaceRegistration
+                    }
                     disabled={actionLoading}
                     style={{
                       flex: 1,
@@ -680,7 +802,14 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                       gap: "8px",
                     }}
                   >
-                    <UserCheck size={18} /> {actionLoading ? "Submitting..." : "Submit to HR for Approval"}
+                    <UserCheck size={18} />{" "}
+                    {actionLoading
+                      ? "Processing..."
+                      : cameraMode === "CHECK_IN"
+                      ? "Confirm Check-In (Face ID)"
+                      : cameraMode === "CHECK_OUT"
+                      ? "Confirm Check-Out (Face ID)"
+                      : "Submit to HR for Approval"}
                   </button>
                 </>
               )}
