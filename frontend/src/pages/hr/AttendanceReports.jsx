@@ -3,26 +3,17 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  Lock,
-  Wifi,
   Search,
   Filter,
   RefreshCw,
   AlertCircle,
-  Plus,
-  Trash2,
   ShieldCheck,
-  Building2,
-  Users,
-  Settings,
+  MapPin,
+  ExternalLink,
+  Navigation,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import {
-  getHRAttendanceReports,
-  getOfficeIPs,
-  addOfficeIP,
-  deleteOfficeIP,
-} from "../../services/attendanceService";
+import { getHRAttendanceReports } from "../../services/attendanceService";
 
 const AttendanceReports = () => {
   const [reports, setReports] = useState([]);
@@ -32,13 +23,6 @@ const AttendanceReports = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalRecords: 0 });
-
-  // Office Wi-Fi Whitelist State & Modal
-  const [showIpModal, setShowIpModal] = useState(false);
-  const [officeIps, setOfficeIps] = useState([]);
-  const [newIpAddress, setNewIpAddress] = useState("");
-  const [newIpLabel, setNewIpLabel] = useState("");
-  const [ipLoading, setIpLoading] = useState(false);
 
   const fetchReports = async () => {
     try {
@@ -71,55 +55,9 @@ const AttendanceReports = () => {
     }
   };
 
-  const fetchOfficeIps = async () => {
-    try {
-      setIpLoading(true);
-      const res = await getOfficeIPs();
-      if (res?.data) {
-        setOfficeIps(res.data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch office IPs:", err);
-    } finally {
-      setIpLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchReports();
   }, [searchTerm, statusFilter, dateFrom, dateTo, pagination.page]);
-
-  const handleOpenIpModal = () => {
-    setShowIpModal(true);
-    fetchOfficeIps();
-  };
-
-  const handleAddIp = async (e) => {
-    e.preventDefault();
-    if (!newIpAddress.trim()) {
-      return toast.error("IP Address is required.");
-    }
-
-    try {
-      await addOfficeIP({ ip_address: newIpAddress, label: newIpLabel || "Office Wi-Fi" });
-      toast.success("Office Wi-Fi IP whitelisted!");
-      setNewIpAddress("");
-      setNewIpLabel("");
-      fetchOfficeIps();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to add office IP.");
-    }
-  };
-
-  const handleDeleteIp = async (id) => {
-    try {
-      await deleteOfficeIP(id);
-      toast.success("Office IP removed.");
-      fetchOfficeIps();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete office IP.");
-    }
-  };
 
   return (
     <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>
@@ -167,38 +105,18 @@ const AttendanceReports = () => {
                   border: "1px solid rgba(52, 211, 153, 0.3)",
                 }}
               >
-                <Wifi size={13} /> Office Wi-Fi Protected
+                <Navigation size={13} /> GPS Location Verified
               </span>
             </div>
             <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
-              Employee Biometric Attendance & Shift Reports
+              Employee Biometric Attendance & Location Reports
             </h1>
             <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "14px" }}>
-              Real-time mobile fingerprint check-ins, shift hours, and Office Wi-Fi verification logs.
+              Real-time mobile biometric check-ins, shift duration, and exact GPS login/logout locations.
             </p>
           </div>
 
           <div style={{ display: "flex", gap: "12px" }}>
-            <button
-              onClick={handleOpenIpModal}
-              style={{
-                background: "#0284c7",
-                color: "#fff",
-                border: "none",
-                padding: "10px 18px",
-                borderRadius: "10px",
-                fontWeight: "600",
-                fontSize: "13.5px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                boxShadow: "0 4px 12px rgba(2, 132, 199, 0.3)",
-              }}
-            >
-              <Settings size={16} /> Manage Office Wi-Fi IPs
-            </button>
-
             <button
               onClick={fetchReports}
               style={{
@@ -240,7 +158,7 @@ const AttendanceReports = () => {
           <Search size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
           <input
             type="text"
-            placeholder="Search employee name, code, or email..."
+            placeholder="Search employee name, code, or department..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -315,10 +233,9 @@ const AttendanceReports = () => {
                   <th style={{ padding: "14px 18px" }}>Employee</th>
                   <th style={{ padding: "14px 18px" }}>Department / Role</th>
                   <th style={{ padding: "14px 18px" }}>Date</th>
-                  <th style={{ padding: "14px 18px" }}>Check-In</th>
-                  <th style={{ padding: "14px 18px" }}>Check-Out</th>
+                  <th style={{ padding: "14px 18px" }}>Check-In (Time & Location)</th>
+                  <th style={{ padding: "14px 18px" }}>Check-Out (Time & Location)</th>
                   <th style={{ padding: "14px 18px" }}>Shift Hours</th>
-                  <th style={{ padding: "14px 18px" }}>Office Wi-Fi IP</th>
                   <th style={{ padding: "14px 18px" }}>Status</th>
                 </tr>
               </thead>
@@ -344,16 +261,51 @@ const AttendanceReports = () => {
                       <td style={{ padding: "14px 18px", color: "#475569" }}>
                         {new Date(row.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                       </td>
-                      <td style={{ padding: "14px 18px", color: "#166534", fontWeight: "600" }}>{checkIn}</td>
-                      <td style={{ padding: "14px 18px", color: "#9a3412", fontWeight: "600" }}>{checkOut}</td>
+                      <td style={{ padding: "14px 18px" }}>
+                        <div style={{ color: "#166534", fontWeight: "700", fontSize: "14px" }}>{checkIn}</div>
+                        {row.check_in_location && (
+                          <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <MapPin size={12} style={{ color: "#2563eb", flexShrink: 0 }} />
+                            <span style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.check_in_location}>
+                              {row.check_in_location}
+                            </span>
+                          </div>
+                        )}
+                        {row.check_in_lat && row.check_in_lng && (
+                          <a
+                            href={`https://maps.google.com/?q=${row.check_in_lat},${row.check_in_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: "11px", color: "#2563eb", fontWeight: "600", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px", marginTop: "3px" }}
+                          >
+                            📍 View Map <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>
+                        <div style={{ color: "#9a3412", fontWeight: "700", fontSize: "14px" }}>{checkOut}</div>
+                        {row.check_out_location && (
+                          <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <MapPin size={12} style={{ color: "#ea580c", flexShrink: 0 }} />
+                            <span style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.check_out_location}>
+                              {row.check_out_location}
+                            </span>
+                          </div>
+                        )}
+                        {row.check_out_lat && row.check_out_lng && (
+                          <a
+                            href={`https://maps.google.com/?q=${row.check_out_lat},${row.check_out_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: "11px", color: "#ea580c", fontWeight: "600", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px", marginTop: "3px" }}
+                          >
+                            📍 View Map <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </td>
                       <td style={{ padding: "14px 18px" }}>
                         <span style={{ fontWeight: "700", color: "#2563eb", background: "#eff6ff", padding: "4px 8px", borderRadius: "6px" }}>
                           {row.live_hours || row.total_hours || "0.0"} hrs
-                        </span>
-                      </td>
-                      <td style={{ padding: "14px 18px" }}>
-                        <span style={{ fontSize: "12px", color: "#0284c7", display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: "600" }}>
-                          <Wifi size={13} /> Office Verified ({row.ip_address || "127.0.0.1"})
                         </span>
                       </td>
                       <td style={{ padding: "14px 18px" }}>
@@ -378,128 +330,9 @@ const AttendanceReports = () => {
           </div>
         )}
       </div>
-
-      {/* Office Wi-Fi Whitelist Modal */}
-      {showIpModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 23, 42, 0.6)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-          }}
-          onClick={() => setShowIpModal(false)}
-        >
-          <div
-            style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              padding: "28px",
-              maxWidth: "560px",
-              width: "100%",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #e2e8f0", paddingBottom: "12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Wifi size={20} style={{ color: "#0284c7" }} />
-                <h2 style={{ margin: 0, fontSize: "19px", color: "#0f172a" }}>Whitelisted Office Wi-Fi IPs</h2>
-              </div>
-              <button onClick={() => setShowIpModal(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#64748b" }}>
-                ✕
-              </button>
-            </div>
-
-            {/* Add IP Form */}
-            <form onSubmit={handleAddIp} style={{ marginBottom: "24px", background: "#f8fafc", padding: "16px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-              <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", color: "#334155" }}>Add Approved Office Wi-Fi IP</h4>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
-                <input
-                  type="text"
-                  placeholder="IP Address (e.g. 103.21.45.67)"
-                  value={newIpAddress}
-                  onChange={(e) => setNewIpAddress(e.target.value)}
-                  style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
-                />
-                <input
-                  type="text"
-                  placeholder="Label (e.g. Main Office Router)"
-                  value={newIpLabel}
-                  onChange={(e) => setNewIpLabel(e.target.value)}
-                  style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
-                />
-              </div>
-              <button
-                type="submit"
-                style={{
-                  background: "#0284c7",
-                  color: "#fff",
-                  border: "none",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontWeight: "600",
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <Plus size={15} /> Add IP Address
-              </button>
-            </form>
-
-            {/* Whitelisted IP List */}
-            <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#334155" }}>Currently Active Office IPs</h4>
-            {ipLoading ? (
-              <p style={{ color: "#64748b" }}>Loading IPs...</p>
-            ) : officeIps.length === 0 ? (
-              <p style={{ color: "#64748b" }}>No whitelisted IPs found.</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {officeIps.map((ip) => (
-                  <div
-                    key={ip.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "10px 14px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      background: "#fff",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: "700", color: "#0f172a", fontSize: "14px" }}>{ip.ip_address}</div>
-                      <div style={{ fontSize: "12px", color: "#64748b" }}>{ip.label || "Office Wi-Fi"}</div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteIp(ip.id)}
-                      style={{ background: "#fee2e2", border: "none", color: "#b91c1c", padding: "6px 10px", borderRadius: "6px", cursor: "pointer" }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
 export default AttendanceReports;
+

@@ -268,7 +268,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
           <textarea
             className="form-textarea"
             rows={4}
-            placeholder={`1. Handled 35 lead follow-ups and scheduled 4 walk-ins.&#10;2. Conducted 2 hours digital marketing class on Google Search Ads.&#10;3. Reviewed design creatives for upcoming webinar.`}
+            placeholder={`1. Handled 35 lead follow-ups and scheduled 4 walk-ins.\n2. Conducted 2 hours digital marketing class on Google Search Ads.\n3. Reviewed design creatives for upcoming webinar.`}
             value={tasksSummary}
             onChange={(e) => setTasksSummary(e.target.value)}
             required
@@ -286,6 +286,27 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
             placeholder="https://docs.google.com/spreadsheets/d/... or https://github.com/..."
             value={deliverableLinks}
             onChange={(e) => setDeliverableLinks(e.target.value)}
+          />
+        </div>
+
+        {/* Team Lead: Interns & Subordinates Work Summary */}
+        <div className="form-group" style={{ background: "#f0f9ff", padding: "16px", borderRadius: "10px", border: "1px solid #bae6fd", marginBottom: "20px" }}>
+          <label className="form-label" style={{ color: "#0369a1", fontWeight: 700, fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
+            👥 Interns Work Summary & Team Progress <span className="optional">(Team Lead Report)</span>
+          </label>
+          <p style={{ margin: "2px 0 10px 0", fontSize: "12.5px", color: "#0284c7" }}>
+            TLs can record the daily work performed by interns under their supervision.
+          </p>
+          <textarea
+            className="form-textarea"
+            rows={3}
+            placeholder={`• Intern Rahul: Completed 20 lead research profiles and design mockups.\n• Intern Priya: Compiled weekly attendance and lead follow-up sheets.`}
+            value={blockers ? (blockers.includes("INTERNS_REPORT:") ? blockers.split("INTERNS_REPORT:")[1]?.trim() : "") : ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              const cleanBlockers = blockers ? blockers.split("INTERNS_REPORT:")[0]?.trim() : "";
+              setBlockers(val ? `${cleanBlockers ? cleanBlockers + "\n" : ""}INTERNS_REPORT: ${val}` : cleanBlockers);
+            }}
           />
         </div>
 

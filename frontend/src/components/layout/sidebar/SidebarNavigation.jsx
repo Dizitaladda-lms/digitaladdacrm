@@ -26,6 +26,7 @@ const SidebarNavigation = ({ onClose }) => {
   const role = user?.role || "";
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isHR = role === "HR";
+  const isTL = role === "TL" || (user?.designation && user.designation.toLowerCase().includes("team lead"));
   const isOperationsDept = isHR || (user?.department_name && /operation|hr|academic|training/i.test(user.department_name));
 
   // Build clean role-specific menu
@@ -56,6 +57,16 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Call Recording", icon: Radio, path: "/telephony" },
+    ];
+  } else if (isTL) {
+    // Team Lead (TL) Dedicated Portal Menu
+    menuItems = [
+      { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
+      { title: "TL Team & Intern Reports", icon: CheckSquare, path: "/team-reports" },
+      { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
+      { title: "Lead Management", icon: UsersRound, path: "/leads" },
+      { title: "My Leads", icon: UserCircle, path: "/my-leads" },
     ];
   } else if (isOperationsDept) {
     // Operations / HR Staff

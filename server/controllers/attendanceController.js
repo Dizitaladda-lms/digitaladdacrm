@@ -28,7 +28,7 @@ export const checkInAttendance = asyncHandler(async (req, res) => {
 });
 
 export const checkOutAttendance = asyncHandler(async (req, res) => {
-  const result = await checkOutAttendanceService(req.user, req);
+  const result = await checkOutAttendanceService(req.body, req.user, req);
   return res.status(200).json(new ApiResponse(200, result, "Attendance check-out marked successfully."));
 });
 

@@ -38,13 +38,22 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "Profile", icon: User, path: "/employee/profile" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
+  } else if (isTL) {
+    // Team Lead (TL) Portal — Dashboard, My Report, TL Team & Intern Reports, Attendance, Profile, Settings
+    menuItems = [
+      { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
+      { title: "TL Team & Intern Reports", icon: UsersRound, path: "/employee/team-reports" },
+      { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
+      { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "Settings", icon: Settings, path: "/employee/settings" },
+    ];
   } else {
-    // Operations & Training Department (TRAINER, EMPLOYEE, INTERN, TL) — NO LEADS
+    // Operations & Training Department (TRAINER, EMPLOYEE, INTERN)
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
       { title: "Daily Work Report", icon: CalendarCheck, path: "/employee/daily-report" },
-      ...(isTL ? [{ title: "Team Reports", icon: UsersRound, path: "/employee/team-reports" }] : []),
       { title: "My Performance", icon: TrendingUp, path: "/employee/performance" },
       { title: "Profile", icon: User, path: "/employee/profile" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },

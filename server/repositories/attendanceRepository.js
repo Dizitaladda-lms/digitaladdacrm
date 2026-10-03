@@ -70,26 +70,46 @@ export const findTodayAttendanceRepository = async (employee_id, dateStr) => {
   return result.rows[0];
 };
 
-export const createAttendanceCheckInRepository = async (client, { employee_id, date, ip_address, is_office_wifi, status }) => {
+export const createAttendanceCheckInRepository = async (client, {
+  employee_id, date, ip_address, is_office_wifi, status,
+  check_in_lat, check_in_lng, check_in_location
+}) => {
   const dbClient = client || pool;
   const targetDate = date || new Date().toISOString().split("T")[0];
   const result = await dbClient.query(
     `
-      INSERT INTO daily_attendance (employee_id, date, check_in_time, ip_address, is_office_wifi, status)
-      VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5)
+      INSERT INTO daily_attendance (
+        employee_id, date, check_in_time, ip_address, is_office_wifi, status,
+        check_in_lat, check_in_lng, check_in_location
+      )
+      VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (employee_id, date) 
       DO UPDATE SET 
         check_in_time = COALESCE(daily_attendance.check_in_time, CURRENT_TIMESTAMP),
         ip_address = $3,
+        check_in_lat = COALESCE(EXCLUDED.check_in_lat, daily_attendance.check_in_lat),
+        check_in_lng = COALESCE(EXCLUDED.check_in_lng, daily_attendance.check_in_lng),
+        check_in_location = COALESCE(EXCLUDED.check_in_location, daily_attendance.check_in_location),
         updated_at = CURRENT_TIMESTAMP
       RETURNING *;
     `,
-    [employee_id, targetDate, ip_address || null, is_office_wifi !== false, status || "PRESENT"]
+    [
+      employee_id,
+      targetDate,
+      ip_address || null,
+      is_office_wifi !== false,
+      status || "PRESENT",
+      check_in_lat || null,
+      check_in_lng || null,
+      check_in_location || null
+    ]
   );
   return result.rows[0];
 };
 
-export const updateAttendanceCheckOutRepository = async (client, { id, total_hours }) => {
+export const updateAttendanceCheckOutRepository = async (client, {
+  id, total_hours, check_out_lat, check_out_lng, check_out_location
+}) => {
   const dbClient = client || pool;
   const result = await dbClient.query(
     `
@@ -97,11 +117,20 @@ export const updateAttendanceCheckOutRepository = async (client, { id, total_hou
       SET 
         check_out_time = CURRENT_TIMESTAMP,
         total_hours = COALESCE($1, ROUND(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - check_in_time))/3600.0, 2)),
+        check_out_lat = $2,
+        check_out_lng = $3,
+        check_out_location = $4,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
+      WHERE id = $5
       RETURNING *;
     `,
-    [total_hours || null, id]
+    [
+      total_hours || null,
+      check_out_lat || null,
+      check_out_lng || null,
+      check_out_location || null,
+      id
+    ]
   );
   return result.rows[0];
 };
@@ -220,6 +249,12 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
         a.ip_address,
         COALESCE(a.is_office_wifi, false) AS is_office_wifi,
         COALESCE(a.status, 'NOT_CHECKED_IN') AS status,
+        a.check_in_lat,
+        a.check_in_lng,
+        a.check_in_location,
+        a.check_out_lat,
+        a.check_out_lng,
+        a.check_out_location,
         e.full_name AS employee_name,
         e.employee_code,
         e.designation,

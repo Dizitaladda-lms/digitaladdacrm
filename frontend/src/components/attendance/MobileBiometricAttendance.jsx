@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   Fingerprint,
-  Wifi,
-  WifiOff,
   CheckCircle2,
   Lock,
   Clock,
   LogOut,
-  AlertTriangle,
-  RefreshCw,
   Smartphone,
-  ShieldCheck,
+  MapPin,
+  Globe,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -20,26 +17,56 @@ import {
   checkOutAttendance,
 } from "../../services/attendanceService";
 
+const getGPSLocation = () => {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      return resolve({ latitude: null, longitude: null, location_name: "Location Not Supported" });
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        let location_name = `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`;
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          if (data && data.display_name) {
+            const parts = data.display_name.split(",");
+            location_name = parts.slice(0, 3).join(",").trim();
+          }
+        } catch (e) {
+          console.log("Reverse geocode fallback:", e);
+        }
+
+        resolve({ latitude, longitude, location_name });
+      },
+      (error) => {
+        console.warn("GPS Location Error:", error.message);
+        resolve({ latitude: null, longitude: null, location_name: "GPS Location Denied / Unavailable" });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+};
+
 const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [wifiError, setWifiError] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("");
 
   const loadStatus = async () => {
     try {
       setLoading(true);
-      setWifiError(null);
       const res = await getBiometricStatus();
       if (res?.data) {
         setStatusData(res.data);
       }
     } catch (err) {
       console.error("Failed to load biometric status:", err);
-      const msg = err.response?.data?.message || err.message || "";
-      if (msg.includes("Office Wi-Fi")) {
-        setWifiError(msg);
-      }
     } finally {
       setLoading(false);
     }
@@ -49,13 +76,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     loadStatus();
   }, []);
 
-  // WebAuthn Biometric Registration / Authentication helper
   const handleBiometricRegister = async () => {
     try {
       setActionLoading(true);
-      setWifiError(null);
 
-      // Generate a mock or WebAuthn credential payload
       let credentialId = "WEBAUTHN_MOBILE_" + Date.now();
       let publicKey = "FIDO2_KEY_" + Math.random().toString(36).substring(7);
 
@@ -100,7 +124,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to register biometric.";
       toast.error(msg);
-      if (msg.includes("Office Wi-Fi")) setWifiError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -109,18 +132,25 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      setWifiError(null);
+      setLocationStatus("Fetching exact GPS location...");
+
+      const locationData = await getGPSLocation();
+      setLocationStatus(locationData.location_name);
 
       const credentialId = "WEBAUTHN_CHECKIN_" + Date.now();
-      const res = await checkInAttendance({ credentialId });
+      const res = await checkInAttendance({
+        credentialId,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        location_name: locationData.location_name,
+      });
 
-      toast.success("Attendance marked! Welcome to work 🎉");
+      toast.success(`Attendance marked! 📍 ${locationData.location_name}`);
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(res?.data);
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to mark check-in.";
       toast.error(msg);
-      if (msg.includes("Office Wi-Fi")) setWifiError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -129,15 +159,22 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const handleCheckOut = async () => {
     try {
       setActionLoading(true);
-      setWifiError(null);
+      setLocationStatus("Fetching exact GPS location...");
 
-      const res = await checkOutAttendance();
-      toast.success("Check-out marked! Rest well 👋");
+      const locationData = await getGPSLocation();
+      setLocationStatus(locationData.location_name);
+
+      const res = await checkOutAttendance({
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        location_name: locationData.location_name,
+      });
+
+      toast.success(`Check-out marked! 📍 ${locationData.location_name}`);
       await loadStatus();
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to check out.";
       toast.error(msg);
-      if (msg.includes("Office Wi-Fi")) setWifiError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -205,7 +242,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               : "Mark Daily Mobile Attendance"}
           </h2>
           <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>
-            Requires Mobile Fingerprint/FaceID verification connected to Office Wi-Fi.
+            Mobile Fingerprint/FaceID verification with live GPS location tracking.
           </p>
         </div>
 
@@ -253,7 +290,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
               }}
             >
-              <Fingerprint size={18} /> Mark Attendance (Fingerprint)
+              <Fingerprint size={18} /> {actionLoading ? "Fetching GPS..." : "Mark Attendance (Fingerprint)"}
             </button>
           ) : !today?.check_out_time ? (
             <button
@@ -274,7 +311,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
               }}
             >
-              <LogOut size={18} /> Check-Out & Finish Shift
+              <LogOut size={18} /> {actionLoading ? "Fetching GPS..." : "Check-Out & Finish Shift"}
             </button>
           ) : (
             <div
@@ -297,24 +334,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         </div>
       </div>
 
-      {/* Wi-Fi Error Warning Banner */}
-      {wifiError && (
-        <div
-          style={{
-            marginTop: "16px",
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid rgba(239, 68, 68, 0.4)",
-            borderRadius: "10px",
-            padding: "12px 16px",
-            color: "#fca5a5",
-            fontSize: "13.5px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
-          <WifiOff size={18} style={{ color: "#ef4444" }} />
-          <span>{wifiError}</span>
+      {/* Location Status Message */}
+      {locationStatus && (
+        <div style={{ marginTop: "12px", color: "#38bdf8", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+          <MapPin size={14} /> <span>{locationStatus}</span>
         </div>
       )}
 
@@ -339,6 +362,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </span>
           </div>
 
+          {today.check_in_location && (
+            <div>
+              <strong style={{ color: "#94a3b8" }}>Check-In Location:</strong>{" "}
+              <span style={{ color: "#38bdf8", fontWeight: "600" }}>
+                📍 {today.check_in_location}
+              </span>
+            </div>
+          )}
+
           {today.check_out_time && (
             <div>
               <strong style={{ color: "#94a3b8" }}>Check-Out Time:</strong>{" "}
@@ -348,16 +380,18 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
           )}
 
+          {today.check_out_location && (
+            <div>
+              <strong style={{ color: "#94a3b8" }}>Check-Out Location:</strong>{" "}
+              <span style={{ color: "#f43f5e", fontWeight: "600" }}>
+                📍 {today.check_out_location}
+              </span>
+            </div>
+          )}
+
           <div>
             <strong style={{ color: "#94a3b8" }}>Shift Hours:</strong>{" "}
             <span style={{ color: "#34d399", fontWeight: "700" }}>{today.total_hours || "0.0"} hrs</span>
-          </div>
-
-          <div>
-            <strong style={{ color: "#94a3b8" }}>Wi-Fi Status:</strong>{" "}
-            <span style={{ color: "#60a5fa", fontWeight: "600" }}>
-              <Wifi size={13} style={{ inlineSize: "auto", verticalAlign: "middle" }} /> Office Verified ({today.ip_address || "Office IP"})
-            </span>
           </div>
         </div>
       )}

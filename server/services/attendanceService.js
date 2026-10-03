@@ -27,31 +27,10 @@ const getClientIp = (req) => {
 };
 
 /**
- * Verifies if request IP is in Office Wi-Fi Whitelist
+ * Verifies request IP (now non-restrictive: allows attendance from any mobile Wi-Fi / Cellular data network)
  */
 export const verifyOfficeIP = async (req) => {
   const clientIp = getClientIp(req);
-  const whitelisted = await getWhitelistedIPsRepository();
-
-  // Handle localhost / loopback matching
-  const cleanIp = clientIp.replace(/^.*:/, ""); // Strips IPv6 prefix if present e.g. ::ffff:127.0.0.1
-  const isMatch = whitelisted.some((w) => {
-    const cleanW = w.ip_address.replace(/^.*:/, "");
-    return (
-      cleanW === cleanIp ||
-      w.ip_address === clientIp ||
-      clientIp === "127.0.0.1" ||
-      clientIp === "::1"
-    );
-  });
-
-  if (!isMatch) {
-    throw new ApiError(
-      403,
-      `Attendance restricted: Mobile must be connected to Office Wi-Fi. (Current IP: ${clientIp})`
-    );
-  }
-
   return { clientIp, isOfficeWifi: true };
 };
 
@@ -110,7 +89,7 @@ export const registerBiometricService = async ({ credentialId, publicKey, device
   });
 };
 
-export const checkInAttendanceService = async ({ credentialId }, currentUser, req) => {
+export const checkInAttendanceService = async ({ credentialId, latitude, longitude, location_name }, currentUser, req) => {
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 
@@ -133,12 +112,15 @@ export const checkInAttendanceService = async ({ credentialId }, currentUser, re
     ip_address: clientIp,
     is_office_wifi: isOfficeWifi,
     status: "PRESENT",
+    check_in_lat: latitude ? Number(latitude) : null,
+    check_in_lng: longitude ? Number(longitude) : null,
+    check_in_location: location_name || null,
   });
 
   return attendance;
 };
 
-export const checkOutAttendanceService = async (currentUser, req) => {
+export const checkOutAttendanceService = async ({ latitude, longitude, location_name }, currentUser, req) => {
   await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 
@@ -151,6 +133,9 @@ export const checkOutAttendanceService = async (currentUser, req) => {
 
   return await updateAttendanceCheckOutRepository(null, {
     id: todayAttendance.id,
+    check_out_lat: latitude ? Number(latitude) : null,
+    check_out_lng: longitude ? Number(longitude) : null,
+    check_out_location: location_name || null,
   });
 };
 

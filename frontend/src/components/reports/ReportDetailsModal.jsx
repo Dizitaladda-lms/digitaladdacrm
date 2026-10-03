@@ -40,7 +40,13 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
                 <Clock size={13} /> {report.total_hours_worked || 8} Hours
               </span>
               <span className={`status-badge status-${(report.status || "SUBMITTED").toLowerCase()}`}>
-                {report.status?.replace("_", " ")}
+                {report.status === "SUBMITTED"
+                  ? "Pending Dept Head Approval"
+                  : report.status === "HEAD_APPROVED" || report.status === "TL_REVIEWED"
+                  ? "Approved by Dept Head (Pending HR)"
+                  : report.status === "HR_APPROVED"
+                  ? "HR Approved"
+                  : report.status?.replace("_", " ")}
               </span>
             </div>
           </div>
@@ -172,7 +178,7 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
               {report.blockers && (
                 <div className="meta-card blocker-card">
                   <h4 className="meta-card-label">
-                    <AlertCircle size={14} /> Blockers / Dependencies
+                    <AlertCircle size={14} /> Blockers / Dependencies / Interns Report
                   </h4>
                   <p>{report.blockers}</p>
                 </div>
@@ -192,13 +198,13 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
           {(report.tl_feedback || report.hr_feedback) && (
             <div className="reviews-section">
               <h4 className="section-label">
-                <MessageSquare size={15} /> Reviews & Approvals
+                <MessageSquare size={15} /> Reviews & Approval Log
               </h4>
 
               {report.tl_feedback && (
                 <div className="review-comment-card tl-review">
                   <div className="review-author">
-                    <strong>Team Lead Verification: {report.tl_name || "TL"}</strong>
+                    <strong>Department Head Approval: {report.tl_name || "Dept Head"}</strong>
                     <span>{report.tl_reviewed_at ? new Date(report.tl_reviewed_at).toLocaleDateString() : ""}</span>
                   </div>
                   <p>{report.tl_feedback}</p>
@@ -208,7 +214,7 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
               {report.hr_feedback && (
                 <div className="review-comment-card hr-review">
                   <div className="review-author">
-                    <strong>HR Final Approval: {report.hr_name || "HR Team"}</strong>
+                    <strong>HR & Super Admin Final Approval: {report.hr_name || "HR Team"}</strong>
                     <span>{report.hr_reviewed_at ? new Date(report.hr_reviewed_at).toLocaleDateString() : ""}</span>
                   </div>
                   <p>{report.hr_feedback}</p>
@@ -224,12 +230,12 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
             Close
           </button>
 
-          {isTL && onReviewAsTL && report.status === "SUBMITTED" && (
+          {isTL && onReviewAsTL && (report.status === "SUBMITTED" || report.status === "TL_REVIEWED") && (
             <button
               className="btn-primary"
               onClick={() => onReviewAsTL(report)}
             >
-              Verify as Team Lead
+              Approve as Department Head
             </button>
           )}
 
