@@ -9,6 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: "auto",
       includeAssets: ["favicon.png", "favicon.svg"],
       manifest: {
         name: "Dizital Adda CRM",
@@ -39,6 +40,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{css,html,ico,js,png,svg,woff2}"],
         navigateFallbackDenylist: [/^\/api\//],
       },
