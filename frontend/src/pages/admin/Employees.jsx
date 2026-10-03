@@ -639,7 +639,7 @@ const Employees = () => {
                       <strong>{employee.department_name || "Admissions"}</strong>
                       {employee.reporting_manager_name && (
                         <div style={{ fontSize: "11px", color: "#0F766E", marginTop: "2px", fontWeight: 500 }}>
-                          Mentor: {employee.reporting_manager_name}
+                          Dept Head / Mentor: {employee.reporting_manager_name}
                         </div>
                       )}
                     </div>
@@ -811,24 +811,24 @@ const Employees = () => {
                     </select>
                   </label>
 
-                  {form.role === "INTERN" && (
-                    <label>
-                      Assigned Team Lead / Mentor
-                      <select
-                        value={form.reporting_manager_id}
-                        onChange={(event) => setForm({ ...form, reporting_manager_id: event.target.value })}
-                      >
-                        <option value="">Select Team Lead / Trainer</option>
-                        {employees
-                          .filter((emp) => emp.role !== "INTERN")
-                          .map((emp) => (
-                            <option key={emp.id} value={emp.id}>
-                              {emp.full_name} ({emp.designation || emp.role})
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  )}
+                  <label>
+                    Department Head / Reporting Manager (Optional)
+                    <select
+                      value={form.reporting_manager_id}
+                      onChange={(event) => setForm({ ...form, reporting_manager_id: event.target.value })}
+                    >
+                      <option value="">Select Department Head / Manager / TL</option>
+                      {employees
+                        .map((emp) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.full_name} ({emp.designation || emp.role})
+                          </option>
+                        ))}
+                    </select>
+                    <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                      Daily work reports submitted by this employee will first route to this Department Head for Tier-1 approval.
+                    </small>
+                  </label>
                   <label>
                     Designation (Choose suggestion or type manually)
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "6px 0" }}>
@@ -1128,24 +1128,25 @@ const Employees = () => {
                     </select>
                   </label>
 
-                  {editForm.role === "INTERN" && (
-                    <label>
-                      Assigned Team Lead / Mentor
-                      <select
-                        value={editForm.reporting_manager_id}
-                        onChange={(e) => setEditForm({ ...editForm, reporting_manager_id: e.target.value })}
-                      >
-                        <option value="">Select Team Lead / Trainer</option>
-                        {employees
-                          .filter((emp) => emp.id !== editingEmployee.id && emp.role !== "INTERN")
-                          .map((emp) => (
-                            <option key={emp.id} value={emp.id}>
-                              {emp.full_name} ({emp.designation || emp.role})
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  )}
+                  <label>
+                    Department Head / Reporting Manager (Optional)
+                    <select
+                      value={editForm.reporting_manager_id}
+                      onChange={(e) => setEditForm({ ...editForm, reporting_manager_id: e.target.value })}
+                    >
+                      <option value="">Select Department Head / Manager / TL</option>
+                      {employees
+                        .filter((emp) => emp.id !== editingEmployee.id)
+                        .map((emp) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.full_name} ({emp.designation || emp.role})
+                          </option>
+                        ))}
+                    </select>
+                    <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                      Daily work reports submitted by this employee will first route to this Department Head for Tier-1 approval.
+                    </small>
+                  </label>
 
                   <label style={{ gridColumn: "1 / -1" }}>
                     Designation (Select suggestion or type custom)

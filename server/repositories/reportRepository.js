@@ -139,13 +139,15 @@ export const findReportByIdRepository = async (reportId) => {
       e.employment_type,
       d.department_name,
       tl_u.full_name AS tl_name,
-      hr_u.full_name AS hr_name
+      hr_u.full_name AS hr_name,
+      sa_u.full_name AS super_admin_name
     FROM daily_work_reports r
     LEFT JOIN users u ON r.user_id = u.id
     LEFT JOIN employees e ON r.employee_id = e.id
     LEFT JOIN departments d ON r.department_id = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
+    LEFT JOIN users sa_u ON r.super_admin_id = sa_u.id
     WHERE r.id = $1
     LIMIT 1;
   `;
@@ -511,9 +513,9 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
 };
 
 /**
- * TL Review Report
+ * Department Head / TL Review Report
  */
-export const reviewReportAsTLRepository = async (reportId, tlUserId, feedback, status = "TL_REVIEWED") => {
+export const reviewReportAsTLRepository = async (reportId, tlUserId, feedback, status = "HEAD_APPROVED") => {
   const query = `
     UPDATE daily_work_reports
     SET 
@@ -545,6 +547,25 @@ export const reviewReportAsHRRepository = async (reportId, hrUserId, feedback, s
     RETURNING *;
   `;
   const result = await pool.query(query, [hrUserId, feedback, status, reportId]);
+  return result.rows[0];
+};
+
+/**
+ * Super Admin Review / Final Approve Report
+ */
+export const reviewReportAsSuperAdminRepository = async (reportId, superAdminUserId, feedback, status = "SUPER_ADMIN_APPROVED") => {
+  const query = `
+    UPDATE daily_work_reports
+    SET 
+      super_admin_id = $1,
+      super_admin_feedback = $2,
+      super_admin_reviewed_at = CURRENT_TIMESTAMP,
+      status = $3,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $4
+    RETURNING *;
+  `;
+  const result = await pool.query(query, [superAdminUserId, feedback, status, reportId]);
   return result.rows[0];
 };
 

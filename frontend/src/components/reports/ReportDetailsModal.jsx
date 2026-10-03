@@ -14,11 +14,12 @@ import {
 } from "lucide-react";
 import "./ReportDetailsModal.css";
 
-const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userRole }) => {
+const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onReviewAsSuperAdmin, userRole }) => {
   if (!report) return null;
 
-  const isTL = userRole === "TL" || userRole === "MANAGER" || userRole === "SUPER_ADMIN";
-  const isHR = userRole === "HR" || userRole === "SUPER_ADMIN";
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isHR = userRole === "HR" || isSuperAdmin;
+  const isTL = userRole === "TL" || userRole === "MANAGER" || isHR;
 
   return (
     <div className="report-modal-overlay" onClick={onClose}>
@@ -45,7 +46,9 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
                   : report.status === "HEAD_APPROVED" || report.status === "TL_REVIEWED"
                   ? "Approved by Dept Head (Pending HR)"
                   : report.status === "HR_APPROVED"
-                  ? "HR Approved"
+                  ? "Approved by HR (Pending Super Admin)"
+                  : report.status === "SUPER_ADMIN_APPROVED"
+                  ? "Final Approved by Super Admin"
                   : report.status?.replace("_", " ")}
               </span>
             </div>
@@ -195,7 +198,7 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
           )}
 
           {/* Review History */}
-          {(report.tl_feedback || report.hr_feedback) && (
+          {(report.tl_feedback || report.hr_feedback || report.super_admin_feedback) && (
             <div className="reviews-section">
               <h4 className="section-label">
                 <MessageSquare size={15} /> Reviews & Approval Log
@@ -214,10 +217,20 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
               {report.hr_feedback && (
                 <div className="review-comment-card hr-review">
                   <div className="review-author">
-                    <strong>HR & Super Admin Final Approval: {report.hr_name || "HR Team"}</strong>
+                    <strong>HR Approval: {report.hr_name || "HR Team"}</strong>
                     <span>{report.hr_reviewed_at ? new Date(report.hr_reviewed_at).toLocaleDateString() : ""}</span>
                   </div>
                   <p>{report.hr_feedback}</p>
+                </div>
+              )}
+
+              {report.super_admin_feedback && (
+                <div className="review-comment-card hr-review" style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }}>
+                  <div className="review-author">
+                    <strong style={{ color: "#1D4ED8" }}>Super Admin Final Approval: {report.super_admin_name || "Super Admin"}</strong>
+                    <span>{report.super_admin_reviewed_at ? new Date(report.super_admin_reviewed_at).toLocaleDateString() : ""}</span>
+                  </div>
+                  <p style={{ color: "#1E3A8A" }}>{report.super_admin_feedback}</p>
                 </div>
               )}
             </div>
@@ -230,7 +243,7 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
             Close
           </button>
 
-          {isTL && onReviewAsTL && (report.status === "SUBMITTED" || report.status === "TL_REVIEWED") && (
+          {isTL && onReviewAsTL && report.status === "SUBMITTED" && (
             <button
               className="btn-primary"
               onClick={() => onReviewAsTL(report)}
@@ -239,12 +252,22 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, userR
             </button>
           )}
 
-          {isHR && onReviewAsHR && report.status !== "HR_APPROVED" && (
+          {isHR && onReviewAsHR && (report.status === "HEAD_APPROVED" || report.status === "TL_REVIEWED" || report.status === "SUBMITTED") && report.status !== "HR_APPROVED" && report.status !== "SUPER_ADMIN_APPROVED" && (
             <button
               className="btn-success"
               onClick={() => onReviewAsHR(report)}
             >
-              Approve Report as HR
+              Approve as HR
+            </button>
+          )}
+
+          {isSuperAdmin && onReviewAsSuperAdmin && report.status !== "SUPER_ADMIN_APPROVED" && (
+            <button
+              className="btn-primary"
+              style={{ backgroundColor: "#4F46E5", borderColor: "#4F46E5", color: "#FFFFFF" }}
+              onClick={() => onReviewAsSuperAdmin(report)}
+            >
+              Final Approval as Super Admin
             </button>
           )}
         </div>

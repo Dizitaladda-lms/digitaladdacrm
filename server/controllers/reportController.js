@@ -10,6 +10,7 @@ import {
   getHROverviewService,
   getAllCompanyReportsService,
   reviewReportAsHRService,
+  reviewReportAsSuperAdminService,
   getClassesAuditFeedService,
 } from "../services/reportService.js";
 
@@ -103,6 +104,16 @@ export const reviewReportAsHRController = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, report, "Report approved and updated by HR."));
+});
+
+/**
+ * Super Admin: Final Review / Approve a Report
+ */
+export const reviewReportAsSuperAdminController = asyncHandler(async (req, res) => {
+  const report = await reviewReportAsSuperAdminService(req.user, req.params.id, req.body);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, report, "Report given final approval by Super Admin."));
 });
 
 /**

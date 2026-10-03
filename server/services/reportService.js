@@ -10,6 +10,7 @@ import {
   findTeamReportsRepository,
   reviewReportAsTLRepository,
   reviewReportAsHRRepository,
+  reviewReportAsSuperAdminRepository,
   findHROverviewRepository,
   findAllCompanyReportsRepository,
   findClassesAuditRepository,
@@ -181,7 +182,7 @@ export const getTeamReportsService = async (user, query) => {
 };
 
 /**
- * Team Lead Review Report
+ * Department Head / TL Review Report
  */
 export const reviewReportAsTLService = async (user, reportId, payload) => {
   const report = await findReportByIdRepository(reportId);
@@ -190,7 +191,7 @@ export const reviewReportAsTLService = async (user, reportId, payload) => {
   }
 
   const feedback = payload.feedback || payload.tl_feedback || "";
-  const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : "TL_REVIEWED";
+  const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : (payload.status || "HEAD_APPROVED");
 
   return await reviewReportAsTLRepository(reportId, user.id, feedback, status);
 };
@@ -244,9 +245,24 @@ export const reviewReportAsHRService = async (user, reportId, payload) => {
   }
 
   const feedback = payload.feedback || payload.hr_feedback || "";
-  const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : "HR_APPROVED";
+  const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : (payload.status || "HR_APPROVED");
 
   return await reviewReportAsHRRepository(reportId, user.id, feedback, status);
+};
+
+/**
+ * Super Admin Review / Final Approve Report
+ */
+export const reviewReportAsSuperAdminService = async (user, reportId, payload) => {
+  const report = await findReportByIdRepository(reportId);
+  if (!report) {
+    throw new ApiError(404, "Report not found.");
+  }
+
+  const feedback = payload.feedback || payload.super_admin_feedback || "";
+  const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : (payload.status || "SUPER_ADMIN_APPROVED");
+
+  return await reviewReportAsSuperAdminRepository(reportId, user.id, feedback, status);
 };
 
 /**

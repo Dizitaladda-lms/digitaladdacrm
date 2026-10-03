@@ -13,6 +13,7 @@ import {
   getHROverviewController,
   getAllCompanyReportsController,
   reviewReportAsHRController,
+  reviewReportAsSuperAdminController,
   getClassesAuditFeedController,
 } from "../controllers/reportController.js";
 
@@ -66,11 +67,18 @@ router.get(
   getAllCompanyReportsController
 );
 
-// HR review and final approval
+// HR review and approval
 router.post(
   "/daily/:id/hr-review",
   roleMiddleware("HR", "SUPER_ADMIN"),
   reviewReportAsHRController
+);
+
+// Super Admin final review and approval
+router.post(
+  "/daily/:id/super-admin-review",
+  roleMiddleware("SUPER_ADMIN"),
+  reviewReportAsSuperAdminController
 );
 
 /* ── Classes & Video Proof Audit Feed ────────────────────── */

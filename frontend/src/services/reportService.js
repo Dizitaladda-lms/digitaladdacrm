@@ -94,6 +94,16 @@ export const reviewReportAsHR = async (id, data) => {
 };
 
 /**
+ * Super Admin: Final review and approval of a report
+ * @param {string|number} id
+ * @param {Object} data { feedback, status: 'SUPER_ADMIN_APPROVED' | 'REVISION_REQUESTED' }
+ */
+export const reviewReportAsSuperAdmin = async (id, data) => {
+  const response = await axiosInstance.post(`/reports/daily/${id}/super-admin-review`, data);
+  return response.data;
+};
+
+/**
  * Super Admin & HR: Classes & Video Recording Proofs Audit Feed
  * @param {Object} [params] { page, limit, departmentId, date, startDate, endDate, search }
  */
