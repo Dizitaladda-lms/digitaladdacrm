@@ -11,6 +11,7 @@ import {
   UsersRound,
   TrendingUp,
   Fingerprint,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import "./EmployeeSidebar.css";
@@ -30,6 +31,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     // Sales Department Counsellor (Sales Overview hidden from individual counsellors)
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
       { title: "My Leads", icon: Users, path: "/employee/leads" },
       { title: "My Follow-ups", icon: PhoneCall, path: "/employee/followups" },
@@ -42,6 +44,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     // Team Lead (TL) Portal — Dashboard, Sales Report, My Report, TL Team & Intern Reports, Attendance, Profile, Settings
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/employee/sales-report" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
       { title: "TL Team & Intern Reports", icon: UsersRound, path: "/employee/team-reports" },
@@ -53,6 +56,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     // Operations & Training Department (TRAINER, EMPLOYEE, INTERN)
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
       { title: "Daily Work Report", icon: CalendarCheck, path: "/employee/daily-report" },
       { title: "My Performance", icon: TrendingUp, path: "/employee/performance" },

@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import toast from "react-hot-toast";
+import { requestReportRevision } from "../../services/taskService";
 import {
   X,
   Calendar,
@@ -11,15 +13,40 @@ import {
   AlertCircle,
   MessageSquare,
   Sparkles,
+  RotateCcw,
+  Send,
+  LoaderCircle,
 } from "lucide-react";
 import "./ReportDetailsModal.css";
 
 const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onReviewAsSuperAdmin, userRole }) => {
+  const [showRevisionBox, setShowRevisionBox] = useState(false);
+  const [revisionFeedback, setRevisionFeedback] = useState("");
+  const [requestingRevision, setRequestingRevision] = useState(false);
+
   if (!report) return null;
 
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isHR = userRole === "HR" || isSuperAdmin;
   const isTL = userRole === "TL" || userRole === "MANAGER" || isHR;
+
+  const handleSendRevision = async (e) => {
+    e.preventDefault();
+    if (!revisionFeedback.trim()) return toast.error("Please enter revision instructions.");
+    try {
+      setRequestingRevision(true);
+      await requestReportRevision(report.id, {
+        feedback: revisionFeedback.trim(),
+      });
+      toast.success("Revision requested! Report attached and assigned to employee tasks. 🔁");
+      setShowRevisionBox(false);
+      onClose();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not request revision.");
+    } finally {
+      setRequestingRevision(false);
+    }
+  };
 
   return (
     <div className="report-modal-overlay" onClick={onClose}>
@@ -235,6 +262,40 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
               )}
             </div>
           )}
+
+          {/* Request Revision Form (Inline) */}
+          {showRevisionBox && (
+            <form onSubmit={handleSendRevision} style={{ marginTop: "16px", padding: "16px", backgroundColor: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: "10px" }}>
+              <h4 style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#BE123C", display: "flex", alignItems: "center", gap: "6px" }}>
+                <RotateCcw size={15} /> Request Changes & Re-assign Work:
+              </h4>
+              <textarea
+                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #FDA4AF", outline: "none", fontSize: "13px", minHeight: "70px" }}
+                placeholder="Describe project changes or work required from employee / department head..."
+                value={revisionFeedback}
+                onChange={(e) => setRevisionFeedback(e.target.value)}
+                required
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowRevisionBox(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ backgroundColor: "#E11D48", borderColor: "#E11D48", color: "#FFFFFF" }}
+                  disabled={requestingRevision}
+                >
+                  {requestingRevision ? <LoaderCircle className="spin" size={14} /> : <Send size={14} />}
+                  {requestingRevision ? "Sending..." : "Send Revision Request"}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Footer / Review Actions */}
@@ -242,6 +303,17 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
           <button className="btn-secondary" onClick={onClose}>
             Close
           </button>
+
+          {isTL && !showRevisionBox && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ backgroundColor: "#FFF1F2", color: "#BE123C", borderColor: "#FECDD3", fontWeight: 600 }}
+              onClick={() => setShowRevisionBox(true)}
+            >
+              <RotateCcw size={14} /> Request Changes / Revision
+            </button>
+          )}
 
           {isTL && onReviewAsTL && report.status === "SUBMITTED" && (
             <button

@@ -14,6 +14,7 @@ import {
   Fingerprint,
   ShieldCheck,
   TrendingUp,
+  ClipboardList,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -37,6 +38,7 @@ const SidebarNavigation = ({ onClose }) => {
     // Operations & HR Department ONLY — Dedicated Agency Leads, Sales Dept Overview & Company Attendance
     menuItems = [
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
@@ -49,6 +51,7 @@ const SidebarNavigation = ({ onClose }) => {
     // Super Admin: Has access to Sales, Agency Leads, Operations, and Attendance
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },

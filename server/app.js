@@ -27,6 +27,7 @@ import admissionRoutes from "./routes/admissionRoutes.js";
 import telephonyRoutes from "./routes/telephonyRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js";
 
 /* Middlewares */
 import { globalLimiter } from "./middleware/rateLimiter.js";
@@ -162,6 +163,7 @@ app.use("/api/admissions", admissionRoutes);
 app.use("/api/telephony", telephonyRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/tasks", taskRoutes);
 
 /**
  * 404 Handler

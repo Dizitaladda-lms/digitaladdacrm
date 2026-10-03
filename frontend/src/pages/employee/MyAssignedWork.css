@@ -1,0 +1,222 @@
+/* DIZITALADDA CRM — My Assigned Work (Employee Portal) */
+
+.my-assigned-work-page {
+  padding: 24px;
+  background-color: #f8fafc;
+  min-height: 100vh;
+}
+
+.assigned-work-banner {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.banner-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0d9488;
+  background-color: #f0fdfa;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+}
+
+.banner-heading {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.banner-subtext {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.assigned-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 4px solid #cbd5e1;
+}
+
+.task-card.pending { border-left-color: #d97706; }
+.task-card.in_progress { border-left-color: #0284c7; }
+.task-card.revision_requested { border-left-color: #db2777; }
+.task-card.completed { border-left-color: #16a34a; }
+
+.task-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-header-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.priority-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.priority-tag.urgent { background-color: #fee2e2; color: #b91c1c; }
+.priority-tag.high { background-color: #ffedd5; color: #c2410c; }
+.priority-tag.medium { background-color: #e0f2fe; color: #0369a1; }
+.priority-tag.low { background-color: #f1f5f9; color: #475569; }
+
+.status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: capitalize;
+}
+
+.status-badge.pending { background-color: #fef3c7; color: #b45309; }
+.status-badge.in_progress { background-color: #e0f2fe; color: #0369a1; }
+.status-badge.revision_requested { background-color: #fce7f3; color: #9d174d; }
+.status-badge.completed { background-color: #dcfce7; color: #15803d; }
+
+.due-date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.task-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.task-description-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.task-description-box p {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.revision-feedback-box {
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #be123c;
+}
+
+.revision-feedback-box strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.revision-feedback-box p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+}
+
+.task-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.assigned-by-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.task-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.view-report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.status-btn.progress {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.status-btn.complete {
+  background-color: #16a34a;
+  color: #ffffff;
+}
+
+.empty-tasks-state {
+  text-align: center;
+  padding: 60px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
