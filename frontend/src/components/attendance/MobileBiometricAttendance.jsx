@@ -205,6 +205,22 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
+  const OFFICE_LAT = 28.541778;
+  const OFFICE_LNG = 77.240750;
+  const MAX_GEOFENCE_RADIUS_METERS = 100;
+
+  const calculateDistanceInMeters = (userLat, userLng) => {
+    const R = 6371000; // Earth's radius in meters
+    const rad = Math.PI / 180;
+    const dLat = (OFFICE_LAT - userLat) * rad;
+    const dLon = (OFFICE_LNG - userLng) * rad;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(userLat * rad) * Math.cos(OFFICE_LAT * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const validateGPSLocation = (locationData) => {
     if (
       !locationData ||
@@ -215,9 +231,18 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       locationData.location_name.includes("Unavailable") ||
       locationData.location_name.includes("Not Supported")
     ) {
-      toast.error("📍 GPS Location Permission Required! Please allow location access on your device to mark attendance.");
+      toast.error("📍 Device Location OFF or Permission Denied! Attendance cannot be marked. Please turn ON Location in iPhone Settings -> Privacy -> Location Services.");
       return false;
     }
+
+    const distance = calculateDistanceInMeters(Number(locationData.latitude), Number(locationData.longitude));
+    if (distance > MAX_GEOFENCE_RADIUS_METERS) {
+      toast.error(
+        `📍 Out of Office Geofence Range! You are ${Math.round(distance)}m away from office premises. Attendance can only be marked within 100 meters of office location.`
+      );
+      return false;
+    }
+
     return true;
   };
 
@@ -463,10 +488,50 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           </p>
         </div>
 
-        {/* Action Buttons: Both Fingerprint and Face ID supported */}
+        {/* Action Buttons: Both Fingerprint and Face ID supported after HR Approval */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           {loading ? (
             <div style={{ color: "#94a3b8", fontSize: "14px" }}>Loading Status...</div>
+          ) : approvalStatus === "NOT_REGISTERED" || approvalStatus === "REJECTED" ? (
+            <button
+              onClick={() => openCamera("REGISTRATION")}
+              disabled={actionLoading}
+              style={{
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                color: "#fff",
+                border: "none",
+                padding: "12px 20px",
+                borderRadius: "10px",
+                fontWeight: "700",
+                fontSize: "14px",
+                cursor: actionLoading ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
+              }}
+            >
+              <Camera size={18} /> Register Face ID (Selfie Photo for HR Approval)
+            </button>
+          ) : approvalStatus === "PENDING_APPROVAL" ? (
+            <button
+              onClick={() => openCamera("REGISTRATION")}
+              style={{
+                background: "rgba(245, 158, 11, 0.2)",
+                border: "1px solid rgba(245, 158, 11, 0.4)",
+                color: "#fbbf24",
+                padding: "12px 20px",
+                borderRadius: "10px",
+                fontWeight: "700",
+                fontSize: "13.5px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <Clock size={16} /> Pending HR Approval — Re-capture Photo
+            </button>
           ) : !today?.check_in_time ? (
             <>
               {/* Check-In Option 1: Fingerprint */}
@@ -576,26 +641,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             >
               <CheckCircle2 size={18} /> Shift Complete ({today.total_hours || "0.0"} hrs)
             </div>
-          )}
-
-          {/* Registration / Re-registration helper button */}
-          {(approvalStatus === "NOT_REGISTERED" || approvalStatus === "REJECTED") && (
-            <button
-              onClick={() => openCamera("REGISTRATION")}
-              disabled={actionLoading}
-              style={{
-                background: "rgba(255, 255, 255, 0.1)",
-                color: "#e2e8f0",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                padding: "8px 12px",
-                borderRadius: "8px",
-                fontWeight: "600",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
-            >
-              Register Face Photo for HR
-            </button>
           )}
         </div>
       </div>

@@ -94,6 +94,23 @@ export const registerBiometricService = async (payload = {}, currentUser) => {
   });
 };
 
+// Office Geofence Coordinates: 28°32'30.4"N 77°14'26.7"E (28.541778, 77.240750)
+const OFFICE_LAT = 28.541778;
+const OFFICE_LNG = 77.240750;
+const MAX_GEOFENCE_RADIUS_METERS = 100;
+
+export const calculateGeofenceDistance = (userLat, userLng) => {
+  const R = 6371000; // Earth's radius in meters
+  const rad = Math.PI / 180;
+  const dLat = (OFFICE_LAT - userLat) * rad;
+  const dLon = (OFFICE_LNG - userLng) * rad;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(userLat * rad) * Math.cos(OFFICE_LAT * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
   const { credentialId, latitude, longitude, location_name, faceImage } = payload || {};
 
@@ -104,18 +121,42 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     );
   }
 
+  const distanceInMeters = calculateGeofenceDistance(Number(latitude), Number(longitude));
+  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
+    throw new ApiError(
+      400,
+      `📍 Attendance Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. Attendance can only be marked within 100 meters of the office premises.`
+    );
+  }
+
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 
   let biometric = await findEmployeeBiometricRepository(employee.id);
-  if (!biometric || faceImage) {
-    biometric = await saveEmployeeBiometricRepository(null, {
-      employee_id: employee.id,
-      credential_id: credentialId || `FACE_ID_${employee.id}_${Date.now()}`,
-      public_key: "FACE_ID_KEY",
-      device_info: "Mobile Device",
-      face_image_url: faceImage || (biometric ? biometric.face_image_url : null),
-    });
+
+  // STRICT RULE: Attendance can ONLY be marked after HR APPROVAL!
+  if (!biometric || biometric.approval_status !== "APPROVED") {
+    if (!biometric || biometric.approval_status === "NOT_REGISTERED") {
+      throw new ApiError(
+        403,
+        "🔒 Attendance blocked! You must register your Face ID selfie photo for HR approval before marking attendance."
+      );
+    } else if (biometric.approval_status === "PENDING_APPROVAL") {
+      throw new ApiError(
+        403,
+        "⏳ Attendance blocked! Your Face ID registration is pending approval by HR. Attendance will unlock as soon as HR approves your Face ID."
+      );
+    } else if (biometric.approval_status === "REJECTED") {
+      throw new ApiError(
+        403,
+        "❌ Attendance blocked! Your Face ID was rejected by HR. Please re-capture your face selfie for approval."
+      );
+    } else {
+      throw new ApiError(
+        403,
+        "🔒 Attendance blocked! Your Face ID Biometric must be approved by HR first."
+      );
+    }
   }
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -143,8 +184,24 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
     );
   }
 
+  const distanceInMeters = calculateGeofenceDistance(Number(latitude), Number(longitude));
+  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
+    throw new ApiError(
+      400,
+      `📍 Check-Out Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. Check-out can only be marked within 100 meters of the office premises.`
+    );
+  }
+
   await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
+
+  let biometric = await findEmployeeBiometricRepository(employee.id);
+  if (!biometric || biometric.approval_status !== "APPROVED") {
+    throw new ApiError(
+      403,
+      "🔒 Check-out blocked! Your Face ID Biometric must be approved by HR first."
+    );
+  }
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayAttendance = await findTodayAttendanceRepository(employee.id, todayStr);
