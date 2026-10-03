@@ -66,7 +66,8 @@ export const getMyBiometricStatusService = async (currentUser) => {
   };
 };
 
-export const registerBiometricService = async ({ credentialId, publicKey, deviceInfo }, currentUser) => {
+export const registerBiometricService = async (payload = {}, currentUser) => {
+  const { credentialId, publicKey, deviceInfo } = payload || {};
   const employee = await getEmployeeId(currentUser);
   const existing = await findEmployeeBiometricRepository(employee.id);
 
@@ -89,7 +90,8 @@ export const registerBiometricService = async ({ credentialId, publicKey, device
   });
 };
 
-export const checkInAttendanceService = async ({ credentialId, latitude, longitude, location_name }, currentUser, req) => {
+export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
+  const { credentialId, latitude, longitude, location_name } = payload || {};
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 
@@ -120,7 +122,8 @@ export const checkInAttendanceService = async ({ credentialId, latitude, longitu
   return attendance;
 };
 
-export const checkOutAttendanceService = async ({ latitude, longitude, location_name }, currentUser, req) => {
+export const checkOutAttendanceService = async (payload = {}, currentUser, req) => {
+  const { latitude, longitude, location_name } = payload || {};
   await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
 

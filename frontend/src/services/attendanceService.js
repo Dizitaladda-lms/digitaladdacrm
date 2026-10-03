@@ -15,8 +15,8 @@ export const checkInAttendance = async (payload = {}) => {
   return response.data;
 };
 
-export const checkOutAttendance = async () => {
-  const response = await axiosInstance.post("/attendance/check-out");
+export const checkOutAttendance = async (payload = {}) => {
+  const response = await axiosInstance.post("/attendance/check-out", payload);
   return response.data;
 };
 
