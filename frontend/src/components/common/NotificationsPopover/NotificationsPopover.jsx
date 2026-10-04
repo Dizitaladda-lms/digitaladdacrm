@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   Bell,
   CheckCheck,
@@ -15,11 +16,38 @@ import {
   X,
   Sparkles,
   ShieldCheck,
+  Fingerprint,
+  FileText,
+  ClipboardCheck,
+  CheckSquare,
+  CheckCircle2,
+  LogIn,
+  LogOut,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { getNotifications } from "../../../services/notificationService";
 import "./NotificationsPopover.css";
 
 const READ_STORAGE_KEY = "dizitaladda_read_notifications";
+const SOUND_PREF_KEY = "dizitaladda_notif_sound_enabled";
+
+const URGENT_OR_ACTIONABLE_TYPES = [
+  "BIOMETRIC_PENDING",
+  "DAILY_REPORT_TL_PENDING",
+  "DAILY_REPORT_HR_PENDING",
+  "DAILY_REPORT_SUBMITTED",
+  "DAILY_REPORT_STATUS",
+  "UNASSIGNED_LEAD",
+  "NEW_ASSIGNED",
+  "FOLLOWUP_DUE_NOW",
+  "ADMISSION_DONE",
+  "TASK_ASSIGNED",
+  "TASK_UPDATE",
+  "ATTENDANCE_CHECKIN",
+  "ATTENDANCE_CHECKOUT",
+  "COUNSELLOR_PASSWORD_CHANGED",
+];
 
 const NotificationsPopover = ({ isEmployee = false }) => {
   const navigate = useNavigate();
@@ -28,6 +56,15 @@ const NotificationsPopover = ({ isEmployee = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SOUND_PREF_KEY);
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
   const [readIds, setReadIds] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(READ_STORAGE_KEY)) || [];
@@ -38,29 +75,103 @@ const NotificationsPopover = ({ isEmployee = false }) => {
   const [filterTab, setFilterTab] = useState("ALL");
   const initializedRef = useRef(false);
   const seenIdsRef = useRef(new Set());
+  const audioCtxRef = useRef(null);
+
+  const getAudioContext = () => {
+    try {
+      if (!audioCtxRef.current) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtxRef.current = new AudioContextClass();
+        }
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume();
+      }
+      return audioCtxRef.current;
+    } catch {
+      return null;
+    }
+  };
 
   const playAlertTone = () => {
+    if (!soundEnabled) return;
     try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-      const context = new AudioContextClass();
+      const context = getAudioContext();
+      if (!context) return;
       const playBeep = (at, frequency) => {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
         oscillator.frequency.value = frequency;
         gain.gain.setValueAtTime(0.0001, at);
-        gain.gain.exponentialRampToValueAtTime(0.12, at + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.24);
+        gain.gain.exponentialRampToValueAtTime(0.15, at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
         oscillator.connect(gain).connect(context.destination);
         oscillator.start(at);
-        oscillator.stop(at + 0.25);
+        oscillator.stop(at + 0.24);
       };
       playBeep(context.currentTime, 880);
-      playBeep(context.currentTime + 0.32, 1046);
-      setTimeout(() => context.close(), 900);
+      playBeep(context.currentTime + 0.28, 1175);
     } catch {
-      // Browsers may block audio until the user has interacted with the page.
+      // Audio playback fails silently if blocked by browser policy
     }
+  };
+
+  const toggleSound = (e) => {
+    e.stopPropagation();
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem(SOUND_PREF_KEY, String(next));
+      return next;
+    });
+  };
+
+  const triggerToastPopup = (notif) => {
+    toast.custom(
+      (t) => (
+        <div
+          className={`notif-toast-card ${t.visible ? "notif-toast-enter" : "notif-toast-leave"} ${notif.priority?.toLowerCase() || "info"}`}
+          onClick={() => {
+            toast.dismiss(t.id);
+            handleItemClick(notif);
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className={`notif-toast-icon-wrap ${notif.priority?.toLowerCase() || "info"}`}>
+            {getIcon(notif.type, notif.category)}
+          </div>
+          <div className="notif-toast-body">
+            <div className="notif-toast-header">
+              <span className="notif-toast-title">{notif.title}</span>
+              <span className={`notif-toast-badge ${notif.priority?.toLowerCase() || "info"}`}>
+                {notif.priority || "ALERT"}
+              </span>
+            </div>
+            <p className="notif-toast-message">{notif.message}</p>
+            <div className="notif-toast-action">
+              <span>View details ➜</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="notif-toast-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.dismiss(t.id);
+            }}
+            title="Dismiss"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ),
+      {
+        id: `toast_${notif.id}`,
+        duration: 7500,
+        position: "top-right",
+      }
+    );
   };
 
   const fetchNotifs = async () => {
@@ -71,17 +182,60 @@ const NotificationsPopover = ({ isEmployee = false }) => {
       const incomingIds = new Set(list.map((notification) => notification.id));
 
       if (initializedRef.current) {
-        const freshAlerts = list.filter((notification) =>
-          !seenIdsRef.current.has(notification.id) &&
-          ["NEW_ASSIGNED", "FOLLOWUP_DUE_NOW", "COUNSELLOR_PASSWORD_CHANGED"].includes(notification.type)
+        // Find newly arrived alerts that haven't been seen yet
+        const freshAlerts = list.filter(
+          (notification) =>
+            !seenIdsRef.current.has(notification.id) &&
+            (URGENT_OR_ACTIONABLE_TYPES.includes(notification.type) ||
+              notification.priority === "URGENT" ||
+              notification.priority === "HIGH")
         );
+
         if (freshAlerts.length > 0) {
           playAlertTone();
+
+          // Display visual in-app toast popup (up to 3 distinct alerts at once)
+          freshAlerts.slice(0, 3).forEach((notif) => {
+            triggerToastPopup(notif);
+          });
+
+          // Also trigger native OS desktop notification if user allowed
           if ("Notification" in window && Notification.permission === "granted") {
-            freshAlerts.forEach((notification) => {
-              new Notification(notification.title, { body: notification.message, tag: notification.id });
+            freshAlerts.slice(0, 2).forEach((notification) => {
+              try {
+                new Notification(notification.title, {
+                  body: notification.message,
+                  tag: notification.id,
+                });
+              } catch {
+                // Ignore desktop notification error
+              }
             });
           }
+        }
+      } else {
+        // First load on application start:
+        // If there are urgent unread items (e.g. pending biometrics or pending reports), show a helpful banner
+        const urgentPending = list.filter(
+          (n) =>
+            (n.priority === "URGENT" || n.type === "BIOMETRIC_PENDING" || n.type === "DAILY_REPORT_TL_PENDING" || n.type === "DAILY_REPORT_HR_PENDING") &&
+            !readIds.includes(n.id)
+        );
+
+        if (urgentPending.length > 0) {
+          // Trigger a single summary toast
+          const first = urgentPending[0];
+          setTimeout(() => {
+            triggerToastPopup({
+              id: `startup_pending_${urgentPending.length}`,
+              title: `${urgentPending.length} Urgent Action Items Pending`,
+              message: `${first.title}: ${first.message}`,
+              link: first.link,
+              type: first.type,
+              category: first.category,
+              priority: "URGENT",
+            });
+          }, 1200);
         }
       }
 
@@ -97,8 +251,8 @@ const NotificationsPopover = ({ isEmployee = false }) => {
 
   useEffect(() => {
     fetchNotifs();
-    // A 30-second poll keeps due-follow-up alerts close to their scheduled time.
-    const interval = setInterval(fetchNotifs, 30000);
+    // 25-second poll ensures immediate updates for incoming reports, approvals, and tasks
+    const interval = setInterval(fetchNotifs, 25000);
     return () => clearInterval(interval);
   }, []);
 
@@ -139,10 +293,30 @@ const NotificationsPopover = ({ isEmployee = false }) => {
 
   const getIcon = (type, category) => {
     switch (type) {
+      case "BIOMETRIC_PENDING":
+        return <Fingerprint size={16} className="text-rose-600" />;
+      case "DAILY_REPORT_TL_PENDING":
+        return <ClipboardCheck size={16} className="text-amber-600" />;
+      case "DAILY_REPORT_HR_PENDING":
+        return <CheckCircle2 size={16} className="text-indigo-600" />;
+      case "DAILY_REPORT_SUBMITTED":
+        return <FileText size={16} className="text-blue-600" />;
+      case "DAILY_REPORT_STATUS":
+        return <CheckCircle2 size={16} className="text-emerald-600" />;
+      case "TASK_ASSIGNED":
+        return <CheckSquare size={16} className="text-purple-600" />;
+      case "TASK_UPDATE":
+        return <CheckSquare size={16} className="text-emerald-600" />;
+      case "ATTENDANCE_CHECKIN":
+        return <LogIn size={16} className="text-teal-600" />;
+      case "ATTENDANCE_CHECKOUT":
+        return <LogOut size={16} className="text-slate-600" />;
       case "TODAY_FOLLOWUP":
         return <PhoneCall size={16} className="text-blue-600" />;
       case "OVERDUE_FOLLOWUP":
         return <AlertCircle size={16} className="text-red-600" />;
+      case "FOLLOWUP_DUE_NOW":
+        return <PhoneCall size={16} className="text-rose-600 animate-pulse" />;
       case "NEW_ASSIGNED":
       case "UNASSIGNED_LEAD":
         return <UserPlus size={16} className="text-purple-600" />;
@@ -175,6 +349,10 @@ const NotificationsPopover = ({ isEmployee = false }) => {
 
   const displayedList = notifications.filter((n) => {
     if (filterTab === "UNREAD") return !readIds.includes(n.id);
+    if (filterTab === "REPORT") return n.category === "REPORT";
+    if (filterTab === "BIOMETRIC") return n.category === "BIOMETRIC";
+    if (filterTab === "LEAD") return n.category === "LEAD";
+    if (filterTab === "TASK") return n.category === "TASK";
     if (filterTab === "FOLLOWUP") return n.category === "FOLLOWUP";
     if (filterTab === "ADMISSION") return n.category === "ADMISSION";
     return true;
@@ -188,6 +366,7 @@ const NotificationsPopover = ({ isEmployee = false }) => {
         className={`notif-bell-btn ${isOpen ? "active" : ""}`}
         onClick={() => {
           setIsOpen(!isOpen);
+          getAudioContext();
           if ("Notification" in window && Notification.permission === "default") {
             Notification.requestPermission();
           }
@@ -217,9 +396,16 @@ const NotificationsPopover = ({ isEmployee = false }) => {
             </div>
 
             <div className="header-actions">
+              <button
+                className={`btn-notif-sound ${soundEnabled ? "enabled" : "disabled"}`}
+                onClick={toggleSound}
+                title={soundEnabled ? "Mute alert sound" : "Enable alert sound"}
+              >
+                {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              </button>
               {unreadCount > 0 && (
                 <button className="btn-mark-read" onClick={markAllRead} title="Mark all as read">
-                  <CheckCheck size={14} /> Mark all read
+                  <CheckCheck size={14} /> Mark read
                 </button>
               )}
               <button className="btn-notif-refresh" onClick={fetchNotifs} title="Refresh">
@@ -243,16 +429,28 @@ const NotificationsPopover = ({ isEmployee = false }) => {
               Unread ({unreadCount})
             </button>
             <button
-              className={`tab-pill ${filterTab === "FOLLOWUP" ? "active" : ""}`}
-              onClick={() => setFilterTab("FOLLOWUP")}
+              className={`tab-pill ${filterTab === "REPORT" ? "active" : ""}`}
+              onClick={() => setFilterTab("REPORT")}
             >
-              Follow-ups
+              Reports
             </button>
             <button
-              className={`tab-pill ${filterTab === "ADMISSION" ? "active" : ""}`}
-              onClick={() => setFilterTab("ADMISSION")}
+              className={`tab-pill ${filterTab === "BIOMETRIC" ? "active" : ""}`}
+              onClick={() => setFilterTab("BIOMETRIC")}
             >
-              Admissions
+              Biometrics
+            </button>
+            <button
+              className={`tab-pill ${filterTab === "LEAD" ? "active" : ""}`}
+              onClick={() => setFilterTab("LEAD")}
+            >
+              Leads
+            </button>
+            <button
+              className={`tab-pill ${filterTab === "TASK" ? "active" : ""}`}
+              onClick={() => setFilterTab("TASK")}
+            >
+              Tasks
             </button>
           </div>
 
@@ -269,7 +467,7 @@ const NotificationsPopover = ({ isEmployee = false }) => {
                   <Sparkles size={24} className="text-blue-500" />
                 </div>
                 <h4>No notifications right now</h4>
-                <p>You are completely caught up with your tasks and student updates.</p>
+                <p>You are completely caught up with your tasks and work updates.</p>
               </div>
             ) : (
               displayedList.map((item) => {
@@ -283,7 +481,7 @@ const NotificationsPopover = ({ isEmployee = false }) => {
                     role="button"
                     tabIndex={0}
                   >
-                    <div className={`notif-icon-circle ${item.priority?.toLowerCase()}`}>
+                    <div className={`notif-icon-circle ${item.priority?.toLowerCase() || "info"}`}>
                       {getIcon(item.type, item.category)}
                     </div>
 
@@ -308,10 +506,10 @@ const NotificationsPopover = ({ isEmployee = false }) => {
               className="btn-footer-link"
               onClick={() => {
                 setIsOpen(false);
-                navigate(isEmployee ? "/employee/followups" : "/leads");
+                navigate(isEmployee ? "/employee/daily-report" : "/team-reports");
               }}
             >
-              <span>{isEmployee ? "Open Follow-up Planner" : "View Lead Management"}</span>
+              <span>{isEmployee ? "Open My Reports & Tasks" : "Open Team Reports & Approvals"}</span>
               <ArrowRight size={13} />
             </button>
           </div>

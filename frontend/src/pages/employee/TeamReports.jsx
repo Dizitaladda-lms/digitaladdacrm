@@ -10,49 +10,95 @@ import {
   Eye,
   CheckCheck,
   Search,
-  PhoneCall,
-  GraduationCap,
   TrendingUp,
   ShieldCheck,
+  Crown,
+  Briefcase,
+  GraduationCap,
+  Building2,
+  Sparkles,
+  RefreshCw,
+  ArrowRight,
+  MessageSquare,
+  Lock,
+  Layers,
+  ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { getTeamReports, reviewReportAsTL } from "../../services/reportService";
+import {
+  getTeamReports,
+  reviewReportAsTL,
+  reviewReportAsHR,
+  reviewReportAsSuperAdmin,
+} from "../../services/reportService";
+import { getDepartments } from "../../services/departmentService";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
 import { useAuth } from "../../context/AuthContext";
 import "./TeamReports.css";
 
+const SIX_OFFICIAL_DEPARTMENTS = [
+  "Performance Marketing",
+  "SEO and Search AI",
+  "Operations & Administration",
+  "Graphics Design & Video Editing",
+  "Tech and Web Development",
+  "Digital Marketing Agency",
+];
+
 const TeamReports = () => {
   const { user } = useAuth();
-  const isSalesDept = user?.role === "COUNSELLOR" || user?.role === "SUPER_ADMIN" || (user?.department_name && /sales/i.test(user.department_name));
+  const userRole = String(user?.role || "").toUpperCase();
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isHR = userRole === "HR" || isSuperAdmin;
+  const isTL =
+    userRole === "TL" ||
+    userRole === "MANAGER" ||
+    (user?.designation && /team lead|leader|head|manager/i.test(user.designation));
 
-  const [reports, setReports] = useState([]);
-  const [salesMetrics, setSalesMetrics] = useState({
-    kpi: { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 },
-    counsellors: [],
-  });
-  const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [selectedDepartment, setSelectedDepartment] = useState("ALL"); // "ALL" or department ID / name
+  const [selectedRoleLevel, setSelectedRoleLevel] = useState("ALL"); // "ALL" | "TL" | "EXECUTIVE" | "INTERN"
+  const [selectedStatus, setSelectedStatus] = useState("ALL"); // "ALL" | "SUBMITTED" | "TL_REVIEWED" | "HR_APPROVED" | "REVISION_REQUESTED"
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
-  const [statusFilter, setStatusFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
+
+  // Review Modal State
   const [reviewingReport, setReviewingReport] = useState(null);
-  const [tlFeedback, setTlFeedback] = useState("");
-  const [reviewStatus, setReviewStatus] = useState("TL_REVIEWED");
+  const [reviewType, setReviewType] = useState("TL"); // "TL" | "HR" | "SUPER_ADMIN"
+  const [reviewDecision, setReviewDecision] = useState("APPROVE"); // "APPROVE" | "REVISE"
+  const [reviewFeedback, setReviewFeedback] = useState("");
   const [savingReview, setSavingReview] = useState(false);
+
+  // Load active departments list from backend
+  useEffect(() => {
+    getDepartments()
+      .then((res) => {
+        if (res?.data) {
+          setDepartments(res.data);
+        }
+      })
+      .catch((err) => console.error("Failed to load departments:", err));
+  }, []);
 
   const fetchReports = async () => {
     try {
       setLoading(true);
       const res = await getTeamReports({
+        departmentId: selectedDepartment !== "ALL" ? selectedDepartment : undefined,
+        roleType: selectedRoleLevel !== "ALL" ? selectedRoleLevel : undefined,
+        status: selectedStatus !== "ALL" ? selectedStatus : undefined,
         date: selectedDate || undefined,
-        status: statusFilter || undefined,
-        roleType: roleFilter || undefined,
+        search: searchTerm || undefined,
       });
-      if (res?.data) {
-        if (res.data.reports) setReports(res.data.reports);
-        if (res.data.salesMetrics) setSalesMetrics(res.data.salesMetrics);
+      if (res?.data?.reports) {
+        setReports(res.data.reports);
+      } else {
+        setReports([]);
       }
     } catch (err) {
       console.error("Failed to fetch team reports:", err);
@@ -64,63 +110,302 @@ const TeamReports = () => {
 
   useEffect(() => {
     fetchReports();
-  }, [selectedDate, statusFilter, roleFilter]);
+  }, [selectedDepartment, selectedRoleLevel, selectedStatus, selectedDate, searchTerm]);
 
-  const handleOpenReview = (report) => {
+  // Open review modal with appropriate role target
+  const handleOpenReview = (report, targetRole = null) => {
     setReviewingReport(report);
-    setTlFeedback(report.tl_feedback || "");
-    setReviewStatus(report.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : "TL_REVIEWED");
+    setReviewFeedback(
+      targetRole === "HR" ? report.hr_feedback || "" : report.tl_feedback || ""
+    );
+    setReviewDecision("APPROVE");
+
+    if (targetRole) {
+      setReviewType(targetRole);
+    } else if (report.status === "SUBMITTED" && (isTL || isSuperAdmin || isHR)) {
+      setReviewType("TL");
+    } else if (report.status === "TL_REVIEWED" && (isHR || isSuperAdmin)) {
+      setReviewType("HR");
+    } else if (isSuperAdmin) {
+      setReviewType("SUPER_ADMIN");
+    } else {
+      setReviewType("TL");
+    }
   };
 
+  // Submit review / approval
   const handleSaveReview = async (e) => {
     e.preventDefault();
     if (!reviewingReport) return;
 
     try {
       setSavingReview(true);
-      await reviewReportAsTL(reviewingReport.id, {
-        feedback: tlFeedback,
-        status: reviewStatus,
-      });
-      toast.success("Team member report reviewed & status updated! ✅");
+      if (reviewType === "TL") {
+        const nextStatus =
+          reviewDecision === "REVISE" ? "REVISION_REQUESTED" : "TL_REVIEWED";
+        await reviewReportAsTL(reviewingReport.id, {
+          feedback: reviewFeedback,
+          status: nextStatus,
+        });
+        toast.success(
+          reviewDecision === "REVISE"
+            ? "Revision requested from employee! ⚠️"
+            : "Report verified by Team Leader! Automatically forwarded to HR. 🚀"
+        );
+      } else if (reviewType === "HR") {
+        const nextStatus =
+          reviewDecision === "REVISE" ? "REVISION_REQUESTED" : "HR_APPROVED";
+        await reviewReportAsHR(reviewingReport.id, {
+          feedback: reviewFeedback,
+          status: nextStatus,
+        });
+        toast.success(
+          reviewDecision === "REVISE"
+            ? "Revision requested from employee! ⚠️"
+            : "Report verified & approved by HR! Now visible to Super Admin. 🎉"
+        );
+      } else if (reviewType === "SUPER_ADMIN") {
+        const nextStatus =
+          reviewDecision === "REVISE" ? "REVISION_REQUESTED" : "SUPER_ADMIN_APPROVED";
+        await reviewReportAsSuperAdmin(reviewingReport.id, {
+          feedback: reviewFeedback,
+          status: nextStatus,
+        });
+        toast.success("Report confirmed by Super Admin! 🛡️");
+      }
+
       setReviewingReport(null);
       setSelectedReport(null);
       fetchReports();
     } catch (err) {
+      console.error("Failed to submit review:", err);
       toast.error(err.response?.data?.message || "Failed to submit review.");
     } finally {
       setSavingReview(false);
     }
   };
 
-  // KPI Metrics calculation for Non-Sales vs Sales
-  const kpi = salesMetrics.kpi || { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 };
-  const counsellors = salesMetrics.counsellors || [];
+  // Helper to determine role badge and label
+  const getRoleBadge = (row) => {
+    const role = String(row.role_type || "").toUpperCase();
+    const desig = String(row.designation || "").toLowerCase();
+    const empType = String(row.employment_type || "").toUpperCase();
 
-  const totalHoursLogged = reports.reduce((sum, r) => sum + (parseFloat(r.total_hours_worked) || 0), 0);
-  const totalClassesTook = reports.reduce((sum, r) => sum + (r.classes?.length || (r.took_class ? 1 : 0)), 0);
-  const approvedReportsCount = reports.filter((r) => r.status === "HR_APPROVED" || r.status === "HEAD_APPROVED" || r.status === "TL_REVIEWED").length;
+    if (
+      role === "TL" ||
+      desig.includes("team lead") ||
+      desig.includes("team leader") ||
+      desig.includes("leader")
+    ) {
+      return {
+        label: "Team Leader",
+        icon: <Crown size={12} />,
+        className: "badge-hierarchy-tl",
+        bg: "#fef3c7",
+        color: "#b45309",
+        border: "#fde68a",
+      };
+    }
+    if (role === "INTERN" || empType === "INTERN" || desig.includes("intern")) {
+      return {
+        label: "Intern",
+        icon: <GraduationCap size={12} />,
+        className: "badge-hierarchy-intern",
+        bg: "#dcfce7",
+        color: "#15803d",
+        border: "#bbf7d0",
+      };
+    }
+    return {
+      label: "Executive",
+      icon: <Briefcase size={12} />,
+      className: "badge-hierarchy-exec",
+      bg: "#eff6ff",
+      color: "#1d4ed8",
+      border: "#bfdbfe",
+    };
+  };
+
+  // KPI Metrics Calculation
+  const totalSubmissions = reports.length;
+  const pendingTLCount = reports.filter((r) => r.status === "SUBMITTED").length;
+  const pendingHRCount = reports.filter((r) => r.status === "TL_REVIEWED").length;
+  const approvedCount = reports.filter(
+    (r) => r.status === "HR_APPROVED" || r.status === "SUPER_ADMIN_APPROVED"
+  ).length;
+  const totalHoursLogged = reports.reduce(
+    (sum, r) => sum + (parseFloat(r.total_hours_worked) || 0),
+    0
+  );
 
   return (
     <div className="team-reports-page">
-      {/* Header */}
+      {/* Header Banner */}
       <div className="team-reports-header">
-        <div>
-          <span className="team-eyebrow">
-            {isSalesDept ? "Sales Department Workspace" : "Operations & Academic Team Workspace"}
-          </span>
-          <h1 className="team-heading">
-            {isSalesDept ? "Sales Team Performance & Work Reports" : "Department Team Performance & Reports"}
-          </h1>
-          <p className="team-subheading">
-            {isSalesDept
-              ? "Live team analytics, call activity, enrolment conversions, and daily work report verifications."
-              : "Real-time employee work logs, class video recording proofs, shift hours, and report approvals."}
-          </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+              <span className="team-eyebrow">
+                {isSuperAdmin ? "Super Admin Executive Control" : isHR ? "HR & Company Governance" : "Department Team Workspace"}
+              </span>
+              <span style={{ background: "#e0f2fe", color: "#0284c7", fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px" }}>
+                3-Tier Hierarchy: Team Leader ➔ HR ➔ Super Admin
+              </span>
+            </div>
+            <h1 className="team-heading">
+              Company Teams Daily Work & Performance Reports
+            </h1>
+            <p className="team-subheading">
+              Track daily work reporting across all 6 departments. Interns & Executives submit to Team Leaders, TLs verify to HR, and HR approvals unlock live Super Admin visibility.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              onClick={fetchReports}
+              style={{
+                background: "#2563eb",
+                color: "#fff",
+                border: "none",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontWeight: "600",
+                fontSize: "13px",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
+              }}
+            >
+              <RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh Reports
+            </button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="team-filters-bar">
+        {/* ── 1. DEPARTMENT QUICK-SWITCH TABS ── */}
+        <div style={{ marginTop: "14px", borderTop: "1px solid #f1f5f9", paddingTop: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <Building2 size={15} style={{ color: "#475569" }} />
+            <strong style={{ fontSize: "13px", color: "#334155" }}>Select Department:</strong>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setSelectedDepartment("ALL")}
+              style={{
+                padding: "7px 14px",
+                borderRadius: "20px",
+                fontSize: "12.5px",
+                fontWeight: "700",
+                cursor: "pointer",
+                border: selectedDepartment === "ALL" ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                background: selectedDepartment === "ALL" ? "#eff6ff" : "#ffffff",
+                color: selectedDepartment === "ALL" ? "#1d4ed8" : "#475569",
+                transition: "all 0.15s ease",
+              }}
+            >
+              🏢 All Departments
+            </button>
+
+            {SIX_OFFICIAL_DEPARTMENTS.map((deptName) => {
+              const deptObj = departments.find(
+                (d) => d.department_name?.toLowerCase() === deptName.toLowerCase()
+              );
+              const deptId = deptObj?.id || deptName;
+              const isSelected =
+                String(selectedDepartment) === String(deptId) ||
+                selectedDepartment === deptName;
+
+              return (
+                <button
+                  key={deptName}
+                  onClick={() => setSelectedDepartment(deptId)}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "20px",
+                    fontSize: "12.5px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    border: isSelected ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                    background: isSelected ? "#eff6ff" : "#ffffff",
+                    color: isSelected ? "#1d4ed8" : "#475569",
+                    transition: "all 0.15s ease",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>{deptName}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── 2. FILTERS BAR (Hierarchy Role, Status, Date, Search) ── */}
+        <div className="team-filters-bar" style={{ marginTop: "12px", paddingTop: "12px" }}>
+          {/* Search Box */}
+          <div style={{ position: "relative", minWidth: "220px", flex: 1 }}>
+            <Search
+              size={15}
+              style={{
+                position: "absolute",
+                left: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#94a3b8",
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search employee name, code, designation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 12px 8px 32px",
+                borderRadius: "8px",
+                border: "1.5px solid #e2e8f0",
+                fontSize: "13px",
+                outline: "none",
+                background: "#f8fafc",
+              }}
+            />
+          </div>
+
+          {/* Hierarchy Level Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <Layers size={15} style={{ color: "#64748b" }} />
+            <select
+              value={selectedRoleLevel}
+              onChange={(e) => setSelectedRoleLevel(e.target.value)}
+              className="filter-select"
+            >
+              <option value="ALL">All Roles (TL, Exec & Interns)</option>
+              <option value="TL">👑 Team Leader Only</option>
+              <option value="EXECUTIVE">💼 Executives Only</option>
+              <option value="INTERN">🎓 Interns Only</option>
+            </select>
+          </div>
+
+          {/* Workflow Stage Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <Filter size={15} style={{ color: "#64748b" }} />
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="filter-select"
+            >
+              <option value="ALL">All Approval Stages</option>
+              <option value="SUBMITTED">⏳ 1. Pending TL Verification ({pendingTLCount})</option>
+              <option value="TL_REVIEWED">⏳ 2. Pending HR Approval ({pendingHRCount})</option>
+              <option value="HR_APPROVED">✅ 3. Approved (Super Admin Ready) ({approvedCount})</option>
+              <option value="REVISION_REQUESTED">🔄 Revision Requested</option>
+            </select>
+          </div>
+
+          {/* Date Picker */}
           <div className="filter-input-wrap">
             <Calendar size={15} />
             <input
@@ -129,372 +414,415 @@ const TeamReports = () => {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="filter-date-input"
             />
+            {selectedDate && (
+              <button
+                onClick={() => setSelectedDate("")}
+                title="View All Dates"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#94a3b8",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  padding: "0 4px",
+                }}
+              >
+                ✕ All
+              </button>
+            )}
           </div>
-
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Roles (Employees & Interns)</option>
-            <option value="EMPLOYEE">Employees Only</option>
-            <option value="INTERN">Interns Only</option>
-            <option value="TRAINER">Trainers Only</option>
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Statuses</option>
-            <option value="SUBMITTED">Pending Review</option>
-            <option value="TL_REVIEWED">Approved by Dept Head</option>
-            <option value="HR_APPROVED">HR Approved</option>
-            <option value="REVISION_REQUESTED">Revision Requested</option>
-          </select>
         </div>
       </div>
 
-      {/* DYNAMIC TOP 4 KPI SUMMARY CARDS BASED ON DEPARTMENT */}
-      {isSalesDept ? (
-        <div className="team-stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon-wrap blue">
-              <Users size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Assigned Leads & Calls</span>
-              <strong className="stat-number">
-                {kpi.totalLeads} <span style={{ fontSize: "14px", fontWeight: 500, color: "#64748b" }}>/ {kpi.totalCalls} calls</span>
-              </strong>
-            </div>
+      {/* ── 3. KPI STATS CARDS ── */}
+      <div className="team-stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon-wrap blue">
+            <Users size={20} />
           </div>
-
-          <div className="stat-card">
-            <div className="stat-icon-wrap amber">
-              <PhoneCall size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Connected Calls</span>
-              <strong className="stat-number">{kpi.connectedCalls}</strong>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon-wrap green">
-              <GraduationCap size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Admissions Closed</span>
-              <strong className="stat-number">{kpi.totalAdmissions}</strong>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon-wrap orange">
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Fee Revenue Collected</span>
-              <strong className="stat-number">
-                ₹ {Number(kpi.totalRevenue || 0).toLocaleString("en-IN")}
-              </strong>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="team-stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon-wrap blue">
-              <Users size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Total Submissions Logged</span>
-              <strong className="stat-number">{reports.length}</strong>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon-wrap amber">
-              <Clock size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Shift Hours Logged</span>
-              <strong className="stat-number">{totalHoursLogged.toFixed(1)} hrs</strong>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon-wrap purple">
-              <Video size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Classes & Video Proofs</span>
-              <strong className="stat-number">{totalClassesTook}</strong>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon-wrap green">
-              <CheckCircle size={20} />
-            </div>
-            <div>
-              <span className="stat-label">Verified & Approved</span>
-              <strong className="stat-number">{approvedReportsCount}</strong>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* COUNSELLOR SALES BREAKDOWN TABLE */}
-      <div className="team-table-card" style={{ marginBottom: "28px" }}>
-        <div className="team-table-top">
           <div>
-            <h3 className="team-table-title">Sales Counsellors Breakdown</h3>
-            <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: "13px" }}>
-              Individual counsellor call activity, today's attendance, admissions, and conversion metrics.
-            </p>
+            <span className="stat-label">Total Submissions</span>
+            <strong className="stat-number">{totalSubmissions}</strong>
           </div>
-          <span className="team-count-tag">{counsellors.length} Active Counsellors</span>
         </div>
 
-        <div className="table-responsive">
-          <table className="team-reports-table">
-            <thead>
-              <tr>
-                <th>Counsellor</th>
-                <th>Today Attendance</th>
-                <th>Assigned Leads</th>
-                <th>Calls / Connected</th>
-                <th>Admissions</th>
-                <th>Revenue (₹)</th>
-                <th>Conversion Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {counsellors.length === 0 ? (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
-                    No sales counsellors found for the selected filter.
-                  </td>
-                </tr>
-              ) : (
-                counsellors.map((c) => (
-                  <tr key={c.employee_id}>
-                    <td>
-                      <div className="member-info-cell">
-                        <div className="member-avatar">
-                          {c.employee_name?.slice(0, 2).toUpperCase() || "CN"}
-                        </div>
-                        <div>
-                          <strong>{c.employee_name}</strong>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
-                            <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#2563eb", background: "#eff6ff", padding: "1px 5px", borderRadius: "4px", border: "1px solid #bfdbfe" }}>
-                              {c.designation || c.role || "Counsellor"}
-                            </span>
-                            <span className="member-code">{c.employee_code || c.email}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          padding: "3px 8px",
-                          borderRadius: "12px",
-                          backgroundColor: c.today_attendance_status === "PRESENT" ? "#DCFCE7" : "#FEE2E2",
-                          color: c.today_attendance_status === "PRESENT" ? "#15803D" : "#B91C1C",
-                        }}
-                      >
-                        {c.today_attendance_status === "PRESENT"
-                          ? `Present (${c.today_hours || 0}h)`
-                          : "Not Checked In"}
-                      </span>
-                    </td>
-                    <td>
-                      <strong style={{ color: "#2563EB" }}>{c.assigned_leads_count}</strong>
-                    </td>
-                    <td>
-                      <span>
-                        <strong>{c.total_calls_count}</strong> <span style={{ color: "#64748b" }}>({c.connected_calls_count} connected)</span>
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: 700, color: "#16A34A" }}>{c.admissions_count}</span>
-                    </td>
-                    <td>
-                      <strong style={{ color: "#4F46E5" }}>
-                        ₹ {Number(c.total_revenue || 0).toLocaleString("en-IN")}
-                      </strong>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          padding: "3px 8px",
-                          borderRadius: "6px",
-                          background: Number(c.conversion_rate) > 0 ? "#EEF2FF" : "#F1F5F9",
-                          color: Number(c.conversion_rate) > 0 ? "#4338CA" : "#64748B",
-                        }}
-                      >
-                        {c.conversion_rate}%
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="stat-card" style={{ borderLeft: "4px solid #f59e0b" }}>
+          <div className="stat-icon-wrap amber">
+            <Clock size={20} />
+          </div>
+          <div>
+            <span className="stat-label">Pending TL Verification</span>
+            <strong className="stat-number" style={{ color: "#d97706" }}>
+              {pendingTLCount}
+            </strong>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ borderLeft: "4px solid #3b82f6" }}>
+          <div className="stat-icon-wrap blue">
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <span className="stat-label">Pending HR Approval</span>
+            <strong className="stat-number" style={{ color: "#2563eb" }}>
+              {pendingHRCount}
+            </strong>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ borderLeft: "4px solid #10b981" }}>
+          <div className="stat-icon-wrap green">
+            <CheckCircle size={20} />
+          </div>
+          <div>
+            <span className="stat-label">Approved & Super Admin Live</span>
+            <strong className="stat-number" style={{ color: "#16a34a" }}>
+              {approvedCount}
+            </strong>
+          </div>
         </div>
       </div>
 
-      {/* DAILY WORK REPORTS TABLE */}
+      {/* ── 4. DEPARTMENT REPORTS TABLE & PIPELINE ── */}
       <div className="team-table-card">
         <div className="team-table-top">
-          <h3 className="team-table-title">
-            Department Daily Submissions for {selectedDate}
-          </h3>
-          <span className="team-count-tag">{reports.length} Submissions</span>
+          <div>
+            <h3 className="team-table-title">
+              {selectedDepartment === "ALL"
+                ? "All Department Submissions"
+                : `${
+                    departments.find(
+                      (d) => String(d.id) === String(selectedDepartment)
+                    )?.department_name || selectedDepartment
+                  } Work Reports`}
+              {selectedDate ? ` (${selectedDate})` : ""}
+            </h3>
+            <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: "13px" }}>
+              Review Team Leader, Executive, and Intern daily logs with video proof attachments and multi-tier approval sign-offs.
+            </p>
+          </div>
+          <span className="team-count-tag">{reports.length} Records</span>
         </div>
 
         {loading ? (
-          <div className="team-loading">Loading team submissions...</div>
+          <div className="team-loading">Loading department reports...</div>
         ) : reports.length === 0 ? (
           <div className="team-empty">
-            <AlertCircle size={32} />
-            <h4>No reports submitted for this date</h4>
-            <p>Try picking another date or clear active filters.</p>
+            <AlertCircle size={36} style={{ color: "#94a3b8" }} />
+            <h4>No daily work reports found</h4>
+            <p>
+              No submissions match the selected department, date, or role filter.
+            </p>
           </div>
         ) : (
           <div className="table-responsive">
             <table className="team-reports-table">
               <thead>
                 <tr>
-                  <th>Team Member</th>
-                  <th>Role / Dept</th>
-                  <th>Hours</th>
-                  <th>Work Summary</th>
-                  <th>Classes & Video Proof</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th style={{ width: "22%" }}>Employee & Role</th>
+                  <th style={{ width: "16%" }}>Department</th>
+                  <th style={{ width: "8%" }}>Hours</th>
+                  <th style={{ width: "22%" }}>Work Summary</th>
+                  <th style={{ width: "18%" }}>Approval Pipeline Tracker</th>
+                  <th style={{ width: "14%", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {reports.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <div className="member-info-cell">
-                        <div className="member-avatar">
-                          {row.user_avatar ? (
-                            <img src={row.user_avatar} alt={row.user_name} />
-                          ) : (
-                            row.user_name?.slice(0, 2).toUpperCase() || "EM"
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <strong>{row.user_name}</strong>
-                            {row.is_direct_intern && (
-                              <span
-                                style={{
-                                  fontSize: "10px",
-                                  fontWeight: 700,
-                                  backgroundColor: "#E0F2FE",
-                                  color: "#0369A1",
-                                  padding: "2px 6px",
-                                  borderRadius: "4px",
-                                }}
-                              >
-                                Assigned Intern
-                              </span>
+                {reports.map((row) => {
+                  const roleBadge = getRoleBadge(row);
+
+                  return (
+                    <tr key={row.id}>
+                      {/* Employee Info & Hierarchy Role Badge */}
+                      <td>
+                        <div className="member-info-cell">
+                          <div className="member-avatar">
+                            {row.user_avatar ? (
+                              <img src={row.user_avatar} alt={row.user_name} />
+                            ) : (
+                              row.user_name?.slice(0, 2).toUpperCase() || "EM"
                             )}
                           </div>
-                          <span className="member-code">{row.employee_code || row.user_email}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="role-dept-cell">
-                        <span className={`role-tag role-${(row.role_type || "EMPLOYEE").toLowerCase()}`}>
-                          {row.role_type || "EMPLOYEE"}
-                        </span>
-                        <span className="dept-label">{row.department_name}</span>
-                        {row.mentor_name && row.role_type === "INTERN" && !row.is_direct_intern && (
-                          <span style={{ fontSize: "11px", color: "#64748B" }}>
-                            Mentor: {row.mentor_name}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="hours-badge">
-                        <Clock size={12} /> {row.total_hours_worked || 8}h
-                      </span>
-                    </td>
-                    <td className="summary-cell">
-                      <span className="summary-text" title={row.tasks_summary}>
-                        {row.work_title || row.tasks_summary}
-                      </span>
-                    </td>
-                    <td>
-                      {row.took_class ? (
-                        <div className="class-proof-tag">
-                          <Video size={13} />
-                          <span>{row.classes?.length || 1} Class (Video Attached)</span>
-                        </div>
-                      ) : (
-                        <span className="no-class-text">—</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`status-pill pill-${(row.status || "SUBMITTED").toLowerCase()}`}>
-                        {row.status?.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="action-buttons-wrap">
-                        <button
-                          className="action-btn view-btn"
-                          onClick={() => setSelectedReport(row)}
-                          title="View Full Report"
-                        >
-                          <Eye size={14} /> View
-                        </button>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <strong style={{ fontSize: "13.5px", color: "#0f172a" }}>
+                                {row.user_name}
+                              </strong>
+                            </div>
 
-                        <button
-                          className="action-btn verify-btn"
-                          onClick={() => handleOpenReview(row)}
-                          title="Review / Verify"
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  padding: "2px 8px",
+                                  borderRadius: "10px",
+                                  background: roleBadge.bg,
+                                  color: roleBadge.color,
+                                  border: `1px solid ${roleBadge.border}`,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                {roleBadge.icon} {roleBadge.label}
+                              </span>
+                              <span className="member-code">
+                                {row.employee_code || `#${row.employee_id || row.user_id}`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Department & Designation */}
+                      <td>
+                        <div style={{ fontWeight: "600", color: "#1e293b", fontSize: "13px" }}>
+                          {row.department_name || "General"}
+                        </div>
+                        <div style={{ fontSize: "11.5px", color: "#64748b" }}>
+                          {row.designation || row.employee_role || "Staff"}
+                        </div>
+                        {row.mentor_name && (
+                          <div style={{ fontSize: "11px", color: "#0284c7", marginTop: "2px" }}>
+                            TL: {row.mentor_name}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Shift Hours */}
+                      <td>
+                        <span className="hours-badge">
+                          <Clock size={12} /> {row.total_hours_worked || 8}h
+                        </span>
+                      </td>
+
+                      {/* Work Tasks Summary & Video Link */}
+                      <td className="summary-cell">
+                        <div
+                          style={{
+                            fontWeight: "600",
+                            color: "#0f172a",
+                            fontSize: "13px",
+                            marginBottom: "2px",
+                          }}
                         >
-                          <CheckCheck size={14} /> Review
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {row.work_title || "Daily Tasks"}
+                        </div>
+                        <span className="summary-text" title={row.tasks_summary}>
+                          {row.tasks_summary}
+                        </span>
+
+                        {row.took_class && row.classes && row.classes.length > 0 && (
+                          <div style={{ marginTop: "4px" }}>
+                            <a
+                              href={row.classes[0]?.video_recording_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="class-proof-tag"
+                              style={{ textDecoration: "none" }}
+                            >
+                              <Video size={12} />
+                              <span>{row.classes.length} Class Video Proof</span>
+                            </a>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 3-Tier Approval Pipeline Tracker */}
+                      <td>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                          {row.status === "SUBMITTED" ? (
+                            <span
+                              style={{
+                                fontSize: "11.5px",
+                                fontWeight: "700",
+                                color: "#b45309",
+                                background: "#fef3c7",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #fde68a",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                width: "fit-content",
+                              }}
+                            >
+                              ⏳ 1. Pending TL Verification
+                            </span>
+                          ) : row.status === "TL_REVIEWED" ? (
+                            <>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "600",
+                                  color: "#15803d",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                }}
+                              >
+                                ✓ TL Verified ({row.tl_name || "Team Lead"})
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "11.5px",
+                                  fontWeight: "700",
+                                  color: "#1d4ed8",
+                                  background: "#eff6ff",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  border: "1px solid #bfdbfe",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  width: "fit-content",
+                                }}
+                              >
+                                ⏳ 2. Pending HR Approval
+                              </span>
+                            </>
+                          ) : row.status === "HR_APPROVED" || row.status === "SUPER_ADMIN_APPROVED" ? (
+                            <>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "600",
+                                  color: "#15803d",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                }}
+                              >
+                                ✓ HR Approved ({row.hr_name || "HR"})
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "11.5px",
+                                  fontWeight: "700",
+                                  color: "#15803d",
+                                  background: "#dcfce7",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  border: "1px solid #bbf7d0",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  width: "fit-content",
+                                }}
+                              >
+                                👁️ Super Admin Live
+                              </span>
+                            </>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: "11.5px",
+                                fontWeight: "700",
+                                color: "#b91c1c",
+                                background: "#fee2e2",
+                                padding: "3px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #fecaca",
+                                width: "fit-content",
+                              }}
+                            >
+                              ⚠️ Revision Requested
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Action Buttons based on User Role and Pipeline Stage */}
+                      <td style={{ textAlign: "right" }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px", flexWrap: "wrap" }}>
+                          <button
+                            className="action-btn view-btn"
+                            onClick={() => setSelectedReport(row)}
+                            title="View Report Details"
+                          >
+                            <Eye size={13} /> View
+                          </button>
+
+                          {/* Action 1: If report is SUBMITTED, TL or HR/Admin can verify */}
+                          {row.status === "SUBMITTED" && (isTL || isHR || isSuperAdmin) && (
+                            <button
+                              onClick={() => handleOpenReview(row, "TL")}
+                              style={{
+                                background: "#16a34a",
+                                color: "#fff",
+                                border: "none",
+                                padding: "6px 10px",
+                                borderRadius: "6px",
+                                fontWeight: "700",
+                                fontSize: "12px",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)",
+                              }}
+                              title="Verify as Team Leader & forward to HR"
+                            >
+                              <CheckCheck size={13} /> Verify TL
+                            </button>
+                          )}
+
+                          {/* Action 2: If report is TL_REVIEWED, HR or Super Admin can approve */}
+                          {row.status === "TL_REVIEWED" && (isHR || isSuperAdmin) && (
+                            <button
+                              onClick={() => handleOpenReview(row, "HR")}
+                              style={{
+                                background: "#2563eb",
+                                color: "#fff",
+                                border: "none",
+                                padding: "6px 10px",
+                                borderRadius: "6px",
+                                fontWeight: "700",
+                                fontSize: "12px",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                boxShadow: "0 2px 6px rgba(37, 99, 235, 0.25)",
+                              }}
+                              title="Approve as HR & unlock for Super Admin"
+                            >
+                              <ShieldCheck size={13} /> Approve HR
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Review Modal */}
+      {/* ── 5. REVIEW & VERIFICATION MODAL ── */}
       {reviewingReport && (
         <div className="review-modal-overlay" onClick={() => setReviewingReport(null)}>
           <div className="review-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="review-modal-header">
               <div>
-                <span className="modal-eyebrow">Team Lead Action</span>
-                <h3>Verify Report: {reviewingReport.user_name}</h3>
-                <span className="modal-date-tag">{reviewingReport.report_date}</span>
+                <span className="modal-eyebrow">
+                  {reviewType === "HR"
+                    ? "Tier-2 HR Compliance Review"
+                    : reviewType === "SUPER_ADMIN"
+                    ? "Tier-3 Super Admin Final Audit"
+                    : "Tier-1 Team Leader Verification"}
+                </span>
+                <h3>
+                  {reviewType === "HR" ? "HR Approval" : "TL Verification"}: {reviewingReport.user_name}
+                </h3>
+                <span className="modal-date-tag">
+                  {reviewingReport.report_date} • {reviewingReport.department_name} ({getRoleBadge(reviewingReport).label})
+                </span>
               </div>
-              <button
-                className="close-review-btn"
-                onClick={() => setReviewingReport(null)}
-              >
+              <button className="close-review-btn" onClick={() => setReviewingReport(null)}>
                 ✕
               </button>
             </div>
@@ -502,24 +830,14 @@ const TeamReports = () => {
             <form onSubmit={handleSaveReview} className="review-form">
               {/* Report Summary Snippet */}
               <div className="report-snippet-box">
-                <strong>Tasks Logged:</strong>
-                <p>{reviewingReport.tasks_summary}</p>
-                {reviewingReport.took_class && reviewingReport.classes?.length > 0 && (
-                  <div className="snippet-classes">
-                    <strong>Class Video Proofs:</strong>
-                    {reviewingReport.classes.map((cls, i) => (
-                      <div key={i} className="snippet-class-item">
-                        <span>{cls.batch_name} — {cls.topic_covered}</span>
-                        <a
-                          href={cls.video_recording_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="snippet-video-link"
-                        >
-                          <Video size={13} /> Open Recording Proof
-                        </a>
-                      </div>
-                    ))}
+                <strong style={{ fontSize: "13px", color: "#0f172a" }}>Tasks Logged:</strong>
+                <p style={{ margin: "4px 0 8px 0", color: "#334155", fontSize: "13px" }}>
+                  {reviewingReport.tasks_summary}
+                </p>
+
+                {reviewingReport.tl_feedback && (
+                  <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0", marginTop: "6px", fontSize: "12px" }}>
+                    <strong>TL Note ({reviewingReport.tl_name}):</strong> {reviewingReport.tl_feedback}
                   </div>
                 )}
               </div>
@@ -528,22 +846,34 @@ const TeamReports = () => {
                 <label className="form-label">Review Decision</label>
                 <select
                   className="form-select"
-                  value={reviewStatus}
-                  onChange={(e) => setReviewStatus(e.target.value)}
+                  value={reviewDecision}
+                  onChange={(e) => setReviewDecision(e.target.value)}
                 >
-                  <option value="TL_REVIEWED">Verify / Approve Team Member Report</option>
-                  <option value="REVISION_REQUESTED">Request Changes / Needs Revision</option>
+                  <option value="APPROVE">
+                    {reviewType === "HR"
+                      ? "✅ Approve & Send to Super Admin (HR Approved)"
+                      : "✅ Verify & Forward to HR (TL Verified)"}
+                  </option>
+                  <option value="REVISE">
+                    ⚠️ Request Changes / Needs Revision
+                  </option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Team Lead Feedback / Comments</label>
+                <label className="form-label">
+                  {reviewType === "HR" ? "HR Comments & Notes" : "Team Leader Feedback"}
+                </label>
                 <textarea
                   className="form-textarea"
                   rows={3}
-                  placeholder="Great work on the Meta Ads module / Please provide the complete Zoom recording link..."
-                  value={tlFeedback}
-                  onChange={(e) => setTlFeedback(e.target.value)}
+                  placeholder={
+                    reviewType === "HR"
+                      ? "Approved for payroll and compliance / Verified by HR team."
+                      : "Great progress on campaign metrics / Please attach the recorded call recording."
+                  }
+                  value={reviewFeedback}
+                  onChange={(e) => setReviewFeedback(e.target.value)}
                 />
               </div>
 
@@ -559,8 +889,22 @@ const TeamReports = () => {
                   type="submit"
                   className="btn-primary"
                   disabled={savingReview}
+                  style={{
+                    background:
+                      reviewDecision === "REVISE"
+                        ? "#dc2626"
+                        : reviewType === "HR"
+                        ? "#2563eb"
+                        : "#16a34a",
+                  }}
                 >
-                  {savingReview ? "Saving Review..." : "Confirm & Update Report"}
+                  {savingReview
+                    ? "Saving..."
+                    : reviewDecision === "REVISE"
+                    ? "Request Revision"
+                    : reviewType === "HR"
+                    ? "Confirm HR Approval"
+                    : "Confirm TL Verification"}
                 </button>
               </div>
             </form>
@@ -568,13 +912,15 @@ const TeamReports = () => {
         </div>
       )}
 
-      {/* Details Modal */}
+      {/* ── 6. DETAILS MODAL ── */}
       {selectedReport && (
         <ReportDetailsModal
           report={selectedReport}
-          userRole="TL"
+          userRole={userRole}
           onClose={() => setSelectedReport(null)}
-          onReviewAsTL={(rep) => handleOpenReview(rep)}
+          onReviewAsTL={(rep) => handleOpenReview(rep, "TL")}
+          onReviewAsHR={(rep) => handleOpenReview(rep, "HR")}
+          onReviewAsSuperAdmin={(rep) => handleOpenReview(rep, "SUPER_ADMIN")}
         />
       )}
     </div>

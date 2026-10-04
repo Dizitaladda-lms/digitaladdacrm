@@ -49,10 +49,51 @@ export const submitDailyReportService = async (user, payload) => {
   let roleType = payload.role_type;
   if (!roleType) {
     const userRole = String(user.role || "").toUpperCase();
-    if (userRole === "HR") roleType = "HR";
-    else if (userRole === "TL" || (empProfile?.designation && empProfile.designation.toLowerCase().includes("team lead"))) roleType = "TL";
-    else if (empProfile?.employment_type === "INTERN") roleType = "INTERN";
-    else roleType = "EMPLOYEE";
+    const designation = String(empProfile?.designation || "").toLowerCase();
+    const employmentType = String(empProfile?.employment_type || "").toUpperCase();
+
+    if (userRole === "HR") {
+      roleType = "HR";
+    } else if (
+      userRole === "TL" ||
+      designation.includes("team lead") ||
+      designation.includes("team leader") ||
+      designation.includes("leader") ||
+      designation.includes("manager")
+    ) {
+      roleType = "TL";
+    } else if (
+      userRole === "INTERN" ||
+      employmentType === "INTERN" ||
+      designation.includes("intern")
+    ) {
+      roleType = "INTERN";
+    } else if (
+      userRole === "EXECUTIVE" ||
+      designation.includes("executive") ||
+      designation.includes("counsellor") ||
+      userRole === "COUNSELLOR"
+    ) {
+      roleType = "EXECUTIVE";
+    } else {
+      roleType = "EMPLOYEE";
+    }
+  }
+
+  // Initial workflow status:
+  // - Interns & Executives/Employees -> 'SUBMITTED' (Pending TL Verification)
+  // - Team Leaders -> 'TL_REVIEWED' (Pending HR Approval)
+  // - HR / Super Admin -> 'HR_APPROVED' (Visible to Super Admin)
+  let initialStatus = "SUBMITTED";
+  let tlId = null;
+  let tlReviewedAt = null;
+
+  if (roleType === "TL" || user.role === "TL" || user.role === "MANAGER") {
+    initialStatus = "TL_REVIEWED";
+    tlId = userId;
+    tlReviewedAt = new Date();
+  } else if (user.role === "HR" || user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
+    initialStatus = "HR_APPROVED";
   }
 
   const tookClass = Boolean(payload.took_class || (payload.classes && payload.classes.length > 0));
@@ -95,6 +136,9 @@ export const submitDailyReportService = async (user, payload) => {
     blockers: payload.blockers || null,
     next_day_plan: payload.next_day_plan || null,
     took_class: tookClass,
+    status: initialStatus,
+    tl_id: tlId,
+    tl_reviewed_at: tlReviewedAt,
   };
 
   // Run in database transaction
@@ -153,29 +197,39 @@ export const getReportByIdService = async (reportId) => {
 };
 
 /**
- * Get Team Reports (for Team Lead)
+ * Get Team Reports (for Team Lead, HR, Super Admin)
  */
 export const getTeamReportsService = async (user, query) => {
+  const isSuperAdminOrHR = ["SUPER_ADMIN", "ADMIN", "HR"].includes(user.role);
   const empProfile = await ensureEmployeeProfileForUser(user.id);
-  const departmentId = query.departmentId || empProfile?.department_id || null;
+  
+  let departmentId = null;
+  if (query.departmentId && query.departmentId !== "ALL") {
+    departmentId = query.departmentId;
+  } else if (!isSuperAdminOrHR) {
+    departmentId = empProfile?.department_id || null;
+  }
 
   const page = Math.max(1, parseInt(query.page, 10) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 20));
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 25));
   const date = query.date ? getFormattedDate(query.date) : undefined;
   const startDate = query.startDate ? getFormattedDate(query.startDate) : undefined;
   const endDate = query.endDate ? getFormattedDate(query.endDate) : undefined;
   const roleType = query.roleType || undefined;
   const status = query.status || undefined;
+  const search = query.search?.trim();
 
   return await findTeamReportsRepository({
-    tlUserId: user.id,
-    tlEmployeeId: empProfile?.id || null,
+    tlUserId: isSuperAdminOrHR ? null : null,
+    tlEmployeeId: isSuperAdminOrHR ? null : (empProfile?.id || null),
     departmentId,
     date,
     startDate,
     endDate,
     roleType,
     status,
+    search,
+    isSuperAdminOrHR,
     page,
     limit,
   });
@@ -191,7 +245,7 @@ export const reviewReportAsTLService = async (user, reportId, payload) => {
   }
 
   const feedback = payload.feedback || payload.tl_feedback || "";
-  const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : (payload.status || "HEAD_APPROVED");
+  const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : (payload.status || "TL_REVIEWED");
 
   return await reviewReportAsTLRepository(reportId, user.id, feedback, status);
 };

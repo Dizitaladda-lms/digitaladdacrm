@@ -44,7 +44,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <Toaster position="top-right" />
+          <Toaster
+            position="top-right"
+            containerStyle={{ top: 72, right: 20, zIndex: 99999 }}
+            gutter={10}
+          />
           <App />
         </AuthProvider>
       </ThemeProvider>

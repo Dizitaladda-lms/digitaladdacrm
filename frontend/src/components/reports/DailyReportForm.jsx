@@ -11,8 +11,13 @@ import {
   FileText,
   Send,
   Sparkles,
+  Crown,
+  Briefcase,
+  GraduationCap,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "../../context/AuthContext";
 import { submitDailyReport, getMyReportToday } from "../../services/reportService";
 import "./DailyReportForm.css";
 
@@ -30,6 +35,24 @@ const emptyClassItem = () => ({
 });
 
 const DailyReportForm = ({ initialDate, onSuccess }) => {
+  const { user } = useAuth();
+  const userRole = String(user?.role || "").toUpperCase();
+  const designation = String(user?.designation || "").toLowerCase();
+  const isTLRole =
+    userRole === "TL" ||
+    userRole === "MANAGER" ||
+    designation.includes("team lead") ||
+    designation.includes("team leader") ||
+    designation.includes("leader") ||
+    designation.includes("head");
+  const isInternRole = userRole === "INTERN" || designation.includes("intern");
+
+  const [roleType, setRoleType] = useState(() => {
+    if (isTLRole) return "TL";
+    if (isInternRole) return "INTERN";
+    return "EXECUTIVE";
+  });
+
   const [reportDate, setReportDate] = useState(
     initialDate || new Date().toISOString().split("T")[0]
   );
@@ -56,6 +79,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
         if (isMounted && res?.data) {
           const rep = res.data;
           setExistingReport(rep);
+          if (rep.role_type) setRoleType(rep.role_type);
           setWorkTitle(rep.work_title || "");
           setTasksSummary(rep.tasks_summary || "");
           setTotalHours(parseFloat(rep.total_hours_worked) || 8.0);
@@ -143,6 +167,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
       setSubmitting(true);
       const payload = {
         report_date: reportDate,
+        role_type: roleType,
         work_title: workTitle,
         tasks_summary: tasksSummary,
         total_hours_worked: parseFloat(totalHours) || 8.0,
@@ -192,6 +217,77 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
             <span>
               Submitted ({existingReport.status.replace("_", " ")})
             </span>
+          </div>
+        )}
+      </div>
+
+      {/* Role & Reporting Hierarchy Indicator */}
+      <div className="report-hierarchy-strip">
+        <div className="hierarchy-profile-wrap">
+          <div className={`hierarchy-role-badge ${roleType.toLowerCase()}`}>
+            {roleType === "TL" && <Crown size={15} />}
+            {roleType === "EXECUTIVE" && <Briefcase size={15} />}
+            {roleType === "INTERN" && <GraduationCap size={15} />}
+            <span>{roleType === "TL" ? "Team Leader (TL)" : roleType === "INTERN" ? "Intern" : "Executive"}</span>
+          </div>
+
+          <div className="hierarchy-details">
+            <span className="hierarchy-name">{user?.full_name || "Employee"}</span>
+            <span className="hierarchy-sep">•</span>
+            <span className="hierarchy-dept">{user?.department_name || "General Department"}</span>
+            {user?.designation && (
+              <>
+                <span className="hierarchy-sep">•</span>
+                <span className="hierarchy-desig">{user.designation}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Level Switcher (allows TL or staff to verify or set their tier) */}
+        <div className="hierarchy-tier-selector">
+          <span className="selector-label">Reporting Tier:</span>
+          <div className="selector-buttons">
+            <button
+              type="button"
+              className={`tier-btn ${roleType === "TL" ? "active tl" : ""}`}
+              onClick={() => setRoleType("TL")}
+            >
+              <Crown size={13} /> Team Leader
+            </button>
+            <button
+              type="button"
+              className={`tier-btn ${roleType === "EXECUTIVE" ? "active executive" : ""}`}
+              onClick={() => setRoleType("EXECUTIVE")}
+            >
+              <Briefcase size={13} /> Executive
+            </button>
+            <button
+              type="button"
+              className={`tier-btn ${roleType === "INTERN" ? "active intern" : ""}`}
+              onClick={() => setRoleType("INTERN")}
+            >
+              <GraduationCap size={13} /> Intern
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Workflow Route Notification Banner */}
+      <div className={`reporting-route-banner ${roleType.toLowerCase()}`}>
+        {roleType === "TL" ? (
+          <div className="route-banner-content">
+            <Crown size={16} className="text-amber-600" />
+            <div>
+              <strong>Team Leader Reporting:</strong> Your daily report will be submitted with TL status and routed directly to <strong>HR & Super Admin</strong> for verification.
+            </div>
+          </div>
+        ) : (
+          <div className="route-banner-content">
+            <Sparkles size={16} className="text-blue-600" />
+            <div>
+              <strong>Multi-Tier Workflow:</strong> Your daily report will be submitted to your department's <strong>Team Leader (TL)</strong> for review, then forwarded to <strong>HR</strong>.
+            </div>
           </div>
         )}
       </div>
@@ -290,22 +386,68 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
         </div>
 
         {/* Team Lead: Interns & Subordinates Work Summary */}
-        <div className="form-group" style={{ background: "#f0f9ff", padding: "16px", borderRadius: "10px", border: "1px solid #bae6fd", marginBottom: "20px" }}>
-          <label className="form-label" style={{ color: "#0369a1", fontWeight: 700, fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
-            👥 Interns Work Summary & Team Progress <span className="optional">(Team Lead Report)</span>
+        <div
+          className="form-group"
+          style={{
+            background: roleType === "TL" ? "#fffbeb" : "#f0f9ff",
+            padding: "16px",
+            borderRadius: "10px",
+            border: roleType === "TL" ? "1px solid #fde68a" : "1px solid #bae6fd",
+            marginBottom: "20px",
+          }}
+        >
+          <label
+            className="form-label"
+            style={{
+              color: roleType === "TL" ? "#92400e" : "#0369a1",
+              fontWeight: 700,
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            {roleType === "TL" ? <Crown size={16} /> : <Users size={16} />}
+            {roleType === "TL"
+              ? "Team Supervision, Tasks Delegation & Interns Progress (Team Leader Section)"
+              : "Interns Work Summary & Team Progress (Optional)"}
           </label>
-          <p style={{ margin: "2px 0 10px 0", fontSize: "12.5px", color: "#0284c7" }}>
-            TLs can record the daily work performed by interns under their supervision.
+          <p
+            style={{
+              margin: "2px 0 10px 0",
+              fontSize: "12.5px",
+              color: roleType === "TL" ? "#b45309" : "#0284c7",
+            }}
+          >
+            {roleType === "TL"
+              ? "As Team Leader, summarize the daily progress of your department members/interns and guidance provided today."
+              : "Record any daily work performed by interns or subordinates under your supervision."}
           </p>
           <textarea
             className="form-textarea"
             rows={3}
-            placeholder={`• Intern Rahul: Completed 20 lead research profiles and design mockups.\n• Intern Priya: Compiled weekly attendance and lead follow-up sheets.`}
-            value={blockers ? (blockers.includes("INTERNS_REPORT:") ? blockers.split("INTERNS_REPORT:")[1]?.trim() : "") : ""}
+            placeholder={
+              roleType === "TL"
+                ? `• Executive Amit: Monitored Google Ads campaigns and verified daily spend targets.\n• Intern Rahul: Guided on keyword negative matching and review report submission.\n• Overall Team Target: 100% completed without blockers.`
+                : `• Intern Rahul: Completed 20 lead research profiles and design mockups.\n• Intern Priya: Compiled weekly attendance and lead follow-up sheets.`
+            }
+            value={
+              blockers
+                ? blockers.includes("INTERNS_REPORT:")
+                  ? blockers.split("INTERNS_REPORT:")[1]?.trim()
+                  : ""
+                : ""
+            }
             onChange={(e) => {
               const val = e.target.value;
-              const cleanBlockers = blockers ? blockers.split("INTERNS_REPORT:")[0]?.trim() : "";
-              setBlockers(val ? `${cleanBlockers ? cleanBlockers + "\n" : ""}INTERNS_REPORT: ${val}` : cleanBlockers);
+              const cleanBlockers = blockers
+                ? blockers.split("INTERNS_REPORT:")[0]?.trim()
+                : "";
+              setBlockers(
+                val
+                  ? `${cleanBlockers ? cleanBlockers + "\n" : ""}INTERNS_REPORT: ${val}`
+                  : cleanBlockers
+              );
             }}
           />
         </div>

@@ -458,3 +458,174 @@ input:checked + .slider:before {
     align-items: stretch;
   }
 }
+
+/* ── Role & Reporting Hierarchy Strip ────────────────────── */
+.report-hierarchy-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 14px;
+}
+
+.hierarchy-profile-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hierarchy-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.hierarchy-role-badge.tl {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.hierarchy-role-badge.executive {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.hierarchy-role-badge.intern {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+.hierarchy-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.hierarchy-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.hierarchy-sep {
+  color: #94a3b8;
+}
+
+.hierarchy-dept {
+  color: #475569;
+  font-weight: 600;
+}
+
+.hierarchy-desig {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.hierarchy-tier-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selector-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.selector-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.tier-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tier-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.tier-btn.active.tl {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(146, 64, 14, 0.12);
+}
+
+.tier-btn.active.executive {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.12);
+}
+
+.tier-btn.active.intern {
+  background: #f3e8ff;
+  color: #7e22ce;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(126, 34, 206, 0.12);
+}
+
+/* ── Route Banner ────────────────────────────────────────── */
+.reporting-route-banner {
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.reporting-route-banner.tl {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.reporting-route-banner.executive,
+.reporting-route-banner.intern {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.route-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+

@@ -67,6 +67,7 @@ const SidebarNavigation = ({ onClose }) => {
     // Team Lead (TL) & Department Head / Manager Dedicated Sales Menu
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+      { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Counsellors Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },

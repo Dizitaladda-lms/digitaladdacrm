@@ -27,9 +27,15 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
       next_day_plan,
       took_class,
       status,
+      tl_id,
+      tl_reviewed_at,
       updated_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SUBMITTED', CURRENT_TIMESTAMP)
+    VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+      $15, $16,
+      CURRENT_TIMESTAMP
+    )
     ON CONFLICT (user_id, report_date)
     DO UPDATE SET
       department_id = COALESCE(EXCLUDED.department_id, daily_work_reports.department_id),
@@ -42,7 +48,12 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
       blockers = EXCLUDED.blockers,
       next_day_plan = EXCLUDED.next_day_plan,
       took_class = EXCLUDED.took_class,
-      status = 'SUBMITTED',
+      status = CASE 
+        WHEN daily_work_reports.status IN ('HR_APPROVED', 'SUPER_ADMIN_APPROVED') THEN daily_work_reports.status
+        ELSE EXCLUDED.status
+      END,
+      tl_id = COALESCE(EXCLUDED.tl_id, daily_work_reports.tl_id),
+      tl_reviewed_at = COALESCE(EXCLUDED.tl_reviewed_at, daily_work_reports.tl_reviewed_at),
       updated_at = CURRENT_TIMESTAMP
     RETURNING *;
   `;
@@ -61,6 +72,9 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
     data.blockers || null,
     data.next_day_plan || null,
     Boolean(data.took_class),
+    data.status || "SUBMITTED",
+    data.tl_id || null,
+    data.tl_reviewed_at || null,
   ];
 
   const result = await executor.query(query, values);
@@ -273,30 +287,24 @@ export const findTeamReportsRepository = async ({
   endDate,
   roleType,
   status,
+  search,
+  isSuperAdminOrHR,
   page = 1,
-  limit = 20,
+  limit = 25,
 }) => {
   const offset = (page - 1) * limit;
   const whereClauses = [];
   const values = [];
   let paramIdx = 1;
 
-  // Filter out the TL's own report from team view
-  if (tlUserId) {
-    whereClauses.push(`r.user_id != $${paramIdx++}`);
-    values.push(tlUserId);
-  }
-
-  // Filter by direct assigned intern (reporting_manager_id = tlEmployeeId) OR department
-  if (tlEmployeeId && departmentId) {
-    whereClauses.push(`(e.reporting_manager_id = $${paramIdx++} OR r.department_id = $${paramIdx++} OR e.department_id = $${paramIdx - 1})`);
-    values.push(tlEmployeeId, departmentId);
-  } else if (tlEmployeeId) {
-    whereClauses.push(`e.reporting_manager_id = $${paramIdx++}`);
-    values.push(tlEmployeeId);
-  } else if (departmentId) {
+  // Department filter (support specific department ID or all)
+  if (departmentId && departmentId !== "ALL") {
     whereClauses.push(`(r.department_id = $${paramIdx++} OR e.department_id = $${paramIdx - 1})`);
     values.push(departmentId);
+  } else if (!isSuperAdminOrHR && tlEmployeeId) {
+    // If ordinary TL with no explicit dept selected, filter by their department or direct interns
+    whereClauses.push(`(e.reporting_manager_id = $${paramIdx++} OR r.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1}) OR e.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1}))`);
+    values.push(tlEmployeeId);
   }
 
   if (date) {
@@ -311,13 +319,25 @@ export const findTeamReportsRepository = async ({
     whereClauses.push(`r.report_date <= $${paramIdx++}`);
     values.push(endDate);
   }
-  if (roleType) {
+  if (roleType && roleType !== "ALL") {
     whereClauses.push(`r.role_type = $${paramIdx++}`);
     values.push(roleType);
   }
-  if (status) {
+  if (status && status !== "ALL") {
     whereClauses.push(`r.status = $${paramIdx++}`);
     values.push(status);
+  }
+  if (search && search.trim()) {
+    whereClauses.push(`(
+      u.full_name ILIKE $${paramIdx} OR
+      u.email ILIKE $${paramIdx} OR
+      e.employee_code ILIKE $${paramIdx} OR
+      e.designation ILIKE $${paramIdx} OR
+      r.work_title ILIKE $${paramIdx} OR
+      r.tasks_summary ILIKE $${paramIdx}
+    )`);
+    values.push(`%${search.trim()}%`);
+    paramIdx++;
   }
 
   const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
@@ -325,6 +345,7 @@ export const findTeamReportsRepository = async ({
   const countQuery = `
     SELECT COUNT(*) AS total 
     FROM daily_work_reports r
+    LEFT JOIN users u ON r.user_id = u.id
     LEFT JOIN employees e ON r.employee_id = e.id
     ${whereStr};
   `;
@@ -349,8 +370,10 @@ export const findTeamReportsRepository = async ({
       e.reporting_manager_id,
       m.full_name AS mentor_name,
       ${directParamIdx ? `(e.reporting_manager_id = $${directParamIdx})` : `false`} AS is_direct_intern,
-      d.department_name,
+      COALESCE(d.department_name, 'General') AS department_name,
       tl_u.full_name AS tl_name,
+      hr_u.full_name AS hr_name,
+      super_u.full_name AS super_admin_name,
       (SELECT JSON_AGG(c.*) FROM (
         SELECT id, batch_name, topic_covered, duration_minutes, video_recording_url 
         FROM work_report_classes 
@@ -360,10 +383,18 @@ export const findTeamReportsRepository = async ({
     LEFT JOIN users u ON r.user_id = u.id
     LEFT JOIN employees e ON r.employee_id = e.id
     LEFT JOIN employees m ON e.reporting_manager_id = m.id
-    LEFT JOIN departments d ON r.department_id = d.id
+    LEFT JOIN departments d ON COALESCE(r.department_id, e.department_id) = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
+    LEFT JOIN users hr_u ON r.hr_id = hr_u.id
+    LEFT JOIN users super_u ON r.super_admin_id = super_u.id
     ${whereStr}
-    ORDER BY is_direct_intern DESC, r.report_date DESC, r.id DESC
+    ORDER BY 
+      CASE WHEN r.status = 'SUBMITTED' THEN 0 
+           WHEN r.status = 'TL_REVIEWED' THEN 1 
+           WHEN r.status = 'REVISION_REQUESTED' THEN 2 
+           ELSE 3 END,
+      r.report_date DESC, 
+      r.id DESC
     LIMIT $${paramIdx++} OFFSET $${paramIdx++};
   `;
   values.push(limit, offset);
@@ -529,7 +560,7 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
 /**
  * Department Head / TL Review Report
  */
-export const reviewReportAsTLRepository = async (reportId, tlUserId, feedback, status = "HEAD_APPROVED") => {
+export const reviewReportAsTLRepository = async (reportId, tlUserId, feedback, status = "TL_REVIEWED") => {
   const query = `
     UPDATE daily_work_reports
     SET 

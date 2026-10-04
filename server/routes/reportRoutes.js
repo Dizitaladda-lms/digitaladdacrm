@@ -70,7 +70,7 @@ router.get(
 // HR review and approval
 router.post(
   "/daily/:id/hr-review",
-  roleMiddleware("HR", "SUPER_ADMIN"),
+  roleMiddleware("HR", "SUPER_ADMIN", "ADMIN"),
   reviewReportAsHRController
 );
 
