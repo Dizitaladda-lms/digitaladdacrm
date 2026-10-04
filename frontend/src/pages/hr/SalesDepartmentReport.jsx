@@ -475,7 +475,12 @@ const SalesDepartmentReport = () => {
                           )}
                           <div>
                             <div style={{ fontWeight: "700", color: "#0f172a" }}>{c.employee_name}</div>
-                            <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600" }}>{c.employee_code || c.email}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                              <span style={{ fontSize: "11px", fontWeight: "600", color: "#2563eb", background: "#eff6ff", padding: "1px 6px", borderRadius: "4px", border: "1px solid #bfdbfe" }}>
+                                {c.designation || c.role || "Counsellor"}
+                              </span>
+                              <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "500" }}>{c.employee_code || c.email}</span>
+                            </div>
                           </div>
                         </div>
                       </td>

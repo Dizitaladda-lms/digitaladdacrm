@@ -462,7 +462,21 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
     LEFT JOIN daily_attendance da ON da.employee_id = e.id AND da.date = CURRENT_DATE
     WHERE e.status = 'ACTIVE' 
       AND e.is_deleted = FALSE
-      AND (e.role IN ('COUNSELLOR', 'TL', 'MANAGER', 'SUPER_ADMIN') OR e.department_id = 1)
+      AND (
+        UPPER(COALESCE(e.role, '')) = 'COUNSELLOR'
+        OR e.designation ILIKE '%counsellor%'
+        OR (
+          e.department_id = 1 
+          AND UPPER(COALESCE(e.role, '')) NOT IN ('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'HEAD', 'HR', 'TRAINER')
+          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%manager%'
+          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%head%'
+          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%admin%'
+          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%hr%'
+          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%trainer%'
+        )
+      )
+      AND UPPER(COALESCE(e.role, '')) != 'SUPER_ADMIN'
+      AND UPPER(COALESCE(u.role, '')) != 'SUPER_ADMIN'
     ORDER BY admissions_count DESC, total_calls_count DESC, e.full_name ASC;
   `;
 

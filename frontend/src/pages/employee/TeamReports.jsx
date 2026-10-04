@@ -289,7 +289,12 @@ const TeamReports = () => {
                         </div>
                         <div>
                           <strong>{c.employee_name}</strong>
-                          <span className="member-code">{c.employee_code || c.email}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                            <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#2563eb", background: "#eff6ff", padding: "1px 5px", borderRadius: "4px", border: "1px solid #bfdbfe" }}>
+                              {c.designation || c.role || "Counsellor"}
+                            </span>
+                            <span className="member-code">{c.employee_code || c.email}</span>
+                          </div>
                         </div>
                       </div>
                     </td>
