@@ -368,62 +368,95 @@ export const updateEmployeeRepository = async (
     id,
     employee
 ) => {
+    const fields = [];
+    const values = [];
+    let idx = 1;
 
+    if (employee.full_name !== undefined && employee.full_name !== null) {
+        fields.push(`full_name = $${idx++}`);
+        values.push(employee.full_name);
+    }
+    if (employee.mobile !== undefined && employee.mobile !== null && String(employee.mobile).trim() !== "") {
+        fields.push(`mobile = $${idx++}`);
+        values.push(String(employee.mobile).trim());
+    }
+    if (employee.department_id !== undefined && employee.department_id !== null && employee.department_id !== "") {
+        fields.push(`department_id = $${idx++}`);
+        values.push(Number(employee.department_id));
+    }
+    if (employee.designation !== undefined && employee.designation !== null) {
+        fields.push(`designation = $${idx++}`);
+        values.push(employee.designation);
+    }
+    if (employee.role !== undefined && employee.role !== null) {
+        fields.push(`role = $${idx++}`);
+        values.push(employee.role);
+    }
+    if (employee.employment_type !== undefined && employee.employment_type !== null) {
+        fields.push(`employment_type = $${idx++}`);
+        values.push(employee.employment_type);
+    }
+    if (employee.reporting_manager_id !== undefined) {
+        fields.push(`reporting_manager_id = $${idx++}`);
+        values.push(
+            employee.reporting_manager_id !== "" && employee.reporting_manager_id !== null
+                ? Number(employee.reporting_manager_id)
+                : null
+        );
+    }
+    if (employee.status !== undefined && employee.status !== null) {
+        fields.push(`status = $${idx++}`);
+        values.push(employee.status);
+    }
+    if (employee.joining_date !== undefined && employee.joining_date !== null && employee.joining_date !== "") {
+        fields.push(`joining_date = $${idx++}`);
+        values.push(employee.joining_date);
+    }
+    if (employee.date_of_birth !== undefined && employee.date_of_birth !== null && employee.date_of_birth !== "") {
+        fields.push(`date_of_birth = $${idx++}`);
+        values.push(employee.date_of_birth);
+    }
+    if (employee.gender !== undefined && employee.gender !== null) {
+        fields.push(`gender = $${idx++}`);
+        values.push(employee.gender);
+    }
+    if (employee.profile_image !== undefined && employee.profile_image !== null) {
+        fields.push(`profile_image = $${idx++}`);
+        values.push(employee.profile_image);
+    }
+    if (employee.address !== undefined && employee.address !== null) {
+        fields.push(`address = $${idx++}`);
+        values.push(employee.address);
+    }
+    if (employee.emergency_contact_name !== undefined && employee.emergency_contact_name !== null) {
+        fields.push(`emergency_contact_name = $${idx++}`);
+        values.push(employee.emergency_contact_name);
+    }
+    if (employee.emergency_contact !== undefined && employee.emergency_contact !== null && String(employee.emergency_contact).trim() !== "") {
+        fields.push(`emergency_contact = $${idx++}`);
+        values.push(String(employee.emergency_contact).trim());
+    }
+    if (employee.updated_by !== undefined && employee.updated_by !== null) {
+        fields.push(`updated_by = $${idx++}`);
+        values.push(employee.updated_by);
+    }
+
+    fields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    if (fields.length === 1) {
+        return await findEmployeeByIdRepository(id);
+    }
+
+    values.push(Number(id));
     const query = `
         UPDATE employees
-
-        SET
-
-            full_name = $1,
-            mobile = $2,
-            department_id = $3,
-            designation = $4,
-            role = $5,
-            employment_type = $6,
-            reporting_manager_id = $7,
-            status = $8,
-            joining_date = $9,
-            date_of_birth = $10,
-            gender = $11,
-            profile_image = $12,
-            address = $13,
-            emergency_contact_name = $14,
-            emergency_contact = $15,
-            updated_by = $16,
-            updated_at = CURRENT_TIMESTAMP
-
-        WHERE id = $17
-        AND is_deleted = FALSE
-
+        SET ${fields.join(", ")}
+        WHERE id = $${idx} AND is_deleted = FALSE
         RETURNING *;
     `;
 
-    const values = [
-
-        employee.full_name,
-        employee.mobile,
-        employee.department_id,
-        employee.designation,
-        employee.role,
-        employee.employment_type,
-        employee.reporting_manager_id !== undefined ? employee.reporting_manager_id : null,
-        employee.status,
-        employee.joining_date,
-        employee.date_of_birth,
-        employee.gender,
-        employee.profile_image,
-        employee.address,
-        employee.emergency_contact_name,
-        employee.emergency_contact,
-        employee.updated_by,
-        id
-
-    ];
-
     const { rows } = await client.query(query, values);
-
     return rows[0];
-
 };
 
 /* ============================================================================

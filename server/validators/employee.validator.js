@@ -274,9 +274,16 @@ const updateEmployeeSchema = Joi.object({
         .max(100)
         .optional(),
 
+    reporting_manager_id: Joi.number()
+        .integer()
+        .positive()
+        .allow(null, "")
+        .optional(),
+
     emergency_contact: Joi.string()
         .trim()
         .pattern(/^[6-9]\d{9}$/)
+        .allow(null, "")
         .optional(),
 
 }).min(1).options({
