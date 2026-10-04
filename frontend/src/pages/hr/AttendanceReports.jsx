@@ -31,6 +31,8 @@ const AttendanceReports = () => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [activeTab, setActiveTab] = useState("REPORTS"); // "REPORTS" | "FACE_APPROVALS"
+  const [approvalTab, setApprovalTab] = useState("PENDING"); // "PENDING" | "APPROVED" | "REJECTED" | "ALL"
+  const [approvalSearch, setApprovalSearch] = useState("");
   const [reports, setReports] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +145,29 @@ const AttendanceReports = () => {
     fetchPendingApprovals();
   }, [searchTerm, statusFilter, dateFrom, dateTo, pagination.page]);
 
-  const pendingCount = pendingApprovals.filter(a => a.approval_status === "PENDING_APPROVAL").length;
+  const pendingApprovalsList = pendingApprovals.filter(a => a.approval_status === "PENDING_APPROVAL");
+  const approvedList = pendingApprovals.filter(a => a.approval_status === "APPROVED");
+  const rejectedList = pendingApprovals.filter(a => a.approval_status === "REJECTED");
+  const pendingCount = pendingApprovalsList.length;
+  const approvedCount = approvedList.length;
+  const rejectedCount = rejectedList.length;
+  const totalApprovalsCount = pendingApprovals.length;
+
+  const displayedApprovals = pendingApprovals.filter((item) => {
+    if (approvalTab === "PENDING" && item.approval_status !== "PENDING_APPROVAL") return false;
+    if (approvalTab === "APPROVED" && item.approval_status !== "APPROVED") return false;
+    if (approvalTab === "REJECTED" && item.approval_status !== "REJECTED") return false;
+
+    if (approvalSearch.trim()) {
+      const q = approvalSearch.toLowerCase().trim();
+      const matchName = item.employee_name?.toLowerCase().includes(q);
+      const matchCode = item.employee_code?.toLowerCase().includes(q);
+      const matchDept = item.department_name?.toLowerCase().includes(q);
+      const matchDesig = item.designation?.toLowerCase().includes(q);
+      return matchName || matchCode || matchDept || matchDesig;
+    }
+    return true;
+  });
 
   return (
     <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>
@@ -275,34 +299,231 @@ const AttendanceReports = () => {
       {/* TAB 1: FACE BIOMETRIC HR APPROVALS */}
       {activeTab === "FACE_APPROVALS" ? (
         <div style={{ background: "#ffffff", borderRadius: "12px", padding: "24px", border: "1px solid #e2e8f0" }}>
-          <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", fontWeight: "700", color: "#0f172a" }}>
-            📸 Pending Face Biometric Registrations ({pendingApprovals.length})
-          </h3>
-          <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "13.5px" }}>
-            Review employee selfie face photos captured during iPhone/mobile Face ID registration. Approve to allow them to mark attendance.
-          </p>
+          {/* Section Header & Sub-filter controls */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
+            <div>
+              <h3 style={{ margin: "0 0 6px 0", fontSize: "20px", fontWeight: "700", color: "#0f172a" }}>
+                📸 {approvalTab === "PENDING"
+                  ? `Pending Face Biometric Approvals (${pendingCount})`
+                  : approvalTab === "APPROVED"
+                  ? `Approved Face Biometrics (${approvedCount})`
+                  : approvalTab === "REJECTED"
+                  ? `Rejected Face Biometrics (${rejectedCount})`
+                  : `All Face Biometric Registrations (${totalApprovalsCount})`}
+              </h3>
+              <p style={{ margin: 0, color: "#64748b", fontSize: "13.5px" }}>
+                {approvalTab === "PENDING"
+                  ? "Review employee selfie face photos captured during iPhone/mobile Face ID registration. Approve to allow them to mark attendance."
+                  : approvalTab === "APPROVED"
+                  ? "Employees with approved Face ID biometrics who are authorized to mark daily attendance."
+                  : approvalTab === "REJECTED"
+                  ? "Registrations that were rejected by HR. Employees cannot mark attendance until re-approved or reset."
+                  : "Complete directory of all employee Face ID registrations and their current approval status."}
+              </p>
+            </div>
 
+            {/* Sub-tab Filter Pills */}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                onClick={() => setApprovalTab("PENDING")}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  border: approvalTab === "PENDING" ? "2px solid #d97706" : "1px solid #e2e8f0",
+                  background: approvalTab === "PENDING" ? "#fef3c7" : "#f8fafc",
+                  color: approvalTab === "PENDING" ? "#b45309" : "#64748b",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                ⏳ Pending Review
+                <span
+                  style={{
+                    background: approvalTab === "PENDING" ? "#b45309" : "#cbd5e1",
+                    color: "#fff",
+                    borderRadius: "10px",
+                    padding: "1px 7px",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setApprovalTab("APPROVED")}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  border: approvalTab === "APPROVED" ? "2px solid #16a34a" : "1px solid #e2e8f0",
+                  background: approvalTab === "APPROVED" ? "#dcfce7" : "#f8fafc",
+                  color: approvalTab === "APPROVED" ? "#15803d" : "#64748b",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                ✅ Approved
+                <span
+                  style={{
+                    background: approvalTab === "APPROVED" ? "#16a34a" : "#cbd5e1",
+                    color: "#fff",
+                    borderRadius: "10px",
+                    padding: "1px 7px",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                  }}
+                >
+                  {approvedCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setApprovalTab("REJECTED")}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  border: approvalTab === "REJECTED" ? "2px solid #dc2626" : "1px solid #e2e8f0",
+                  background: approvalTab === "REJECTED" ? "#fee2e2" : "#f8fafc",
+                  color: approvalTab === "REJECTED" ? "#b91c1c" : "#64748b",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                ❌ Rejected
+                <span
+                  style={{
+                    background: approvalTab === "REJECTED" ? "#dc2626" : "#cbd5e1",
+                    color: "#fff",
+                    borderRadius: "10px",
+                    padding: "1px 7px",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                  }}
+                >
+                  {rejectedCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setApprovalTab("ALL")}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  border: approvalTab === "ALL" ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                  background: approvalTab === "ALL" ? "#eff6ff" : "#f8fafc",
+                  color: approvalTab === "ALL" ? "#1d4ed8" : "#64748b",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                📋 All ({totalApprovalsCount})
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Search Bar within Face Approvals */}
+          <div style={{ marginBottom: "20px", position: "relative", maxWidth: "450px" }}>
+            <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+            <input
+              type="text"
+              placeholder="Search employee name, code, or department..."
+              value={approvalSearch}
+              onChange={(e) => setApprovalSearch(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 12px 8px 36px",
+                borderRadius: "8px",
+                border: "1px solid #cbd5e1",
+                fontSize: "13.5px",
+                outline: "none",
+              }}
+            />
+          </div>
+
+          {/* Content Area */}
           {approvalsLoading ? (
-            <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>Loading pending face approvals...</div>
-          ) : pendingApprovals.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px", background: "#f8fafc", borderRadius: "12px", color: "#64748b" }}>
-              <CheckCircle2 size={40} style={{ color: "#10b981", marginBottom: "8px" }} />
-              <h4 style={{ margin: "0 0 4px 0", color: "#1e293b" }}>All Face Registrations Approved!</h4>
-              <p style={{ margin: 0, fontSize: "13.5px" }}>There are no pending employee face biometric registrations requiring HR review.</p>
+            <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>
+              <RefreshCw size={28} className="spin" style={{ marginBottom: "8px" }} />
+              <p>Loading biometric registrations...</p>
+            </div>
+          ) : approvalTab === "PENDING" && pendingCount === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 24px", background: "#f8fafc", borderRadius: "14px", border: "1px dashed #cbd5e1" }}>
+              <CheckCircle2 size={44} style={{ color: "#10b981", marginBottom: "10px" }} />
+              <h4 style={{ margin: "0 0 6px 0", color: "#1e293b", fontSize: "17px", fontWeight: "700" }}>All Face Registrations Approved!</h4>
+              <p style={{ margin: "0 0 16px 0", fontSize: "13.5px", color: "#64748b" }}>
+                There are no pending employee face biometric registrations requiring HR review right now.
+              </p>
+              {approvedCount > 0 && (
+                <button
+                  onClick={() => setApprovalTab("APPROVED")}
+                  style={{
+                    background: "#166534",
+                    color: "#fff",
+                    border: "none",
+                    padding: "9px 20px",
+                    borderRadius: "8px",
+                    fontWeight: "600",
+                    fontSize: "13.5px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <UserCheck size={16} /> View Approved Employees ({approvedCount})
+                </button>
+              )}
+            </div>
+          ) : displayedApprovals.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 24px", background: "#f8fafc", borderRadius: "14px", border: "1px dashed #cbd5e1" }}>
+              <AlertCircle size={40} style={{ color: "#94a3b8", marginBottom: "10px" }} />
+              <h4 style={{ margin: "0 0 4px 0", color: "#1e293b", fontSize: "16px" }}>No Registrations Found</h4>
+              <p style={{ margin: 0, fontSize: "13.5px", color: "#64748b" }}>
+                {approvalSearch
+                  ? "No employee records matched your search query."
+                  : `No records found in ${approvalTab.toLowerCase()} category.`}
+              </p>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
-              {pendingApprovals.map((item) => (
+              {displayedApprovals.map((item) => (
                 <div
                   key={item.id}
                   style={{
                     background: "#f8fafc",
-                    border: item.approval_status === "PENDING_APPROVAL" ? "2px solid #f59e0b" : "1px solid #cbd5e1",
+                    border:
+                      item.approval_status === "PENDING_APPROVAL"
+                        ? "2px solid #f59e0b"
+                        : item.approval_status === "APPROVED"
+                        ? "1px solid #86efac"
+                        : "1px solid #fca5a5",
                     borderRadius: "14px",
                     padding: "18px",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
+                    boxShadow: item.approval_status === "PENDING_APPROVAL" ? "0 4px 12px rgba(245, 158, 11, 0.1)" : "none",
                   }}
                 >
                   <div>
@@ -318,7 +539,7 @@ const AttendanceReports = () => {
                         style={{
                           fontSize: "11px",
                           fontWeight: "700",
-                          padding: "3px 10px",
+                          padding: "4px 10px",
                           borderRadius: "12px",
                           background:
                             item.approval_status === "APPROVED"
@@ -332,9 +553,23 @@ const AttendanceReports = () => {
                               : item.approval_status === "PENDING_APPROVAL"
                               ? "#b45309"
                               : "#b91c1c",
+                          border:
+                            item.approval_status === "APPROVED"
+                              ? "1px solid #bbf7d0"
+                              : item.approval_status === "PENDING_APPROVAL"
+                              ? "1px solid #fde68a"
+                              : "1px solid #fecaca",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
                         }}
                       >
-                        {item.approval_status === "PENDING_APPROVAL" ? "⏳ Pending HR Review" : item.approval_status}
+                        {item.approval_status === "APPROVED" && <CheckCircle2 size={12} />}
+                        {item.approval_status === "APPROVED"
+                          ? "Approved"
+                          : item.approval_status === "PENDING_APPROVAL"
+                          ? "⏳ Pending Review"
+                          : "✕ Rejected"}
                       </span>
                     </div>
 
@@ -367,64 +602,164 @@ const AttendanceReports = () => {
                       )}
                     </div>
 
-                    <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>
-                      <strong>Device:</strong> {item.device_info || "Mobile Device"}
-                      <br />
-                      <strong>Registered Date:</strong> {new Date(item.registered_at).toLocaleString("en-IN")}
+                    <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px", lineHeight: "1.6" }}>
+                      <div><strong>Device:</strong> {item.device_info || "Mobile Device"}</div>
+                      <div><strong>Registered:</strong> {new Date(item.registered_at).toLocaleString("en-IN")}</div>
+                      {item.approval_status === "APPROVED" && item.approved_at && (
+                        <div style={{ color: "#166534" }}>
+                          <strong>Approved At:</strong> {new Date(item.approved_at).toLocaleString("en-IN")}
+                          {item.approved_by_name && <span> by <em>{item.approved_by_name}</em></span>}
+                        </div>
+                      )}
                       {item.rejection_reason && (
-                        <div style={{ color: "#ef4444", marginTop: "4px" }}>
+                        <div style={{ color: "#ef4444", marginTop: "4px", background: "#fef2f2", padding: "4px 8px", borderRadius: "6px", border: "1px solid #fee2e2" }}>
                           <strong>Rejection Reason:</strong> {item.rejection_reason}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button
-                      onClick={() => handleRejectFace(item.id, item.employee_name)}
-                      disabled={actionId === item.id}
-                      style={{
-                        flex: 1,
-                        background: "#fff1f2",
-                        color: "#e11d48",
-                        border: "1px solid #fecdd3",
-                        padding: "10px",
-                        borderRadius: "8px",
-                        fontWeight: "700",
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <UserX size={15} /> Reject
-                    </button>
-                    <button
-                      onClick={() => handleApproveFace(item.id, item.employee_name)}
-                      disabled={actionId === item.id}
-                      style={{
-                        flex: 1,
-                        background: "#166534",
-                        color: "#ffffff",
-                        border: "none",
-                        padding: "10px",
-                        borderRadius: "8px",
-                        fontWeight: "700",
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                        boxShadow: "0 2px 8px rgba(22, 101, 52, 0.3)",
-                      }}
-                    >
-                      <UserCheck size={15} /> Approve Face
-                    </button>
-                  </div>
+                  {/* Actions based on approval status */}
+                  {item.approval_status === "PENDING_APPROVAL" ? (
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button
+                        onClick={() => handleRejectFace(item.id, item.employee_name)}
+                        disabled={actionId === item.id}
+                        style={{
+                          flex: 1,
+                          background: "#fff1f2",
+                          color: "#e11d48",
+                          border: "1px solid #fecdd3",
+                          padding: "10px",
+                          borderRadius: "8px",
+                          fontWeight: "700",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <UserX size={15} /> Reject
+                      </button>
+                      <button
+                        onClick={() => handleApproveFace(item.id, item.employee_name)}
+                        disabled={actionId === item.id}
+                        style={{
+                          flex: 1,
+                          background: "#166534",
+                          color: "#ffffff",
+                          border: "none",
+                          padding: "10px",
+                          borderRadius: "8px",
+                          fontWeight: "700",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          boxShadow: "0 2px 8px rgba(22, 101, 52, 0.3)",
+                        }}
+                      >
+                        <UserCheck size={15} /> Approve Face
+                      </button>
+                    </div>
+                  ) : item.approval_status === "APPROVED" ? (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => handleRejectFace(item.id, item.employee_name)}
+                        disabled={actionId === item.id}
+                        title="Revoke approval and block biometric check-in"
+                        style={{
+                          flex: 1,
+                          background: "#fff1f2",
+                          color: "#e11d48",
+                          border: "1px solid #fecdd3",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          fontWeight: "600",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "5px",
+                        }}
+                      >
+                        <UserX size={13} /> Revoke / Reject
+                      </button>
+                      <button
+                        onClick={() => handleResetBiometric(item.employee_id, item.employee_name)}
+                        disabled={resettingId === item.employee_id}
+                        title="Reset biometric registration so employee can register anew"
+                        style={{
+                          flex: 1,
+                          background: "#f1f5f9",
+                          color: "#475569",
+                          border: "1px solid #cbd5e1",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          fontWeight: "600",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "5px",
+                        }}
+                      >
+                        <RotateCcw size={13} className={resettingId === item.employee_id ? "spin" : ""} /> Reset Biometric
+                      </button>
+                    </div>
+                  ) : (
+                    /* REJECTED */
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => handleApproveFace(item.id, item.employee_name)}
+                        disabled={actionId === item.id}
+                        style={{
+                          flex: 1,
+                          background: "#166534",
+                          color: "#ffffff",
+                          border: "none",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          fontWeight: "600",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "5px",
+                        }}
+                      >
+                        <UserCheck size={13} /> Re-Approve
+                      </button>
+                      <button
+                        onClick={() => handleResetBiometric(item.employee_id, item.employee_name)}
+                        disabled={resettingId === item.employee_id}
+                        style={{
+                          flex: 1,
+                          background: "#f1f5f9",
+                          color: "#475569",
+                          border: "1px solid #cbd5e1",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          fontWeight: "600",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "5px",
+                        }}
+                      >
+                        <RotateCcw size={13} className={resettingId === item.employee_id ? "spin" : ""} /> Reset
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

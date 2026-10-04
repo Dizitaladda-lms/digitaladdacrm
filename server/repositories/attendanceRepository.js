@@ -85,11 +85,13 @@ export const getPendingBiometricApprovalsRepository = async () => {
         e.designation,
         e.role,
         d.department_name,
-        u.email AS employee_email
+        u.email AS employee_email,
+        approver.full_name AS approved_by_name
       FROM employee_biometrics b
       JOIN employees e ON b.employee_id = e.id
       LEFT JOIN users u ON e.user_id = u.id
       LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN users approver ON b.approved_by = approver.id
       ORDER BY 
         CASE WHEN b.approval_status = 'PENDING_APPROVAL' THEN 0 ELSE 1 END,
         b.registered_at DESC;
@@ -121,7 +123,9 @@ export const rejectBiometricRepository = async (id, reason) => {
       UPDATE employee_biometrics
       SET 
         approval_status = 'REJECTED',
-        rejection_reason = $1
+        rejection_reason = $1,
+        approved_by = NULL,
+        approved_at = NULL
       WHERE id = $2
       RETURNING *;
     `,
