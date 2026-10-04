@@ -167,21 +167,27 @@ const AdminWorkAssignments = () => {
       {/* Banner */}
       <section className="assignments-header-banner">
         <div>
-          <span className="banner-eyebrow">Work & Project Task Management</span>
-          <h1 className="banner-title">Work Assigned by Admin</h1>
+          <span className="banner-eyebrow">Work & Task Delegation System</span>
+          <h1 className="banner-title">
+            {isSuperAdmin ? "Work Assigned to Employees" : "Work Assigned by Admin"}
+          </h1>
           <p className="banner-sub">
-            Assign project work to employees and department heads, request report revisions, and track progress.
+            {isSuperAdmin
+              ? "Assign project tasks to employees, managers, and department heads, track execution status, and review completion progress."
+              : "View work tasks assigned to you by Super Admin, update progress status, and track your deliverables."}
           </p>
         </div>
-        <div className="banner-actions">
-          <button
-            type="button"
-            className="assign-btn"
-            onClick={() => setCreateModalOpen(true)}
-          >
-            <Plus size={18} /> Assign New Work
-          </button>
-        </div>
+        {isSuperAdmin && (
+          <div className="banner-actions">
+            <button
+              type="button"
+              className="assign-btn"
+              onClick={() => setCreateModalOpen(true)}
+            >
+              <Plus size={18} /> Assign New Work
+            </button>
+          </div>
+        )}
       </section>
 
       {/* KPI Cards */}

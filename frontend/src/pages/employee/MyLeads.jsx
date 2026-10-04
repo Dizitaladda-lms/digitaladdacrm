@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./MyLeads.css";
 import MyLeadsHeader from "../../components/employee/myLeads/MyLeadsHeader/MyLeadsHeader";
-import LeadStats from "../../components/LeadManagement/LeadStats";
+import MyLeadsStats from "../../components/LeadManagement/MyLeadsStats";
 import SearchFilterBar from "../../components/employee/myLeads/SearchFilterBar/SearchFilterBar";
 import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable";
 import { getMyLeads } from "../../services/employeeLeadService";
-import { getLeadStats } from "../../services/leadService";
 import { exportToCsv } from "../../utils/exportCsv";
 import { useAuth } from "../../context/AuthContext";
 import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
@@ -13,14 +12,6 @@ import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 const MyLeads = () => {
   const { user } = useAuth();
   const [leads, setLeads] = useState([]);
-  const [stats, setStats] = useState({
-    total_leads: 0,
-    today_leads: 0,
-    assigned_leads: 0,
-    unassigned_leads: 0,
-    duplicate_leads: 0,
-    conversion_rate: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -45,17 +36,9 @@ const MyLeads = () => {
       if (dateFrom) params.date_from = dateFrom;
       if (dateTo) params.date_to = dateTo;
 
-      const [response, statsResponse] = await Promise.all([
-        getMyLeads(params),
-        getLeadStats(params),
-      ]);
-
+      const response = await getMyLeads(params);
       const list = response?.data?.leads || response?.leads || response?.data || [];
       setLeads(Array.isArray(list) ? list : []);
-
-      if (statsResponse?.data) {
-        setStats(statsResponse.data);
-      }
     } catch (error) {
       console.error("Error fetching leads:", error);
     } finally {
@@ -104,9 +87,9 @@ const MyLeads = () => {
         onCreateLead={() => setCreateModalOpen(true)}
       />
 
-      <LeadStats
+      <MyLeadsStats
         loading={loading}
-        stats={stats}
+        leads={leads}
       />
 
       <SearchFilterBar

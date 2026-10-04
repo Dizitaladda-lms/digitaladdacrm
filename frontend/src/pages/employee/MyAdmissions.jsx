@@ -135,97 +135,92 @@ const MyAdmissions = () => {
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
+    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>
       {/* Top Banner Header */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "24px",
-          backgroundColor: "#FFFFFF",
-          padding: "20px 24px",
+          background: "linear-gradient(135deg, #064e3b 0%, #0f172a 100%)",
           borderRadius: "16px",
-          border: "1px solid #E2E8F0",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+          padding: "26px",
+          color: "#ffffff",
+          marginBottom: "24px",
+          boxShadow: "0 10px 25px -5px rgba(6, 78, 59, 0.3)",
         }}
       >
-        <div>
-          <h1 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", margin: 0 }}>
-            Admissions & Fee Ledger
-          </h1>
-          <p style={{ fontSize: "13px", color: "#64748B", margin: "4px 0 0 0", fontWeight: 500 }}>
-            Track enrolled students, manage fee installments, record receipts, and monitor outstanding dues
-          </p>
-        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <span
+                style={{
+                  background: "rgba(52, 211, 153, 0.2)",
+                  color: "#34d399",
+                  padding: "4px 12px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  border: "1px solid rgba(52, 211, 153, 0.3)",
+                }}
+              >
+                <GraduationCap size={14} /> Course Admissions & Fee Ledger
+              </span>
+            </div>
+            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
+              Admissions & Fee Dues Management
+            </h1>
+            <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "14px" }}>
+              Track enrolled students, manage installment fees, record receipts, and send WhatsApp payment reminders.
+            </p>
+          </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={handleExportAdmissionsCsv}
-            className="crm-btn-secondary"
-            style={{
-              height: "40px",
-              padding: "0 16px",
-              fontSize: "13px",
-              fontWeight: 600,
-              backgroundColor: "#FFFFFF",
-              border: "1.5px solid #E2E8F0",
-              color: "#374151",
-              borderRadius: "8px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: "pointer",
-            }}
-          >
-            <Download size={15} />
-            <span>Export CSV</span>
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={handleExportAdmissionsCsv}
+              style={{
+                height: "42px",
+                padding: "0 18px",
+                fontSize: "13.5px",
+                fontWeight: 600,
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: "#ffffff",
+                borderRadius: "10px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                cursor: "pointer",
+              }}
+            >
+              <Download size={16} />
+              <span>Export CSV</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => navigate(leadsPath)}
-            className="crm-btn-secondary"
-            style={{
-              height: "40px",
-              padding: "0 16px",
-              fontSize: "13px",
-              fontWeight: 600,
-              backgroundColor: "#FFFFFF",
-              border: "1.5px solid #E2E8F0",
-              color: "#374151",
-              borderRadius: "8px",
-              display: "inline-flex",
-              alignItems: "center",
-              cursor: "pointer",
-            }}
-          >
-            <span>{isAdmin ? "All Leads Pipeline" : "My Leads Pipeline"}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate(followupsPath)}
-            className="crm-btn-primary"
-            style={{
-              height: "40px",
-              padding: "0 18px",
-              fontSize: "13px",
-              fontWeight: 650,
-              backgroundColor: "#4F46E5",
-              color: "#FFFFFF",
-              borderRadius: "8px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: "pointer",
-              border: "none",
-            }}
-          >
-            <span>Follow-up Planner</span>
-            <ArrowRight size={15} />
-          </button>
+            <button
+              type="button"
+              onClick={() => navigate(followupsPath)}
+              style={{
+                height: "42px",
+                padding: "0 20px",
+                fontSize: "13.5px",
+                fontWeight: 700,
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                color: "#ffffff",
+                borderRadius: "10px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                cursor: "pointer",
+                border: "none",
+                boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
+              }}
+            >
+              <span>Follow-up Planner</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
         </div>
       </div>
 

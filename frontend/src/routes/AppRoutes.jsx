@@ -138,18 +138,20 @@ const AppRoutes = () => {
               }
             />
 
-            <Route
-              path="/sales-department-report"
-              element={
-                IS_MAINTENANCE_MODE ? (
-                  <UnderMaintenance />
-                ) : (
-                  <Suspense fallback={<PageLoader />}>
-                    <SalesDepartmentReport />
-                  </Suspense>
-                )
-              }
-            />
+            <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN", "HR", "MANAGER", "TL", "ADMIN"]} />}>
+              <Route
+                path="/sales-department-report"
+                element={
+                  IS_MAINTENANCE_MODE ? (
+                    <UnderMaintenance />
+                  ) : (
+                    <Suspense fallback={<PageLoader />}>
+                      <SalesDepartmentReport />
+                    </Suspense>
+                  )
+                }
+              />
+            </Route>
 
             <Route
               path="/daily-report"

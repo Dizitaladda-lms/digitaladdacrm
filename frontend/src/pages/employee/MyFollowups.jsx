@@ -43,6 +43,8 @@ const MyFollowups = () => {
   const [selectedFollowup, setSelectedFollowup] = useState(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   const loadFollowups = useCallback(async () => {
     try {
       setLoading(true);
@@ -92,6 +94,18 @@ const MyFollowups = () => {
     const now = new Date();
     let list = [...followups];
 
+    // Search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter((item) => {
+        const name = (item.lead_name || item.full_name || "").toLowerCase();
+        const mobile = (item.mobile || item.lead_mobile || "").toLowerCase();
+        const course = (item.interested_course || "").toLowerCase();
+        const remarks = (item.remarks || "").toLowerCase();
+        return name.includes(term) || mobile.includes(term) || course.includes(term) || remarks.includes(term);
+      });
+    }
+
     if (activeFilter === "Due Today") {
       list = list.filter(
         (item) =>
@@ -120,7 +134,6 @@ const MyFollowups = () => {
     }
 
     // Sort order: PENDING always on top, COMPLETED at bottom
-    // Within PENDING: Overdue and Due Today first, then ascending by next_followup_at
     list.sort((a, b) => {
       const aIsPending = (a.status || "").toUpperCase() === "PENDING";
       const bIsPending = (b.status || "").toUpperCase() === "PENDING";
@@ -134,14 +147,13 @@ const MyFollowups = () => {
         return aTime - bTime;
       }
 
-      // Both completed: most recent first
       const aUpd = new Date(a.updated_at || a.created_at || 0).getTime();
       const bUpd = new Date(b.updated_at || b.created_at || 0).getTime();
       return bUpd - aUpd;
     });
 
     return list;
-  }, [followups, activeFilter]);
+  }, [followups, activeFilter, searchTerm]);
 
   const handleOpenLeadDrawer = (item) => {
     const leadObj = {
@@ -181,90 +193,92 @@ const MyFollowups = () => {
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
+    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>
       {/* Header Banner */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "24px",
-          backgroundColor: "#FFFFFF",
-          padding: "20px 24px",
+          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
           borderRadius: "16px",
-          border: "1px solid #E2E8F0",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+          padding: "26px",
+          color: "#ffffff",
+          marginBottom: "24px",
+          boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.25)",
         }}
       >
-        <div>
-          <h1
-            style={{
-              fontSize: "20px",
-              fontWeight: 800,
-              color: "#0F172A",
-              margin: 0,
-            }}
-          >
-            Follow-up Planner & Calls
-          </h1>
-          <p
-            style={{
-              fontSize: "13px",
-              color: "#64748B",
-              margin: "4px 0 0 0",
-              fontWeight: 500,
-            }}
-          >
-            Plan student conversations, complete callbacks, and track leads directly from your pipeline
-          </p>
-        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <span
+                style={{
+                  background: "rgba(59, 130, 246, 0.2)",
+                  color: "#60a5fa",
+                  padding: "4px 12px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  border: "1px solid rgba(96, 165, 250, 0.3)",
+                }}
+              >
+                <PhoneCall size={14} /> Student Callbacks & Pipeline Hub
+              </span>
+            </div>
+            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
+              Follow-up Planner & Calling Desk
+            </h1>
+            <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "14px" }}>
+              Plan student conversations, complete instant callbacks, log remarks, and convert leads directly into admissions.
+            </p>
+          </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={handleExportFollowupsCsv}
-            className="crm-btn-secondary"
-            style={{
-              height: "40px",
-              padding: "0 16px",
-              fontSize: "13px",
-              fontWeight: 600,
-              backgroundColor: "#FFFFFF",
-              border: "1.5px solid #E2E8F0",
-              color: "#374151",
-              borderRadius: "8px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: "pointer",
-            }}
-          >
-            <Download size={15} />
-            <span>Export CSV</span>
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={handleExportFollowupsCsv}
+              style={{
+                height: "42px",
+                padding: "0 18px",
+                fontSize: "13.5px",
+                fontWeight: 600,
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: "#ffffff",
+                borderRadius: "10px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                cursor: "pointer",
+              }}
+            >
+              <Download size={16} />
+              <span>Export CSV</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => navigate(leadsPath)}
-            className="crm-btn-primary"
-            style={{
-              height: "40px",
-              padding: "0 18px",
-              fontSize: "13px",
-              fontWeight: 650,
-              backgroundColor: "#4F46E5",
-              color: "#FFFFFF",
-              borderRadius: "8px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: "pointer",
-              border: "none",
-            }}
-          >
-            <span>{isAdmin ? "Go to All Leads Pipeline" : "Go to My Leads Pipeline"}</span>
-            <ArrowRight size={15} />
-          </button>
+            <button
+              type="button"
+              onClick={() => navigate(leadsPath)}
+              style={{
+                height: "42px",
+                padding: "0 20px",
+                fontSize: "13.5px",
+                fontWeight: 700,
+                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                color: "#ffffff",
+                borderRadius: "10px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                cursor: "pointer",
+                border: "none",
+                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
+              }}
+            >
+              <span>{isAdmin ? "Go to All Leads Pipeline" : "Go to My Leads Pipeline"}</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -470,43 +484,76 @@ const MyFollowups = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Search & Filter Bar */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
+          background: "#ffffff",
+          borderRadius: "12px",
+          padding: "16px 20px",
           marginBottom: "20px",
-          overflowX: "auto",
-          flexWrap: "nowrap",
-          paddingBottom: "4px",
-          WebkitOverflowScrolling: "touch",
+          border: "1px solid #e2e8f0",
+          display: "flex",
+          gap: "16px",
+          alignItems: "center",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
         }}
       >
-        <Filter size={15} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
-        {["All", "Due Today", "Overdue", "Upcoming", "Completed / Closed"].map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveFilter(tab)}
+        <div style={{ flex: 1, minWidth: "260px", position: "relative" }}>
+          <Search size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+          <input
+            type="text"
+            placeholder="Search student name, mobile, course, or remarks..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             style={{
-              padding: "7px 16px",
+              width: "100%",
+              padding: "10px 14px 10px 42px",
               borderRadius: "8px",
-              fontSize: "12.5px",
-              fontWeight: activeFilter === tab ? 700 : 600,
-              border: activeFilter === tab ? "1px solid #4F46E5" : "1.5px solid #E2E8F0",
-              cursor: "pointer",
-              backgroundColor: activeFilter === tab ? "#4F46E5" : "#FFFFFF",
-              color: activeFilter === tab ? "#FFFFFF" : "#64748B",
-              transition: "all 0.15s ease",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              boxShadow: activeFilter === tab ? "0 1px 3px rgba(79, 70, 229, 0.2)" : "none",
+              border: "1px solid #cbd5e1",
+              fontSize: "14px",
+              outline: "none",
             }}
-          >
-            {tab}
-          </button>
-        ))}
+          />
+        </div>
+
+        {/* Filter Tabs */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            overflowX: "auto",
+            flexWrap: "nowrap",
+            paddingBottom: "2px",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          <Filter size={15} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
+          {["All", "Due Today", "Overdue", "Upcoming", "Completed / Closed"].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveFilter(tab)}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: activeFilter === tab ? 700 : 600,
+                border: activeFilter === tab ? "1px solid #2563eb" : "1px solid #cbd5e1",
+                cursor: "pointer",
+                backgroundColor: activeFilter === tab ? "#2563eb" : "#ffffff",
+                color: activeFilter === tab ? "#ffffff" : "#475569",
+                transition: "all 0.15s ease",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                boxShadow: activeFilter === tab ? "0 2px 8px rgba(37, 99, 235, 0.25)" : "none",
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Followups Data Table */}

@@ -31,7 +31,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   let menuItems = [];
 
   if (isCounsellor && !canSeeSalesReport) {
-    // Sales Department Counsellor (Sales Overview hidden from individual counsellors)
+    // Sales Department Counsellor (Sales Overview & Daily Form hidden from individual counsellors)
     menuItems = [
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
       { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
@@ -39,7 +39,6 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "My Leads", icon: Users, path: "/employee/leads" },
       { title: "My Follow-ups", icon: PhoneCall, path: "/employee/followups" },
       { title: "My Admissions", icon: GraduationCap, path: "/employee/admissions" },
-      { title: "Daily Work Report", icon: CalendarCheck, path: "/employee/daily-report" },
       { title: "Profile", icon: User, path: "/employee/profile" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];

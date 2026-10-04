@@ -413,8 +413,8 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       (
         SELECT COUNT(*) 
         FROM leads l 
-        WHERE l.assigned_counsellor_id = e.id 
-          AND l.is_agency_lead = FALSE
+        WHERE (l.assigned_to::text = e.id::text OR l.assigned_to::text = e.user_id::text)
+          AND (l.is_agency_lead = FALSE OR l.is_agency_lead IS NULL)
           AND ($1::date IS NULL OR l.created_at::date >= $1::date)
           AND ($2::date IS NULL OR l.created_at::date <= $2::date)
       ) AS assigned_leads_count,
@@ -422,7 +422,7 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       (
         SELECT COUNT(*) 
         FROM lead_followups f 
-        WHERE f.employee_id = e.id 
+        WHERE (f.employee_id::text = e.id::text OR f.employee_id::text = e.user_id::text)
           AND f.is_deleted = FALSE
           AND ($1::date IS NULL OR f.created_at::date >= $1::date)
           AND ($2::date IS NULL OR f.created_at::date <= $2::date)
@@ -431,7 +431,7 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       (
         SELECT COUNT(*) 
         FROM lead_followups f 
-        WHERE f.employee_id = e.id 
+        WHERE (f.employee_id::text = e.id::text OR f.employee_id::text = e.user_id::text)
           AND f.is_deleted = FALSE
           AND f.status = 'COMPLETED'
           AND ($1::date IS NULL OR f.updated_at::date >= $1::date)
@@ -441,17 +441,17 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       (
         SELECT COUNT(*) 
         FROM leads l 
-        WHERE l.assigned_counsellor_id = e.id 
-          AND UPPER(l.stage) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED')
+        WHERE (l.assigned_to::text = e.id::text OR l.assigned_to::text = e.user_id::text)
+          AND UPPER(l.status) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED', 'CONVERTED')
           AND ($1::date IS NULL OR l.updated_at::date >= $1::date)
           AND ($2::date IS NULL OR l.updated_at::date <= $2::date)
       ) AS admissions_count,
 
       (
-        SELECT COALESCE(SUM(COALESCE(l.budget, 0)), 0)
+        SELECT COALESCE(SUM(COALESCE(CAST(l.budget AS numeric), 0)), 0)
         FROM leads l 
-        WHERE l.assigned_counsellor_id = e.id 
-          AND UPPER(l.stage) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED')
+        WHERE (l.assigned_to::text = e.id::text OR l.assigned_to::text = e.user_id::text)
+          AND UPPER(l.status) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED', 'CONVERTED')
           AND ($1::date IS NULL OR l.updated_at::date >= $1::date)
           AND ($2::date IS NULL OR l.updated_at::date <= $2::date)
       ) AS total_revenue

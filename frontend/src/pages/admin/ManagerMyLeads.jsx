@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./ManagerMyLeads.css";
-import LeadStats from "../../components/LeadManagement/LeadStats";
+import MyLeadsStats from "../../components/LeadManagement/MyLeadsStats";
 import SearchFilterBar from "../../components/employee/myLeads/SearchFilterBar/SearchFilterBar";
 import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable";
 import { getMyLeads } from "../../services/employeeLeadService";
-import { getLeadStats } from "../../services/leadService";
 import { exportToCsv } from "../../utils/exportCsv";
 import { useAuth } from "../../context/AuthContext";
 import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
@@ -13,14 +12,6 @@ import { UserCircle, Download, PlusCircle } from "lucide-react";
 const ManagerMyLeads = () => {
   const { user } = useAuth();
   const [leads, setLeads] = useState([]);
-  const [stats, setStats] = useState({
-    total_leads: 0,
-    today_leads: 0,
-    assigned_leads: 0,
-    unassigned_leads: 0,
-    duplicate_leads: 0,
-    conversion_rate: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -45,26 +36,13 @@ const ManagerMyLeads = () => {
       if (dateFrom) params.date_from = dateFrom;
       if (dateTo) params.date_to = dateTo;
 
-      const [leadsRes, statsRes] = await Promise.allSettled([
-        getMyLeads(params),
-        getLeadStats(params),
-      ]);
-
-      if (leadsRes.status === "fulfilled") {
-        const response = leadsRes.value;
-        const list =
-          response?.data?.leads || response?.leads || response?.data || [];
-        setLeads(Array.isArray(list) ? list : []);
-      } else {
-        console.warn("Failed fetching my leads:", leadsRes.reason);
-        setLeads([]);
-      }
-
-      if (statsRes.status === "fulfilled" && statsRes.value?.data) {
-        setStats(statsRes.value.data);
-      }
+      const response = await getMyLeads(params);
+      const list =
+        response?.data?.leads || response?.leads || response?.data || [];
+      setLeads(Array.isArray(list) ? list : []);
     } catch (error) {
-      console.error("Error in fetchLeads:", error);
+      console.warn("Failed fetching my leads:", error);
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -133,7 +111,7 @@ const ManagerMyLeads = () => {
       </div>
 
       {/* Stats */}
-      <LeadStats loading={loading} stats={stats} />
+      <MyLeadsStats loading={loading} leads={leads} />
 
       {/* Filters */}
       <SearchFilterBar
