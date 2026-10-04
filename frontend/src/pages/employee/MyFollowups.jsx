@@ -12,6 +12,7 @@ import {
   Filter,
   CheckCircle2,
   Download,
+  Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -89,7 +90,7 @@ const MyFollowups = () => {
     };
   }, [followups]);
 
-  // Filtered and Prioritized Followups List (Active/Pending on TOP, Completed at BOTTOM)
+  // Filtered and Prioritized Followups List
   const filteredFollowups = useMemo(() => {
     const now = new Date();
     let list = [...followups];
@@ -102,7 +103,12 @@ const MyFollowups = () => {
         const mobile = (item.mobile || item.lead_mobile || "").toLowerCase();
         const course = (item.interested_course || "").toLowerCase();
         const remarks = (item.remarks || "").toLowerCase();
-        return name.includes(term) || mobile.includes(term) || course.includes(term) || remarks.includes(term);
+        return (
+          name.includes(term) ||
+          mobile.includes(term) ||
+          course.includes(term) ||
+          remarks.includes(term)
+        );
       });
     }
 
@@ -142,8 +148,12 @@ const MyFollowups = () => {
       if (!aIsPending && bIsPending) return 1;
 
       if (aIsPending && bIsPending) {
-        const aTime = a.next_followup_at ? new Date(a.next_followup_at).getTime() : Infinity;
-        const bTime = b.next_followup_at ? new Date(b.next_followup_at).getTime() : Infinity;
+        const aTime = a.next_followup_at
+          ? new Date(a.next_followup_at).getTime()
+          : Infinity;
+        const bTime = b.next_followup_at
+          ? new Date(b.next_followup_at).getTime()
+          : Infinity;
         return aTime - bTime;
       }
 
@@ -158,7 +168,9 @@ const MyFollowups = () => {
   const handleOpenLeadDrawer = (item) => {
     const leadObj = {
       id: item.lead_id || item.id,
-      lead_code: item.lead_code || `LEAD${String(item.lead_id || item.id).padStart(6, "0")}`,
+      lead_code:
+        item.lead_code ||
+        `LEAD${String(item.lead_id || item.id).padStart(6, "0")}`,
       full_name: item.lead_name || item.full_name || "Student Lead",
       mobile: item.mobile || item.lead_mobile || "",
       email: item.email || "",
@@ -193,25 +205,47 @@ const MyFollowups = () => {
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>
+    <div
+      style={{
+        padding: "24px",
+        maxWidth: "1400px",
+        margin: "0 auto",
+        fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+      }}
+    >
       {/* Header Banner */}
       <div
         style={{
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-          borderRadius: "16px",
-          padding: "26px",
+          background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)",
+          borderRadius: "14px",
+          padding: "24px",
           color: "#ffffff",
           marginBottom: "24px",
-          boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.25)",
+          boxShadow: "0 4px 20px rgba(15, 23, 42, 0.15)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "16px",
+          }}
+        >
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "8px",
+              }}
+            >
               <span
                 style={{
-                  background: "rgba(59, 130, 246, 0.2)",
-                  color: "#60a5fa",
+                  background: "rgba(37, 99, 235, 0.2)",
+                  color: "#93c5fd",
                   padding: "4px 12px",
                   borderRadius: "20px",
                   fontSize: "12px",
@@ -219,40 +253,54 @@ const MyFollowups = () => {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  border: "1px solid rgba(96, 165, 250, 0.3)",
+                  border: "1px solid rgba(147, 197, 253, 0.25)",
                 }}
               >
                 <PhoneCall size={14} /> Student Callbacks & Pipeline Hub
               </span>
             </div>
-            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
+            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "700" }}>
               Follow-up Planner & Calling Desk
             </h1>
-            <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "14px" }}>
+            <p
+              style={{
+                margin: "6px 0 0 0",
+                color: "#94a3b8",
+                fontSize: "13.5px",
+              }}
+            >
               Plan student conversations, complete instant callbacks, log remarks, and convert leads directly into admissions.
             </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
             <button
               type="button"
               onClick={handleExportFollowupsCsv}
               style={{
-                height: "42px",
-                padding: "0 18px",
-                fontSize: "13.5px",
+                height: "40px",
+                padding: "0 16px",
+                fontSize: "13px",
                 fontWeight: 600,
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.18)",
                 color: "#ffffff",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "8px",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
-              <Download size={16} />
+              <Download size={15} />
               <span>Export CSV</span>
             </button>
 
@@ -260,56 +308,57 @@ const MyFollowups = () => {
               type="button"
               onClick={() => navigate(leadsPath)}
               style={{
-                height: "42px",
-                padding: "0 20px",
-                fontSize: "13.5px",
-                fontWeight: 700,
-                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                height: "40px",
+                padding: "0 18px",
+                fontSize: "13px",
+                fontWeight: 600,
+                backgroundColor: "#2563EB",
                 color: "#ffffff",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "8px",
                 cursor: "pointer",
                 border: "none",
-                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
+                boxShadow: "0 2px 10px rgba(37, 99, 235, 0.3)",
               }}
             >
-              <span>{isAdmin ? "Go to All Leads Pipeline" : "Go to My Leads Pipeline"}</span>
-              <ArrowRight size={16} />
+              <span>
+                {isAdmin ? "Go to All Leads Pipeline" : "Go to My Leads Pipeline"}
+              </span>
+              <ArrowRight size={15} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Metric Cards Grid */}
+      {/* Metric Cards Grid — Professional Executive Palette */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
           gap: "14px",
           marginBottom: "20px",
         }}
       >
+        {/* Card 1: Due Today */}
         <div
-          className="crm-card"
           style={{
-            marginBottom: 0,
-            padding: "18px 20px",
+            padding: "16px 20px",
             backgroundColor: "#FFFFFF",
-            borderRadius: "14px",
-            border: "1.5px solid #F1F5F9",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            borderRadius: "12px",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "44px",
-                width: "44px",
+                height: "42px",
+                width: "42px",
                 borderRadius: "10px",
-                backgroundColor: "#FEF3C7",
-                color: "#D97706",
+                backgroundColor: "#EFF6FF",
+                color: "#2563EB",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -319,17 +368,24 @@ const MyFollowups = () => {
               <Clock3 size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#64748B",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                }}
+              >
                 Due Today
               </span>
               <h3
                 style={{
-                  fontSize: "28px",
+                  fontSize: "26px",
                   fontWeight: 800,
                   color: "#0F172A",
                   margin: "2px 0 0 0",
                   fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.025em",
                   lineHeight: 1.1,
                 }}
               >
@@ -339,22 +395,21 @@ const MyFollowups = () => {
           </div>
         </div>
 
+        {/* Card 2: Overdue Callbacks */}
         <div
-          className="crm-card"
           style={{
-            marginBottom: 0,
-            padding: "18px 20px",
+            padding: "16px 20px",
             backgroundColor: "#FFFFFF",
-            borderRadius: "14px",
-            border: "1.5px solid #F1F5F9",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            borderRadius: "12px",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "44px",
-                width: "44px",
+                height: "42px",
+                width: "42px",
                 borderRadius: "10px",
                 backgroundColor: "#FEF2F2",
                 color: "#DC2626",
@@ -367,17 +422,24 @@ const MyFollowups = () => {
               <TimerReset size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#64748B",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                }}
+              >
                 Overdue Callbacks
               </span>
               <h3
                 style={{
-                  fontSize: "28px",
+                  fontSize: "26px",
                   fontWeight: 800,
                   color: "#DC2626",
                   margin: "2px 0 0 0",
                   fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.025em",
                   lineHeight: 1.1,
                 }}
               >
@@ -387,25 +449,24 @@ const MyFollowups = () => {
           </div>
         </div>
 
+        {/* Card 3: Completed Calls */}
         <div
-          className="crm-card"
           style={{
-            marginBottom: 0,
-            padding: "18px 20px",
+            padding: "16px 20px",
             backgroundColor: "#FFFFFF",
-            borderRadius: "14px",
-            border: "1.5px solid #F1F5F9",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            borderRadius: "12px",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "44px",
-                width: "44px",
+                height: "42px",
+                width: "42px",
                 borderRadius: "10px",
-                backgroundColor: "#DCFCE7",
-                color: "#16A34A",
+                backgroundColor: "#ECFDF5",
+                color: "#059669",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -415,17 +476,24 @@ const MyFollowups = () => {
               <CalendarCheck2 size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#64748B",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                }}
+              >
                 Completed Calls
               </span>
               <h3
                 style={{
-                  fontSize: "28px",
+                  fontSize: "26px",
                   fontWeight: 800,
-                  color: "#16A34A",
+                  color: "#059669",
                   margin: "2px 0 0 0",
                   fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.025em",
                   lineHeight: 1.1,
                 }}
               >
@@ -435,25 +503,24 @@ const MyFollowups = () => {
           </div>
         </div>
 
+        {/* Card 4: Total Pending */}
         <div
-          className="crm-card"
           style={{
-            marginBottom: 0,
-            padding: "18px 20px",
+            padding: "16px 20px",
             backgroundColor: "#FFFFFF",
-            borderRadius: "14px",
-            border: "1.5px solid #F1F5F9",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            borderRadius: "12px",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div
               style={{
-                height: "44px",
-                width: "44px",
+                height: "42px",
+                width: "42px",
                 borderRadius: "10px",
-                backgroundColor: "#F3E8FF",
-                color: "#9333EA",
+                backgroundColor: "#F1F5F9",
+                color: "#475569",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -463,17 +530,24 @@ const MyFollowups = () => {
               <PhoneCall size={20} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 650 }}>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#64748B",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                }}
+              >
                 Total Pending
               </span>
               <h3
                 style={{
-                  fontSize: "28px",
+                  fontSize: "26px",
                   fontWeight: 800,
                   color: "#0F172A",
                   margin: "2px 0 0 0",
                   fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.025em",
                   lineHeight: 1.1,
                 }}
               >
@@ -489,18 +563,27 @@ const MyFollowups = () => {
         style={{
           background: "#ffffff",
           borderRadius: "12px",
-          padding: "16px 20px",
+          padding: "14px 18px",
           marginBottom: "20px",
-          border: "1px solid #e2e8f0",
+          border: "1px solid #E2E8F0",
           display: "flex",
-          gap: "16px",
+          gap: "14px",
           alignItems: "center",
           flexWrap: "wrap",
           justifyContent: "space-between",
         }}
       >
         <div style={{ flex: 1, minWidth: "260px", position: "relative" }}>
-          <Search size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+          <Search
+            size={17}
+            style={{
+              position: "absolute",
+              left: "14px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#64748B",
+            }}
+          />
           <input
             type="text"
             placeholder="Search student name, mobile, course, or remarks..."
@@ -508,11 +591,12 @@ const MyFollowups = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
               width: "100%",
-              padding: "10px 14px 10px 42px",
+              padding: "9px 14px 9px 40px",
               borderRadius: "8px",
-              border: "1px solid #cbd5e1",
-              fontSize: "14px",
+              border: "1px solid #CBD5E1",
+              fontSize: "13.5px",
               outline: "none",
+              color: "#0F172A",
             }}
           />
         </div>
@@ -522,44 +606,66 @@ const MyFollowups = () => {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
+            gap: "6px",
             overflowX: "auto",
             flexWrap: "nowrap",
             paddingBottom: "2px",
             WebkitOverflowScrolling: "touch",
           }}
         >
-          <Filter size={15} style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }} />
-          {["All", "Due Today", "Overdue", "Upcoming", "Completed / Closed"].map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveFilter(tab)}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                fontSize: "13px",
-                fontWeight: activeFilter === tab ? 700 : 600,
-                border: activeFilter === tab ? "1px solid #2563eb" : "1px solid #cbd5e1",
-                cursor: "pointer",
-                backgroundColor: activeFilter === tab ? "#2563eb" : "#ffffff",
-                color: activeFilter === tab ? "#ffffff" : "#475569",
-                transition: "all 0.15s ease",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-                boxShadow: activeFilter === tab ? "0 2px 8px rgba(37, 99, 235, 0.25)" : "none",
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+          <Filter
+            size={14}
+            style={{ color: "#64748B", marginRight: "4px", flexShrink: 0 }}
+          />
+          {["All", "Due Today", "Overdue", "Upcoming", "Completed / Closed"].map(
+            (tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveFilter(tab)}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: "7px",
+                  fontSize: "12.5px",
+                  fontWeight: activeFilter === tab ? 600 : 500,
+                  border:
+                    activeFilter === tab
+                      ? "1px solid #2563EB"
+                      : "1px solid #E2E8F0",
+                  cursor: "pointer",
+                  backgroundColor: activeFilter === tab ? "#2563EB" : "#FFFFFF",
+                  color: activeFilter === tab ? "#FFFFFF" : "#475569",
+                  transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {tab}
+              </button>
+            )
+          )}
         </div>
       </div>
 
       {/* Followups Data Table */}
-      <div className="crm-card">
+      <div
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: "12px",
+          border: "1px solid #E2E8F0",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+          overflow: "hidden",
+        }}
+      >
         {loading ? (
-          <div style={{ textAlign: "center", padding: "40px", fontSize: "14px", color: "#64748B" }}>
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px",
+              fontSize: "14px",
+              color: "#64748B",
+            }}
+          >
             Loading follow-up tasks...
           </div>
         ) : filteredFollowups.length === 0 ? (
@@ -572,35 +678,66 @@ const MyFollowups = () => {
               border: "1px dashed #CBD5E1",
               fontSize: "14px",
               color: "#64748B",
+              margin: "16px",
             }}
           >
             No follow-ups match the selected filter.
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", minWidth: "850px", borderCollapse: "collapse", textAlign: "left" }}>
+            <table
+              style={{
+                width: "100%",
+                minWidth: "850px",
+                borderCollapse: "collapse",
+                textAlign: "left",
+              }}
+            >
               <thead>
-                <tr style={{ borderBottom: "1.5px solid #E2E8F0", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", color: "#64748B", textTransform: "uppercase", backgroundColor: "#F8FAFC" }}>
+                <tr
+                  style={{
+                    borderBottom: "1px solid #E2E8F0",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                    color: "#475569",
+                    textTransform: "uppercase",
+                    backgroundColor: "#F8FAFC",
+                  }}
+                >
                   <th style={{ padding: "12px 16px" }}>Student Lead</th>
                   <th style={{ padding: "12px 16px" }}>Interested Course</th>
                   <th style={{ padding: "12px 16px" }}>Channel</th>
-                  <th style={{ padding: "12px 16px" }}>Next Follow-up Schedule</th>
+                  <th style={{ padding: "12px 16px" }}>
+                    Next Follow-up Schedule
+                  </th>
                   <th style={{ padding: "12px 16px" }}>Status / Outcome</th>
-                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
+                  <th style={{ padding: "12px 16px", textAlign: "right" }}>
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredFollowups.map((item) => {
-                  const leadName = item.lead_name || item.full_name || "Student Lead";
+                  const leadName =
+                    item.lead_name || item.full_name || "Student Lead";
                   const mobile = item.mobile || item.lead_mobile || "";
                   const cleanMobile = mobile.replace(/\D/g, "");
-                  const isPending = (item.status || "").toUpperCase() === "PENDING";
-                  const isCompleted = (item.status || "").toUpperCase() === "COMPLETED";
+                  const isPending =
+                    (item.status || "").toUpperCase() === "PENDING";
+                  const isCompleted =
+                    (item.status || "").toUpperCase() === "COMPLETED";
 
                   const now = new Date();
-                  const targetDate = item.next_followup_at ? new Date(item.next_followup_at) : null;
-                  const isItemOverdue = isPending && targetDate && targetDate < now;
-                  const isDueToday = isPending && targetDate && targetDate.toDateString() === now.toDateString();
+                  const targetDate = item.next_followup_at
+                    ? new Date(item.next_followup_at)
+                    : null;
+                  const isItemOverdue =
+                    isPending && targetDate && targetDate < now;
+                  const isDueToday =
+                    isPending &&
+                    targetDate &&
+                    targetDate.toDateString() === now.toDateString();
 
                   // Relative display string for Next Follow-up column
                   let scheduleBadge = "No Date Set";
@@ -624,21 +761,30 @@ const MyFollowups = () => {
                     }
                   }
 
-                  const outcome = (item.outcome || item.lead_status || "").toUpperCase();
+                  const outcome = (
+                    item.outcome ||
+                    item.lead_status ||
+                    ""
+                  ).toUpperCase();
 
                   return (
                     <tr
                       key={item.id}
                       style={{
                         borderBottom: "1px solid #F1F5F9",
-                        backgroundColor: isCompleted ? "#FAF5FF" : isItemOverdue ? "#FFFDFD" : "#FFFFFF",
-                        transition: "background-color 0.2s ease",
-                        opacity: isCompleted && outcome === "NOT_INTERESTED" ? 0.75 : 1,
+                        backgroundColor: "#FFFFFF",
+                        transition: "background-color 0.15s ease",
                       }}
                     >
                       <td style={{ padding: "14px 16px" }}>
                         <div>
-                          <strong style={{ fontSize: "14px", color: "#0F172A", display: "block" }}>
+                          <strong
+                            style={{
+                              fontSize: "13.5px",
+                              color: "#0F172A",
+                              display: "block",
+                            }}
+                          >
                             {leadName}
                           </strong>
                           <span style={{ fontSize: "12px", color: "#64748B" }}>
@@ -647,12 +793,35 @@ const MyFollowups = () => {
                         </div>
                       </td>
 
-                      <td style={{ padding: "14px 16px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>
+                      <td
+                        style={{
+                          padding: "14px 16px",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: "#334155",
+                        }}
+                      >
                         {item.interested_course || "Digital Marketing"}
                       </td>
 
-                      <td style={{ padding: "14px 16px", fontSize: "13px", color: "#64748B" }}>
-                        <span className="crm-badge crm-badge-status" style={{ fontSize: "11px" }}>
+                      <td
+                        style={{
+                          padding: "14px 16px",
+                          fontSize: "12.5px",
+                          color: "#64748B",
+                        }}
+                      >
+                        <span
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            backgroundColor: "#F1F5F9",
+                            color: "#475569",
+                            border: "1px solid #E2E8F0",
+                          }}
+                        >
                           {item.followup_type || "CALL"}
                         </span>
                       </td>
@@ -667,12 +836,26 @@ const MyFollowups = () => {
                                 alignItems: "center",
                                 gap: "6px",
                                 padding: "4px 10px",
-                                borderRadius: "8px",
+                                borderRadius: "6px",
                                 fontSize: "12px",
-                                fontWeight: 700,
-                                backgroundColor: isItemOverdue ? "#FEF2F2" : isDueToday ? "#FFFBEB" : "#EFF6FF",
-                                color: isItemOverdue ? "#DC2626" : isDueToday ? "#D97706" : "#2563EB",
-                                border: `1px solid ${isItemOverdue ? "#FECACA" : isDueToday ? "#FDE68A" : "#BFDBFE"}`,
+                                fontWeight: 600,
+                                backgroundColor: isItemOverdue
+                                  ? "#FEF2F2"
+                                  : isDueToday
+                                  ? "#EFF6FF"
+                                  : "#F8FAFC",
+                                color: isItemOverdue
+                                  ? "#DC2626"
+                                  : isDueToday
+                                  ? "#2563EB"
+                                  : "#475569",
+                                border: `1px solid ${
+                                  isItemOverdue
+                                    ? "#FECACA"
+                                    : isDueToday
+                                    ? "#BFDBFE"
+                                    : "#E2E8F0"
+                                }`,
                               }}
                             >
                               <Clock size={13} />
@@ -681,7 +864,10 @@ const MyFollowups = () => {
                           </div>
                         ) : (
                           <span style={{ fontSize: "12px", color: "#64748B" }}>
-                            Completed on {new Date(item.updated_at || item.created_at).toLocaleDateString("en-IN")}
+                            Completed on{" "}
+                            {new Date(
+                              item.updated_at || item.created_at
+                            ).toLocaleDateString("en-IN")}
                           </span>
                         )}
                       </td>
@@ -690,70 +876,118 @@ const MyFollowups = () => {
                       <td style={{ padding: "14px 16px" }}>
                         {isPending ? (
                           <span
-                            className={`crm-badge ${isItemOverdue ? "crm-badge-high" : isDueToday ? "crm-badge-medium" : "crm-badge-low"}`}
-                            style={{ fontSize: "11px" }}
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              backgroundColor: isItemOverdue
+                                ? "#FEF2F2"
+                                : isDueToday
+                                ? "#EFF6FF"
+                                : "#F1F5F9",
+                              color: isItemOverdue
+                                ? "#DC2626"
+                                : isDueToday
+                                ? "#2563EB"
+                                : "#475569",
+                              border: `1px solid ${
+                                isItemOverdue
+                                  ? "#FECACA"
+                                  : isDueToday
+                                  ? "#BFDBFE"
+                                  : "#E2E8F0"
+                              }`,
+                            }}
                           >
-                            {isItemOverdue ? "OVERDUE" : isDueToday ? "DUE TODAY" : "UPCOMING"}
+                            {isItemOverdue
+                              ? "OVERDUE"
+                              : isDueToday
+                              ? "DUE TODAY"
+                              : "UPCOMING"}
                           </span>
                         ) : outcome === "ENROLLED" ? (
                           <span
-                            className="crm-badge"
                             style={{
-                              backgroundColor: "#F5F3FF",
-                              color: "#7C3AED",
-                              border: "1px solid #DDD6FE",
-                              fontWeight: 700,
+                              padding: "3px 8px",
+                              borderRadius: "4px",
                               fontSize: "11px",
+                              fontWeight: 600,
+                              backgroundColor: "#ECFDF5",
+                              color: "#059669",
+                              border: "1px solid #A7F3D0",
                             }}
                           >
                             ENROLLED
                           </span>
                         ) : outcome === "NOT_INTERESTED" ? (
                           <span
-                            className="crm-badge"
                             style={{
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
                               backgroundColor: "#FEF2F2",
                               color: "#DC2626",
                               border: "1px solid #FECACA",
-                              fontSize: "11px",
                             }}
                           >
                             NOT INTERESTED
                           </span>
                         ) : outcome === "WALK_IN" ? (
                           <span
-                            className="crm-badge"
                             style={{
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
                               backgroundColor: "#EFF6FF",
                               color: "#2563EB",
                               border: "1px solid #BFDBFE",
-                              fontSize: "11px",
                             }}
                           >
                             WALKIN
                           </span>
                         ) : (
-                          <span className="crm-badge crm-badge-low" style={{ fontSize: "11px" }}>
+                          <span
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              backgroundColor: "#F1F5F9",
+                              color: "#475569",
+                              border: "1px solid #E2E8F0",
+                            }}
+                          >
                             COMPLETED
                           </span>
                         )}
                       </td>
 
                       <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-end",
+                            gap: "6px",
+                          }}
+                        >
                           {cleanMobile && (
                             <>
                               <a
                                 href={`tel:${cleanMobile}`}
                                 title={`Call ${leadName}`}
                                 style={{
-                                  padding: "7px",
-                                  borderRadius: "8px",
-                                  backgroundColor: "#DCFCE7",
-                                  color: "#16A34A",
+                                  padding: "6px 8px",
+                                  borderRadius: "6px",
+                                  backgroundColor: "#ECFDF5",
+                                  color: "#059669",
                                   display: "inline-flex",
                                   alignItems: "center",
                                   justifyContent: "center",
+                                  border: "1px solid #A7F3D0",
                                 }}
                               >
                                 <Phone size={14} />
@@ -765,13 +999,14 @@ const MyFollowups = () => {
                                 rel="noopener noreferrer"
                                 title={`WhatsApp ${leadName}`}
                                 style={{
-                                  padding: "7px",
-                                  borderRadius: "8px",
-                                  backgroundColor: "#E0E7FF",
-                                  color: "#4338CA",
+                                  padding: "6px 8px",
+                                  borderRadius: "6px",
+                                  backgroundColor: "#EFF6FF",
+                                  color: "#2563EB",
                                   display: "inline-flex",
                                   alignItems: "center",
                                   justifyContent: "center",
+                                  border: "1px solid #BFDBFE",
                                 }}
                               >
                                 <MessageCircle size={14} />
@@ -783,8 +1018,20 @@ const MyFollowups = () => {
                             type="button"
                             onClick={() => handleOpenUpdateModal(item)}
                             title="Update Callback / Status"
-                            className="crm-btn-primary"
-                            style={{ height: "32px", padding: "0 10px", fontSize: "11px", backgroundColor: "#4F46E5" }}
+                            style={{
+                              height: "30px",
+                              padding: "0 10px",
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              backgroundColor: "#2563EB",
+                              color: "#FFFFFF",
+                              border: "none",
+                              borderRadius: "6px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              cursor: "pointer",
+                            }}
                           >
                             <CheckCircle2 size={13} />
                             <span>Update Callback</span>
@@ -794,8 +1041,19 @@ const MyFollowups = () => {
                             type="button"
                             onClick={() => handleOpenLeadDrawer(item)}
                             title="View Lead Details"
-                            className="crm-btn-secondary"
-                            style={{ height: "32px", padding: "0 8px" }}
+                            style={{
+                              height: "30px",
+                              width: "30px",
+                              padding: 0,
+                              backgroundColor: "#F1F5F9",
+                              color: "#475569",
+                              border: "1px solid #CBD5E1",
+                              borderRadius: "6px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                            }}
                           >
                             <Eye size={14} />
                           </button>
