@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import { getTeamReports, reviewReportAsHR } from "../../services/reportService";
 import { useAuth } from "../../context/AuthContext";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
+import EmployeePerformanceModal from "../../components/admin/employees/EmployeePerformanceModal";
 
 const SalesDepartmentReport = () => {
   const { user } = useAuth();
@@ -50,6 +51,10 @@ const SalesDepartmentReport = () => {
   });
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+
+  // Scorecard modal state
+  const [selectedEmployeeForPerf, setSelectedEmployeeForPerf] = useState(null);
+  const [isPerfModalOpen, setIsPerfModalOpen] = useState(false);
 
   if (!canSeeSalesReport) {
     return (
@@ -430,12 +435,13 @@ const SalesDepartmentReport = () => {
                 <th style={{ padding: "14px 18px" }}>Revenue (₹)</th>
                 <th style={{ padding: "14px 18px" }}>Conversion %</th>
                 <th style={{ padding: "14px 18px" }}>HR Performance Tag</th>
+                <th style={{ padding: "14px 18px", textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {counsellors.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: "center", padding: "32px", color: "#64748b" }}>
+                  <td colSpan="9" style={{ textAlign: "center", padding: "32px", color: "#64748b" }}>
                     No sales counsellors match your active filter criteria.
                   </td>
                 </tr>
@@ -538,6 +544,38 @@ const SalesDepartmentReport = () => {
                             Needs Attention
                           </span>
                         )}
+                      </td>
+                      <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedEmployeeForPerf({
+                              id: c.employee_id,
+                              full_name: c.employee_name,
+                              employee_code: c.employee_code,
+                              role: c.role,
+                              designation: c.designation,
+                              department_name: c.department_name,
+                            });
+                            setIsPerfModalOpen(true);
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            border: "1px solid #bfdbfe",
+                            backgroundColor: "#eff6ff",
+                            color: "#2563eb",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "5px",
+                          }}
+                        >
+                          <Eye size={13} />
+                          <span>Scorecard</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -671,6 +709,13 @@ const SalesDepartmentReport = () => {
           </div>
         )}
       </div>
+
+      {/* Employee 360 Performance Scorecard Modal */}
+      <EmployeePerformanceModal
+        employee={selectedEmployeeForPerf}
+        isOpen={isPerfModalOpen}
+        onClose={() => setIsPerfModalOpen(false)}
+      />
 
       {/* Report Modal */}
       {selectedReport && (

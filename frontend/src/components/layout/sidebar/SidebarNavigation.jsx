@@ -50,20 +50,17 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
   } else if (isSuperAdmin) {
-    // Super Admin: Has access to Sales, Agency Leads, Operations, and Attendance
+    // Super Admin: Master Executive Control across Sales, Operations, HR, & Attendance
     menuItems = [
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
       { title: "Work Assigned to Employees", icon: ClipboardList, path: "/work-assignments" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
-      { title: "My Leads", icon: UserCircle, path: "/my-leads" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
-      { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
-      { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
-      { title: "Operations & HR", icon: FileBarChart2, path: "/reports" },
-      { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
-      { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+      { title: "Employees Management", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Operations & HR Dashboard", icon: FileBarChart2, path: "/reports" },
+      { title: "Company Work Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Call Recording", icon: Radio, path: "/telephony" },
     ];
   } else if (isTL || isHead) {
