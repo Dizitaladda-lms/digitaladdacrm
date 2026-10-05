@@ -45,40 +45,70 @@ export const submitDailyReportService = async (user, payload) => {
   const employeeId = empProfile?.id || null;
   const departmentId = payload.department_id || empProfile?.department_id || null;
 
-  // Determine user's role_type in operations
-  let roleType = payload.role_type;
-  if (!roleType) {
-    const userRole = String(user.role || "").toUpperCase();
-    const designation = String(empProfile?.designation || "").toLowerCase();
-    const employmentType = String(empProfile?.employment_type || "").toUpperCase();
+  // Determine user's official role_type in operations (strictly fixed by HR in employee profile)
+  let roleType = "EXECUTIVE";
+  const userRole = String(user.role || "").toUpperCase();
+  const empRole = String(empProfile?.role || "").toUpperCase();
+  const designation = String(empProfile?.designation || user?.designation || "").toLowerCase();
+  const employmentType = String(empProfile?.employment_type || "").toUpperCase();
 
-    if (userRole === "HR") {
-      roleType = "HR";
-    } else if (
-      userRole === "TL" ||
-      designation.includes("team lead") ||
-      designation.includes("team leader") ||
-      designation.includes("leader") ||
-      designation.includes("manager")
-    ) {
-      roleType = "TL";
-    } else if (
-      userRole === "INTERN" ||
-      employmentType === "INTERN" ||
-      designation.includes("intern")
-    ) {
-      roleType = "INTERN";
-    } else if (
-      userRole === "EXECUTIVE" ||
-      designation.includes("executive") ||
-      designation.includes("counsellor") ||
-      userRole === "COUNSELLOR"
-    ) {
-      roleType = "EXECUTIVE";
-    } else {
-      roleType = "EMPLOYEE";
+  if (userRole === "HR" || empRole === "HR") {
+    roleType = "HR";
+  } else if (
+    userRole === "TL" ||
+    empRole === "TL" ||
+    designation.includes("team lead") ||
+    designation.includes("team leader") ||
+    designation.includes("leader") ||
+    designation.includes("head") ||
+    designation.includes("manager")
+  ) {
+    roleType = "TL";
+  } else if (
+    userRole === "INTERN" ||
+    empRole === "INTERN" ||
+    employmentType === "INTERN" ||
+    designation.includes("intern")
+  ) {
+    roleType = "INTERN";
+  } else {
+    roleType = "EXECUTIVE";
+  }
+
+  // Fetch actual attendance in and out for the report date to calculate hours
+  let attendanceHours = null;
+  if (employeeId) {
+    try {
+      const attRes = await pool.query(
+        `SELECT 
+           a.id, a.check_in_time, a.check_out_time, a.total_hours,
+           ROUND(
+             COALESCE(
+               a.total_hours, 
+               CASE WHEN a.check_in_time IS NOT NULL 
+                 THEN EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0 
+                 ELSE 0 
+               END
+             ), 
+             2
+           ) AS live_hours
+         FROM daily_attendance a
+         WHERE a.employee_id = $1 AND a.date = $2
+         LIMIT 1;`,
+        [employeeId, reportDate]
+      );
+      if (attRes.rows[0]) {
+        attendanceHours = parseFloat(attRes.rows[0].live_hours || attRes.rows[0].total_hours || 0);
+      }
+    } catch (attErr) {
+      console.error("Error querying attendance hours for report:", attErr);
     }
   }
+
+  // Calculate final total hours worked based on attendance punch-in and punch-out
+  const finalHoursWorked = attendanceHours !== null 
+    ? attendanceHours 
+    : (parseFloat(payload.total_hours_worked) || 0.0);
 
   // Initial workflow status:
   // - Interns & Executives/Employees -> 'SUBMITTED' (Pending TL Verification)
@@ -130,7 +160,7 @@ export const submitDailyReportService = async (user, payload) => {
     role_type: roleType,
     work_title: payload.work_title || null,
     tasks_summary: payload.tasks_summary.trim(),
-    total_hours_worked: Number(payload.total_hours_worked) || 8.0,
+    total_hours_worked: finalHoursWorked,
     work_status: payload.work_status || "COMPLETED",
     deliverable_links: payload.deliverable_links || null,
     blockers: payload.blockers || null,

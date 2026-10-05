@@ -3,9 +3,11 @@ import LeadSummaryHeader from "./LeadSummaryHeader";
 import LeadDetailsTabsNav from "./LeadDetailsTabsNav";
 import PersonalInformationTab from "./PersonalInformationTab";
 import CounsellorNotesTab from "./CounsellorNotesTab";
+import LeadFeeLedgerTab from "./LeadFeeLedgerTab";
 import AuditTimelineTab from "./AuditTimelineTab";
 import CallRecordingsTab from "./CallRecordingsTab";
 import LeadDrawerFooter from "./LeadDrawerFooter";
+import FeeReceiptModal from "../../admissions/FeeReceiptModal";
 import "./LeadDetailsDrawer.css";
 
 import { getLeadById } from "../../../services/leadService";
@@ -25,13 +27,19 @@ const LeadDetailsDrawer = ({
   onStatusUpdated,
   role = "counsellor",
 }) => {
+  const isSuperAdminOrHR = ["SUPER_ADMIN", "HR"].includes(String(role).toUpperCase());
   const isCounsellor = role === "counsellor" || role === "employee";
-  const isEditable = isCounsellor;
+  const isEditable = isCounsellor && !isSuperAdminOrHR;
   // Call recordings are confidential and available in the admin drawer only.
   const canAccessCallRecordings = String(role).toUpperCase() === "SUPER_ADMIN";
 
   const [loading, setLoading] = useState(false);
   const [leadDetails, setLeadDetails] = useState(null);
+
+  // Official Fee Receipt Modal State
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [selectedAdmissionForReceipt, setSelectedAdmissionForReceipt] = useState(null);
+  const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState(null);
 
   // 4-Tab State: "personal" | "academic" | "counselling" | "timeline"
   const [activeTab, setActiveTab] = useState("personal");
@@ -252,9 +260,10 @@ const LeadDetailsDrawer = ({
   }
 
   const currentLead = leadDetails || lead;
-  const isEnrolled = ["ENROLLED", "ADMISSION", "ADMISSION_DONE", "COMPLETED"].includes(
-    (currentLead?.status || selectedStatus || "").toUpperCase()
-  );
+  const isEnrolled =
+    ["ENROLLED", "ADMISSION", "ADMISSION_DONE", "COMPLETED"].includes(
+      (currentLead?.status || selectedStatus || "").toUpperCase()
+    ) || Boolean(currentLead?.admission);
 
   return (
     <>
@@ -276,10 +285,31 @@ const LeadDetailsDrawer = ({
           activeTab={activeTab}
           onTabChange={setActiveTab}
           canAccessCallRecordings={canAccessCallRecordings}
+          showFeeLedger={isEnrolled}
         />
 
         {/* INDEPENDENT SCROLLING TAB CONTENT AREA */}
         <div className="crm-body-content">
+          {/* Super Admin & HR Read-Only Notice */}
+          {isSuperAdminOrHR && (
+            <div
+              style={{
+                padding: "10px 14px",
+                background: "#F8FAFC",
+                border: "1px solid #E2E8F0",
+                borderRadius: "10px",
+                fontSize: "12px",
+                color: "#475569",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "14px",
+              }}
+            >
+              <span>ℹ️ <strong>Read-Only Access:</strong> Super Admin and HR can track lead progress, timeline, and fee records. Lead assignments and status modifications are managed by Sales Department Head.</span>
+            </div>
+          )}
+
           {/* STEP 1: PERSONAL CONTACT INFORMATION */}
           {activeTab === "personal" && (
             <PersonalInformationTab
@@ -301,6 +331,18 @@ const LeadDetailsDrawer = ({
               onRemarksChange={setRemarks}
               lead={currentLead}
               isEditable={isEditable}
+            />
+          )}
+
+          {/* STEP 3: ENROLLED LEAD FEES & INSTALLMENT LEDGER */}
+          {activeTab === "fees" && (
+            <LeadFeeLedgerTab
+              lead={currentLead}
+              onOpenReceipt={(adm, pay) => {
+                setSelectedAdmissionForReceipt(adm);
+                setSelectedPaymentForReceipt(pay);
+                setReceiptModalOpen(true);
+              }}
             />
           )}
 
@@ -329,6 +371,14 @@ const LeadDetailsDrawer = ({
           isEditable={isEditable}
         />
       </aside>
+
+      {/* Official Fee Receipt Modal */}
+      <FeeReceiptModal
+        isOpen={receiptModalOpen}
+        onClose={() => setReceiptModalOpen(false)}
+        admission={selectedAdmissionForReceipt}
+        payment={selectedPaymentForReceipt}
+      />
     </>
   );
 };

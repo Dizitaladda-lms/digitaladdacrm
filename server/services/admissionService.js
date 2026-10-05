@@ -6,10 +6,18 @@ import {
   getAdmissionsRepository,
   collectFeeRepository,
   getAdmissionByIdRepository,
+  getAdmissionPaymentByIdRepository,
+  getAdmissionByLeadIdRepository,
 } from "../repositories/admissionRepository.js";
 
 const assertAdmissionOwnership = async (admission, currentUser) => {
-  if (currentUser.role === "ADMIN") return;
+  if (
+    currentUser.role === "SUPER_ADMIN" ||
+    currentUser.role === "ADMIN" ||
+    currentUser.role === "HR"
+  ) {
+    return;
+  }
   const employee = await ensureEmployeeProfileForUser(currentUser.id);
   if (!employee || String(admission.assigned_to) !== String(employee.id)) {
     throw new ApiError(403, "You can only access admissions assigned to you.");
@@ -68,7 +76,13 @@ export const collectFeeService = async (admissionId, installmentData, currentUse
   }
   await assertAdmissionOwnership(admission, currentUser);
 
-  return await collectFeeRepository(admissionId, installmentData);
+  let employeeId = null;
+  if (currentUser) {
+    const employee = await ensureEmployeeProfileForUser(currentUser.id);
+    if (employee) employeeId = employee.id;
+  }
+
+  return await collectFeeRepository(admissionId, installmentData, employeeId);
 };
 
 export const getAdmissionByIdService = async (admissionId, currentUser) => {
@@ -79,3 +93,21 @@ export const getAdmissionByIdService = async (admissionId, currentUser) => {
   await assertAdmissionOwnership(admission, currentUser);
   return admission;
 };
+
+export const getAdmissionPaymentByIdService = async (paymentId, currentUser) => {
+  const payment = await getAdmissionPaymentByIdRepository(paymentId);
+  if (!payment) {
+    throw new ApiError(404, "Payment receipt not found.");
+  }
+  return payment;
+};
+
+export const getAdmissionByLeadService = async (leadId, currentUser) => {
+  const admission = await getAdmissionByLeadIdRepository(leadId);
+  if (!admission) {
+    throw new ApiError(404, "No admission record found for this lead.");
+  }
+  await assertAdmissionOwnership(admission, currentUser);
+  return admission;
+};
+

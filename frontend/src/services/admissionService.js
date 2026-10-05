@@ -42,3 +42,12 @@ export const createAdmission = async (payload) => {
   return response.data;
 };
 
+/**
+ * Get Payment Receipt by ID
+ */
+export const getPaymentReceiptById = async (paymentId) => {
+  const response = await axiosInstance.get(`/admissions/receipt/${paymentId}`);
+  return response.data;
+};
+
+

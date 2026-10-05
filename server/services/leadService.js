@@ -44,6 +44,10 @@ import {
 } from "../repositories/leadRepository.js";
 
 import {
+  getAdmissionByLeadIdRepository,
+} from "../repositories/admissionRepository.js";
+
+import {
   addTimelineEventService,
 } from "../services/leadTimeline.service.js";
 
@@ -381,6 +385,16 @@ export const getLeadByIdService = async (
   }
 
   await assertLeadOwnership(lead, currentUser);
+
+  // Attach student fee ledger & admission details with payment proofs
+  try {
+    const admission = await getAdmissionByLeadIdRepository(lead.id, lead.mobile);
+    if (admission) {
+      lead.admission = admission;
+    }
+  } catch (admissionErr) {
+    console.error("Error attaching admission to lead:", admissionErr);
+  }
 
   return lead;
 

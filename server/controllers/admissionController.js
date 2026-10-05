@@ -5,6 +5,8 @@ import {
   createAdmissionService,
   collectFeeService,
   getAdmissionByIdService,
+  getAdmissionPaymentByIdService,
+  getAdmissionByLeadService,
 } from "../services/admissionService.js";
 
 /**
@@ -39,6 +41,17 @@ export const getAdmissionById = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get Admission by Lead ID
+ */
+export const getAdmissionByLead = asyncHandler(async (req, res) => {
+  const { leadId } = req.params;
+  const admission = await getAdmissionByLeadService(leadId, req.user);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, admission, "Admission fetched successfully."));
+});
+
+/**
  * Collect Fee Installment
  */
 export const collectFee = asyncHandler(async (req, res) => {
@@ -50,3 +63,16 @@ export const collectFee = asyncHandler(async (req, res) => {
       new ApiResponse(200, updatedAdmission, "Fee payment recorded successfully.")
     );
 });
+
+/**
+ * Get Specific Payment Receipt
+ */
+export const getPaymentReceipt = asyncHandler(async (req, res) => {
+  const { paymentId } = req.params;
+  const payment = await getAdmissionPaymentByIdService(paymentId, req.user);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, payment, "Payment receipt fetched successfully."));
+});
+
+

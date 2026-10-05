@@ -15,10 +15,12 @@ import {
   Briefcase,
   GraduationCap,
   Users,
+  Lock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { submitDailyReport, getMyReportToday } from "../../services/reportService";
+import { getBiometricStatus } from "../../services/attendanceService";
 import "./DailyReportForm.css";
 
 const emptyClassItem = () => ({
@@ -38,27 +40,45 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
   const { user } = useAuth();
   const userRole = String(user?.role || "").toUpperCase();
   const designation = String(user?.designation || "").toLowerCase();
-  const isTLRole =
-    userRole === "TL" ||
-    userRole === "MANAGER" ||
-    designation.includes("team lead") ||
-    designation.includes("team leader") ||
-    designation.includes("leader") ||
-    designation.includes("head");
-  const isInternRole = userRole === "INTERN" || designation.includes("intern");
+  const employmentType = String(user?.employment_type || "").toUpperCase();
 
-  const [roleType, setRoleType] = useState(() => {
-    if (isTLRole) return "TL";
-    if (isInternRole) return "INTERN";
+  // Role Tier is strictly FIXED by HR/Admin in employee profile (cannot be changed by employee)
+  const fixedRoleType = (() => {
+    if (
+      userRole === "TL" ||
+      userRole === "MANAGER" ||
+      designation.includes("team lead") ||
+      designation.includes("team leader") ||
+      designation.includes("leader") ||
+      designation.includes("head")
+    ) {
+      return "TL";
+    }
+    if (
+      userRole === "INTERN" ||
+      employmentType === "INTERN" ||
+      designation.includes("intern")
+    ) {
+      return "INTERN";
+    }
     return "EXECUTIVE";
-  });
+  })();
+
+  const roleType = fixedRoleType;
 
   const [reportDate, setReportDate] = useState(
     initialDate || new Date().toISOString().split("T")[0]
   );
   const [workTitle, setWorkTitle] = useState("");
   const [tasksSummary, setTasksSummary] = useState("");
-  const [totalHours, setTotalHours] = useState(8.0);
+  const [totalHours, setTotalHours] = useState(0.0);
+  const [attendanceInfo, setAttendanceInfo] = useState({
+    hours: 0,
+    checkIn: null,
+    checkOut: null,
+    statusText: "Calculating hours from attendance...",
+    type: "neutral",
+  });
   const [workStatus, setWorkStatus] = useState("COMPLETED");
   const [deliverableLinks, setDeliverableLinks] = useState("");
   const [blockers, setBlockers] = useState("");
@@ -68,6 +88,69 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
   const [existingReport, setExistingReport] = useState(null);
   const [fetchingExisting, setFetchingExisting] = useState(false);
+
+  // Fetch biometric attendance record for selected report date to auto-populate non-editable hours
+  useEffect(() => {
+    let isMounted = true;
+    const loadAttendanceHours = async () => {
+      try {
+        const res = await getBiometricStatus({ date: reportDate });
+        const att = res?.data?.today_attendance;
+        if (!isMounted) return;
+
+        if (att && att.check_in_time) {
+          const inTime = new Date(att.check_in_time).toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+
+          if (att.check_out_time) {
+            const outTime = new Date(att.check_out_time).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            });
+            const hrs = parseFloat(att.total_hours || att.live_hours || 0);
+            setTotalHours(hrs);
+            setAttendanceInfo({
+              hours: hrs,
+              checkIn: inTime,
+              checkOut: outTime,
+              statusText: `✓ Biometric Verified: In ${inTime} • Out ${outTime} (${hrs} hrs)`,
+              type: "success",
+            });
+          } else {
+            const liveHrs = parseFloat(att.live_hours || 0);
+            setTotalHours(liveHrs);
+            setAttendanceInfo({
+              hours: liveHrs,
+              checkIn: inTime,
+              checkOut: null,
+              statusText: `⏱️ Shift In Progress: Punched In at ${inTime} (${liveHrs} hrs so far)`,
+              type: "in_progress",
+            });
+          }
+        } else {
+          setTotalHours(0.0);
+          setAttendanceInfo({
+            hours: 0.0,
+            checkIn: null,
+            checkOut: null,
+            statusText: "⚠️ No punch-in recorded in attendance for this date (0 hrs logged)",
+            type: "warning",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load attendance hours for report date:", err);
+      }
+    };
+
+    loadAttendanceHours();
+    return () => {
+      isMounted = false;
+    };
+  }, [reportDate]);
 
   // Load existing report for selected date if already submitted
   useEffect(() => {
@@ -79,10 +162,11 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
         if (isMounted && res?.data) {
           const rep = res.data;
           setExistingReport(rep);
-          if (rep.role_type) setRoleType(rep.role_type);
           setWorkTitle(rep.work_title || "");
           setTasksSummary(rep.tasks_summary || "");
-          setTotalHours(parseFloat(rep.total_hours_worked) || 8.0);
+          if (rep.total_hours_worked !== undefined && rep.total_hours_worked !== null) {
+            setTotalHours(parseFloat(rep.total_hours_worked));
+          }
           setWorkStatus(rep.work_status || "COMPLETED");
           setDeliverableLinks(rep.deliverable_links || "");
           setBlockers(rep.blockers || "");
@@ -167,10 +251,10 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
       setSubmitting(true);
       const payload = {
         report_date: reportDate,
-        role_type: roleType,
+        role_type: fixedRoleType,
         work_title: workTitle,
         tasks_summary: tasksSummary,
-        total_hours_worked: parseFloat(totalHours) || 8.0,
+        total_hours_worked: parseFloat(totalHours) || 0.0,
         work_status: workStatus,
         deliverable_links: deliverableLinks,
         blockers: blockers,
@@ -244,31 +328,15 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
           </div>
         </div>
 
-        {/* Level Switcher (allows TL or staff to verify or set their tier) */}
-        <div className="hierarchy-tier-selector">
+        {/* Fixed Role Tier Display (Set by HR/Admin in employee profile) */}
+        <div className="hierarchy-tier-locked">
           <span className="selector-label">Reporting Tier:</span>
-          <div className="selector-buttons">
-            <button
-              type="button"
-              className={`tier-btn ${roleType === "TL" ? "active tl" : ""}`}
-              onClick={() => setRoleType("TL")}
-            >
-              <Crown size={13} /> Team Leader
-            </button>
-            <button
-              type="button"
-              className={`tier-btn ${roleType === "EXECUTIVE" ? "active executive" : ""}`}
-              onClick={() => setRoleType("EXECUTIVE")}
-            >
-              <Briefcase size={13} /> Executive
-            </button>
-            <button
-              type="button"
-              className={`tier-btn ${roleType === "INTERN" ? "active intern" : ""}`}
-              onClick={() => setRoleType("INTERN")}
-            >
-              <GraduationCap size={13} /> Intern
-            </button>
+          <div className="tier-locked-badge" title="Role tier is permanently assigned from your HR profile">
+            <Lock size={12} className="lock-icon" />
+            <span className="tier-text">
+              {roleType === "TL" ? "Team Leader (TL)" : roleType === "INTERN" ? "Intern" : "Executive"}
+            </span>
+            <span className="tier-fixed-hint">(Fixed by HR)</span>
           </div>
         </div>
       </div>
@@ -313,19 +381,28 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">
-              <Clock size={15} /> Total Hours Logged <span className="req">*</span>
-            </label>
+            <div className="flex-between-label">
+              <label className="form-label">
+                <Clock size={15} /> Total Hours Logged <span className="req">*</span>
+              </label>
+              <span className="locked-field-badge">
+                <Lock size={11} /> Auto Attendance
+              </span>
+            </div>
             <input
               type="number"
-              step="0.5"
-              min="0.5"
-              max="24"
-              className="form-input"
+              step="0.1"
+              className="form-input read-only-hours"
               value={totalHours}
-              onChange={(e) => setTotalHours(e.target.value)}
-              required
+              readOnly
+              disabled
+              title="Calculated automatically from your Punch-In and Punch-Out biometric attendance."
             />
+            {attendanceInfo?.statusText && (
+              <p className={`attendance-status-hint ${attendanceInfo.type || "neutral"}`}>
+                {attendanceInfo.statusText}
+              </p>
+            )}
           </div>
 
           <div className="form-group">

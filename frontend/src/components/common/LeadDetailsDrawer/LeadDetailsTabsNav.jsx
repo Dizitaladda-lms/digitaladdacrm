@@ -1,12 +1,17 @@
 import React from "react";
-import { User, MessageSquareText, History, PhoneCall } from "lucide-react";
+import { User, MessageSquareText, History, PhoneCall, Receipt } from "lucide-react";
 import "./LeadDetailsDrawer.css";
 
 /**
  * LeadDetailsTabsNav Component
- * Guided Counselling Navigation Tabs (Personal, Counselling, Calls, Timeline)
+ * Guided Counselling Navigation Tabs (Personal, Counselling, Fees, Calls, Timeline)
  */
-const LeadDetailsTabsNav = ({ activeTab, onTabChange, canAccessCallRecordings = false }) => {
+const LeadDetailsTabsNav = ({
+  activeTab,
+  onTabChange,
+  canAccessCallRecordings = false,
+  showFeeLedger = false,
+}) => {
   const tabs = [
     {
       id: "personal",
@@ -18,11 +23,24 @@ const LeadDetailsTabsNav = ({ activeTab, onTabChange, canAccessCallRecordings = 
       label: "Guided Counselling",
       icon: <MessageSquareText size={16} />,
     },
-    ...(canAccessCallRecordings ? [{
-      id: "calls",
-      label: "Call Recordings",
-      icon: <PhoneCall size={16} />,
-    }] : []),
+    ...(showFeeLedger
+      ? [
+          {
+            id: "fees",
+            label: "Fee Payments & Proofs",
+            icon: <Receipt size={16} />,
+          },
+        ]
+      : []),
+    ...(canAccessCallRecordings
+      ? [
+          {
+            id: "calls",
+            label: "Call Recordings",
+            icon: <PhoneCall size={16} />,
+          },
+        ]
+      : []),
     {
       id: "timeline",
       label: "Audit Timeline & Notes",

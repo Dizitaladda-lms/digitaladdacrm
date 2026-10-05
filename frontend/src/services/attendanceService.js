@@ -1,7 +1,7 @@
 import axiosInstance from "../api/axiosInstance";
 
-export const getBiometricStatus = async () => {
-  const response = await axiosInstance.get("/attendance/status");
+export const getBiometricStatus = async (params = {}) => {
+  const response = await axiosInstance.get("/attendance/status", { params });
   return response.data;
 };
 

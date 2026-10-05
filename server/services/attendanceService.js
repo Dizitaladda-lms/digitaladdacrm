@@ -56,10 +56,10 @@ const getEmployeeId = async (currentUser) => {
 // Service Methods
 // ==========================================
 
-export const getMyBiometricStatusService = async (currentUser) => {
+export const getMyBiometricStatusService = async (currentUser, dateStr = null) => {
   const employee = await getEmployeeId(currentUser);
   const biometric = await findEmployeeBiometricRepository(employee.id);
-  const todayAttendance = await findTodayAttendanceRepository(employee.id);
+  const todayAttendance = await findTodayAttendanceRepository(employee.id, dateStr);
 
   return {
     employee_id: employee.id,

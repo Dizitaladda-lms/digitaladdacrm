@@ -6,4 +6,7 @@ USING employee_biometrics b
 WHERE a.id < b.id AND a.employee_id = b.employee_id;
 
 ALTER TABLE employee_biometrics
+DROP CONSTRAINT IF EXISTS employee_biometrics_employee_id_key;
+
+ALTER TABLE employee_biometrics
 ADD CONSTRAINT employee_biometrics_employee_id_key UNIQUE (employee_id);

@@ -16,6 +16,10 @@ import {
   Filter,
   UserCheck,
   PhoneCall,
+  UploadCloud,
+  Trash2,
+  ExternalLink,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   getAdmissions,
@@ -24,6 +28,7 @@ import {
   getAdmissionDetails,
 } from "../../services/admissionService";
 import { exportToCSV } from "../../utils/exportCsv";
+import FeeReceiptModal from "../../components/admissions/FeeReceiptModal";
 import "./AdmissionManagement.css";
 
 const AdmissionManagement = () => {
@@ -47,12 +52,23 @@ const AdmissionManagement = () => {
   const [isLedgerDrawerOpen, setIsLedgerDrawerOpen] = useState(false);
   const [ledgerDetails, setLedgerDetails] = useState(null);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [paymentProofPreview, setPaymentProofPreview] = useState(null);
+
+  // Fee Receipt Modal State
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptAdmission, setReceiptAdmission] = useState(null);
+  const [receiptPayment, setReceiptPayment] = useState(null);
 
   // Payment Form State
   const [paymentForm, setPaymentForm] = useState({
     amount: "",
     payment_mode: "UPI",
+    transaction_id: "",
     receipt_number: "",
+    fee_month: "",
+    father_name: "",
+    domain: "DizitalAdda",
+    proof_image_url: null,
     payment_date: new Date().toISOString().slice(0, 10),
     next_due_date: "",
     remarks: "",
@@ -86,17 +102,55 @@ const AdmissionManagement = () => {
     fetchData();
   }, [search, statusFilter, centreFilter]);
 
+  // Handle Proof Screenshot in Admin Modal
+  const handlePaymentProofChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file (PNG, JPG, JPEG).");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Screenshot file exceeds 10MB limit.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPaymentProofPreview(reader.result);
+      setPaymentForm((prev) => ({ ...prev, proof_image_url: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePaymentProof = () => {
+    setPaymentProofPreview(null);
+    setPaymentForm((prev) => ({ ...prev, proof_image_url: null }));
+  };
+
   // Open Payment Modal
   const handleOpenPayment = (admission) => {
     setSelectedAdmission(admission);
+    const currentMonth = new Date().toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
     setPaymentForm({
       amount: "",
       payment_mode: "UPI",
-      receipt_number: `REC-${Date.now().toString().slice(-5)}`,
+      transaction_id: "",
+      receipt_number: "",
+      fee_month: currentMonth,
+      father_name: admission.father_name || "",
+      domain: admission.domain || "DizitalAdda",
+      proof_image_url: null,
       payment_date: new Date().toISOString().slice(0, 10),
       next_due_date: admission.next_due_date ? String(admission.next_due_date).slice(0, 10) : "",
       remarks: "",
     });
+    setPaymentProofPreview(null);
     setIsPaymentModalOpen(true);
   };
 
@@ -110,18 +164,42 @@ const AdmissionManagement = () => {
 
     try {
       setPaymentSubmitting(true);
-      await addAdmissionPayment(selectedAdmission.id, {
+      const res = await addAdmissionPayment(selectedAdmission.id, {
         amount: Number(paymentForm.amount),
+        amount_paid: Number(paymentForm.amount),
         payment_mode: paymentForm.payment_mode,
-        receipt_number: paymentForm.receipt_number,
+        receipt_no: paymentForm.receipt_number.trim() || undefined,
+        receipt_number: paymentForm.receipt_number.trim() || undefined,
+        transaction_id: paymentForm.transaction_id.trim() || null,
+        proof_image_url: paymentForm.proof_image_url || null,
+        fee_month: paymentForm.fee_month.trim() || undefined,
+        father_name: paymentForm.father_name.trim() || null,
+        domain: paymentForm.domain,
         payment_date: paymentForm.payment_date,
         next_due_date: paymentForm.next_due_date || null,
-        remarks: paymentForm.remarks,
+        remarks: paymentForm.remarks || "Fee installment recorded",
       });
 
-      alert("Fee payment recorded successfully!");
+      const updated = res?.data || res;
       setIsPaymentModalOpen(false);
       fetchData();
+
+      // Open Fee Receipt modal immediately
+      const createdPayment = updated?.latest_payment || {
+        receipt_no: paymentForm.receipt_number || updated?.receipt_no,
+        amount: Number(paymentForm.amount),
+        payment_mode: paymentForm.payment_mode,
+        transaction_id: paymentForm.transaction_id,
+        proof_image_url: paymentForm.proof_image_url,
+        fee_month: paymentForm.fee_month,
+        payment_date: paymentForm.payment_date,
+        father_name: paymentForm.father_name,
+        domain: paymentForm.domain,
+      };
+
+      setReceiptAdmission(updated || selectedAdmission);
+      setReceiptPayment(createdPayment);
+      setIsReceiptModalOpen(true);
     } catch (err) {
       console.error("Payment error:", err);
       alert(err?.response?.data?.message || "Failed to record payment.");
@@ -470,6 +548,43 @@ const AdmissionManagement = () => {
                         >
                           <Receipt size={15} /> Ledger
                         </button>
+
+                        {/* 4. View Latest Receipt */}
+                        {paid > 0 && (
+                          <button
+                            className="btn-adm-receipt"
+                            style={{
+                              backgroundColor: "#ecfdf5",
+                              color: "#059669",
+                              border: "1px solid #a7f3d0",
+                              padding: "0 10px",
+                              height: "32px",
+                              borderRadius: "6px",
+                              fontWeight: 600,
+                              fontSize: "12px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              cursor: "pointer",
+                            }}
+                            title="View / Print Fee Receipt"
+                            onClick={() => {
+                              setReceiptAdmission(adm);
+                              setReceiptPayment({
+                                receipt_no: adm.receipt_no,
+                                amount: adm.paid_fee,
+                                payment_mode: adm.payment_mode || "ONLINE",
+                                fee_month: "Fee Receipt",
+                                domain: adm.domain,
+                                father_name: adm.father_name,
+                                payment_date: adm.updated_at || adm.created_at,
+                              });
+                              setIsReceiptModalOpen(true);
+                            }}
+                          >
+                            <Receipt size={14} /> Receipt
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -542,10 +657,132 @@ const AdmissionManagement = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Receipt / Transaction Ref No.</label>
+                  <label>Transaction / RR / UTR No.</label>
                   <input
                     type="text"
-                    placeholder="REC-2026-001"
+                    placeholder="e.g. UPI / RR-89410294"
+                    value={paymentForm.transaction_id}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, transaction_id: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Fee Month(s)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. October 2026"
+                    value={paymentForm.fee_month}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, fee_month: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Father's / Husband Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Mr. Ajay Gupta"
+                    value={paymentForm.father_name}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, father_name: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Receipt Domain Brand</label>
+                  <select
+                    value={paymentForm.domain}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, domain: e.target.value })}
+                  >
+                    <option value="DizitalAdda">Dizital Adda</option>
+                    <option value="nigape">NIGAPE (Gen AI)</option>
+                    <option value="nidads">NIDADS</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Payment Proof Screenshot Upload */}
+              <div className="form-group">
+                <label>Online Payment Proof / Screenshot</label>
+                {paymentProofPreview ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "8px 12px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      backgroundColor: "#f8fafc",
+                    }}
+                  >
+                    <img
+                      src={paymentProofPreview}
+                      alt="Proof"
+                      style={{
+                        width: "50px",
+                        height: "50px",
+                        objectFit: "cover",
+                        borderRadius: "6px",
+                      }}
+                    />
+                    <div style={{ flex: 1, fontSize: "12px", fontWeight: 600 }}>
+                      Screenshot Attached
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemovePaymentProof}
+                      style={{
+                        background: "#fee2e2",
+                        color: "#dc2626",
+                        border: "none",
+                        padding: "5px 10px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <Trash2 size={13} /> Remove
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      padding: "12px",
+                      border: "1.5px dashed #cbd5e1",
+                      borderRadius: "8px",
+                      backgroundColor: "#f8fafc",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      color: "#475569",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <UploadCloud size={18} />
+                    <span>Upload Payment Proof Screenshot (PNG/JPG)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePaymentProofChange}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Receipt No. (Auto if blank)</label>
+                  <input
+                    type="text"
+                    placeholder="Auto-generated if blank"
                     value={paymentForm.receipt_number}
                     onChange={(e) => setPaymentForm({ ...paymentForm, receipt_number: e.target.value })}
                   />
@@ -592,7 +829,7 @@ const AdmissionManagement = () => {
                   Cancel
                 </button>
                 <button type="submit" className="btn-submit" disabled={paymentSubmitting}>
-                  {paymentSubmitting ? "Recording..." : "Record & Update Balance"}
+                  {paymentSubmitting ? "Recording..." : "Record & View Official Receipt"}
                 </button>
               </div>
             </form>
@@ -648,13 +885,68 @@ const AdmissionManagement = () => {
                           </span>
                         </div>
                         <div className="tx-meta">
-                          <span>Receipt: <strong>{p.receipt_number || "—"}</strong></span>
+                          <span>Receipt: <strong>{p.receipt_no || p.receipt_number || "—"}</strong></span>
                           <span>Date: {new Date(p.payment_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
                         </div>
+                        {p.transaction_id && (
+                          <div className="tx-meta" style={{ fontSize: "12px", color: "#475569" }}>
+                            <span>Tx / RR No: <strong>{p.transaction_id}</strong></span>
+                            {p.fee_month && <span>Month: <strong>{p.fee_month}</strong></span>}
+                          </div>
+                        )}
                         {p.remarks && <div className="tx-remarks">"{p.remarks}"</div>}
                         {p.recorded_by_name && (
                           <div className="tx-recorder">Recorded by: {p.recorded_by_name}</div>
                         )}
+
+                        <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              padding: "4px 10px",
+                              backgroundColor: "#EFF6FF",
+                              color: "#1D4ED8",
+                              border: "1px solid #BFDBFE",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                            }}
+                            onClick={() => {
+                              setReceiptAdmission(selectedAdmission);
+                              setReceiptPayment(p);
+                              setIsReceiptModalOpen(true);
+                            }}
+                          >
+                            <Receipt size={13} /> View Official Receipt
+                          </button>
+
+                          {p.proof_image_url && (
+                            <a
+                              href={p.proof_image_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                padding: "4px 10px",
+                                backgroundColor: "#F8FAFC",
+                                color: "#475569",
+                                border: "1px solid #CBD5E1",
+                                borderRadius: "6px",
+                                textDecoration: "none",
+                              }}
+                            >
+                              <ImageIcon size={13} /> Proof Screenshot
+                            </a>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -672,6 +964,16 @@ const AdmissionManagement = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Official Fee Receipt Modal */}
+      {isReceiptModalOpen && receiptAdmission && (
+        <FeeReceiptModal
+          isOpen={isReceiptModalOpen}
+          onClose={() => setIsReceiptModalOpen(false)}
+          admission={receiptAdmission}
+          payment={receiptPayment}
+        />
       )}
     </div>
   );

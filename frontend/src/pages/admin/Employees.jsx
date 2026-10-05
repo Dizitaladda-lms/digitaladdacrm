@@ -830,8 +830,21 @@ const Employees = () => {
                     </small>
                   </label>
                   <label>
+                    Temporary password
+                    <input
+                      type="password"
+                      minLength="8"
+                      autoComplete="new-password"
+                      value={form.password}
+                      onChange={(event) => setForm({ ...form, password: event.target.value })}
+                      placeholder="Minimum 8 characters"
+                      required
+                    />
+                  </label>
+
+                  <label className="full-span">
                     Designation (Choose suggestion or type manually)
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "6px 0" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "6px 0", maxWidth: "100%" }}>
                       {[
                         "Full Stack Developer",
                         "Frontend Developer",
@@ -891,16 +904,6 @@ const Employees = () => {
                       <option value="HR Executive" />
                       <option value="Team Lead" />
                     </datalist>
-                  </label>
-                  <label>
-                    Temporary password
-                    <input
-                      type="password"
-                      minLength="8"
-                      value={form.password}
-                      onChange={(event) => setForm({ ...form, password: event.target.value })}
-                      required
-                    />
                   </label>
                 </div>
               </section>

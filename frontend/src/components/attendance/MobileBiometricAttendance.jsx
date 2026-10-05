@@ -22,6 +22,7 @@ import {
   checkInAttendance,
   checkOutAttendance,
 } from "../../services/attendanceService";
+import { useAuth } from "../../context/AuthContext";
 
 const getGPSLocation = () => {
   return new Promise((resolve) => {
@@ -59,6 +60,7 @@ const getGPSLocation = () => {
 };
 
 const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
+  const { user } = useAuth();
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -155,14 +157,33 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const takeSelfie = () => {
     if (!videoRef.current) return;
+    const video = videoRef.current;
+    const srcW = video.videoWidth || 640;
+    const srcH = video.videoHeight || 480;
+
+    // Scale down to max 480px to keep payload ultra-lightweight (~50KB) and prevent 413 request entity too large
+    const maxDim = 480;
+    let targetW = srcW;
+    let targetH = srcH;
+
+    if (srcW > srcH) {
+      if (srcW > maxDim) {
+        targetW = maxDim;
+        targetH = Math.round((srcH * maxDim) / srcW);
+      }
+    } else {
+      if (srcH > maxDim) {
+        targetH = maxDim;
+        targetW = Math.round((srcW * maxDim) / srcH);
+      }
+    }
+
     const canvas = document.createElement("canvas");
-    const width = videoRef.current.videoWidth || 640;
-    const height = videoRef.current.videoHeight || 480;
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = targetW;
+    canvas.height = targetH;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(videoRef.current, 0, 0, width, height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    ctx.drawImage(video, 0, 0, targetW, targetH);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.70);
     setCapturedPhoto(dataUrl);
 
     // Stop video stream after capture
@@ -200,6 +221,87 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to register face biometric.";
       toast.error(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRegisterFingerprint = async () => {
+    if (!window.isSecureContext) {
+      toast.error("Biometric registration requires a secure connection (localhost or HTTPS).");
+      return;
+    }
+
+    if (!window.PublicKeyCredential) {
+      toast.error("Fingerprint scanner / Biometric is not supported on this device/browser.");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      toast.loading("Touch your fingerprint sensor to register...", { id: "biometric-reg" });
+
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+
+      const userIdStr = String(user?.id || user?.email || "emp-" + Date.now());
+      const userBytes = new TextEncoder().encode(userIdStr);
+
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: challenge,
+          rp: {
+            name: "Dizital Adda Biometric Attendance",
+            id: window.location.hostname,
+          },
+          user: {
+            id: userBytes,
+            name: user?.email || "employee@dizitaladda.com",
+            displayName: user?.full_name || "Employee",
+          },
+          pubKeyCredParams: [
+            { type: "public-key", alg: -7 },  // ES256
+            { type: "public-key", alg: -257 }, // RS256
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform", // Strictly built-in fingerprint / Touch ID / Windows Hello
+            userVerification: "required",        // Strictly requires biometric touch
+            requireResidentKey: false,
+          },
+          timeout: 60000,
+          attestation: "none",
+        },
+      });
+
+      toast.dismiss("biometric-reg");
+
+      if (!credential || !credential.id) {
+        toast.error("Failed to capture fingerprint credential from sensor.");
+        return;
+      }
+
+      await registerBiometricCredential({
+        credentialId: credential.id,
+        publicKey: "WEBAUTHN_PUBLIC_KEY",
+        deviceInfo: navigator.userAgent.includes("Windows")
+          ? "Windows Hello Fingerprint / Biometric"
+          : navigator.userAgent.includes("iPhone")
+          ? "iOS Touch ID / Face ID"
+          : navigator.userAgent.includes("Android")
+          ? "Android Biometric / Fingerprint"
+          : "Device Biometric Authenticator",
+      });
+
+      toast.success("Fingerprint registered successfully and submitted for HR approval! 🖐️");
+      await loadStatus();
+    } catch (err) {
+      toast.dismiss("biometric-reg");
+      console.error("Biometric registration error:", err);
+      if (err.name === "NotAllowedError") {
+        toast.error("Fingerprint registration cancelled or timed out.");
+      } else {
+        toast.error(err.response?.data?.message || err.message || "Failed to register fingerprint.");
+      }
     } finally {
       setActionLoading(false);
     }
@@ -320,8 +422,47 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      setLocationStatus("Fetching exact GPS location...");
 
+      // 1. Mandatory Biometric Hardware Scan: Pop up device fingerprint scanner!
+      let credentialId = null;
+      if (window.isSecureContext && window.PublicKeyCredential) {
+        toast.loading("Touch your fingerprint sensor to verify attendance...", { id: "biometric-auth" });
+        try {
+          const challenge = new Uint8Array(32);
+          window.crypto.getRandomValues(challenge);
+
+          const assertion = await navigator.credentials.get({
+            publicKey: {
+              challenge: challenge,
+              rpId: window.location.hostname,
+              userVerification: "required", // Strictly prompts Windows Hello / Touch ID / Fingerprint sensor!
+              timeout: 60000,
+            },
+          });
+
+          toast.dismiss("biometric-auth");
+          if (!assertion || !assertion.id) {
+            toast.error("Fingerprint scan failed. Please touch the sensor again.");
+            return;
+          }
+          credentialId = assertion.id;
+        } catch (authErr) {
+          toast.dismiss("biometric-auth");
+          console.error("Biometric verification error:", authErr);
+          if (authErr.name === "NotAllowedError") {
+            toast.error("Fingerprint verification cancelled or not detected. You must place your finger on the sensor to mark attendance!");
+          } else {
+            toast.error(`Fingerprint Scan Error: ${authErr.message || "Device fingerprint not verified"}`);
+          }
+          return; // Strictly stop: do NOT mark attendance without fingerprint scan!
+        }
+      } else {
+        toast.error("Biometric fingerprint sensor is not supported on this browser or requires localhost / HTTPS.");
+        return;
+      }
+
+      // 2. Fetch GPS Location
+      setLocationStatus("Fetching exact GPS location...");
       const locationData = await getGPSLocation();
       setLocationStatus(locationData.location_name);
 
@@ -329,15 +470,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         return;
       }
 
-      const credentialId = "WEBAUTHN_CHECKIN_" + Date.now();
+      // 3. Mark check-in in DB
       const res = await checkInAttendance({
-        credentialId,
+        credentialId: credentialId || "WEBAUTHN_VERIFIED_" + Date.now(),
         latitude: locationData.latitude,
         longitude: locationData.longitude,
         location_name: locationData.location_name,
       });
 
-      toast.success(`Attendance marked via Fingerprint! 📍 ${locationData.location_name}`);
+      toast.success(`Fingerprint Verified! Check-In marked at 📍 ${locationData.location_name}`);
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(res?.data);
     } catch (err) {
@@ -351,8 +492,45 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const handleCheckOut = async () => {
     try {
       setActionLoading(true);
-      setLocationStatus("Fetching exact GPS location...");
 
+      // 1. Mandatory Biometric Hardware Scan: Pop up device fingerprint scanner!
+      if (window.isSecureContext && window.PublicKeyCredential) {
+        toast.loading("Touch your fingerprint sensor to verify check-out...", { id: "biometric-auth" });
+        try {
+          const challenge = new Uint8Array(32);
+          window.crypto.getRandomValues(challenge);
+
+          const assertion = await navigator.credentials.get({
+            publicKey: {
+              challenge: challenge,
+              rpId: window.location.hostname,
+              userVerification: "required", // Strictly prompts Windows Hello / Touch ID / Fingerprint sensor!
+              timeout: 60000,
+            },
+          });
+
+          toast.dismiss("biometric-auth");
+          if (!assertion || !assertion.id) {
+            toast.error("Fingerprint scan failed. Please touch the sensor again.");
+            return;
+          }
+        } catch (authErr) {
+          toast.dismiss("biometric-auth");
+          console.error("Biometric verification error:", authErr);
+          if (authErr.name === "NotAllowedError") {
+            toast.error("Fingerprint verification cancelled or not detected. Fingerprint is required to check-out!");
+          } else {
+            toast.error(`Fingerprint Scan Error: ${authErr.message || "Device fingerprint not verified"}`);
+          }
+          return; // Strictly stop!
+        }
+      } else {
+        toast.error("Biometric fingerprint sensor is not supported on this browser or requires localhost / HTTPS.");
+        return;
+      }
+
+      // 2. Fetch GPS Location
+      setLocationStatus("Fetching exact GPS location...");
       const locationData = await getGPSLocation();
       setLocationStatus(locationData.location_name);
 
@@ -360,13 +538,14 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         return;
       }
 
+      // 3. Mark check-out in DB
       const res = await checkOutAttendance({
         latitude: locationData.latitude,
         longitude: locationData.longitude,
         location_name: locationData.location_name,
       });
 
-      toast.success(`Check-out marked via Fingerprint! 📍 ${locationData.location_name}`);
+      toast.success(`Fingerprint Verified! Check-Out marked at 📍 ${locationData.location_name}`);
       await loadStatus();
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to check out.";
@@ -487,26 +666,49 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           {loading ? (
             <div style={{ color: "#94a3b8", fontSize: "14px" }}>Loading Status...</div>
           ) : approvalStatus === "NOT_REGISTERED" || approvalStatus === "REJECTED" ? (
-            <button
-              onClick={() => openCamera("REGISTRATION")}
-              disabled={actionLoading}
-              style={{
-                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                color: "#fff",
-                border: "none",
-                padding: "12px 20px",
-                borderRadius: "10px",
-                fontWeight: "700",
-                fontSize: "14px",
-                cursor: actionLoading ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
-              }}
-            >
-              <Camera size={18} /> Register Face ID (Selfie Photo for HR Approval)
-            </button>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button
+                onClick={handleRegisterFingerprint}
+                disabled={actionLoading}
+                style={{
+                  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                  color: "#fff",
+                  border: "none",
+                  padding: "12px 18px",
+                  borderRadius: "10px",
+                  fontWeight: "700",
+                  fontSize: "13.5px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
+                }}
+              >
+                <Fingerprint size={18} /> Register Fingerprint (Biometric Sensor)
+              </button>
+
+              <button
+                onClick={() => openCamera("REGISTRATION")}
+                disabled={actionLoading}
+                style={{
+                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  color: "#fff",
+                  border: "none",
+                  padding: "12px 18px",
+                  borderRadius: "10px",
+                  fontWeight: "700",
+                  fontSize: "13.5px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
+                }}
+              >
+                <Camera size={18} /> Register Face ID (Selfie Scan)
+              </button>
+            </div>
           ) : approvalStatus === "PENDING_APPROVAL" ? (
             <button
               onClick={() => openCamera("REGISTRATION")}
@@ -571,6 +773,27 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               >
                 <Camera size={18} /> Check-In (Face ID)
               </button>
+
+              <button
+                type="button"
+                onClick={handleRegisterFingerprint}
+                title="Enroll or re-sync fingerprint on this computer or phone"
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid rgba(255, 255, 255, 0.18)",
+                  color: "#93c5fd",
+                  padding: "11px 14px",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Fingerprint size={15} /> Re-Enroll Fingerprint
+              </button>
             </>
           ) : !today?.check_out_time ? (
             <>
@@ -616,6 +839,27 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 }}
               >
                 <Camera size={18} /> Check-Out (Face ID)
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRegisterFingerprint}
+                title="Enroll or re-sync fingerprint on this computer or phone"
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid rgba(255, 255, 255, 0.18)",
+                  color: "#93c5fd",
+                  padding: "11px 14px",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Fingerprint size={15} /> Re-Enroll Fingerprint
               </button>
             </>
           ) : (

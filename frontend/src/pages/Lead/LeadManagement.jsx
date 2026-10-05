@@ -31,7 +31,15 @@ import { useAuth } from "../../context/AuthContext";
 import { exportToCsv } from "../../utils/exportCsv";
 const LeadManagement = () => {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const userRole = String(user?.role || "").toUpperCase();
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isHR = userRole === "HR";
+  const isSalesHead = ["MANAGER", "ADMIN", "SALES_HEAD"].includes(userRole);
+
+  // Sales Department Head manages and assigns leads; Super Admin & HR have read-only tracking + delete permissions
+  const canAssign = isSalesHead && !isSuperAdmin && !isHR;
+  const canDelete = isSuperAdmin || isHR || isSalesHead;
+
   const [outreachModalOpen, setOutreachModalOpen] = useState(false);
   const [outreachChannel, setOutreachChannel] = useState("WHATSAPP");
 
@@ -535,10 +543,11 @@ const openAssignModal = () => {
               setOutreachChannel("SMS");
               setOutreachModalOpen(true);
             }}
-            onAssign={openAssignModal}
+            onAssign={canAssign ? openAssignModal : null}
+            canAssign={canAssign}
             onExport={handleBulkExport}
             onDelete={handleBulkDeleteClick}
-            canDelete={isSuperAdmin}
+            canDelete={canDelete}
             onClear={() => setSelectedLeads([])}
           />
         )
@@ -550,10 +559,11 @@ const openAssignModal = () => {
   selectedLeads={selectedLeads}
   setSelectedLeads={setSelectedLeads}
   onView={handleViewLead}
-  onAssign={handleSingleAssign}
+  onAssign={canAssign ? handleSingleAssign : null}
+  canAssign={canAssign}
   onFollowUp={(lead) => console.log("Follow Up", lead)}
   onDelete={handleDeleteClick}
-  canDelete={isSuperAdmin}
+  canDelete={canDelete}
 />
 
    <LeadPagination

@@ -17,7 +17,8 @@ import {
 } from "../services/attendanceService.js";
 
 export const getMyBiometricStatus = asyncHandler(async (req, res) => {
-  const result = await getMyBiometricStatusService(req.user);
+  const targetDate = req.query.date || null;
+  const result = await getMyBiometricStatusService(req.user, targetDate);
   return res.status(200).json(new ApiResponse(200, result, "Biometric status fetched successfully."));
 });
 

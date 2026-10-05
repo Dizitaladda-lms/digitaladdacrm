@@ -141,7 +141,21 @@ export const rejectBiometricRepository = async (id, reason) => {
 export const findTodayAttendanceRepository = async (employee_id, dateStr) => {
   const targetDate = dateStr || new Date().toISOString().split("T")[0];
   const result = await pool.query(
-    `SELECT * FROM daily_attendance WHERE employee_id = $1 AND date = $2 LIMIT 1;`,
+    `SELECT 
+       a.*,
+       ROUND(
+         COALESCE(
+           a.total_hours, 
+           CASE WHEN a.check_in_time IS NOT NULL 
+             THEN EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0 
+             ELSE 0 
+           END
+         ), 
+         2
+       ) AS live_hours
+     FROM daily_attendance a
+     WHERE a.employee_id = $1 AND a.date = $2 
+     LIMIT 1;`,
     [employee_id, targetDate]
   );
   return result.rows[0];

@@ -16,6 +16,7 @@ const BulkActionBar = ({
   onEmail,
   onSMS,
   onAssign,
+  canAssign = true,
   onExport,
   onDelete,
   canDelete = false,
@@ -70,10 +71,12 @@ const BulkActionBar = ({
           </button>
         )}
 
-        <button className="assign-btn" onClick={onAssign}>
-          <UserCheck size={16} />
-          Assign
-        </button>
+        {canAssign && (
+          <button className="assign-btn" onClick={onAssign}>
+            <UserCheck size={16} />
+            Assign
+          </button>
+        )}
 
         <button className="export-btn" onClick={onExport}>
           <Download size={16} />

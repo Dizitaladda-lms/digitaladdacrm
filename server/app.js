@@ -85,9 +85,10 @@ app.use(cors((req, callback) => {
 }));
 
 app.use(cookieParser());
-app.use(express.json({ verify: (req, _res, buffer) => { req.rawBody = buffer; } }));
+app.use(express.json({ limit: "50mb", verify: (req, _res, buffer) => { req.rawBody = buffer; } }));
 app.use(
   express.urlencoded({
+    limit: "50mb",
     extended: true,
   })
 );

@@ -123,6 +123,7 @@ const LeadTable = ({
 
   onView,
   onAssign,
+  canAssign = true,
   onFollowUp,
   onDelete,
   canDelete = false,
@@ -692,7 +693,7 @@ const LeadTable = ({
               </button>
             )}
 
-            {!lead.assigned_employee && (
+            {canAssign && !lead.assigned_employee && (
               <button
                 onClick={() => onAssign?.(lead)}
                 title="Assign Lead"

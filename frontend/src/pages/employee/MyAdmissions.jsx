@@ -12,10 +12,12 @@ import {
   Filter,
   ArrowRight,
   Download,
+  Receipt,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import CollectFeeModal from "../../components/employee/admissions/CollectFeeModal";
+import FeeReceiptModal from "../../components/admissions/FeeReceiptModal";
 import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDetailsDrawer";
 import { getAdmissions } from "../../services/admissionService";
 import { exportToCsv } from "../../utils/exportCsv";
@@ -43,6 +45,11 @@ const MyAdmissions = () => {
   // Modal & Drawer State
   const [selectedAdmission, setSelectedAdmission] = useState(null);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
+
+  // Fee Receipt Modal State
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [selectedReceiptAdmission, setSelectedReceiptAdmission] = useState(null);
+  const [selectedReceiptPayment, setSelectedReceiptPayment] = useState(null);
 
   const [selectedLead, setSelectedLead] = useState(null);
   const [isLeadDrawerOpen, setIsLeadDrawerOpen] = useState(false);
@@ -656,6 +663,42 @@ const MyAdmissions = () => {
                             <span>Collect Fee</span>
                           </button>
 
+                          {Number(item.paid_fee || 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedReceiptAdmission(item);
+                                setSelectedReceiptPayment({
+                                  receipt_no: item.receipt_no,
+                                  amount: item.paid_fee,
+                                  payment_mode: item.payment_mode || "ONLINE",
+                                  fee_month: "Fee Receipt",
+                                  domain: item.domain,
+                                  father_name: item.father_name,
+                                  payment_date: item.updated_at || item.created_at,
+                                });
+                                setIsReceiptModalOpen(true);
+                              }}
+                              title="View / Print Fee Receipt"
+                              className="crm-btn-secondary"
+                              style={{
+                                height: "32px",
+                                padding: "0 9px",
+                                fontSize: "11px",
+                                backgroundColor: "#EFF6FF",
+                                color: "#1D4ED8",
+                                border: "1px solid #BFDBFE",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                fontWeight: 600,
+                              }}
+                            >
+                              <Receipt size={13} />
+                              <span>Receipt</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleOpenLeadDrawer(item)}
@@ -692,6 +735,16 @@ const MyAdmissions = () => {
         onStatusUpdated={loadAdmissions}
         role="counsellor"
       />
+
+      {/* View / Print Fee Receipt Modal */}
+      {isReceiptModalOpen && selectedReceiptAdmission && (
+        <FeeReceiptModal
+          isOpen={isReceiptModalOpen}
+          onClose={() => setIsReceiptModalOpen(false)}
+          admission={selectedReceiptAdmission}
+          payment={selectedReceiptPayment}
+        />
+      )}
     </div>
   );
 };
