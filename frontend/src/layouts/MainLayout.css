@@ -6,6 +6,10 @@
   min-height: 100vh;
   background-color: #f1f5f9;
   display: flex;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .admin-main {
@@ -13,9 +17,12 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  max-width: 100%;
   margin-left: 280px;
   min-height: 100vh;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* When sidebar is closed / collapsed, main content expands full width */
@@ -26,7 +33,11 @@
 
 .admin-content {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Mobile & Tablet (< 769px): Sidebar collapses into off-canvas drawer */

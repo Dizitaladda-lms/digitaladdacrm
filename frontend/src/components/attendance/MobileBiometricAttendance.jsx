@@ -59,6 +59,23 @@ const getGPSLocation = () => {
   });
 };
 
+const parseCredentialId = (credId) => {
+  if (!credId || typeof credId !== "string") return null;
+  if (credId.startsWith("FACE_ID") || credId.startsWith("WEBAUTHN_")) return null;
+  try {
+    let b64 = credId.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      arr[i] = bin.charCodeAt(i);
+    }
+    return arr;
+  } catch (e) {
+    return null;
+  }
+};
+
 const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const { user } = useAuth();
   const [statusData, setStatusData] = useState(null);
@@ -266,6 +283,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           authenticatorSelection: {
             authenticatorAttachment: "platform", // Strictly built-in fingerprint / Touch ID / Windows Hello
             userVerification: "required",        // Strictly requires biometric touch
+            residentKey: "preferred",
             requireResidentKey: false,
           },
           timeout: 60000,
@@ -279,6 +297,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         toast.error("Failed to capture fingerprint credential from sensor.");
         return;
       }
+
+      try {
+        localStorage.setItem("dizitaladda_biometric_cred_id", credential.id);
+      } catch (e) {}
 
       await registerBiometricCredential({
         credentialId: credential.id,
@@ -431,14 +453,30 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           const challenge = new Uint8Array(32);
           window.crypto.getRandomValues(challenge);
 
-          const assertion = await navigator.credentials.get({
+          const storedCredId = statusData?.credential_id || localStorage.getItem("dizitaladda_biometric_cred_id");
+          const credBuffer = parseCredentialId(storedCredId);
+
+          const getOptions = {
             publicKey: {
               challenge: challenge,
               rpId: window.location.hostname,
               userVerification: "required", // Strictly prompts Windows Hello / Touch ID / Fingerprint sensor!
               timeout: 60000,
+              ...(credBuffer
+                ? {
+                    allowCredentials: [
+                      {
+                        type: "public-key",
+                        id: credBuffer,
+                        transports: ["internal"],
+                      },
+                    ],
+                  }
+                : {}),
             },
-          });
+          };
+
+          const assertion = await navigator.credentials.get(getOptions);
 
           toast.dismiss("biometric-auth");
           if (!assertion || !assertion.id) {
@@ -500,14 +538,30 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           const challenge = new Uint8Array(32);
           window.crypto.getRandomValues(challenge);
 
-          const assertion = await navigator.credentials.get({
+          const storedCredId = statusData?.credential_id || localStorage.getItem("dizitaladda_biometric_cred_id");
+          const credBuffer = parseCredentialId(storedCredId);
+
+          const getOptions = {
             publicKey: {
               challenge: challenge,
               rpId: window.location.hostname,
               userVerification: "required", // Strictly prompts Windows Hello / Touch ID / Fingerprint sensor!
               timeout: 60000,
+              ...(credBuffer
+                ? {
+                    allowCredentials: [
+                      {
+                        type: "public-key",
+                        id: credBuffer,
+                        transports: ["internal"],
+                      },
+                    ],
+                  }
+                : {}),
             },
-          });
+          };
+
+          const assertion = await navigator.credentials.get(getOptions);
 
           toast.dismiss("biometric-auth");
           if (!assertion || !assertion.id) {
@@ -568,6 +622,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         marginBottom: "24px",
         boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.25)",
         position: "relative",
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>

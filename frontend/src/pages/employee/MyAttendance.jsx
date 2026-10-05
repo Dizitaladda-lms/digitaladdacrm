@@ -50,7 +50,7 @@ const MyAttendance = () => {
   }, [pagination.page]);
 
   return (
-    <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>
+    <div style={{ maxWidth: "1200px", margin: "0 auto", width: "100%", boxSizing: "border-box", overflowX: "hidden", fontFamily: "Inter, sans-serif" }}>
       {/* Mobile Attendance Check-in Widget */}
       <MobileBiometricAttendance onCheckInSuccess={fetchHistory} />
 

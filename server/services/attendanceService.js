@@ -64,6 +64,7 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
   return {
     employee_id: employee.id,
     is_registered: !!biometric,
+    credential_id: biometric ? biometric.credential_id : null,
     is_locked: biometric ? biometric.is_locked : false,
     approval_status: biometric ? (biometric.approval_status || "APPROVED") : "NOT_REGISTERED",
     face_image_url: biometric ? biometric.face_image_url : null,
