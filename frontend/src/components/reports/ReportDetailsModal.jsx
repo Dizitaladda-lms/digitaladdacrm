@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { requestReportRevision } from "../../services/taskService";
+import { formatWorkHours } from "../../utils/shiftTiming";
 import {
   X,
   Calendar,
@@ -64,8 +65,8 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
               <span className="meta-tag">
                 <Calendar size={13} /> {report.report_date}
               </span>
-              <span className="meta-tag">
-                <Clock size={13} /> {report.total_hours_worked || 8} Hours
+              <span className="meta-tag" title={`${Number(report.total_hours_worked || 0).toFixed(2)} decimal hrs`}>
+                <Clock size={13} /> {formatWorkHours(report.total_hours_worked)}
               </span>
               <span className={`status-badge status-${(report.status || "SUBMITTED").toLowerCase()}`}>
                 {report.status === "SUBMITTED"

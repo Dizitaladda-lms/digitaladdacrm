@@ -26,6 +26,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { changePassword } from "../../services/authService";
 import { getMyReportToday, getMyReportsHistory } from "../../services/reportService";
+import { formatWorkHours } from "../../utils/shiftTiming";
 import axiosInstance from "../../api/axiosInstance";
 import "./Profile.css";
 
@@ -586,8 +587,8 @@ const Profile = () => {
                 <Clock size={16} />
                 <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>Logged Work Hours</span>
               </div>
-              <strong style={{ fontSize: "24px", color: "#0F172A" }}>
-                {loadingOps ? "—" : `${opsData.totalHours.toFixed(1)} hrs`}
+              <strong style={{ fontSize: "24px", color: "#0F172A" }} title={`${opsData.totalHours.toFixed(1)} hrs`}>
+                {loadingOps ? "—" : formatWorkHours(opsData.totalHours)}
               </strong>
             </div>
 

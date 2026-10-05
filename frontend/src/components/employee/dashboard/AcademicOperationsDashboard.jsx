@@ -15,6 +15,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { getMyReportToday, getMyReportsHistory } from "../../../services/reportService";
+import { getBiometricStatus } from "../../../services/attendanceService";
+import { formatWorkHours } from "../../../utils/shiftTiming";
 import { useAuth } from "../../../context/AuthContext";
 import "./AcademicOperationsDashboard.css";
 
@@ -23,15 +25,17 @@ const AcademicOperationsDashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [todayReport, setTodayReport] = useState(null);
+  const [todayAttendance, setTodayAttendance] = useState(null);
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
     const loadDashboardData = async () => {
       setLoading(true);
       try {
-        const [todayRes, historyRes] = await Promise.all([
+        const [todayRes, historyRes, attRes] = await Promise.all([
           getMyReportToday().catch(() => null),
           getMyReportsHistory({ limit: 10 }).catch(() => null),
+          getBiometricStatus().catch(() => null),
         ]);
 
         if (todayRes?.data) {
@@ -39,6 +43,9 @@ const AcademicOperationsDashboard = () => {
         }
         if (historyRes?.data?.reports) {
           setHistory(historyRes.data.reports);
+        }
+        if (attRes?.data?.today_attendance || attRes?.today_attendance) {
+          setTodayAttendance(attRes?.data?.today_attendance || attRes?.today_attendance);
         }
       } catch (err) {
         console.error("Failed to load operations dashboard data:", err);
@@ -55,6 +62,14 @@ const AcademicOperationsDashboard = () => {
   const totalClasses = history.reduce((sum, r) => sum + (r.classes?.length || (r.took_class ? 1 : 0)), 0);
   const approvedCount = history.filter((r) => r.status === "HR_APPROVED").length;
   const pendingCount = history.filter((r) => r.status === "SUBMITTED" || r.status === "TL_REVIEWED").length;
+
+  // Strict attendance-based live hours for today
+  const todayLiveHours = Number(
+    todayAttendance?.live_hours ??
+    todayAttendance?.total_hours ??
+    todayReport?.total_hours_worked ??
+    0
+  );
 
   const isTrainer = user?.role === "TRAINER";
 
@@ -113,8 +128,8 @@ const AcademicOperationsDashboard = () => {
           </div>
           <div className="ops-kpi-info">
             <span className="ops-kpi-label">Logged Hours</span>
-            <span className="ops-kpi-value">{totalHours.toFixed(1)} hrs</span>
-            <span className="ops-kpi-hint">Past recent reports</span>
+            <span className="ops-kpi-value">{formatWorkHours(totalHours)}</span>
+            <span className="ops-kpi-hint">Attendance verified</span>
           </div>
         </div>
 
@@ -174,7 +189,9 @@ const AcademicOperationsDashboard = () => {
             <div className="today-details-grid">
               <div>
                 <span className="detail-label">Hours Logged</span>
-                <span className="detail-value">{todayReport.total_hours_worked || 8} hrs</span>
+                <span className="detail-value" title={`${todayLiveHours.toFixed(2)} decimal hrs`}>
+                  {formatWorkHours(todayLiveHours)}
+                </span>
               </div>
               <div>
                 <span className="detail-label">Classes Conducted</span>
@@ -335,8 +352,8 @@ const AcademicOperationsDashboard = () => {
                       <p className="report-item-tasks">{rep.tasks_summary}</p>
 
                       <div className="report-item-footer">
-                        <span className="footer-metric">
-                          <Clock size={13} /> {rep.total_hours_worked || 8} hrs
+                        <span className="footer-metric" title={`${Number(rep.total_hours_worked || 0).toFixed(2)} decimal hrs`}>
+                          <Clock size={13} /> {formatWorkHours(rep.total_hours_worked)}
                         </span>
                         {rep.took_class && (
                           <span className="footer-metric text-blue-600">

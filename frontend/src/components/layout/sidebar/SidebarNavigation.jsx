@@ -9,12 +9,14 @@ import {
   FileBarChart2,
   UserCircle,
   CalendarCheck,
+  CalendarDays,
   CheckSquare,
   Globe,
   Fingerprint,
   ShieldCheck,
   TrendingUp,
   ClipboardList,
+  Network,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -44,8 +46,11 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
+      { title: "Employees Roster", icon: CalendarDays, path: "/employees-roster" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
+      { title: "My Monthly Roster", icon: CalendarDays, path: "/my-roster" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Organization Tree", icon: Network, path: "/org-tree" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
@@ -58,7 +63,9 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
+      { title: "Employees Roster", icon: CalendarDays, path: "/employees-roster" },
       { title: "Employees Management", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Organization Tree", icon: Network, path: "/org-tree" },
       { title: "Operations & HR Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Company Work Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Call Recording", icon: Radio, path: "/telephony" },
@@ -70,8 +77,10 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Counsellors Overview", icon: TrendingUp, path: "/sales-department-report" },
+      { title: "Employees Roster", icon: CalendarDays, path: "/employees-roster" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
+      { title: "My Monthly Roster", icon: CalendarDays, path: "/my-roster" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
     ];
@@ -81,8 +90,11 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
+      { title: "Employees Roster", icon: CalendarDays, path: "/employees-roster" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
+      { title: "My Monthly Roster", icon: CalendarDays, path: "/my-roster" },
       { title: "Employees", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Organization Tree", icon: Network, path: "/org-tree" },
       { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
     ];
@@ -93,8 +105,9 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
       { title: "My Leads", icon: UserCircle, path: "/my-leads" },
-      { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
+      { title: "My Monthly Roster", icon: CalendarDays, path: "/my-roster" },
+      { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
     ];
   }
 

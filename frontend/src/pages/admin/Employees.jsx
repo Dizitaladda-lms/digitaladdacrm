@@ -14,6 +14,8 @@ import {
   Check,
   Trash2,
   Pencil,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -34,6 +36,7 @@ import {
   setEmployeeDomains,
 } from "../../services/leadRoutingService";
 import EmployeePerformanceModal from "../../components/admin/employees/EmployeePerformanceModal";
+import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
 import "../../styles/LeadManagement/LeadHeader.css";
 import "../../styles/LeadManagement/LeadStats.css";
 import "./Employees.css";
@@ -48,6 +51,10 @@ const initialForm = {
   role: "COUNSELLOR",
   reporting_manager_id: "",
   password: "",
+  shift_timing_type: "DEFAULT",
+  shift_start_time: "10:00",
+  shift_end_time: "18:00",
+  custom_shift_timings: null,
   domains: [],
   courses: "",
   auto_assign: false,
@@ -160,11 +167,86 @@ const Employees = () => {
 
   const counsellors = employees.filter((employee) => employee.role === "COUNSELLOR");
 
+  const [attendanceFilter, setAttendanceFilter] = useState("ALL"); // "ALL" | "PRESENT" | "ABSENT"
+
+  const isEmployeeMarkedAttendance = useCallback((emp) => {
+    return Boolean(
+      emp.today_check_in_time ||
+      emp.today_attendance_status === "PRESENT" ||
+      emp.today_attendance_status === "LATE" ||
+      emp.today_attendance_status === "HALF_DAY"
+    );
+  }, []);
+
+  const presentEmployees = useMemo(
+    () => employees.filter(isEmployeeMarkedAttendance),
+    [employees, isEmployeeMarkedAttendance]
+  );
+
+  const absentEmployees = useMemo(
+    () => employees.filter((emp) => !isEmployeeMarkedAttendance(emp)),
+    [employees, isEmployeeMarkedAttendance]
+  );
+
+  const displayedEmployees = useMemo(() => {
+    if (attendanceFilter === "PRESENT") {
+      return presentEmployees;
+    }
+    if (attendanceFilter === "ABSENT") {
+      return absentEmployees;
+    }
+    return employees;
+  }, [employees, attendanceFilter, presentEmployees, absentEmployees]);
+
   const cards = [
-    ["Total Employees", employees.length, "From database", Users, "blue"],
-    ["Active Counsellors", counsellors.filter((item) => item.status === "ACTIVE").length, "Available for assignments", UserCheck, "green"],
-    ["Auto-routing Enabled", routedIds.size, "Mapped to domain & course", Route, "purple"],
-    ["Manager Admins", employees.filter((item) => item.role === "MANAGER").length, "Operational management access", UserCog, "orange"],
+    {
+      id: "ALL",
+      title: "Total Employees",
+      value: employees.length,
+      subtitle: attendanceFilter === "ALL" ? "Showing all staff" : "Click to view all",
+      Icon: Users,
+      color: "blue",
+      active: attendanceFilter === "ALL",
+      onClick: () => setAttendanceFilter("ALL"),
+    },
+    {
+      id: "PRESENT",
+      title: "Attendance Marked",
+      value: presentEmployees.length,
+      subtitle: attendanceFilter === "PRESENT" ? "● Active filter" : "Present today (Click to view)",
+      Icon: CheckCircle2,
+      color: "green",
+      active: attendanceFilter === "PRESENT",
+      onClick: () => setAttendanceFilter((prev) => (prev === "PRESENT" ? "ALL" : "PRESENT")),
+    },
+    {
+      id: "ABSENT",
+      title: "Attendance Not Marked",
+      value: absentEmployees.length,
+      subtitle: attendanceFilter === "ABSENT" ? "● Active filter" : "Not checked in (Click to view)",
+      Icon: AlertCircle,
+      color: "red",
+      active: attendanceFilter === "ABSENT",
+      onClick: () => setAttendanceFilter((prev) => (prev === "ABSENT" ? "ALL" : "ABSENT")),
+    },
+    {
+      id: "COUNSELLORS",
+      title: "Active Counsellors",
+      value: counsellors.filter((item) => item.status === "ACTIVE").length,
+      subtitle: "Available for leads",
+      Icon: UserCheck,
+      color: "purple",
+      active: false,
+    },
+    {
+      id: "MANAGERS",
+      title: "Manager Admins",
+      value: employees.filter((item) => item.role === "MANAGER").length,
+      subtitle: "Operational access",
+      Icon: UserCog,
+      color: "orange",
+      active: false,
+    },
   ];
 
   const toggleDomain = (id) =>
@@ -247,6 +329,15 @@ const Employees = () => {
 
   const openEditModal = (employee) => {
     setEditingEmployee(employee);
+    let parsedCustomTimings = null;
+    try {
+      parsedCustomTimings = typeof employee.custom_shift_timings === "string"
+        ? JSON.parse(employee.custom_shift_timings)
+        : employee.custom_shift_timings;
+    } catch (e) {
+      parsedCustomTimings = null;
+    }
+
     setEditForm({
       full_name: employee.full_name || "",
       employee_code: employee.employee_code || "",
@@ -257,6 +348,10 @@ const Employees = () => {
       designation: employee.designation || "",
       status: employee.status || "ACTIVE",
       reporting_manager_id: employee.reporting_manager_id || "",
+      shift_timing_type: employee.shift_timing_type || "DEFAULT",
+      shift_start_time: employee.shift_start_time || "10:00",
+      shift_end_time: employee.shift_end_time || "18:00",
+      custom_shift_timings: parsedCustomTimings || null,
     });
     setEditModalOpen(true);
   };
@@ -279,12 +374,16 @@ const Employees = () => {
         designation: editForm.designation,
         status: editForm.status,
         reporting_manager_id: editForm.reporting_manager_id ? Number(editForm.reporting_manager_id) : null,
+        shift_timing_type: editForm.shift_timing_type || "DEFAULT",
+        shift_start_time: editForm.shift_start_time || "10:00",
+        shift_end_time: editForm.shift_end_time || "18:00",
+        custom_shift_timings: editForm.custom_shift_timings || null,
       };
       if (editForm.password && editForm.password.trim()) {
         payload.password = editForm.password.trim();
       }
       await updateEmployee(editingEmployee.id, payload);
-      toast.success(`${editingEmployee.full_name}'s credentials, role, and profile updated successfully!`);
+      toast.success(`${editingEmployee.full_name}'s credentials, shift timing, and profile updated successfully!`);
       setEditModalOpen(false);
       await load();
     } catch (err) {
@@ -339,6 +438,10 @@ const Employees = () => {
         password: form.password,
         employment_type: form.role === "INTERN" ? "INTERN" : "FULL_TIME",
         status: "ACTIVE",
+        shift_timing_type: form.shift_timing_type || "DEFAULT",
+        shift_start_time: form.shift_start_time || "10:00",
+        shift_end_time: form.shift_end_time || "18:00",
+        custom_shift_timings: form.custom_shift_timings || null,
       };
       if (String(user?.role || "").toUpperCase() === "HR") {
         employeePayload.routing_assignments = form.domains.map((domainId) => ({
@@ -504,36 +607,152 @@ const Employees = () => {
         </section>
       )}
 
-      {/* Top 4 Stat Cards */}
+      {/* Top Stat Cards */}
       <section className="lead-stats employee-stats">
-        {cards.map(([title, value, subtitle, Icon, color]) => (
-          <article key={title} className={`lead-stat-card ${color}`}>
-            <div className="lead-stat-top">
-              <div>
-                <span>{title}</span>
-                <h2>{loading ? "—" : Number(value || 0).toLocaleString("en-IN")}</h2>
-                <p>{subtitle}</p>
+        {cards.map((card) => {
+          const { id, title, value, subtitle, Icon, color, active, onClick } = card;
+          const isFilterCard = id === "PRESENT" || id === "ABSENT";
+          return (
+            <article
+              key={title}
+              className={`lead-stat-card ${color}`}
+              onClick={onClick}
+              style={{
+                cursor: onClick ? "pointer" : "default",
+                transition: "all 0.18s ease",
+                border:
+                  active && isFilterCard
+                    ? id === "PRESENT"
+                      ? "2px solid #16a34a"
+                      : "2px solid #dc2626"
+                    : undefined,
+                boxShadow:
+                  active && isFilterCard
+                    ? id === "PRESENT"
+                      ? "0 0 0 3px rgba(22, 163, 74, 0.2), 0 6px 18px rgba(22, 163, 74, 0.15)"
+                      : "0 0 0 3px rgba(220, 38, 38, 0.2), 0 6px 18px rgba(220, 38, 38, 0.15)"
+                    : undefined,
+                transform: active && isFilterCard ? "translateY(-2px)" : undefined,
+              }}
+              title={onClick ? `Click to filter: ${title}` : undefined}
+            >
+              <div className="lead-stat-top">
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>{title}</span>
+                    {active && isFilterCard && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: "8px",
+                          background: id === "PRESENT" ? "#dcfce7" : "#fee2e2",
+                          color: id === "PRESENT" ? "#15803d" : "#b91c1c",
+                        }}
+                      >
+                        FILTERED
+                      </span>
+                    )}
+                  </div>
+                  <h2>{loading ? "—" : Number(value || 0).toLocaleString("en-IN")}</h2>
+                  <p>{subtitle}</p>
+                </div>
+                <div className="lead-stat-icon">
+                  <Icon size={24} />
+                </div>
               </div>
-              <div className="lead-stat-icon">
-                <Icon size={24} />
-              </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </section>
 
       {/* Employee Data Table */}
       <section className="employee-table-card">
         <div className="employee-list-heading">
           <div>
-            <h2>Employee Directory & Performance</h2>
-            <p>View counselling workload, assigned domains, and live conversion statistics.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <h2>Employee Directory & Performance</h2>
+              {attendanceFilter !== "ALL" && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "4px 10px",
+                    borderRadius: "14px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    backgroundColor: attendanceFilter === "PRESENT" ? "#DCFCE7" : "#FEE2E2",
+                    color: attendanceFilter === "PRESENT" ? "#15803D" : "#B91C1C",
+                    border: attendanceFilter === "PRESENT" ? "1px solid #86EFAC" : "1px solid #FECACA",
+                  }}
+                >
+                  {attendanceFilter === "PRESENT" ? (
+                    <>
+                      <CheckCircle2 size={13} /> Showing Attendance Marked ({presentEmployees.length})
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={13} /> Showing Attendance Not Marked ({absentEmployees.length})
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceFilter("ALL")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                      marginLeft: "4px",
+                      color: "inherit",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                    title="Clear filter"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+            </div>
+            <p>
+              {attendanceFilter === "PRESENT"
+                ? `Showing ${presentEmployees.length} employees who marked attendance today.`
+                : attendanceFilter === "ABSENT"
+                ? `Showing ${absentEmployees.length} employees who have NOT marked attendance today.`
+                : "View counselling workload, assigned domains, and live conversion statistics."}
+            </p>
           </div>
-          {canAddEmployee && (
-            <button type="button" onClick={() => setFormOpen(true)}>
-              <Plus size={17} /> Add Employee
-            </button>
-          )}
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {attendanceFilter !== "ALL" && (
+              <button
+                type="button"
+                onClick={() => setAttendanceFilter("ALL")}
+                style={{
+                  background: "#f1f5f9",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  color: "#334155",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <X size={14} /> Clear Filter ({employees.length} Total)
+              </button>
+            )}
+            {canAddEmployee && (
+              <button type="button" onClick={() => setFormOpen(true)}>
+                <Plus size={17} /> Add Employee
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="employee-table-wrap">
@@ -550,7 +769,40 @@ const Employees = () => {
               </tr>
             </thead>
             <tbody>
-              {employees.map((employee) => (
+              {displayedEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
+                    <AlertCircle size={32} style={{ color: "#94a3b8", margin: "0 auto 8px auto", display: "block" }} />
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: "14px", color: "#0f172a" }}>
+                      {attendanceFilter === "PRESENT"
+                        ? "No employees have marked attendance today."
+                        : attendanceFilter === "ABSENT"
+                        ? "All employees have marked attendance today!"
+                        : "No employee records found."}
+                    </p>
+                    {attendanceFilter !== "ALL" && (
+                      <button
+                        type="button"
+                        onClick={() => setAttendanceFilter("ALL")}
+                        style={{
+                          marginTop: "12px",
+                          background: "#2563eb",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "6px 14px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Reset Filter & View All ({employees.length})
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                displayedEmployees.map((employee) => (
                 <tr key={employee.id}>
                   <td>
                     <div className="employee-identity">
@@ -601,6 +853,27 @@ const Employees = () => {
                         {employee.role || "COUNSELLOR"}
                       </span>
                       <small style={{ color: "#64748B", fontSize: "11px" }}>{employee.designation}</small>
+                      {employee.shift_timing_type === "CUSTOM" && (
+                        <span
+                          title={`Custom Shift: ${format12hTime(employee.shift_start_time || "10:00")} - ${format12hTime(employee.shift_end_time || "18:00")}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "2px",
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            backgroundColor: "#F0FDF4",
+                            color: "#15803D",
+                            border: "1px solid #BBF7D0",
+                            borderRadius: "10px",
+                            padding: "1px 6px",
+                            width: "fit-content",
+                            marginTop: "2px",
+                          }}
+                        >
+                          ⏱️ {format12hTime(employee.shift_start_time || "10:00")} - {format12hTime(employee.shift_end_time || "18:00")}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td>
@@ -609,21 +882,72 @@ const Employees = () => {
                     </span>
                   </td>
                   <td>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        padding: "3px 8px",
-                        borderRadius: "12px",
-                        backgroundColor: employee.today_attendance_status === "PRESENT" ? "#DCFCE7" : "#FEE2E2",
-                        color: employee.today_attendance_status === "PRESENT" ? "#15803D" : "#B91C1C",
-                      }}
-                    >
-                      {employee.today_attendance_status === "PRESENT"
-                        ? `Present (${employee.today_hours || 0} hrs)`
-                        : "Not Checked In"}
-                    </span>
+                    {(() => {
+                      const hasAttended = isEmployeeMarkedAttendance(employee);
+                      if (!hasAttended) {
+                        return (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "3px 8px",
+                              borderRadius: "12px",
+                              backgroundColor: "#FEE2E2",
+                              color: "#B91C1C",
+                              border: "1px solid #FECACA",
+                            }}
+                          >
+                            Not Checked In
+                          </span>
+                        );
+                      }
+
+                      const lateInfo = employee.today_check_in_time
+                        ? calculateLateArrival(employee.today_check_in_time, employee)
+                        : null;
+                      const isLate = employee.today_attendance_status === "LATE" || (lateInfo && lateInfo.isLate);
+
+                      const totalMins = Math.round(Number(employee.today_hours || 0) * 60);
+                      const h = Math.floor(totalMins / 60);
+                      const m = totalMins % 60;
+                      const formattedDuration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "3px 8px",
+                              borderRadius: "12px",
+                              backgroundColor: isLate ? "#FEF3C7" : "#DCFCE7",
+                              color: isLate ? "#B45309" : "#15803D",
+                              border: isLate ? "1px solid #FDE68A" : "1px solid #BBF7D0",
+                              width: "fit-content",
+                            }}
+                          >
+                            {totalMins > 0 ? `Present (${formattedDuration})` : "Present"}
+                          </span>
+                          {isLate && lateInfo?.formattedLate && (
+                            <span
+                              title={`Shift: ${lateInfo.shiftLabel} • Expected: ${lateInfo.expectedLabel}`}
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                color: "#B45309",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "2px",
+                              }}
+                            >
+                              ⚠️ Late by {lateInfo.formattedLate}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td>
                     <div className="domain-tags">
@@ -727,7 +1051,7 @@ const Employees = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
 
@@ -932,6 +1256,61 @@ const Employees = () => {
                     </datalist>
                   </label>
                 </div>
+
+                <section style={{ marginTop: "16px", borderTop: "1px solid #E2E8F0", paddingTop: "14px" }}>
+                  <h4 style={{ margin: 0, fontSize: "13px", fontWeight: "700", color: "#1E293B", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>⏰</span> Office Shift & Working Hours
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", marginBottom: "12px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
+                      <input
+                        type="radio"
+                        name="create_shift_timing_type"
+                        value="DEFAULT"
+                        checked={form.shift_timing_type !== "CUSTOM"}
+                        onChange={() => setForm({ ...form, shift_timing_type: "DEFAULT" })}
+                      />
+                      Standard Office Timing (Mon-Fri 10:00 AM-6:00 PM, Sat 9:30 AM-5:30 PM, Sun 9:30 AM-2:00 PM)
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12.5px", fontWeight: 600, color: "#2563EB" }}>
+                      <input
+                        type="radio"
+                        name="create_shift_timing_type"
+                        value="CUSTOM"
+                        checked={form.shift_timing_type === "CUSTOM"}
+                        onChange={() => setForm({ ...form, shift_timing_type: "CUSTOM" })}
+                      />
+                      Custom Shift Timing (Early / Flexible Shift)
+                    </label>
+                  </div>
+
+                  {form.shift_timing_type === "CUSTOM" && (
+                    <div style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "12px", marginBottom: "10px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                          Shift Start Time *
+                          <input
+                            type="time"
+                            value={form.shift_start_time || "10:00"}
+                            onChange={(e) => setForm({ ...form, shift_start_time: e.target.value })}
+                            style={{ marginTop: "4px", width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #CBD5E1" }}
+                          />
+                        </label>
+
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                          Shift End Time *
+                          <input
+                            type="time"
+                            value={form.shift_end_time || "18:00"}
+                            onChange={(e) => setForm({ ...form, shift_end_time: e.target.value })}
+                            style={{ marginTop: "4px", width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #CBD5E1" }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </section>
               </section>
 
               <section className="routing-section">
@@ -1279,6 +1658,117 @@ const Employees = () => {
                     </datalist>
                   </label>
                 </div>
+
+                <section style={{ marginTop: "20px", borderTop: "1px solid #E2E8F0", paddingTop: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#1E293B", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>⏰</span> Office Shift & Working Hours
+                      </h4>
+                      <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#64748B" }}>
+                        Configure this employee's shift schedule. Attendance late tracking will strictly evaluate against these timings.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "14px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: "#334155" }}>
+                      <input
+                        type="radio"
+                        name="shift_timing_type"
+                        value="DEFAULT"
+                        checked={editForm.shift_timing_type !== "CUSTOM"}
+                        onChange={() => setEditForm({ ...editForm, shift_timing_type: "DEFAULT" })}
+                      />
+                      Standard Office Timing (Mon-Fri 10:00 AM-6:00 PM, Sat 9:30 AM-5:30 PM, Sun 9:30 AM-2:00 PM)
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: "#2563EB" }}>
+                      <input
+                        type="radio"
+                        name="shift_timing_type"
+                        value="CUSTOM"
+                        checked={editForm.shift_timing_type === "CUSTOM"}
+                        onChange={() => setEditForm({ ...editForm, shift_timing_type: "CUSTOM" })}
+                      />
+                      Custom Shift Timing (Early / Flexible Shift for this employee)
+                    </label>
+                  </div>
+
+                  {editForm.shift_timing_type === "CUSTOM" && (
+                    <div style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "14px", marginBottom: "8px" }}>
+                      <div style={{ marginBottom: "12px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          Quick Shift Presets:
+                        </span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                          {[
+                            { label: "🌅 Early Shift (09:00 AM - 05:00 PM)", start: "09:00", end: "17:00" },
+                            { label: "🌤️ Morning Shift (09:30 AM - 05:30 PM)", start: "09:30", end: "17:30" },
+                            { label: "🏢 Standard Shift (10:00 AM - 06:00 PM)", start: "10:00", end: "18:00" },
+                            { label: "🌆 Evening Shift (11:00 AM - 07:00 PM)", start: "11:00", end: "19:00" },
+                          ].map((preset) => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => setEditForm({ ...editForm, shift_start_time: preset.start, shift_end_time: preset.end })}
+                              style={{
+                                fontSize: "12px",
+                                padding: "4px 10px",
+                                borderRadius: "8px",
+                                border: (editForm.shift_start_time === preset.start && editForm.shift_end_time === preset.end)
+                                  ? "1.5px solid #2563EB"
+                                  : "1px solid #CBD5E1",
+                                backgroundColor: (editForm.shift_start_time === preset.start && editForm.shift_end_time === preset.end)
+                                  ? "#EFF6FF"
+                                  : "#FFFFFF",
+                                color: (editForm.shift_start_time === preset.start && editForm.shift_end_time === preset.end)
+                                  ? "#1D4ED8"
+                                  : "#334155",
+                                cursor: "pointer",
+                                fontWeight: (editForm.shift_start_time === preset.start && editForm.shift_end_time === preset.end)
+                                  ? "700"
+                                  : "500",
+                              }}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                          Shift Start Time *
+                          <input
+                            type="time"
+                            value={editForm.shift_start_time || "10:00"}
+                            onChange={(e) => setEditForm({ ...editForm, shift_start_time: e.target.value })}
+                            required={editForm.shift_timing_type === "CUSTOM"}
+                            style={{ marginTop: "4px", width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1" }}
+                          />
+                          <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                            Expected arrival: {format12hTime(editForm.shift_start_time || "10:00")}. Check-in after this is marked <strong>LATE</strong>.
+                          </small>
+                        </label>
+
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                          Shift End Time *
+                          <input
+                            type="time"
+                            value={editForm.shift_end_time || "18:00"}
+                            onChange={(e) => setEditForm({ ...editForm, shift_end_time: e.target.value })}
+                            required={editForm.shift_timing_type === "CUSTOM"}
+                            style={{ marginTop: "4px", width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1" }}
+                          />
+                          <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                            Expected departure: {format12hTime(editForm.shift_end_time || "18:00")}.
+                          </small>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </section>
               </section>
             </div>
 
@@ -1288,7 +1778,7 @@ const Employees = () => {
               </button>
               <button type="submit" disabled={editSaving}>
                 {editSaving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}
-                {editSaving ? "Saving Changes..." : "Update Department & Role"}
+                {editSaving ? "Saving Changes..." : "Save Changes"}
               </button>
             </footer>
           </form>

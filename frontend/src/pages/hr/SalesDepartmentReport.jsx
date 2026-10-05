@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import { getTeamReports, reviewReportAsHR } from "../../services/reportService";
 import { useAuth } from "../../context/AuthContext";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
+import { formatWorkHours } from "../../utils/shiftTiming";
 import EmployeePerformanceModal from "../../components/admin/employees/EmployeePerformanceModal";
 
 const SalesDepartmentReport = () => {
@@ -655,9 +656,9 @@ const SalesDepartmentReport = () => {
                         {row.role_type || "COUNSELLOR"} ({row.department_name || "Sales"})
                       </span>
                     </td>
-                    <td style={{ padding: "14px 18px", fontWeight: "700", color: "#2563eb" }}>
+                    <td style={{ padding: "14px 18px", fontWeight: "700", color: "#2563eb" }} title={`${Number(row.total_hours_worked || 0).toFixed(2)} decimal hrs`}>
                       <Clock size={13} style={{ display: "inline", marginRight: "4px" }} />
-                      {row.total_hours_worked || 8} hrs
+                      {formatWorkHours(row.total_hours_worked)}
                     </td>
                     <td style={{ padding: "14px 18px", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {row.work_title || row.tasks_summary}

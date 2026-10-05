@@ -16,6 +16,7 @@ const MyPerformance = lazy(() => import("../pages/employee/MyPerformance"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const MyAssignedWork = lazy(() => import("../pages/employee/MyAssignedWork"));
+const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
 
 import UnderMaintenance from "../pages/UnderMaintenance";
 import { IS_MAINTENANCE_MODE } from "../config/maintenanceConfig";
@@ -47,8 +48,10 @@ const EmployeeRoutes = () => {
           <Route index element={<Navigate to={IS_MAINTENANCE_MODE ? "my-attendance" : "dashboard"} replace />} />
           <Route path="dashboard" element={renderEmpPage(Dashboard)} />
           
-          {/* Active Attendance Route */}
+          {/* Active Attendance & Monthly Roster Routes */}
           <Route path="my-attendance" element={<MyAttendance />} />
+          <Route path="roster" element={<MyRoster />} />
+          <Route path="my-roster" element={<MyRoster />} />
 
           <Route path="daily-report" element={renderEmpPage(MyDailyReport)} />
           <Route path="assigned-work" element={renderEmpPage(MyAssignedWork)} />

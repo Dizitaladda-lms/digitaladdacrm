@@ -23,6 +23,7 @@ import {
   checkOutAttendance,
 } from "../../services/attendanceService";
 import { useAuth } from "../../context/AuthContext";
+import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
 
 const getGPSLocation = () => {
   return new Promise((resolve) => {
@@ -715,7 +716,9 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               : "Mark Daily Mobile Attendance"}
           </h2>
           <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>
-            Mark Check-In or Check-Out using Fingerprint Biometric or Face ID Selfie Scan.
+            {statusData?.shift_timing_type === "CUSTOM"
+              ? `Your Assigned Shift: ${format12hTime(statusData.shift_start_time || "10:00")} - ${format12hTime(statusData.shift_end_time || "18:00")} (Custom Schedule)`
+              : "Office Timings: Mon-Fri (10:00 AM - 6:00 PM), Sat (9:30 AM - 5:30 PM), Sun (9:30 AM - 2:00 PM)"}
           </p>
         </div>
 
@@ -965,11 +968,52 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             color: "#cbd5e1",
           }}
         >
-          <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
             <strong style={{ color: "#94a3b8" }}>Check-In Time:</strong>{" "}
             <span style={{ color: "#fff", fontWeight: "600" }}>
               {new Date(today.check_in_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
             </span>
+            {(() => {
+              const lateInfo = calculateLateArrival(today.check_in_time, statusData);
+              if (!lateInfo) return null;
+              if (lateInfo.isLate) {
+                return (
+                  <span
+                    title={`Shift: ${lateInfo.shiftLabel} • Expected: ${lateInfo.expectedLabel}`}
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      padding: "2px 7px",
+                      borderRadius: "6px",
+                      background: "rgba(245, 158, 11, 0.25)",
+                      color: "#fbbf24",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                  >
+                    ⚠️ Late by {lateInfo.formattedLate}
+                  </span>
+                );
+              }
+              return (
+                <span
+                  title={`On time • ${lateInfo.shiftLabel}`}
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    padding: "2px 6px",
+                    borderRadius: "6px",
+                    background: "rgba(16, 185, 129, 0.2)",
+                    color: "#34d399",
+                    border: "1px solid rgba(52, 211, 153, 0.3)",
+                  }}
+                >
+                  ✓ On Time
+                </span>
+              );
+            })()}
           </div>
 
           {today.check_out_time && (

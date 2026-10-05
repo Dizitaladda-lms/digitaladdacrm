@@ -37,6 +37,10 @@ const EMPLOYEE_SELECT_COLUMNS = `
       ), 
       2
     ) AS today_hours,
+    COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
+    COALESCE(e.shift_start_time, '10:00') AS shift_start_time,
+    COALESCE(e.shift_end_time, '18:00') AS shift_end_time,
+    e.custom_shift_timings,
     e.joining_date,
     e.date_of_birth,
     e.gender,
@@ -313,7 +317,11 @@ export const createEmployeeRepository = async (
             address,
             emergency_contact_name,
             emergency_contact,
-            created_by
+            created_by,
+            shift_timing_type,
+            shift_start_time,
+            shift_end_time,
+            custom_shift_timings
 
         )
 
@@ -321,7 +329,7 @@ export const createEmployeeRepository = async (
 
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
             $11,$12,$13,$14,$15,$16,$17,$18,
-            $19
+            $19,$20,$21,$22,$23
 
         )
 
@@ -348,7 +356,11 @@ export const createEmployeeRepository = async (
         employee.address,
         employee.emergency_contact_name,
         employee.emergency_contact,
-        employee.created_by
+        employee.created_by,
+        employee.shift_timing_type || "DEFAULT",
+        employee.shift_start_time || "10:00",
+        employee.shift_end_time || "18:00",
+        employee.custom_shift_timings ? JSON.stringify(employee.custom_shift_timings) : null
 
     ];
 
@@ -447,6 +459,22 @@ export const updateEmployeeRepository = async (
     if (employee.updated_by !== undefined && employee.updated_by !== null) {
         fields.push(`updated_by = $${idx++}`);
         values.push(employee.updated_by);
+    }
+    if (employee.shift_timing_type !== undefined) {
+        fields.push(`shift_timing_type = $${idx++}`);
+        values.push(employee.shift_timing_type || "DEFAULT");
+    }
+    if (employee.shift_start_time !== undefined) {
+        fields.push(`shift_start_time = $${idx++}`);
+        values.push(employee.shift_start_time || "10:00");
+    }
+    if (employee.shift_end_time !== undefined) {
+        fields.push(`shift_end_time = $${idx++}`);
+        values.push(employee.shift_end_time || "18:00");
+    }
+    if (employee.custom_shift_timings !== undefined) {
+        fields.push(`custom_shift_timings = $${idx++}`);
+        values.push(employee.custom_shift_timings ? JSON.stringify(employee.custom_shift_timings) : null);
     }
 
     fields.push(`updated_at = CURRENT_TIMESTAMP`);

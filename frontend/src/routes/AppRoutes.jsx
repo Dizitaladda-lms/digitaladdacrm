@@ -24,6 +24,9 @@ const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
 const AttendanceReports = lazy(() => import("../pages/hr/AttendanceReports"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const AdminWorkAssignments = lazy(() => import("../pages/admin/AdminWorkAssignments"));
+const OrganizationTree = lazy(() => import("../pages/admin/OrganizationTree"));
+const EmployeesRoster = lazy(() => import("../pages/hr/EmployeesRoster"));
+const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -208,6 +211,40 @@ const AppRoutes = () => {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <AttendanceReports />
+                </Suspense>
+              }
+            />
+
+            {/* Organization Hierarchy Tree — ACCESSIBLE TO HR, ADMIN, SUPER ADMIN, MANAGER */}
+            <Route
+              path="/org-tree"
+              element={
+                IS_MAINTENANCE_MODE ? (
+                  <UnderMaintenance />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    <OrganizationTree />
+                  </Suspense>
+                )
+              }
+            />
+
+            {/* Employees Roster — ACCESSIBLE TO HR & SUPER ADMIN */}
+            <Route
+              path="/employees-roster"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <EmployeesRoster />
+                </Suspense>
+              }
+            />
+
+            {/* My Personal Monthly Roster */}
+            <Route
+              path="/my-roster"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyRoster />
                 </Suspense>
               }
             />

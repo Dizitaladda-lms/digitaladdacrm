@@ -28,6 +28,7 @@ import { getEmployees } from "../../services/employeeService";
 import DailyReportForm from "../../components/reports/DailyReportForm";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
 import { useAuth } from "../../context/AuthContext";
+import { formatWorkHours } from "../../utils/shiftTiming";
 import "./OperationsDashboard.css";
 
 const OperationsDashboard = () => {
@@ -671,8 +672,8 @@ const OperationsDashboard = () => {
                           <span className="text-muted block-code">{row.department_name}</span>
                         </td>
                         <td>
-                          <span className="hours-pill">
-                            <Clock size={12} /> {row.total_hours_worked || 8}h
+                          <span className="hours-pill" title={`${Number(row.total_hours_worked || 0).toFixed(2)} decimal hrs`}>
+                            <Clock size={12} /> {formatWorkHours(row.total_hours_worked)}
                           </span>
                         </td>
                         <td className="summary-col">

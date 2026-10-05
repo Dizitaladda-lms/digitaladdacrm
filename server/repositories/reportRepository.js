@@ -66,7 +66,7 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
     data.role_type || "EMPLOYEE",
     data.work_title || null,
     data.tasks_summary,
-    data.total_hours_worked || 8.0,
+    data.total_hours_worked != null ? Number(data.total_hours_worked) : 0.0,
     data.work_status || "COMPLETED",
     data.deliverable_links || null,
     data.blockers || null,
@@ -143,7 +143,47 @@ export const syncReportClassesRepository = async (clientOrPool, reportId, userId
 export const findReportByIdRepository = async (reportId) => {
   const reportQuery = `
     SELECT 
-      r.*,
+      r.id,
+      r.user_id,
+      r.employee_id,
+      r.department_id,
+      r.report_date,
+      r.role_type,
+      r.work_title,
+      r.tasks_summary,
+      r.work_status,
+      r.deliverable_links,
+      r.blockers,
+      r.next_day_plan,
+      r.took_class,
+      r.status,
+      r.tl_id,
+      r.tl_reviewed_at,
+      r.hr_id,
+      r.hr_reviewed_at,
+      r.super_admin_id,
+      r.super_admin_reviewed_at,
+      r.rejection_reason,
+      r.created_at,
+      r.updated_at,
+      ROUND(
+        COALESCE(
+          CASE 
+            WHEN da.check_out_time IS NOT NULL THEN
+              COALESCE(NULLIF(da.total_hours, 0.00), (EXTRACT(EPOCH FROM (da.check_out_time - da.check_in_time))/3600.0)::numeric)
+            WHEN da.check_in_time IS NOT NULL THEN
+              CASE 
+                WHEN da.date = CURRENT_DATE THEN
+                  GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - da.check_in_time))/3600.0)::numeric)
+                ELSE COALESCE(NULLIF(da.total_hours, 0.00), 0.00)
+              END
+            ELSE NULL
+          END,
+          r.total_hours_worked,
+          0.00
+        ),
+        2
+      ) AS total_hours_worked,
       u.full_name AS user_name,
       u.email AS user_email,
       u.role AS user_role,
@@ -157,11 +197,12 @@ export const findReportByIdRepository = async (reportId) => {
       sa_u.full_name AS super_admin_name
     FROM daily_work_reports r
     LEFT JOIN users u ON r.user_id = u.id
-    LEFT JOIN employees e ON r.employee_id = e.id
+    LEFT JOIN employees e ON (r.employee_id = e.id OR e.user_id = r.user_id)
     LEFT JOIN departments d ON r.department_id = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
     LEFT JOIN users sa_u ON r.super_admin_id = sa_u.id
+    LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = e.id) AND da.date = r.report_date
     WHERE r.id = $1
     LIMIT 1;
   `;
@@ -187,7 +228,47 @@ export const findReportByIdRepository = async (reportId) => {
 export const findMyReportByDateRepository = async (userId, reportDate) => {
   const query = `
     SELECT 
-      r.*,
+      r.id,
+      r.user_id,
+      r.employee_id,
+      r.department_id,
+      r.report_date,
+      r.role_type,
+      r.work_title,
+      r.tasks_summary,
+      r.work_status,
+      r.deliverable_links,
+      r.blockers,
+      r.next_day_plan,
+      r.took_class,
+      r.status,
+      r.tl_id,
+      r.tl_reviewed_at,
+      r.hr_id,
+      r.hr_reviewed_at,
+      r.super_admin_id,
+      r.super_admin_reviewed_at,
+      r.rejection_reason,
+      r.created_at,
+      r.updated_at,
+      ROUND(
+        COALESCE(
+          CASE 
+            WHEN da.check_out_time IS NOT NULL THEN
+              COALESCE(NULLIF(da.total_hours, 0.00), (EXTRACT(EPOCH FROM (da.check_out_time - da.check_in_time))/3600.0)::numeric)
+            WHEN da.check_in_time IS NOT NULL THEN
+              CASE 
+                WHEN da.date = CURRENT_DATE THEN
+                  GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - da.check_in_time))/3600.0)::numeric)
+                ELSE COALESCE(NULLIF(da.total_hours, 0.00), 0.00)
+              END
+            ELSE NULL
+          END,
+          r.total_hours_worked,
+          0.00
+        ),
+        2
+      ) AS total_hours_worked,
       d.department_name,
       tl_u.full_name AS tl_name,
       hr_u.full_name AS hr_name
@@ -195,6 +276,7 @@ export const findMyReportByDateRepository = async (userId, reportDate) => {
     LEFT JOIN departments d ON r.department_id = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
+    LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = (SELECT id FROM employees WHERE user_id = r.user_id LIMIT 1)) AND da.date = r.report_date
     WHERE r.user_id = $1 AND r.report_date = $2
     LIMIT 1;
   `;
@@ -242,7 +324,47 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
 
   const query = `
     SELECT 
-      r.*,
+      r.id,
+      r.user_id,
+      r.employee_id,
+      r.department_id,
+      r.report_date,
+      r.role_type,
+      r.work_title,
+      r.tasks_summary,
+      r.work_status,
+      r.deliverable_links,
+      r.blockers,
+      r.next_day_plan,
+      r.took_class,
+      r.status,
+      r.tl_id,
+      r.tl_reviewed_at,
+      r.hr_id,
+      r.hr_reviewed_at,
+      r.super_admin_id,
+      r.super_admin_reviewed_at,
+      r.rejection_reason,
+      r.created_at,
+      r.updated_at,
+      ROUND(
+        COALESCE(
+          CASE 
+            WHEN da.check_out_time IS NOT NULL THEN
+              COALESCE(NULLIF(da.total_hours, 0.00), (EXTRACT(EPOCH FROM (da.check_out_time - da.check_in_time))/3600.0)::numeric)
+            WHEN da.check_in_time IS NOT NULL THEN
+              CASE 
+                WHEN da.date = CURRENT_DATE THEN
+                  GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - da.check_in_time))/3600.0)::numeric)
+                ELSE COALESCE(NULLIF(da.total_hours, 0.00), 0.00)
+              END
+            ELSE NULL
+          END,
+          r.total_hours_worked,
+          0.00
+        ),
+        2
+      ) AS total_hours_worked,
       d.department_name,
       tl_u.full_name AS tl_name,
       hr_u.full_name AS hr_name,
@@ -256,6 +378,7 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
     LEFT JOIN departments d ON r.department_id = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
+    LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = (SELECT id FROM employees WHERE user_id = r.user_id LIMIT 1)) AND da.date = r.report_date
     WHERE ${whereStr}
     ORDER BY r.report_date DESC, r.id DESC
     LIMIT $${paramIdx++} OFFSET $${paramIdx++};
@@ -359,7 +482,47 @@ export const findTeamReportsRepository = async ({
 
   const query = `
     SELECT 
-      r.*,
+      r.id,
+      r.user_id,
+      r.employee_id,
+      r.department_id,
+      r.report_date,
+      r.role_type,
+      r.work_title,
+      r.tasks_summary,
+      r.work_status,
+      r.deliverable_links,
+      r.blockers,
+      r.next_day_plan,
+      r.took_class,
+      r.status,
+      r.tl_id,
+      r.tl_reviewed_at,
+      r.hr_id,
+      r.hr_reviewed_at,
+      r.super_admin_id,
+      r.super_admin_reviewed_at,
+      r.rejection_reason,
+      r.created_at,
+      r.updated_at,
+      ROUND(
+        COALESCE(
+          CASE 
+            WHEN da.check_out_time IS NOT NULL THEN
+              COALESCE(NULLIF(da.total_hours, 0.00), (EXTRACT(EPOCH FROM (da.check_out_time - da.check_in_time))/3600.0)::numeric)
+            WHEN da.check_in_time IS NOT NULL THEN
+              CASE 
+                WHEN da.date = CURRENT_DATE THEN
+                  GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - da.check_in_time))/3600.0)::numeric)
+                ELSE COALESCE(NULLIF(da.total_hours, 0.00), 0.00)
+              END
+            ELSE NULL
+          END,
+          r.total_hours_worked,
+          0.00
+        ),
+        2
+      ) AS total_hours_worked,
       u.full_name AS user_name,
       u.email AS user_email,
       u.profile_image AS user_avatar,
@@ -387,6 +550,7 @@ export const findTeamReportsRepository = async ({
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
     LEFT JOIN users super_u ON r.super_admin_id = super_u.id
+    LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = e.id) AND da.date = r.report_date
     ${whereStr}
     ORDER BY 
       CASE WHEN r.status = 'SUBMITTED' THEN 0 

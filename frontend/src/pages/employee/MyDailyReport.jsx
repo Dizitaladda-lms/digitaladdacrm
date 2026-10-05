@@ -13,6 +13,7 @@ import {
 import DailyReportForm from "../../components/reports/DailyReportForm";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
 import { getMyReportsHistory } from "../../services/reportService";
+import { formatWorkHours } from "../../utils/shiftTiming";
 import "./MyDailyReport.css";
 
 const MyDailyReport = () => {
@@ -142,8 +143,8 @@ const MyDailyReport = () => {
                         <strong>{row.report_date}</strong>
                       </td>
                       <td>
-                        <span className="hours-pill">
-                          <Clock size={12} /> {row.total_hours_worked || 8} hrs
+                        <span className="hours-pill" title={`${Number(row.total_hours_worked || 0).toFixed(2)} decimal hrs`}>
+                          <Clock size={12} /> {formatWorkHours(row.total_hours_worked)}
                         </span>
                       </td>
                       <td className="tasks-cell">

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getMyReportsHistory, getMyReportToday } from "../../../services/reportService";
 import { useAuth } from "../../../context/AuthContext";
+import { formatWorkHours } from "../../../utils/shiftTiming";
 import "./AcademicOperationsPerformance.css";
 
 const AcademicOperationsPerformance = () => {
@@ -324,8 +325,8 @@ const AcademicOperationsPerformance = () => {
                       </td>
 
                       <td>
-                        <span className="font-medium text-slate-700">
-                          {rep.total_hours_worked || 8} hrs
+                        <span className="font-medium text-slate-700" title={`${Number(rep.total_hours_worked || 0).toFixed(2)} decimal hrs`}>
+                          {formatWorkHours(rep.total_hours_worked)}
                         </span>
                       </td>
 

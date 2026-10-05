@@ -70,6 +70,10 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
     face_image_url: biometric ? biometric.face_image_url : null,
     rejection_reason: biometric ? biometric.rejection_reason : null,
     registered_at: biometric ? biometric.registered_at : null,
+    shift_timing_type: employee.shift_timing_type || "DEFAULT",
+    shift_start_time: employee.shift_start_time || "10:00",
+    shift_end_time: employee.shift_end_time || "18:00",
+    custom_shift_timings: employee.custom_shift_timings || null,
     today_attendance: todayAttendance || null,
   };
 };
@@ -161,12 +165,67 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }
 
   const todayStr = new Date().toISOString().split("T")[0];
+
+  // Calculate if check-in is late based on IST office schedule
+  // Mon - Fri: 10:00 AM (600 mins)
+  // Sat: 9:30 AM (570 mins)
+  // Sun: 9:30 AM (570 mins)
+  let status = "PRESENT";
+  try {
+    const now = new Date();
+    const istFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Kolkata",
+      weekday: "short",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    });
+    const parts = istFormatter.formatToParts(now);
+    const getPart = (type) => parts.find((p) => p.type === type)?.value;
+    const weekday = getPart("weekday");
+    let hour = parseInt(getPart("hour"), 10);
+    if (hour === 24) hour = 0;
+    const minute = parseInt(getPart("minute"), 10);
+    const currentMins = hour * 60 + minute;
+
+    let expectedMins = 10 * 60; // Mon-Fri 10:00 AM
+    if (weekday === "Sat" || weekday === "Sun") {
+      expectedMins = 9 * 60 + 30; // Sat & Sun 9:30 AM
+    }
+
+    if (employee.shift_timing_type === "CUSTOM") {
+      let customStart = employee.shift_start_time || "10:00";
+      const customTimings = typeof employee.custom_shift_timings === "string"
+        ? (() => { try { return JSON.parse(employee.custom_shift_timings); } catch (e) { return null; } })()
+        : employee.custom_shift_timings;
+
+      if (weekday === "Sat" && customTimings?.sat_start) {
+        customStart = customTimings.sat_start;
+      } else if (weekday === "Sun" && customTimings?.sun_start) {
+        customStart = customTimings.sun_start;
+      } else if (customTimings?.mon_fri_start) {
+        customStart = customTimings.mon_fri_start;
+      }
+
+      const [customHour, customMinute] = String(customStart).split(":").map(Number);
+      if (!isNaN(customHour) && !isNaN(customMinute)) {
+        expectedMins = customHour * 60 + customMinute;
+      }
+    }
+
+    if (currentMins > expectedMins) {
+      status = "LATE";
+    }
+  } catch (err) {
+    console.error("Error calculating late check-in:", err);
+  }
+
   const attendance = await createAttendanceCheckInRepository(null, {
     employee_id: employee.id,
     date: todayStr,
     ip_address: clientIp,
     is_office_wifi: isOfficeWifi,
-    status: "PRESENT",
+    status,
     check_in_lat: Number(latitude),
     check_in_lng: Number(longitude),
     check_in_location: location_name || null,

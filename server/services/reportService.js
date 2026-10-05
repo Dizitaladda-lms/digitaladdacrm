@@ -99,16 +99,17 @@ export const submitDailyReportService = async (user, payload) => {
       );
       if (attRes.rows[0]) {
         attendanceHours = parseFloat(attRes.rows[0].live_hours || attRes.rows[0].total_hours || 0);
+      } else {
+        // Strict attendance-based rule: if no punch-in exists for date, logged hours is 0.0
+        attendanceHours = 0.0;
       }
     } catch (attErr) {
       console.error("Error querying attendance hours for report:", attErr);
     }
   }
 
-  // Calculate final total hours worked based on attendance punch-in and punch-out
-  const finalHoursWorked = attendanceHours !== null 
-    ? attendanceHours 
-    : (parseFloat(payload.total_hours_worked) || 0.0);
+  // Calculate final total hours worked strictly based on attendance punch-in and punch-out
+  const finalHoursWorked = attendanceHours !== null ? attendanceHours : 0.0;
 
   // Initial workflow status:
   // - Interns & Executives/Employees -> 'SUBMITTED' (Pending TL Verification)

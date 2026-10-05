@@ -34,6 +34,7 @@ import {
 import { getDepartments } from "../../services/departmentService";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
 import { useAuth } from "../../context/AuthContext";
+import { formatWorkHours } from "../../utils/shiftTiming";
 import "./TeamReports.css";
 
 const SIX_OFFICIAL_DEPARTMENTS = [
@@ -592,8 +593,8 @@ const TeamReports = () => {
 
                       {/* Shift Hours */}
                       <td>
-                        <span className="hours-badge">
-                          <Clock size={12} /> {row.total_hours_worked || 8}h
+                        <span className="hours-badge" title={`${Number(row.total_hours_worked || 0).toFixed(2)} decimal hrs`}>
+                          <Clock size={12} /> {formatWorkHours(row.total_hours_worked)}
                         </span>
                       </td>
 

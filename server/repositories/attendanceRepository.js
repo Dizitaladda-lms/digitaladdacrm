@@ -264,6 +264,10 @@ export const getMyAttendanceHistoryRepository = async ({ employee_id, page = 1, 
     `
       SELECT 
         a.*,
+        COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
+        COALESCE(e.shift_start_time, '10:00') AS shift_start_time,
+        COALESCE(e.shift_end_time, '18:00') AS shift_end_time,
+        e.custom_shift_timings,
         ROUND(
           CASE 
             WHEN a.check_out_time IS NOT NULL THEN
@@ -279,6 +283,7 @@ export const getMyAttendanceHistoryRepository = async ({ employee_id, page = 1, 
           2
         ) AS live_hours
       FROM daily_attendance a
+      LEFT JOIN employees e ON a.employee_id = e.id
       WHERE a.employee_id = $1
       ORDER BY a.date DESC
       LIMIT $2 OFFSET $3;
@@ -378,6 +383,10 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
         e.employee_code,
         e.designation,
         e.role,
+        COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
+        COALESCE(e.shift_start_time, '10:00') AS shift_start_time,
+        COALESCE(e.shift_end_time, '18:00') AS shift_end_time,
+        e.custom_shift_timings,
         d.department_name,
         ROUND(
           CASE 
@@ -470,6 +479,10 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
         e.employee_code,
         e.designation,
         e.role,
+        COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
+        COALESCE(e.shift_start_time, '10:00') AS shift_start_time,
+        COALESCE(e.shift_end_time, '18:00') AS shift_end_time,
+        e.custom_shift_timings,
         d.department_name,
         ROUND(
           CASE 

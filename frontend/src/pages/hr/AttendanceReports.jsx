@@ -26,6 +26,7 @@ import {
   approveBiometricRegistration,
   rejectBiometricRegistration,
 } from "../../services/attendanceService";
+import { calculateLateArrival } from "../../utils/shiftTiming";
 
 const AttendanceReports = () => {
   const { user } = useAuth();
@@ -961,6 +962,24 @@ const AttendanceReports = () => {
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ fontWeight: "700", color: "#0f172a" }}>{row.employee_name || "Employee"}</div>
                         <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600" }}>{row.employee_code || `#${row.employee_id}`}</div>
+                        {row.shift_timing_type === "CUSTOM" && (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "700",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                              background: "#ecfdf5",
+                              color: "#047857",
+                              border: "1px solid #a7f3d0",
+                              display: "inline-block",
+                              marginTop: "3px",
+                            }}
+                            title={`Custom Shift: ${row.shift_start_time || "10:00"} - ${row.shift_end_time || "18:00"}`}
+                          >
+                            ⏱️ Shift {row.shift_start_time || "10:00"} - {row.shift_end_time || "18:00"}
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ fontWeight: "600", color: "#334155" }}>{row.department_name || "General"}</div>
@@ -970,7 +989,50 @@ const AttendanceReports = () => {
                         {new Date(row.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                       </td>
                       <td style={{ padding: "14px 18px" }}>
-                        <div style={{ color: "#166534", fontWeight: "700", fontSize: "14px" }}>{checkIn}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <span style={{ color: "#166534", fontWeight: "700", fontSize: "14px" }}>{checkIn}</span>
+                          {row.check_in_time && (() => {
+                            const lateInfo = calculateLateArrival(row.check_in_time, row);
+                            if (!lateInfo) return null;
+                            if (lateInfo.isLate) {
+                              return (
+                                <span
+                                  title={`Shift: ${lateInfo.shiftLabel} • Expected by ${lateInfo.expectedLabel}`}
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: "700",
+                                    padding: "2px 7px",
+                                    borderRadius: "6px",
+                                    background: "#fef3c7",
+                                    color: "#b45309",
+                                    border: "1px solid #fde68a",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "3px",
+                                  }}
+                                >
+                                  ⚠️ Late by {lateInfo.formattedLate}
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                title={`On time • ${lateInfo.shiftLabel}`}
+                                style={{
+                                  fontSize: "10.5px",
+                                  fontWeight: "600",
+                                  padding: "2px 6px",
+                                  borderRadius: "6px",
+                                  background: "#f0fdf4",
+                                  color: "#16a34a",
+                                  border: "1px solid #bbf7d0",
+                                }}
+                              >
+                                ✓ On Time
+                              </span>
+                            );
+                          })()}
+                        </div>
                         {isSuperAdmin && row.check_in_location && (
                           <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
                             <MapPin size={12} style={{ color: "#2563eb", flexShrink: 0 }} />
@@ -1068,18 +1130,51 @@ const AttendanceReports = () => {
                         })()}
                       </td>
                       <td style={{ padding: "14px 18px" }}>
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            padding: "3px 10px",
-                            borderRadius: "12px",
-                            background: row.status === "PRESENT" ? "#dcfce7" : "#fee2e2",
-                            color: row.status === "PRESENT" ? "#15803d" : "#b91c1c",
-                          }}
-                        >
-                          {row.status || "PRESENT"}
-                        </span>
+                        {(() => {
+                          const lateInfo = row.check_in_time ? calculateLateArrival(row.check_in_time) : null;
+                          const isLate = row.status === "LATE" || (lateInfo && lateInfo.isLate);
+                          const isPresent = row.status === "PRESENT" || (!isLate && row.check_in_time);
+
+                          let bg = "#fee2e2";
+                          let color = "#b91c1c";
+                          let border = "1px solid #fecaca";
+                          let text = row.status || "ABSENT";
+
+                          if (isLate) {
+                            bg = "#fef3c7";
+                            color = "#b45309";
+                            border = "1px solid #fde68a";
+                            text = lateInfo?.formattedLate ? `LATE (+${lateInfo.formattedLate})` : "LATE";
+                          } else if (isPresent) {
+                            bg = "#dcfce7";
+                            color = "#15803d";
+                            border = "1px solid #bbf7d0";
+                            text = "PRESENT";
+                          } else if (row.status === "HALF_DAY") {
+                            bg = "#ede9fe";
+                            color = "#6d28d9";
+                            border = "1px solid #ddd6fe";
+                            text = "HALF DAY";
+                          }
+
+                          return (
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: "700",
+                                padding: "4px 10px",
+                                borderRadius: "12px",
+                                background: bg,
+                                color: color,
+                                border,
+                                display: "inline-block",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {text}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
                         <button
