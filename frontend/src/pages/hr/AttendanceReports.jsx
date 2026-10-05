@@ -1014,17 +1014,28 @@ const AttendanceReports = () => {
                       <td style={{ padding: "14px 18px" }}>
                         {(() => {
                           const isActive = Boolean(row.check_in_time && !row.check_out_time);
-                          let hours = Number(row.live_hours ?? row.total_hours ?? 0);
-                          if (isActive && (!hours || hours === 0) && row.check_in_time) {
+                          let totalMinutes = 0;
+                          if (isActive && row.check_in_time) {
                             const diff = Math.max(0, Date.now() - new Date(row.check_in_time).getTime());
-                            hours = Number((diff / 3600000).toFixed(2));
+                            totalMinutes = Math.floor(diff / 60000);
+                          } else {
+                            const hoursNum = Number(row.live_hours ?? row.total_hours ?? 0);
+                            totalMinutes = Math.round(hoursNum * 60);
                           }
+
                           if (!row.check_in_time) {
                             return <span style={{ color: "#94a3b8", fontWeight: "600", fontSize: "13px" }}>--</span>;
                           }
+
+                          const h = Math.floor(totalMinutes / 60);
+                          const m = totalMinutes % 60;
+                          const formattedDuration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                          const decimalHours = (totalMinutes / 60).toFixed(2);
+
                           return (
                             <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                               <span
+                                title={`${decimalHours} decimal hrs`}
                                 style={{
                                   fontWeight: "700",
                                   color: isActive ? "#15803d" : "#2563eb",
@@ -1034,7 +1045,7 @@ const AttendanceReports = () => {
                                   fontSize: "13px",
                                 }}
                               >
-                                {hours.toFixed(2)} hrs
+                                {formattedDuration}
                               </span>
                               {isActive && (
                                 <span

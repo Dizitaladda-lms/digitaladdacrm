@@ -935,7 +935,17 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 gap: "8px",
               }}
             >
-              <CheckCircle2 size={18} /> Shift Complete ({today.total_hours || "0.0"} hrs)
+              {(() => {
+                const totalMinutes = Math.round(Number(today.total_hours || 0) * 60);
+                const h = Math.floor(totalMinutes / 60);
+                const m = totalMinutes % 60;
+                const formatted = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                return (
+                  <>
+                    <CheckCircle2 size={18} /> Shift Complete ({formatted})
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -973,7 +983,25 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
           <div>
             <strong style={{ color: "#94a3b8" }}>Shift Hours:</strong>{" "}
-            <span style={{ color: "#34d399", fontWeight: "700" }}>{today.total_hours || "0.0"} hrs</span>
+            {(() => {
+              const isActive = Boolean(today.check_in_time && !today.check_out_time);
+              let totalMinutes = 0;
+              if (isActive && today.check_in_time) {
+                const diff = Math.max(0, Date.now() - new Date(today.check_in_time).getTime());
+                totalMinutes = Math.floor(diff / 60000);
+              } else {
+                const hoursNum = Number(today.live_hours ?? today.total_hours ?? 0);
+                totalMinutes = Math.round(hoursNum * 60);
+              }
+              const h = Math.floor(totalMinutes / 60);
+              const m = totalMinutes % 60;
+              const formattedDuration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+              return (
+                <span style={{ color: "#34d399", fontWeight: "700" }}>
+                  {formattedDuration} {isActive && "(Active)"}
+                </span>
+              );
+            })()}
           </div>
         </div>
       )}
