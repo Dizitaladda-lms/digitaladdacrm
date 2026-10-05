@@ -25,8 +25,17 @@ import {
   LogOut,
   Volume2,
   VolumeX,
+  Smartphone,
+  Send,
+  BellRing,
 } from "lucide-react";
 import { getNotifications } from "../../../services/notificationService";
+import {
+  isPushSupported,
+  getPushSubscriptionStatus,
+  subscribeUserToPush,
+  sendTestPushNotification,
+} from "../../../services/pushNotificationService";
 import "./NotificationsPopover.css";
 
 const READ_STORAGE_KEY = "dizitaladda_read_notifications";
@@ -73,9 +82,50 @@ const NotificationsPopover = ({ isEmployee = false }) => {
     }
   });
   const [filterTab, setFilterTab] = useState("ALL");
+  const [pushStatus, setPushStatus] = useState({ supported: false, permission: "default", isSubscribed: false });
+  const [pushLoading, setPushLoading] = useState(false);
+  const [testPushLoading, setTestPushLoading] = useState(false);
   const initializedRef = useRef(false);
   const seenIdsRef = useRef(new Set());
   const audioCtxRef = useRef(null);
+
+  const checkPush = async () => {
+    if (isPushSupported()) {
+      const s = await getPushSubscriptionStatus();
+      setPushStatus(s);
+    }
+  };
+
+  useEffect(() => {
+    checkPush();
+  }, []);
+
+  const handleEnablePush = async (e) => {
+    e.stopPropagation();
+    setPushLoading(true);
+    try {
+      await subscribeUserToPush();
+      await checkPush();
+      toast.success("Mobile & background push notifications activated!");
+    } catch (err) {
+      toast.error(err.message || "Failed to activate push notifications");
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleTestPush = async (e) => {
+    e.stopPropagation();
+    setTestPushLoading(true);
+    try {
+      await sendTestPushNotification();
+      toast.success("Test notification dispatched to your phone/desktop!");
+    } catch (err) {
+      toast.error("Failed to send test push: " + (err.response?.data?.message || err.message));
+    } finally {
+      setTestPushLoading(false);
+    }
+  };
 
   const getAudioContext = () => {
     try {
@@ -453,6 +503,39 @@ const NotificationsPopover = ({ isEmployee = false }) => {
               Tasks
             </button>
           </div>
+
+          {/* Web Push Mobile Status Banner */}
+          {pushStatus.supported && (
+            <div className={`notif-push-banner ${pushStatus.isSubscribed ? "active" : "inactive"}`}>
+              <div className="notif-push-info">
+                <Smartphone size={13} className="push-banner-icon" />
+                <span>{pushStatus.isSubscribed ? "Mobile Push Active 🟢" : "Get alerts when CRM closed"}</span>
+              </div>
+              {pushStatus.isSubscribed ? (
+                <button
+                  type="button"
+                  className="btn-push-action test"
+                  onClick={handleTestPush}
+                  disabled={testPushLoading}
+                  title="Dispatch a real test notification to this device"
+                >
+                  <Send size={11} />
+                  <span>{testPushLoading ? "Sending..." : "Test Alert"}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-push-action enable"
+                  onClick={handleEnablePush}
+                  disabled={pushLoading}
+                  title="Enable browser & mobile push alerts"
+                >
+                  <BellRing size={11} />
+                  <span>{pushLoading ? "Activating..." : "Enable"}</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Notifications List */}
           <div className="notif-list-container">

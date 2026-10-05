@@ -45,6 +45,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{css,html,ico,js,png,svg,woff2}"],
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ["push-sw.js"],
       },
     }),
   ],

@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import EmployeeSidebar from "../components/employee/EmployeeSidebar";
 import EmployeeTopbar from "../components/employee/EmployeeTopbar";
 import EmployeeFooter from "../components/employee/EmployeeFooter";
+import PushNotificationPrompt from "../components/notifications/PushNotificationPrompt";
 
 import "./EmployeeLayout.css";
 
@@ -49,6 +50,9 @@ const EmployeeLayout = () => {
 
         <EmployeeFooter />
       </div>
+
+      {/* Global Push Notification Permission Prompt */}
+      <PushNotificationPrompt />
     </div>
   );
 };

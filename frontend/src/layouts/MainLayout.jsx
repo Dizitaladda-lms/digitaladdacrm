@@ -4,6 +4,7 @@ import { useState } from "react";
 import Sidebar from "../components/layout/sidebar/Sidebar";
 import Topbar from "../components/layout/Topbar/Topbar";
 import PageContainer from "../components/PageContainer/PageContainer";
+import PushNotificationPrompt from "../components/notifications/PushNotificationPrompt";
 import "./MainLayout.css";
 
 const MainLayout = () => {
@@ -53,6 +54,9 @@ const MainLayout = () => {
           </PageContainer>
         </div>
       </div>
+
+      {/* Global Push Notification Permission Prompt */}
+      <PushNotificationPrompt />
     </div>
   );
 };

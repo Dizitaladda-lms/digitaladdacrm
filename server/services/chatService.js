@@ -10,6 +10,7 @@ import {
   markGroupReadRepository,
   addMembersToGroupRepository,
 } from "../repositories/chatRepository.js";
+import { sendPushToEmployeesService } from "./pushNotificationService.js";
 
 const getEmployeeForUser = async (currentUser) => {
   const employee = await findEmployeeByUserIdRepository(currentUser.id);
@@ -155,6 +156,19 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
         full_name: m.full_name,
         off_reason: m.off_reason || "Off Today",
       }));
+
+    // Dispatch background web push notification to mentioned members (delivered even if browser/app is closed)
+    const senderName = employee.full_name || "Team Member";
+    const groupName = group.name || "Chat";
+    const preview = messageText.length > 90 ? `${messageText.slice(0, 87)}...` : messageText;
+
+    sendPushToEmployeesService(mentionedEmployeeIds, {
+      title: `💬 ${senderName} mentioned you in #${groupName}`,
+      body: preview,
+      url: `/team-chat`,
+      tag: `chat-mention-${groupId}`,
+      data: { groupId, messageId: message.id },
+    }).catch((err) => console.error("Push dispatch error on chat mention:", err.message));
   }
 
   return {

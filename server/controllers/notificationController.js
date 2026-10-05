@@ -1,6 +1,13 @@
 import pool from "../config/db.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
+import ApiError from "../utils/ApiError.js";
+import {
+  getVapidPublicKeyService,
+  saveSubscriptionService,
+  removeSubscriptionService,
+  sendPushToUsersService,
+} from "../services/pushNotificationService.js";
 
 /**
  * =====================================================
@@ -336,4 +343,67 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
       new ApiResponse(200, { notifications: [], total_count: 0, unread_count: 0 }, "Empty notifications.")
     );
   }
+});
+
+/**
+ * Get Public VAPID key so browser can subscribe
+ */
+export const getVapidPublicKeyController = asyncHandler(async (req, res) => {
+  const publicKey = getVapidPublicKeyService();
+  return res.status(200).json(
+    new ApiResponse(200, { publicKey }, "VAPID public key retrieved successfully.")
+  );
+});
+
+/**
+ * Register or update push subscription for current user
+ */
+export const subscribePushController = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  const { subscription, userAgent } = req.body;
+
+  if (!subscription || !subscription.endpoint) {
+    throw new ApiError(400, "Push subscription object is required.");
+  }
+
+  const result = await saveSubscriptionService(userId, subscription, userAgent || req.headers["user-agent"]);
+
+  return res.status(201).json(
+    new ApiResponse(201, result, "Push notification subscription registered successfully.")
+  );
+});
+
+/**
+ * Unsubscribe push subscription (e.g. user toggles off notifications)
+ */
+export const unsubscribePushController = asyncHandler(async (req, res) => {
+  const { endpoint } = req.body;
+  if (!endpoint) {
+    throw new ApiError(400, "Subscription endpoint is required.");
+  }
+
+  await removeSubscriptionService(endpoint);
+
+  return res.status(200).json(
+    new ApiResponse(200, null, "Push notification subscription removed successfully.")
+  );
+});
+
+/**
+ * Send a test push notification to user's registered devices
+ */
+export const testPushNotificationController = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  const userName = req.user?.name || req.user?.full_name || "User";
+
+  const result = await sendPushToUsersService(userId, {
+    title: "🔔 Dizital Adda CRM Notifications Active",
+    body: `Hello ${userName}! Mobile & background alerts are working properly even if CRM is closed.`,
+    url: "/employee/dashboard",
+    tag: "test-notification",
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Test push notification dispatched.")
+  );
 });

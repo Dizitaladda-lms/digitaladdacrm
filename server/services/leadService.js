@@ -52,6 +52,7 @@ import {
 } from "../services/leadTimeline.service.js";
 
 import TIMELINE_ACTIVITY from "../constants/timelineActivity.js";
+import { sendPushToEmployeesService } from "../services/pushNotificationService.js";
 
 /**
  * =====================================================
@@ -858,6 +859,14 @@ export const assignLeadService = async (
 
     await client.query("COMMIT");
 
+    // Dispatch background Web Push Notification to assigned counsellor
+    sendPushToEmployeesService(employeeId, {
+      title: "🎯 New Lead Assigned",
+      body: `${lead.full_name || "New Lead"} has been assigned to you (${lead.interested_course || lead.domain || "Inquiry"}).`,
+      url: `/employee/leads`,
+      tag: `lead-assigned-${leadId}`,
+    }).catch((err) => console.error("Push dispatch error on lead assignment:", err.message));
+
     return updatedLead;
 
   } catch (error) {
@@ -1232,6 +1241,14 @@ export const assignBulkLeadsService = async (
     });
 
     await client.query("COMMIT");
+
+    // Dispatch background Web Push Notification to assigned counsellor
+    sendPushToEmployeesService(employee_id, {
+      title: "🎯 Bulk Leads Assigned",
+      body: `${lead_ids.length} new leads have been assigned to you.`,
+      url: `/employee/leads`,
+      tag: `bulk-leads-assigned-${Date.now()}`,
+    }).catch((err) => console.error("Push dispatch error on bulk lead assignment:", err.message));
 
     return result;
 
