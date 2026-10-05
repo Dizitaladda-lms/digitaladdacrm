@@ -17,6 +17,7 @@ const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const MyAssignedWork = lazy(() => import("../pages/employee/MyAssignedWork"));
 const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
+const TeamChat = lazy(() => import("../pages/chat/TeamChat"));
 
 import UnderMaintenance from "../pages/UnderMaintenance";
 import { IS_MAINTENANCE_MODE } from "../config/maintenanceConfig";
@@ -57,6 +58,8 @@ const EmployeeRoutes = () => {
           <Route path="assigned-work" element={renderEmpPage(MyAssignedWork)} />
           <Route path="performance" element={renderEmpPage(MyPerformance)} />
           <Route path="team-reports" element={renderEmpPage(TeamReports)} />
+          <Route path="team-chat" element={renderEmpPage(TeamChat)} />
+          <Route path="chat" element={renderEmpPage(TeamChat)} />
           
           {/* Sales Report */}
           <Route

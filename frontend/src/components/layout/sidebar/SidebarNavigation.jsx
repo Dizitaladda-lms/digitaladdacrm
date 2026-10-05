@@ -17,6 +17,7 @@ import {
   TrendingUp,
   ClipboardList,
   Network,
+  MessageSquare,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -41,6 +42,7 @@ const SidebarNavigation = ({ onClose }) => {
   if (isHR) {
     // Operations & HR Department ONLY — Dedicated Agency Leads, Sales Dept Overview & Company Attendance
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/team-chat" },
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
@@ -57,6 +59,7 @@ const SidebarNavigation = ({ onClose }) => {
   } else if (isSuperAdmin) {
     // Super Admin: Master Executive Control across Sales, Operations, HR, & Attendance
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/team-chat" },
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
       { title: "Work Assigned to Employees", icon: ClipboardList, path: "/work-assignments" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/sales-department-report" },
@@ -73,6 +76,7 @@ const SidebarNavigation = ({ onClose }) => {
   } else if (isTL || isHead) {
     // Team Lead (TL) & Department Head / Manager Dedicated Sales Menu
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
@@ -87,6 +91,7 @@ const SidebarNavigation = ({ onClose }) => {
   } else if (isOperationsDept) {
     // Operations / HR Staff
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/team-chat" },
       { title: "Operations Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
@@ -101,6 +106,7 @@ const SidebarNavigation = ({ onClose }) => {
   } else {
     // Sales Counsellors & Staff
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/team-chat" },
       { title: "Sales Dashboard", icon: LayoutDashboard, path: "/dashboard" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },

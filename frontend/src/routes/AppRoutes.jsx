@@ -27,6 +27,7 @@ const AdminWorkAssignments = lazy(() => import("../pages/admin/AdminWorkAssignme
 const OrganizationTree = lazy(() => import("../pages/admin/OrganizationTree"));
 const EmployeesRoster = lazy(() => import("../pages/hr/EmployeesRoster"));
 const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
+const TeamChat = lazy(() => import("../pages/chat/TeamChat"));
 
 import AuthLayout from "../layouts/AuthLayout";
 import MainLayout from "../layouts/MainLayout";
@@ -140,6 +141,9 @@ const AppRoutes = () => {
                 )
               }
             />
+
+            <Route path="/team-chat" element={renderPage(TeamChat)} />
+            <Route path="/chat" element={renderPage(TeamChat)} />
 
             <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN", "HR", "MANAGER", "TL", "ADMIN"]} />}>
               <Route

@@ -29,6 +29,7 @@ import reportRoutes from "./routes/reportRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import rosterRoutes from "./routes/rosterRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
 
 /* Middlewares */
 import { globalLimiter } from "./middleware/rateLimiter.js";
@@ -167,6 +168,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/roster", rosterRoutes);
+app.use("/api/chat", chatRoutes);
 
 /**
  * 404 Handler

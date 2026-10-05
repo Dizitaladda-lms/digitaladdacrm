@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Fingerprint,
   ClipboardList,
+  MessageSquare,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import "./EmployeeSidebar.css";
@@ -34,6 +35,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   if (isCounsellor && !canSeeSalesReport) {
     // Sales Department Counsellor (Sales Overview & Daily Form hidden from individual counsellors)
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
       { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
@@ -47,6 +49,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   } else if (canSeeSalesReport) {
     // HR, Super Admin, Department Head, TL, or Manager Portal
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
       { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/employee/sales-report" },
@@ -60,6 +63,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   } else {
     // Operations & Training Department (TRAINER, EMPLOYEE, INTERN)
     menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
       { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
