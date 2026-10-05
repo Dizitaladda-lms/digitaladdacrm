@@ -121,10 +121,13 @@ export const getGroupMessagesService = async (groupId, query = {}, currentUser) 
  * Checks mentioned employees and alerts if any mentioned member is OFF today
  */
 export const sendChatMessageService = async (groupId, payload = {}, currentUser) => {
-  const { messageText, mentionedEmployeeIds = [], attachments = [] } = payload;
+  const { messageText = "", mentionedEmployeeIds = [], attachments = [] } = payload;
 
-  if (!messageText || typeof messageText !== "string" || messageText.trim().length === 0) {
-    throw new ApiError(400, "Message cannot be empty.");
+  const trimmedText = typeof messageText === "string" ? messageText.trim() : "";
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+
+  if (!trimmedText && !hasAttachments) {
+    throw new ApiError(400, "Message or image attachment cannot be empty.");
   }
 
   const employee = await getEmployeeForUser(currentUser);
@@ -135,10 +138,11 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
   }
 
   // Create message
+  const finalMessageText = trimmedText || (hasAttachments ? (attachments[0]?.name || "📷 Image") : "");
   const message = await createChatMessageRepository({
     groupId: Number(groupId),
     senderId: employee.id,
-    messageText: messageText.trim(),
+    messageText: finalMessageText,
     mentionedEmployeeIds: Array.isArray(mentionedEmployeeIds) ? mentionedEmployeeIds : [],
     attachments: Array.isArray(attachments) ? attachments : [],
   });
@@ -160,7 +164,7 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
     // Dispatch background web push notification to mentioned members (delivered even if browser/app is closed)
     const senderName = employee.full_name || "Team Member";
     const groupName = group.name || "Chat";
-    const preview = messageText.length > 90 ? `${messageText.slice(0, 87)}...` : messageText;
+    const preview = finalMessageText.length > 90 ? `${finalMessageText.slice(0, 87)}...` : finalMessageText;
 
     sendPushToEmployeesService(mentionedEmployeeIds, {
       title: `💬 ${senderName} mentioned you in #${groupName}`,

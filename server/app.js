@@ -21,7 +21,7 @@ import leadAssignmentRoutes from "./routes/leadAssignmentRoutes.js";
 import followupRoutes from "./routes/followupRoutes.js";
 import leadSourceRoutes from "./routes/leadSourceRoutes.js";
 import leadRoutingRoutes from "./routes/leadRoutingRoutes.js";
-import notificationRoutes from "./routes/notification.routes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import employeePortalRoutes from "./routes/employeePortal.routes.js";
 import admissionRoutes from "./routes/admissionRoutes.js";
 import telephonyRoutes from "./routes/telephonyRoutes.js";

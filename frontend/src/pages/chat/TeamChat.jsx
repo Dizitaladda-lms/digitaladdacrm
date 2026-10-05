@@ -21,6 +21,11 @@ import {
   Calendar,
   AlertCircle,
   Smile,
+  Image as ImageIcon,
+  Paperclip,
+  Download,
+  Eye,
+  Maximize2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -29,6 +34,8 @@ import {
   createTeamChatGroup,
   getChatGroupMessages,
   sendChatGroupMessage,
+  compressAndPrepareImage,
+  downloadChatAttachment,
 } from "../../services/chatService";
 import { getEmployees } from "../../services/employeeService";
 import { useAuth } from "../../context/AuthContext";
@@ -62,6 +69,12 @@ const TeamChat = () => {
   const [mentionedEmployees, setMentionedEmployees] = useState(new Set());
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  // Attachments & Image Upload State
+  const [selectedAttachments, setSelectedAttachments] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [previewImageModal, setPreviewImageModal] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Create Group Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -236,10 +249,94 @@ const TeamChat = () => {
     return offList;
   }, [inputText, members]);
 
+  // Format bytes helper
+  const formatBytes = (bytes, decimals = 1) => {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+  };
+
+  // Image Selection Handler
+  const handleImageFileChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setUploadingImage(true);
+    try {
+      const processed = [];
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+          toast.error(`${file.name} is not a supported image file.`);
+          continue;
+        }
+        if (file.size > 15 * 1024 * 1024) {
+          toast.error(`${file.name} is too large (max 15MB).`);
+          continue;
+        }
+        const prepared = await compressAndPrepareImage(file);
+        processed.push(prepared);
+      }
+
+      if (processed.length > 0) {
+        setSelectedAttachments((prev) => [...prev, ...processed]);
+      }
+    } catch (err) {
+      console.error("Image processing error:", err);
+      toast.error(err.message || "Failed to process image.");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // Remove pending attachment
+  const handleRemoveAttachment = (attachmentId) => {
+    setSelectedAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+  };
+
+  // Paste image from clipboard handler
+  const handlePaste = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          setUploadingImage(true);
+          try {
+            const prepared = await compressAndPrepareImage(file);
+            setSelectedAttachments((prev) => [...prev, prepared]);
+            toast.success("Image pasted from clipboard! 📋");
+          } catch {
+            toast.error("Failed to paste image.");
+          } finally {
+            setUploadingImage(false);
+          }
+          break;
+        }
+      }
+    }
+  };
+
+  // Download image handler
+  const handleDownloadImage = (attachment, e) => {
+    if (e) e.stopPropagation();
+    downloadChatAttachment(attachment);
+    toast.success("Image downloading to your device! 📥");
+  };
+
   // 5. Send Message
   const handleSendMessage = async (e) => {
     e?.preventDefault();
-    if (!inputText.trim() || !activeGroup?.id || sending) return;
+    const hasText = inputText.trim().length > 0;
+    const hasImages = selectedAttachments.length > 0;
+
+    if ((!hasText && !hasImages) || !activeGroup?.id || sending) return;
 
     // Detect all mentioned IDs from text
     const mentionedIds = [];
@@ -254,9 +351,11 @@ const TeamChat = () => {
       const res = await sendChatGroupMessage(activeGroup.id, {
         messageText: inputText,
         mentionedEmployeeIds: mentionedIds,
+        attachments: selectedAttachments,
       });
 
       setInputText("");
+      setSelectedAttachments([]);
       setShowMentionPopup(false);
       setMentionedEmployees(new Set());
 
@@ -642,6 +741,54 @@ const TeamChat = () => {
                     </div>
 
                     <div className="msg-body">{renderFormattedMessage(msg.message_text)}</div>
+
+                    {/* Attached Images */}
+                    {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                      <div className="msg-attachments-grid">
+                        {msg.attachments.map((att, attIdx) => (
+                          <div key={att.id || attIdx} className="msg-attachment-card">
+                            <div
+                              className="msg-attachment-img-wrapper"
+                              onClick={() => setPreviewImageModal(att)}
+                              title="Click to view full image"
+                            >
+                              <img
+                                src={att.url}
+                                alt={att.name || "Attachment"}
+                                className="msg-attachment-thumbnail"
+                                loading="lazy"
+                              />
+                              <div className="msg-attachment-overlay">
+                                <span className="overlay-view-hint">
+                                  <Eye size={14} /> Full View
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="msg-attachment-footer">
+                              <div className="msg-attachment-info">
+                                <span className="msg-attachment-filename" title={att.name}>
+                                  {att.name || "Image"}
+                                </span>
+                                <span className="msg-attachment-filesize">
+                                  {formatBytes(att.size)}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                className="btn-download-attachment"
+                                onClick={(e) => handleDownloadImage(att, e)}
+                                title="Download image to your phone or computer"
+                              >
+                                <Download size={13} />
+                                <span>Download</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -709,22 +856,68 @@ const TeamChat = () => {
             </div>
           )}
 
+          {/* Selected Attachments Preview Bar */}
+          {selectedAttachments.length > 0 && (
+            <div className="chat-attachment-previews">
+              {selectedAttachments.map((att) => (
+                <div key={att.id} className="attachment-preview-card">
+                  <img src={att.url} alt={att.name} className="attachment-preview-img" />
+                  <div className="attachment-preview-meta">
+                    <span className="attachment-preview-name">{att.name}</span>
+                    <span className="attachment-preview-size">{formatBytes(att.size)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="attachment-remove-btn"
+                    onClick={() => handleRemoveAttachment(att.id)}
+                    title="Remove image"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Form */}
           <form className="chat-input-form" onSubmit={handleSendMessage}>
+            <button
+              type="button"
+              className="chat-attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach Photo / Image"
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? (
+                <RefreshCw size={18} className="animate-spin text-primary" />
+              ) : (
+                <ImageIcon size={19} />
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageFileChange}
+              style={{ display: "none" }}
+            />
+
             <textarea
               ref={inputRef}
               className="chat-textarea"
-              placeholder={`Message #${activeGroup?.name || "team"}... (Type @ to mention team members)`}
+              placeholder={`Message #${activeGroup?.name || "team"}... (Type @ to mention, click 📷 or paste images)`}
               value={inputText}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               rows={2}
             />
 
             <button
               type="submit"
               className="chat-send-btn"
-              disabled={!inputText.trim() || sending}
+              disabled={(!inputText.trim() && selectedAttachments.length === 0) || sending}
               title="Send Message (Enter)"
             >
               <Send size={18} />
@@ -732,7 +925,7 @@ const TeamChat = () => {
           </form>
           <div className="chat-input-tip">
             <span>
-              💡 Tip: Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for a new line. Type <strong>@Name</strong> to ask work questions.
+              💡 Tip: Click 📷 or paste (Ctrl+V) images to attach. Press <strong>Enter</strong> to send.
             </span>
           </div>
         </div>
@@ -952,6 +1145,47 @@ const TeamChat = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Image Preview & Download Modal */}
+      {previewImageModal && (
+        <div className="chat-lightbox-backdrop" onClick={() => setPreviewImageModal(null)}>
+          <div className="chat-lightbox-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="chat-lightbox-header">
+              <div className="lightbox-info">
+                <ImageIcon size={18} className="text-blue-500" />
+                <span className="lightbox-name">{previewImageModal.name || "Attached Image"}</span>
+                <span className="lightbox-size">({formatBytes(previewImageModal.size)})</span>
+              </div>
+              <div className="lightbox-actions">
+                <button
+                  type="button"
+                  className="btn-lightbox-download"
+                  onClick={(e) => handleDownloadImage(previewImageModal, e)}
+                  title="Download image directly to your phone or computer"
+                >
+                  <Download size={16} />
+                  <span>Download Image</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-lightbox-close"
+                  onClick={() => setPreviewImageModal(null)}
+                  title="Close preview"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="chat-lightbox-body">
+              <img
+                src={previewImageModal.url}
+                alt={previewImageModal.name || "Preview"}
+                className="chat-lightbox-img"
+              />
+            </div>
           </div>
         </div>
       )}
