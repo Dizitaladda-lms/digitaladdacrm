@@ -206,9 +206,49 @@ const MyAttendance = () => {
                         )}
                       </td>
                       <td style={{ padding: "14px 18px" }}>
-                        <span style={{ fontWeight: "700", color: "#2563eb", background: "#eff6ff", padding: "4px 8px", borderRadius: "6px" }}>
-                          {row.live_hours || row.total_hours || "0.0"} hrs
-                        </span>
+                        {(() => {
+                          const isActive = Boolean(row.check_in_time && !row.check_out_time);
+                          let hours = Number(row.live_hours ?? row.total_hours ?? 0);
+                          if (isActive && (!hours || hours === 0) && row.check_in_time) {
+                            const diff = Math.max(0, Date.now() - new Date(row.check_in_time).getTime());
+                            hours = Number((diff / 3600000).toFixed(2));
+                          }
+                          if (!row.check_in_time) {
+                            return <span style={{ color: "#94a3b8", fontWeight: "600", fontSize: "13px" }}>--</span>;
+                          }
+                          return (
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                              <span
+                                style={{
+                                  fontWeight: "700",
+                                  color: isActive ? "#15803d" : "#2563eb",
+                                  background: isActive ? "#dcfce7" : "#eff6ff",
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "13px",
+                                }}
+                              >
+                                {hours.toFixed(2)} hrs
+                              </span>
+                              {isActive && (
+                                <span
+                                  style={{
+                                    fontSize: "10.5px",
+                                    fontWeight: "700",
+                                    color: "#16a34a",
+                                    background: "#f0fdf4",
+                                    border: "1px solid #bbf7d0",
+                                    padding: "2px 6px",
+                                    borderRadius: "10px",
+                                  }}
+                                  title="Shift currently in progress"
+                                >
+                                  ● Active
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: "14px 18px" }}>
                         <span style={{ fontSize: "12px", color: "#0284c7", display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: "600" }}>

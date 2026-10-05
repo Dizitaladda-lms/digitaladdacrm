@@ -165,13 +165,13 @@ export const findTodayAttendanceRepository = async (employee_id, dateStr) => {
     `SELECT 
        a.*,
        ROUND(
-         COALESCE(
-           a.total_hours, 
-           CASE WHEN a.check_in_time IS NOT NULL 
-             THEN EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0 
-             ELSE 0 
-           END
-         ), 
+         CASE 
+           WHEN a.check_out_time IS NOT NULL THEN
+             COALESCE(NULLIF(a.total_hours, 0.00), (EXTRACT(EPOCH FROM (a.check_out_time - a.check_in_time))/3600.0)::numeric)
+           WHEN a.check_in_time IS NOT NULL THEN
+             GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.check_in_time))/3600.0)::numeric)
+           ELSE 0.00
+         END,
          2
        ) AS live_hours
      FROM daily_attendance a
@@ -265,10 +265,17 @@ export const getMyAttendanceHistoryRepository = async ({ employee_id, page = 1, 
       SELECT 
         a.*,
         ROUND(
-          COALESCE(
-            a.total_hours, 
-            EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0
-          ), 
+          CASE 
+            WHEN a.check_out_time IS NOT NULL THEN
+              COALESCE(NULLIF(a.total_hours, 0.00), (EXTRACT(EPOCH FROM (a.check_out_time - a.check_in_time))/3600.0)::numeric)
+            WHEN a.check_in_time IS NOT NULL THEN
+              CASE 
+                WHEN a.date = CURRENT_DATE THEN
+                  GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.check_in_time))/3600.0)::numeric)
+                ELSE COALESCE(NULLIF(a.total_hours, 0.00), 0.00)
+              END
+            ELSE 0.00
+          END,
           2
         ) AS live_hours
       FROM daily_attendance a
@@ -374,11 +381,14 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
         d.department_name,
         ROUND(
           CASE 
+            WHEN a.check_out_time IS NOT NULL THEN
+              COALESCE(NULLIF(a.total_hours, 0.00), (EXTRACT(EPOCH FROM (a.check_out_time - a.check_in_time))/3600.0)::numeric)
             WHEN a.check_in_time IS NOT NULL THEN
-              COALESCE(
-                a.total_hours, 
-                EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0
-              )
+              CASE 
+                WHEN a.date = CURRENT_DATE THEN
+                  GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.check_in_time))/3600.0)::numeric)
+                ELSE COALESCE(NULLIF(a.total_hours, 0.00), 0.00)
+              END
             ELSE 0.00
           END, 
           2
@@ -462,10 +472,17 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
         e.role,
         d.department_name,
         ROUND(
-          COALESCE(
-            a.total_hours, 
-            EXTRACT(EPOCH FROM (COALESCE(a.check_out_time, CURRENT_TIMESTAMP) - a.check_in_time))/3600.0
-          ), 
+          CASE 
+            WHEN a.check_out_time IS NOT NULL THEN
+              COALESCE(NULLIF(a.total_hours, 0.00), (EXTRACT(EPOCH FROM (a.check_out_time - a.check_in_time))/3600.0)::numeric)
+            WHEN a.check_in_time IS NOT NULL THEN
+              CASE 
+                WHEN a.date = CURRENT_DATE THEN
+                  GREATEST(0.00, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.check_in_time))/3600.0)::numeric)
+                ELSE COALESCE(NULLIF(a.total_hours, 0.00), 0.00)
+              END
+            ELSE 0.00
+          END, 
           2
         ) AS live_hours
       FROM daily_attendance a

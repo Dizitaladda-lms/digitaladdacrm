@@ -151,23 +151,30 @@ const createEmployeeWithinTransaction = async (
         }
 
         if (employee) {
-            employee = await updateEmployeeRepository(client, employee.id, {
+            const existingId = employee.id;
+            await client.query(
+                `UPDATE employees SET is_deleted = FALSE, status = 'ACTIVE', employee_code = $1, user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3;`,
+                [customCode, user.id, existingId]
+            );
+            const updated = await updateEmployeeRepository(client, existingId, {
                 ...employeeData,
                 employee_code: customCode,
                 user_id: user.id,
                 status: "ACTIVE",
-                updated_by: currentUser.id,
+                updated_by: currentUser?.id || null,
             });
-            await client.query(
-                `UPDATE employees SET is_deleted = FALSE, status = 'ACTIVE', employee_code = $1, user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3;`,
-                [customCode, user.id, employee.id]
-            );
+            if (updated) {
+                employee = updated;
+            } else {
+                const refetched = await client.query(`SELECT * FROM employees WHERE id = $1;`, [existingId]);
+                employee = refetched.rows[0];
+            }
         } else {
             employee = await createEmployeeRepository(client, {
                 ...employeeData,
                 user_id: user.id,
                 employee_code: customCode,
-                created_by: currentUser.id,
+                created_by: currentUser?.id || null,
             });
         }
 
@@ -186,11 +193,11 @@ const createEmployeeWithinTransaction = async (
         safeAuditLog({
             action: "EMPLOYEE_CREATED",
             module: "EMPLOYEE",
-            userId: currentUser.id,
-            role: currentUser.role,
-            entityId: employee.id,
-            requestId: req.requestId,
-            ip: req.ip,
+            userId: currentUser?.id,
+            role: currentUser?.role,
+            entityId: employee?.id,
+            requestId: req?.requestId,
+            ip: req?.ip,
         });
 
         return employee;
