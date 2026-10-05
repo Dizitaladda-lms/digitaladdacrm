@@ -25,35 +25,45 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
 
+// 100% In-House Geofence Protection - Zero external 3rd-party calls
+const OFFICE_LAT = 28.541778;
+const OFFICE_LNG = 77.240750;
+const MAX_GEOFENCE_RADIUS_METERS = 100;
+
+const calculateDistanceInMeters = (userLat, userLng) => {
+  const R = 6371000; // Earth's radius in meters
+  const rad = Math.PI / 180;
+  const dLat = (OFFICE_LAT - userLat) * rad;
+  const dLon = (OFFICE_LNG - userLng) * rad;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(userLat * rad) * Math.cos(OFFICE_LAT * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 const getGPSLocation = () => {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      return resolve({ latitude: null, longitude: null, location_name: "Location Not Supported" });
+      return resolve({ latitude: null, longitude: null, location_name: "Location Not Supported", distance: null });
     }
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
-        let location_name = `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`;
+        const distance = calculateDistanceInMeters(latitude, longitude);
 
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await res.json();
-          if (data && data.display_name) {
-            const parts = data.display_name.split(",");
-            location_name = parts.slice(0, 3).join(",").trim();
-          }
-        } catch (e) {
-          console.log("Reverse geocode fallback:", e);
-        }
+        // 100% In-house local label - no coordinates sent to OpenStreetMap or any external servers
+        const location_name =
+          distance <= MAX_GEOFENCE_RADIUS_METERS
+            ? "Dizital Adda Office Premises"
+            : `Outside Office (${Math.round(distance)}m away)`;
 
-        resolve({ latitude, longitude, location_name });
+        resolve({ latitude, longitude, location_name, distance });
       },
       (error) => {
         console.warn("GPS Location Error:", error.message);
-        resolve({ latitude: null, longitude: null, location_name: "GPS Location Denied / Unavailable" });
+        resolve({ latitude: null, longitude: null, location_name: "GPS Location Denied / Unavailable", distance: null });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -330,22 +340,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
-  const OFFICE_LAT = 28.541778;
-  const OFFICE_LNG = 77.240750;
-  const MAX_GEOFENCE_RADIUS_METERS = 100;
-
-  const calculateDistanceInMeters = (userLat, userLng) => {
-    const R = 6371000; // Earth's radius in meters
-    const rad = Math.PI / 180;
-    const dLat = (OFFICE_LAT - userLat) * rad;
-    const dLon = (OFFICE_LNG - userLng) * rad;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(userLat * rad) * Math.cos(OFFICE_LAT * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
   const validateGPSLocation = (locationData) => {
     if (
       !locationData ||
@@ -360,7 +354,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       return false;
     }
 
-    const distance = calculateDistanceInMeters(Number(locationData.latitude), Number(locationData.longitude));
+    const distance = locationData.distance != null 
+      ? locationData.distance 
+      : calculateDistanceInMeters(Number(locationData.latitude), Number(locationData.longitude));
+
     if (distance > MAX_GEOFENCE_RADIUS_METERS) {
       toast.error(
         `📍 Out of Office Geofence Range! You are ${Math.round(distance)}m away from office premises. Attendance can only be marked within 100 meters of office location.`

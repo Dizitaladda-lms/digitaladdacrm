@@ -220,6 +220,11 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     console.error("Error calculating late check-in:", err);
   }
 
+  const cleanLocation =
+    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
+      ? "Dizital Adda Office Premises"
+      : (location_name || null);
+
   const attendance = await createAttendanceCheckInRepository(null, {
     employee_id: employee.id,
     date: todayStr,
@@ -228,7 +233,7 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     status,
     check_in_lat: Number(latitude),
     check_in_lng: Number(longitude),
-    check_in_location: location_name || null,
+    check_in_location: cleanLocation,
   });
 
   return attendance;
@@ -270,11 +275,16 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
     throw new ApiError(400, "You have not checked in today yet.");
   }
 
+  const cleanLocation =
+    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
+      ? "Dizital Adda Office Premises"
+      : (location_name || null);
+
   return await updateAttendanceCheckOutRepository(null, {
     id: todayAttendance.id,
     check_out_lat: Number(latitude),
     check_out_lng: Number(longitude),
-    check_out_location: location_name || null,
+    check_out_location: cleanLocation,
   });
 };
 

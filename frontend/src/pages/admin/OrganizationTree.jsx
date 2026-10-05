@@ -232,10 +232,14 @@ export default function OrganizationTree() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [empRes, deptRes] = await Promise.all([
-        getEmployees({ limit: 1000 }),
-        getDepartments(),
-      ]);
+      let empRes;
+      try {
+        empRes = await getEmployees({ limit: 1000 });
+      } catch (err) {
+        // Graceful fallback if backend instance hasn't updated max limit validator
+        empRes = await getEmployees({ limit: 100 });
+      }
+      const deptRes = await getDepartments().catch(() => ({ data: [] }));
 
       const empList = empRes?.data?.employees || empRes?.employees || [];
       const deptList = deptRes?.data || deptRes || [];

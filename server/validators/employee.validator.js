@@ -466,7 +466,7 @@ const employeeFilterSchema = Joi.object({
     limit: Joi.number()
         .integer()
         .min(1)
-        .max(100)
+        .max(2000)
         .default(10),
 
     search: Joi.string()
