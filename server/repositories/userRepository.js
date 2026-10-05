@@ -99,23 +99,37 @@ export const updateUserRepository = async (
     id,
     user
 ) => {
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (user.full_name !== undefined) {
+        fields.push(`full_name = $${idx++}`);
+        values.push(user.full_name);
+    }
+    if (user.email !== undefined) {
+        fields.push(`email = $${idx++}`);
+        values.push(user.email);
+    }
+    if (user.password !== undefined) {
+        fields.push(`password = $${idx++}`);
+        values.push(user.password);
+    }
+    if (user.role !== undefined) {
+        fields.push(`role = $${idx++}`);
+        values.push(user.role);
+    }
+
+    fields.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
 
     const query = `
         UPDATE users
-        SET
-            full_name = $1,
-            role = $2,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
+        SET ${fields.join(", ")}
+        WHERE id = $${idx}
         AND is_deleted = FALSE
         RETURNING *;
     `;
-
-    const values = [
-        user.full_name,
-        user.role,
-        id
-    ];
 
     const result = await client.query(query, values);
 

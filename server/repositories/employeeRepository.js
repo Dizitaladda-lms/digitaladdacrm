@@ -372,9 +372,17 @@ export const updateEmployeeRepository = async (
     const values = [];
     let idx = 1;
 
+    if (employee.employee_code !== undefined && employee.employee_code !== null && String(employee.employee_code).trim() !== "") {
+        fields.push(`employee_code = $${idx++}`);
+        values.push(String(employee.employee_code).trim().toUpperCase());
+    }
     if (employee.full_name !== undefined && employee.full_name !== null) {
         fields.push(`full_name = $${idx++}`);
         values.push(employee.full_name);
+    }
+    if (employee.email !== undefined && employee.email !== null && String(employee.email).trim() !== "") {
+        fields.push(`email = $${idx++}`);
+        values.push(String(employee.email).trim().toLowerCase());
     }
     if (employee.mobile !== undefined && employee.mobile !== null && String(employee.mobile).trim() !== "") {
         fields.push(`mobile = $${idx++}`);

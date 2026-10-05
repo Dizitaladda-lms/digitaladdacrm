@@ -40,6 +40,7 @@ import "./Employees.css";
 
 const initialForm = {
   full_name: "",
+  employee_code: "",
   email: "",
   mobile: "",
   department_id: "",
@@ -248,6 +249,9 @@ const Employees = () => {
     setEditingEmployee(employee);
     setEditForm({
       full_name: employee.full_name || "",
+      employee_code: employee.employee_code || "",
+      email: employee.email || "",
+      password: "",
       department_id: employee.department_id || "",
       role: employee.role || "COUNSELLOR",
       designation: employee.designation || "",
@@ -260,17 +264,27 @@ const Employees = () => {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editForm.department_id) return toast.error("Please select a department.");
+    if (!editForm.email || !editForm.email.trim()) return toast.error("Please enter a valid email address.");
+    if (editForm.password && editForm.password.trim() && editForm.password.trim().length < 6) {
+      return toast.error("New password must be at least 6 characters long.");
+    }
     setEditSaving(true);
     try {
-      await updateEmployee(editingEmployee.id, {
-        full_name: editForm.full_name,
+      const payload = {
+        full_name: editForm.full_name.trim(),
+        employee_code: editForm.employee_code?.trim() ? editForm.employee_code.trim().toUpperCase() : undefined,
+        email: editForm.email.trim().toLowerCase(),
         department_id: Number(editForm.department_id),
         role: editForm.role,
         designation: editForm.designation,
         status: editForm.status,
         reporting_manager_id: editForm.reporting_manager_id ? Number(editForm.reporting_manager_id) : null,
-      });
-      toast.success(`${editingEmployee.full_name}'s department and role updated successfully!`);
+      };
+      if (editForm.password && editForm.password.trim()) {
+        payload.password = editForm.password.trim();
+      }
+      await updateEmployee(editingEmployee.id, payload);
+      toast.success(`${editingEmployee.full_name}'s credentials, role, and profile updated successfully!`);
       setEditModalOpen(false);
       await load();
     } catch (err) {
@@ -315,6 +329,7 @@ const Employees = () => {
       setSaving(true);
       const employeePayload = {
         full_name: form.full_name,
+        employee_code: form.employee_code?.trim() ? form.employee_code.trim().toUpperCase() : undefined,
         email: form.email,
         mobile: form.mobile,
         department_id: Number(form.department_id),
@@ -675,10 +690,10 @@ const Employees = () => {
                             border: "1px solid #CBD5E1",
                             fontWeight: 600,
                           }}
-                          title={`Change department or role for ${employee.full_name}`}
+                          title={`Edit profile, email, password, department or role for ${employee.full_name}`}
                         >
                           <Pencil size={14} />
-                          <span>Change Dept</span>
+                          <span>Edit</span>
                         </button>
                       )}
 
@@ -751,6 +766,17 @@ const Employees = () => {
                       onChange={(event) => setForm({ ...form, full_name: event.target.value })}
                       required
                     />
+                  </label>
+                  <label>
+                    Employee ID / Code (Optional)
+                    <input
+                      value={form.employee_code || ""}
+                      onChange={(event) => setForm({ ...form, employee_code: event.target.value.toUpperCase() })}
+                      placeholder="e.g. DA-EMP-001 (Leave blank to auto-generate)"
+                    />
+                    <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                      Leave blank to auto-assign next sequence code.
+                    </small>
                   </label>
                   <label>
                     Work email
@@ -1039,10 +1065,10 @@ const Employees = () => {
           <form className="employee-modal" onSubmit={handleSaveEdit}>
             <header>
               <div>
-                <span>HR & Operations Access Control</span>
-                <h2>Change Department & Role</h2>
+                <span>HR & Operations Management</span>
+                <h2>Edit Employee & Credentials</h2>
                 <p>
-                  Update {editingEmployee.full_name}'s department and access role. The role controls their system permissions.
+                  Update {editingEmployee.full_name}'s login email, password, department, and system access role.
                 </p>
               </div>
               <button type="button" onClick={() => setEditModalOpen(false)}>
@@ -1064,17 +1090,56 @@ const Employees = () => {
                     lineHeight: 1.4,
                   }}
                 >
-                  💡 <strong>Access Control Notice:</strong> Department changes update organizational assignment. Changing the role updates permissions on the linked login account.
+                  💡 <strong>HR & Admin Notice:</strong> You can update this employee's official login email and reset their password. Leave the password field blank if you do not wish to change it.
                 </div>
 
                 <div className="employee-form-grid">
                   <label>
-                    Full Name
+                    Full Name *
                     <input
                       value={editForm.full_name}
                       onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
                       required
                     />
+                  </label>
+
+                  <label>
+                    Employee ID / Code *
+                    <input
+                      value={editForm.employee_code || ""}
+                      onChange={(e) => setEditForm({ ...editForm, employee_code: e.target.value.toUpperCase() })}
+                      placeholder="e.g. DA-EMP-001"
+                      required
+                    />
+                    <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                      Unique employee identification code used across the system.
+                    </small>
+                  </label>
+
+                  <label>
+                    Official Login Email *
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      placeholder="e.g. employee@dizitaladda.com"
+                      autoComplete="off"
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Change / Reset Password (Optional)
+                    <input
+                      type="password"
+                      value={editForm.password}
+                      onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                      placeholder="Leave blank to keep existing password"
+                      autoComplete="new-password"
+                    />
+                    <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                      Enter 6+ characters only if you want to reset their login password.
+                    </small>
                   </label>
 
                   <label>

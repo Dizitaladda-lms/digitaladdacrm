@@ -46,25 +46,46 @@ export const findEmployeeBiometricRepository = async (employee_id) => {
 
 export const saveEmployeeBiometricRepository = async (client, { employee_id, credential_id, public_key, device_info, face_image_url }) => {
   const dbClient = client || pool;
-  const result = await dbClient.query(
+
+  // 1. Check if a biometric record already exists for this employee
+  const existing = await dbClient.query(
+    `SELECT id, face_image_url FROM employee_biometrics WHERE employee_id = $1 LIMIT 1;`,
+    [employee_id]
+  );
+
+  if (existing.rows.length > 0) {
+    const row = existing.rows[0];
+    const updateResult = await dbClient.query(
+      `
+        UPDATE employee_biometrics
+        SET
+          credential_id = $1,
+          public_key = $2,
+          device_info = $3,
+          face_image_url = COALESCE($4, face_image_url),
+          approval_status = 'PENDING_APPROVAL',
+          is_locked = TRUE,
+          registered_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+        RETURNING *;
+      `,
+      [credential_id, public_key, device_info || "Mobile Biometric Device", face_image_url || null, row.id]
+    );
+    return updateResult.rows[0];
+  }
+
+  // 2. Otherwise insert new biometric record
+  const insertResult = await dbClient.query(
     `
       INSERT INTO employee_biometrics (
-        employee_id, credential_id, public_key, device_info, face_image_url, is_locked, approval_status
+        employee_id, credential_id, public_key, device_info, face_image_url, is_locked, approval_status, registered_at
       )
-      VALUES ($1, $2, $3, $4, $5, TRUE, 'PENDING_APPROVAL')
-      ON CONFLICT (employee_id) DO UPDATE SET
-        credential_id = EXCLUDED.credential_id,
-        public_key = EXCLUDED.public_key,
-        device_info = EXCLUDED.device_info,
-        face_image_url = COALESCE(EXCLUDED.face_image_url, employee_biometrics.face_image_url),
-        approval_status = 'PENDING_APPROVAL',
-        is_locked = TRUE,
-        registered_at = CURRENT_TIMESTAMP
+      VALUES ($1, $2, $3, $4, $5, TRUE, 'PENDING_APPROVAL', CURRENT_TIMESTAMP)
       RETURNING *;
     `,
     [employee_id, credential_id, public_key, device_info || "Mobile Biometric Device", face_image_url || null]
   );
-  return result.rows[0];
+  return insertResult.rows[0];
 };
 
 export const deleteEmployeeBiometricRepository = async (employee_id) => {

@@ -21,6 +21,15 @@ const createEmployeeSchema = Joi.object({
             "any.required": "Full name is required.",
         }),
 
+    employee_code: Joi.string()
+        .trim()
+        .max(50)
+        .allow("", null)
+        .optional()
+        .messages({
+            "string.max": "Employee code cannot exceed 50 characters.",
+        }),
+
     email: Joi.string()
         .trim()
         .email()
@@ -194,6 +203,15 @@ const updateEmployeeSchema = Joi.object({
             "string.max": "Full name cannot exceed 100 characters.",
         }),
 
+    employee_code: Joi.string()
+        .trim()
+        .max(50)
+        .allow("", null)
+        .optional()
+        .messages({
+            "string.max": "Employee code cannot exceed 50 characters.",
+        }),
+
     email: Joi.string()
         .trim()
         .email()
@@ -201,6 +219,16 @@ const updateEmployeeSchema = Joi.object({
         .optional()
         .messages({
             "string.email": "Please enter a valid email address.",
+        }),
+
+    password: Joi.string()
+        .min(6)
+        .max(100)
+        .allow("", null)
+        .optional()
+        .messages({
+            "string.min": "Password must be at least 6 characters.",
+            "string.max": "Password cannot exceed 100 characters.",
         }),
 
     mobile: Joi.string()

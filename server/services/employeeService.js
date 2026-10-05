@@ -18,6 +18,7 @@ import {
     findEmployeeByIdRepository,
     findEmployeeByEmailRepository,
     findEmployeeByMobileRepository,
+    findEmployeeByCodeRepository,
     updateEmployeeRepository,
     deleteEmployeeRepository,
     restoreEmployeeRepository,
@@ -55,24 +56,47 @@ const normalizeEmployeeData = (employeeData) => ({
     email: employeeData.email.trim().toLowerCase(),
     full_name: employeeData.full_name.trim(),
     mobile: employeeData.mobile.trim(),
+    employee_code: employeeData.employee_code && typeof employeeData.employee_code === "string" && employeeData.employee_code.trim()
+        ? employeeData.employee_code.trim().toUpperCase()
+        : undefined,
 });
 
-const ensureEmployeeCanBeCreated = async (employeeData, isApproval = false) => {
+const ensureEmployeeCanBeCreated = async (employeeData, isApproval = false, employeeId = null) => {
     if (!isValidRole(employeeData.role)) {
         throw new ApiError(400, "Invalid employee role.");
     }
 
     if (!isApproval) {
-        if (await findEmployeeByEmailRepository(employeeData.email)) {
-            throw new ApiError(409, "Employee email already exists.");
+        // 1. Check if an active employee with this email exists
+        const existingEmp = await findEmployeeByEmailRepository(employeeData.email);
+        if (existingEmp && (!employeeId || existingEmp.id !== Number(employeeId))) {
+            throw new ApiError(409, "An active employee with this email already exists.");
         }
 
-        if (await findUserByEmailRepository(employeeData.email)) {
-            throw new ApiError(409, "User email already exists.");
+        // 2. Check if a user with this email is currently linked to another active employee
+        const existingUser = await findUserByEmailRepository(employeeData.email);
+        if (existingUser) {
+            const linkedEmp = await findEmployeeByUserIdRepository(existingUser.id);
+            if (linkedEmp && (!employeeId || linkedEmp.id !== Number(employeeId))) {
+                throw new ApiError(409, "This email is already in use by an active employee.");
+            }
         }
 
-        if (await findEmployeeByMobileRepository(employeeData.mobile)) {
-            throw new ApiError(409, "Mobile number already belongs to an existing employee.");
+        // 3. Check mobile number for active employees
+        if (employeeData.mobile) {
+            const existingMobile = await findEmployeeByMobileRepository(employeeData.mobile);
+            if (existingMobile && (!employeeId || existingMobile.id !== Number(employeeId))) {
+                throw new ApiError(409, "Mobile number already belongs to an existing employee.");
+            }
+        }
+
+        // 4. Check custom Employee ID/Code if specified by HR
+        if (employeeData.employee_code && typeof employeeData.employee_code === "string" && employeeData.employee_code.trim()) {
+            const codeToTest = employeeData.employee_code.trim().toUpperCase();
+            const existingCode = await findEmployeeByCodeRepository(codeToTest);
+            if (existingCode && (!employeeId || existingCode.id !== Number(employeeId))) {
+                throw new ApiError(409, `Employee ID/Code "${codeToTest}" is already in use.`);
+            }
         }
     }
 };
@@ -96,29 +120,53 @@ const createEmployeeWithinTransaction = async (
         } else {
             await updateUserRepository(client, user.id, {
                 full_name: employeeData.full_name,
+                password: passwordHash,
                 role: employeeData.role,
             });
+            await client.query(
+                `UPDATE users SET is_deleted = FALSE, is_active = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1;`,
+                [user.id]
+            );
         }
 
-        let employee = await findEmployeeByUserIdRepository(user.id);
-        if (!employee && employeeData.mobile) {
-            employee = await findEmployeeByMobileRepository(employeeData.mobile);
+        // Determine employee code (custom from HR or auto-generated)
+        let customCode = employeeData.employee_code && typeof employeeData.employee_code === "string" && employeeData.employee_code.trim()
+            ? employeeData.employee_code.trim().toUpperCase()
+            : null;
+
+        // Check if an employee record already exists for this email (including soft-deleted rows)
+        const existingEmpRes = await client.query(
+            `SELECT id, employee_code, is_deleted FROM employees WHERE LOWER(email) = LOWER($1) LIMIT 1;`,
+            [employeeData.email]
+        );
+        let employee = existingEmpRes.rows[0] || null;
+
+        if (!customCode) {
+            if (employee?.employee_code) {
+                customCode = employee.employee_code;
+            } else {
+                const sequence = await getNextEmployeeCodeRepository(client);
+                customCode = generateEmployeeCode(sequence);
+            }
         }
 
         if (employee) {
             employee = await updateEmployeeRepository(client, employee.id, {
                 ...employeeData,
+                employee_code: customCode,
                 user_id: user.id,
                 status: "ACTIVE",
                 updated_by: currentUser.id,
             });
+            await client.query(
+                `UPDATE employees SET is_deleted = FALSE, status = 'ACTIVE', employee_code = $1, user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3;`,
+                [customCode, user.id, employee.id]
+            );
         } else {
-            const sequence = await getNextEmployeeCodeRepository(client);
-            const employeeCode = generateEmployeeCode(sequence);
             employee = await createEmployeeRepository(client, {
                 ...employeeData,
                 user_id: user.id,
-                employee_code: employeeCode,
+                employee_code: customCode,
                 created_by: currentUser.id,
             });
         }
@@ -303,8 +351,7 @@ export const updateEmployeeService = async (
         }
 
         // Duplicate Email Check
-        if (employeeData.email) {
-
+        if (employeeData.email && employeeData.email !== employee.email) {
             const existingEmail =
                 await findEmployeeByEmailRepository(
                     employeeData.email
@@ -319,6 +366,31 @@ export const updateEmployeeService = async (
                     "Employee email already exists."
                 );
             }
+
+            const existingUser =
+                await findUserByEmailRepository(
+                    employeeData.email
+                );
+
+            if (
+                existingUser &&
+                existingUser.id !== employee.user_id
+            ) {
+                throw new ApiError(
+                    409,
+                    "A user account with this email already exists."
+                );
+            }
+        }
+
+        // Optional Password Hash
+        let hashedPassword = null;
+        if (employeeData.password && typeof employeeData.password === "string" && employeeData.password.trim() !== "") {
+            const trimmedPassword = employeeData.password.trim();
+            if (trimmedPassword.length < 6) {
+                throw new ApiError(400, "Password must be at least 6 characters.");
+            }
+            hashedPassword = await bcrypt.hash(trimmedPassword, 10);
         }
 
         // Duplicate Mobile Check
@@ -351,6 +423,18 @@ export const updateEmployeeService = async (
             );
         }
 
+        // Employee ID / Code validation
+        if (employeeData.employee_code && typeof employeeData.employee_code === "string" && employeeData.employee_code.trim()) {
+            const formattedCode = employeeData.employee_code.trim().toUpperCase();
+            if (formattedCode !== employee.employee_code) {
+                const existingCode = await findEmployeeByCodeRepository(formattedCode);
+                if (existingCode && existingCode.id !== Number(id)) {
+                    throw new ApiError(409, `Employee ID/Code "${formattedCode}" is already in use by another employee.`);
+                }
+            }
+            employeeData.employee_code = formattedCode;
+        }
+
         const currentRole = String(currentUser.role || "").toUpperCase();
         const requestedRole = String(employeeData.role || "").toUpperCase();
         const existingRole = String(employee.role || "").toUpperCase();
@@ -362,30 +446,41 @@ export const updateEmployeeService = async (
             throw new ApiError(403, "HR cannot grant Manager or Super Admin access.");
         }
 
-        // Update Employee
+        // Update Employee (employees table does not have a password column)
+        const { password: _ignoredPassword, ...cleanEmployeeData } = employeeData;
         const updatedEmployee =
             await updateEmployeeRepository(
                 client,
                 id,
                 {
-                    ...employeeData,
+                    ...cleanEmployeeData,
                     updated_by: currentUser.id,
                 }
             );
 
-        // Update User
+        // Update User (Full Name, Role, Email, and Password)
+        const userUpdatePayload = {
+            full_name:
+                employeeData.full_name ??
+                employee.full_name,
+
+            role:
+                employeeData.role ??
+                employee.role,
+        };
+
+        if (employeeData.email) {
+            userUpdatePayload.email = employeeData.email;
+        }
+
+        if (hashedPassword) {
+            userUpdatePayload.password = hashedPassword;
+        }
+
         await updateUserRepository(
             client,
             employee.user_id,
-            {
-                full_name:
-                    employeeData.full_name ??
-                    employee.full_name,
-
-                role:
-                    employeeData.role ??
-                    employee.role,
-            }
+            userUpdatePayload
         );
 
         safeAuditLog({
