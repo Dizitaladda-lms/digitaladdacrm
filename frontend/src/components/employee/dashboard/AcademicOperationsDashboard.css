@@ -561,3 +561,131 @@
   font-size: 11px;
   font-weight: 600;
 }
+
+/* ===========================================
+   Mobile & iOS Responsive Fixes
+=========================================== */
+@media (max-width: 768px) {
+  .academic-ops-dashboard {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .ops-header-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .ops-header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .ops-btn-primary,
+  .ops-btn-secondary {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .ops-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .today-status-card {
+    padding: 16px;
+  }
+
+  .today-status-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .today-badge-wrap {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .edit-report-link {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .today-details-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  /* Today Pending Card Mobile Fix — prevents button pushing off screen */
+  .today-pending {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .today-pending-content {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pending-icon-box {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .pending-heading {
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  .pending-sub {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .btn-submit-today {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 16px;
+    font-size: 14px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .ops-main-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .ops-panel-card {
+    padding: 16px;
+  }
+
+  .ops-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .class-item-top,
+  .report-item-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .report-item-footer {
+    gap: 10px;
+  }
+}

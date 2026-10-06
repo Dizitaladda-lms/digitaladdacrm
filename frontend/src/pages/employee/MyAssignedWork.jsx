@@ -76,7 +76,7 @@ const MyAssignedWork = () => {
     <div className="my-assigned-work-page">
       {/* Header Banner */}
       <div className="assigned-work-banner">
-        <div>
+        <div className="banner-text-content">
           <span className="banner-pill">My Work Assignments</span>
           <h1 className="banner-heading">Work Assigned by Admin & Dept Heads</h1>
           <p className="banner-subtext">
@@ -84,17 +84,21 @@ const MyAssignedWork = () => {
           </p>
         </div>
 
-        <select
-          className="filter-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">All Statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="REVISION_REQUESTED">Revision Requested</option>
-          <option value="COMPLETED">Completed</option>
-        </select>
+        <div className="banner-filter-wrap">
+          <label className="filter-label" htmlFor="work-status-filter">Filter Status:</label>
+          <select
+            id="work-status-filter"
+            className="filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="REVISION_REQUESTED">Revision Requested</option>
+            <option value="COMPLETED">Completed</option>
+          </select>
+        </div>
       </div>
 
       {/* Task List */}

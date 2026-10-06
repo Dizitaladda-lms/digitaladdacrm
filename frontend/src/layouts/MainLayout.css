@@ -42,7 +42,18 @@
 
 /* Mobile & Tablet (< 769px): Sidebar collapses into off-canvas drawer */
 @media (max-width: 768px) {
+  .admin-layout {
+    min-height: 100dvh;
+  }
+
   .admin-main {
     margin-left: 0 !important;
+    min-height: auto;
+  }
+
+  .admin-content {
+    overflow-y: visible;
+    height: auto;
+    padding: 14px 10px;
   }
 }
