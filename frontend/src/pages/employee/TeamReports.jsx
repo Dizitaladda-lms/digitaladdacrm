@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Users,
   Calendar,
@@ -86,11 +86,74 @@ const TeamReports = () => {
       .catch((err) => console.error("Failed to load departments:", err));
   }, []);
 
+  // Allowed department IDs for non-HR / TL
+  const allowedDepartmentIds = useMemo(() => {
+    if (isHR) return null; // Super Admin and HR see everything
+    const primaryId = user?.department_id ? Number(user.department_id) : null;
+    let managed = [];
+    if (Array.isArray(user?.managed_department_ids)) {
+      managed = user.managed_department_ids.map(Number).filter(Boolean);
+    } else if (typeof user?.managed_department_ids === "string") {
+      try {
+        managed = JSON.parse(user.managed_department_ids).map(Number).filter(Boolean);
+      } catch (e) {
+        managed = [];
+      }
+    }
+    return Array.from(new Set([...(primaryId ? [primaryId] : []), ...managed]));
+  }, [isHR, user?.department_id, user?.managed_department_ids]);
+
+  // Visible departments list for filter tabs (strictly limited for TLs)
+  const visibleDepartments = useMemo(() => {
+    if (isHR) {
+      if (departments.length > 0) return departments;
+      return SIX_OFFICIAL_DEPARTMENTS.map((name, idx) => ({ id: idx + 1, department_name: name }));
+    }
+
+    if (departments.length > 0 && allowedDepartmentIds && allowedDepartmentIds.length > 0) {
+      const matched = departments.filter((d) => allowedDepartmentIds.includes(Number(d.id)));
+      if (matched.length > 0) return matched;
+    }
+
+    // Fallback: if user has department_name
+    if (user?.department_name) {
+      return [{
+        id: user.department_id || 1,
+        department_name: user.department_name,
+      }];
+    }
+
+    return [];
+  }, [isHR, departments, allowedDepartmentIds, user?.department_name, user?.department_id]);
+
+  // Synchronize initial selectedDepartment for TL
+  useEffect(() => {
+    if (!isHR && visibleDepartments.length > 0) {
+      if (visibleDepartments.length === 1) {
+        setSelectedDepartment(visibleDepartments[0].id);
+      } else if (
+        selectedDepartment !== "ALL" &&
+        !visibleDepartments.some(
+          (d) => String(d.id) === String(selectedDepartment) || d.department_name === selectedDepartment
+        )
+      ) {
+        setSelectedDepartment(visibleDepartments[0].id);
+      }
+    }
+  }, [isHR, visibleDepartments, selectedDepartment]);
+
   const fetchReports = async () => {
     try {
       setLoading(true);
+      let deptParam = undefined;
+      if (selectedDepartment !== "ALL") {
+        deptParam = selectedDepartment;
+      } else if (!isHR && visibleDepartments.length === 1) {
+        deptParam = visibleDepartments[0].id;
+      }
+
       const res = await getTeamReports({
-        departmentId: selectedDepartment !== "ALL" ? selectedDepartment : undefined,
+        departmentId: deptParam,
         roleType: selectedRoleLevel !== "ALL" ? selectedRoleLevel : undefined,
         status: selectedStatus !== "ALL" ? selectedStatus : undefined,
         date: selectedDate || undefined,
@@ -257,7 +320,9 @@ const TeamReports = () => {
               Company Teams Daily Work & Performance Reports
             </h1>
             <p className="team-subheading">
-              Track daily work reporting across all 6 departments. Interns & Executives submit to Team Leaders, TLs verify to HR, and HR approvals unlock live Super Admin visibility.
+              {isHR
+                ? "Track daily work reporting across all company departments. Interns & Executives submit to Team Leaders, TLs verify to HR, and HR approvals unlock live Super Admin visibility."
+                : "Track daily work reporting for your assigned department(s). Verify tasks submitted by your team members & interns and submit reviews directly to HR."}
             </p>
           </div>
 
@@ -288,39 +353,42 @@ const TeamReports = () => {
         <div style={{ marginTop: "14px", borderTop: "1px solid #f1f5f9", paddingTop: "14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
             <Building2 size={15} style={{ color: "#475569" }} />
-            <strong style={{ fontSize: "13px", color: "#334155" }}>Select Department:</strong>
+            <strong style={{ fontSize: "13px", color: "#334155" }}>
+              {isHR ? "Select Department:" : "Assigned Department(s):"}
+            </strong>
           </div>
 
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setSelectedDepartment("ALL")}
-              style={{
-                padding: "7px 14px",
-                borderRadius: "20px",
-                fontSize: "12.5px",
-                fontWeight: "700",
-                cursor: "pointer",
-                border: selectedDepartment === "ALL" ? "2px solid #2563eb" : "1px solid #cbd5e1",
-                background: selectedDepartment === "ALL" ? "#eff6ff" : "#ffffff",
-                color: selectedDepartment === "ALL" ? "#1d4ed8" : "#475569",
-                transition: "all 0.15s ease",
-              }}
-            >
-              🏢 All Departments
-            </button>
+            {/* Show "All Departments" button if HR/SuperAdmin, OR if TL manages 2+ departments */}
+            {(isHR || visibleDepartments.length > 1) && (
+              <button
+                onClick={() => setSelectedDepartment("ALL")}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: "20px",
+                  fontSize: "12.5px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  border: selectedDepartment === "ALL" ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                  background: selectedDepartment === "ALL" ? "#eff6ff" : "#ffffff",
+                  color: selectedDepartment === "ALL" ? "#1d4ed8" : "#475569",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                🏢 {isHR ? "All Departments" : `All My Departments (${visibleDepartments.length})`}
+              </button>
+            )}
 
-            {SIX_OFFICIAL_DEPARTMENTS.map((deptName) => {
-              const deptObj = departments.find(
-                (d) => d.department_name?.toLowerCase() === deptName.toLowerCase()
-              );
-              const deptId = deptObj?.id || deptName;
+            {visibleDepartments.map((dept) => {
+              const deptId = dept.id;
+              const deptName = dept.department_name;
               const isSelected =
                 String(selectedDepartment) === String(deptId) ||
                 selectedDepartment === deptName;
 
               return (
                 <button
-                  key={deptName}
+                  key={deptId}
                   onClick={() => setSelectedDepartment(deptId)}
                   style={{
                     padding: "7px 14px",
@@ -338,6 +406,20 @@ const TeamReports = () => {
                   }}
                 >
                   <span>{deptName}</span>
+                  {!isHR && visibleDepartments.length === 1 && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        background: isSelected ? "#2563eb" : "#e2e8f0",
+                        color: isSelected ? "#ffffff" : "#475569",
+                        padding: "1px 6px",
+                        borderRadius: "10px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Assigned
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -490,11 +572,17 @@ const TeamReports = () => {
           <div>
             <h3 className="team-table-title">
               {selectedDepartment === "ALL"
-                ? "All Department Submissions"
+                ? isHR
+                  ? "All Department Submissions"
+                  : "All Managed Department Submissions"
                 : `${
                     departments.find(
                       (d) => String(d.id) === String(selectedDepartment)
-                    )?.department_name || selectedDepartment
+                    )?.department_name ||
+                    visibleDepartments.find(
+                      (d) => String(d.id) === String(selectedDepartment)
+                    )?.department_name ||
+                    selectedDepartment
                   } Work Reports`}
               {selectedDate ? ` (${selectedDate})` : ""}
             </h3>

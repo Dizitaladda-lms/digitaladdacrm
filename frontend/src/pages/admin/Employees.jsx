@@ -1683,6 +1683,77 @@ const Employees = () => {
                     </small>
                   </label>
 
+                  {/* Managed Departments for TL / Manager in Edit Modal */}
+                  {(editForm.role === "TL" || editForm.role === "MANAGER" || /lead|manager|head/i.test(editForm.designation || "")) && (
+                    <div style={{
+                      gridColumn: "1 / -1",
+                      background: "#f0fdf4",
+                      border: "1.5px solid #86efac",
+                      borderRadius: "10px",
+                      padding: "14px",
+                      marginTop: "6px",
+                      marginBottom: "8px"
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                        <Building2 size={16} style={{ color: "#16a34a" }} />
+                        <strong style={{ fontSize: "13px", color: "#166534" }}>
+                          Managed Departments (TL Oversight & Work Reports)
+                        </strong>
+                      </div>
+                      <p style={{ margin: "0 0 10px 0", fontSize: "12px", color: "#475569", lineHeight: "1.4" }}>
+                        Select which department(s) this Team Lead can view and review reports for. Their primary assigned department is automatically included.
+                      </p>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "8px" }}>
+                        {departments.map((dept) => {
+                          const isPrimary = Number(editForm.department_id) === Number(dept.id);
+                          const isChecked = isPrimary || (editForm.managed_department_ids || []).includes(Number(dept.id));
+
+                          return (
+                            <label
+                              key={dept.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                padding: "7px 10px",
+                                borderRadius: "8px",
+                                background: isChecked ? "#dcfce7" : "#ffffff",
+                                border: isChecked ? "1.5px solid #22c55e" : "1px solid #cbd5e1",
+                                fontSize: "12.5px",
+                                cursor: isPrimary ? "default" : "pointer",
+                                userSelect: "none",
+                                color: isChecked ? "#14532d" : "#334155",
+                                fontWeight: isChecked ? "600" : "400",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                disabled={isPrimary}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const deptIdNum = Number(dept.id);
+                                  const current = editForm.managed_department_ids || [];
+                                  if (e.target.checked) {
+                                    setEditForm({ ...editForm, managed_department_ids: [...new Set([...current, deptIdNum])] });
+                                  } else {
+                                    setEditForm({ ...editForm, managed_department_ids: current.filter((id) => id !== deptIdNum) });
+                                  }
+                                }}
+                                style={{ accentColor: "#16a34a" }}
+                              />
+                              <span>{dept.department_name}</span>
+                              {isPrimary && (
+                                <span style={{ fontSize: "10.5px", background: "#bbf7d0", color: "#166534", padding: "1px 5px", borderRadius: "4px", marginLeft: "auto" }}>
+                                  Primary
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <label style={{ gridColumn: "1 / -1" }}>
                     Designation (Select suggestion or type custom)
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "6px 0" }}>
