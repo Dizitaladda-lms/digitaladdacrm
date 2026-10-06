@@ -405,6 +405,7 @@ export const findTeamReportsRepository = async ({
   tlUserId,
   tlEmployeeId,
   departmentId,
+  allowedDepartmentIds = null,
   date,
   startDate,
   endDate,
@@ -420,14 +421,38 @@ export const findTeamReportsRepository = async ({
   const values = [];
   let paramIdx = 1;
 
-  // Department filter (support specific department ID or all)
+  // Department filter (support specific department ID, multiple allowed departments for TL, or all for SuperAdmin/HR)
   if (departmentId && departmentId !== "ALL") {
     whereClauses.push(`(r.department_id = $${paramIdx++} OR e.department_id = $${paramIdx - 1})`);
     values.push(departmentId);
-  } else if (!isSuperAdminOrHR && tlEmployeeId) {
-    // If ordinary TL with no explicit dept selected, filter by their department or direct interns
-    whereClauses.push(`(e.reporting_manager_id = $${paramIdx++} OR r.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1}) OR e.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1}))`);
-    values.push(tlEmployeeId);
+  } else if (!isSuperAdminOrHR) {
+    if (Array.isArray(allowedDepartmentIds) && allowedDepartmentIds.length > 0) {
+      if (tlEmployeeId) {
+        whereClauses.push(`(
+          r.department_id = ANY($${paramIdx++}::bigint[]) OR 
+          e.department_id = ANY($${paramIdx - 1}::bigint[]) OR 
+          e.reporting_manager_id = $${paramIdx++}
+        )`);
+        values.push(allowedDepartmentIds);
+        values.push(tlEmployeeId);
+      } else {
+        whereClauses.push(`(
+          r.department_id = ANY($${paramIdx++}::bigint[]) OR 
+          e.department_id = ANY($${paramIdx - 1}::bigint[])
+        )`);
+        values.push(allowedDepartmentIds);
+      }
+    } else if (tlEmployeeId) {
+      // Fallback if no specific allowed departments configured
+      whereClauses.push(`(
+        e.reporting_manager_id = $${paramIdx++} OR 
+        r.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1}) OR 
+        e.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1})
+      )`);
+      values.push(tlEmployeeId);
+    } else {
+      whereClauses.push(`1 = 0`);
+    }
   }
 
   if (date) {

@@ -235,10 +235,39 @@ export const getTeamReportsService = async (user, query) => {
   const empProfile = await ensureEmployeeProfileForUser(user.id);
   
   let departmentId = null;
-  if (query.departmentId && query.departmentId !== "ALL") {
-    departmentId = query.departmentId;
-  } else if (!isSuperAdminOrHR) {
-    departmentId = empProfile?.department_id || null;
+  let allowedDepartmentIds = null;
+
+  if (isSuperAdminOrHR) {
+    if (query.departmentId && query.departmentId !== "ALL") {
+      departmentId = query.departmentId;
+    }
+  } else {
+    // Non-admin / Non-HR (TL, Manager, Employee)
+    const primaryDeptId = empProfile?.department_id ? Number(empProfile.department_id) : null;
+    const managedIds = Array.isArray(empProfile?.managed_department_ids)
+      ? empProfile.managed_department_ids.map(Number).filter((id) => !isNaN(id) && id > 0)
+      : [];
+
+    allowedDepartmentIds = Array.from(
+      new Set([...(primaryDeptId ? [primaryDeptId] : []), ...managedIds])
+    );
+
+    if (query.departmentId && query.departmentId !== "ALL") {
+      const requestedDeptId = Number(query.departmentId);
+      if (allowedDepartmentIds.includes(requestedDeptId)) {
+        departmentId = requestedDeptId;
+      } else {
+        // Fallback: If requesting a department not assigned to this TL, default to their allowed department(s)
+        departmentId = allowedDepartmentIds.length === 1 ? allowedDepartmentIds[0] : null;
+      }
+    } else {
+      // If no specific dept requested, or "ALL" requested by TL:
+      // If TL leads only 1 department, explicitly filter by that department
+      if (allowedDepartmentIds.length === 1) {
+        departmentId = allowedDepartmentIds[0];
+      }
+      // If TL leads multiple departments, departmentId remains null and repository filters by allowedDepartmentIds
+    }
   }
 
   const page = Math.max(1, parseInt(query.page, 10) || 1);
@@ -251,9 +280,10 @@ export const getTeamReportsService = async (user, query) => {
   const search = query.search?.trim();
 
   return await findTeamReportsRepository({
-    tlUserId: isSuperAdminOrHR ? null : null,
+    tlUserId: null,
     tlEmployeeId: isSuperAdminOrHR ? null : (empProfile?.id || null),
     departmentId,
+    allowedDepartmentIds,
     date,
     startDate,
     endDate,

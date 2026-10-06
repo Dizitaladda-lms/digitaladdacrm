@@ -114,6 +114,7 @@ export const findUserByEmailWithPasswordRepository = async (email) => {
       e.mobile,
       e.department_id,
       d.department_name,
+      e.managed_department_ids,
       e.employment_type
     FROM users u
     LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE
@@ -151,6 +152,7 @@ export const findUserByIdRepository = async (id) => {
       e.mobile,
       e.department_id,
       d.department_name,
+      e.managed_department_ids,
       e.employment_type
     FROM users u
     LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE

@@ -47,6 +47,7 @@ const initialForm = {
   email: "",
   mobile: "",
   department_id: "",
+  managed_department_ids: [],
   designation: "Counsellor",
   role: "COUNSELLOR",
   reporting_manager_id: "",
@@ -102,6 +103,7 @@ const Employees = () => {
   const [editForm, setEditForm] = useState({
     full_name: "",
     department_id: "",
+    managed_department_ids: [],
     role: "COUNSELLOR",
     designation: "",
     status: "ACTIVE",
@@ -338,12 +340,24 @@ const Employees = () => {
       parsedCustomTimings = null;
     }
 
+    let managedDepts = [];
+    if (Array.isArray(employee.managed_department_ids)) {
+      managedDepts = employee.managed_department_ids.map(Number).filter(Boolean);
+    } else if (typeof employee.managed_department_ids === "string") {
+      try {
+        managedDepts = JSON.parse(employee.managed_department_ids).map(Number).filter(Boolean);
+      } catch (e) {
+        managedDepts = [];
+      }
+    }
+
     setEditForm({
       full_name: employee.full_name || "",
       employee_code: employee.employee_code || "",
       email: employee.email || "",
       password: "",
       department_id: employee.department_id || "",
+      managed_department_ids: managedDepts,
       role: employee.role || "COUNSELLOR",
       designation: employee.designation || "",
       status: employee.status || "ACTIVE",
@@ -370,6 +384,7 @@ const Employees = () => {
         employee_code: editForm.employee_code?.trim() ? editForm.employee_code.trim().toUpperCase() : undefined,
         email: editForm.email.trim().toLowerCase(),
         department_id: Number(editForm.department_id),
+        managed_department_ids: Array.isArray(editForm.managed_department_ids) ? editForm.managed_department_ids : [],
         role: editForm.role,
         designation: editForm.designation,
         status: editForm.status,
@@ -432,6 +447,7 @@ const Employees = () => {
         email: form.email,
         mobile: form.mobile,
         department_id: Number(form.department_id),
+        managed_department_ids: Array.isArray(form.managed_department_ids) ? form.managed_department_ids : [],
         designation: form.designation,
         role: form.role || "COUNSELLOR",
         reporting_manager_id: form.reporting_manager_id ? Number(form.reporting_manager_id) : null,
@@ -1179,6 +1195,78 @@ const Employees = () => {
                       Daily work reports submitted by this employee will first route to this Department Head for Tier-1 approval.
                     </small>
                   </label>
+
+                  {/* Managed Departments for TL / Manager */}
+                  {(form.role === "TL" || form.role === "MANAGER" || /lead|manager|head/i.test(form.designation || "")) && (
+                    <div style={{
+                      gridColumn: "1 / -1",
+                      background: "#f0fdf4",
+                      border: "1.5px solid #86efac",
+                      borderRadius: "10px",
+                      padding: "14px",
+                      marginTop: "6px",
+                      marginBottom: "8px"
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                        <Building2 size={16} style={{ color: "#16a34a" }} />
+                        <strong style={{ fontSize: "13px", color: "#166534" }}>
+                          Managed Departments (TL Oversight & Work Reports)
+                        </strong>
+                      </div>
+                      <p style={{ margin: "0 0 10px 0", fontSize: "12px", color: "#475569", lineHeight: "1.4" }}>
+                        Select which department(s) this Team Lead can view and review reports for. Their primary assigned department is automatically included.
+                      </p>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "8px" }}>
+                        {departments.map((dept) => {
+                          const isPrimary = Number(form.department_id) === Number(dept.id);
+                          const isChecked = isPrimary || (form.managed_department_ids || []).includes(Number(dept.id));
+
+                          return (
+                            <label
+                              key={dept.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                padding: "7px 10px",
+                                borderRadius: "8px",
+                                background: isChecked ? "#dcfce7" : "#ffffff",
+                                border: isChecked ? "1.5px solid #22c55e" : "1px solid #cbd5e1",
+                                fontSize: "12.5px",
+                                cursor: isPrimary ? "default" : "pointer",
+                                userSelect: "none",
+                                color: isChecked ? "#14532d" : "#334155",
+                                fontWeight: isChecked ? "600" : "400",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                disabled={isPrimary}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const deptIdNum = Number(dept.id);
+                                  const current = form.managed_department_ids || [];
+                                  if (e.target.checked) {
+                                    setForm({ ...form, managed_department_ids: [...new Set([...current, deptIdNum])] });
+                                  } else {
+                                    setForm({ ...form, managed_department_ids: current.filter((id) => id !== deptIdNum) });
+                                  }
+                                }}
+                                style={{ accentColor: "#16a34a" }}
+                              />
+                              <span>{dept.department_name}</span>
+                              {isPrimary && (
+                                <span style={{ fontSize: "10.5px", background: "#bbf7d0", color: "#166534", padding: "1px 5px", borderRadius: "4px", marginLeft: "auto" }}>
+                                  Primary
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <label>
                     Temporary password
                     <input

@@ -22,6 +22,7 @@ const EMPLOYEE_SELECT_COLUMNS = `
     d.department_name,
     e.domain,
     e.assigned_domains,
+    e.managed_department_ids,
     e.designation,
     e.role,
     e.employment_type,
@@ -321,7 +322,8 @@ export const createEmployeeRepository = async (
             shift_timing_type,
             shift_start_time,
             shift_end_time,
-            custom_shift_timings
+            custom_shift_timings,
+            managed_department_ids
 
         )
 
@@ -329,7 +331,7 @@ export const createEmployeeRepository = async (
 
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
             $11,$12,$13,$14,$15,$16,$17,$18,
-            $19,$20,$21,$22,$23
+            $19,$20,$21,$22,$23,$24
 
         )
 
@@ -360,7 +362,8 @@ export const createEmployeeRepository = async (
         employee.shift_timing_type || "DEFAULT",
         employee.shift_start_time || "10:00",
         employee.shift_end_time || "18:00",
-        employee.custom_shift_timings ? JSON.stringify(employee.custom_shift_timings) : null
+        employee.custom_shift_timings ? JSON.stringify(employee.custom_shift_timings) : null,
+        Array.isArray(employee.managed_department_ids) ? JSON.stringify(employee.managed_department_ids) : '[]'
 
     ];
 
@@ -475,6 +478,10 @@ export const updateEmployeeRepository = async (
     if (employee.custom_shift_timings !== undefined) {
         fields.push(`custom_shift_timings = $${idx++}`);
         values.push(employee.custom_shift_timings ? JSON.stringify(employee.custom_shift_timings) : null);
+    }
+    if (employee.managed_department_ids !== undefined) {
+        fields.push(`managed_department_ids = $${idx++}`);
+        values.push(Array.isArray(employee.managed_department_ids) ? JSON.stringify(employee.managed_department_ids) : '[]');
     }
 
     fields.push(`updated_at = CURRENT_TIMESTAMP`);
