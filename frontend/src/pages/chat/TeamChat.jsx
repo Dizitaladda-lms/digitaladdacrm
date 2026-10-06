@@ -76,6 +76,7 @@ const TeamChat = () => {
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionedEmployees, setMentionedEmployees] = useState(new Set());
   const inputRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   // Attachments & Image Upload State
@@ -301,9 +302,18 @@ const TeamChat = () => {
     return () => clearInterval(interval);
   }, [activeGroup?.id, loadMessages]);
 
-  // Auto scroll to bottom on new messages
+  // Auto-scroll only when the user is already near the bottom, so the chat does not keep jumping while reading older messages.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const shouldScrollToBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < 180 ||
+      messages.length === 0;
+
+    if (shouldScrollToBottom) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
   }, [messages]);
 
   // 4. Mentions Detection in Text Input
@@ -1113,7 +1123,7 @@ const TeamChat = () => {
         )}
 
         {/* Messages Feed */}
-        <div className="chat-messages-container">
+        <div className="chat-messages-container" ref={messagesContainerRef}>
           {loadingMessages ? (
             <div className="chat-loading-state">
               <RefreshCw size={24} className="animate-spin text-primary" />

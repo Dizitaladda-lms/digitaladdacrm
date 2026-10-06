@@ -384,7 +384,26 @@
 /* ── Mobile ─────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar {
-    width: min(var(--sidebar-width), 85vw);
+    width: min(var(--sidebar-width), 82vw);
     box-shadow: 4px 0 24px rgba(15, 23, 42, 0.12);
+    transform: translateX(-105%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+}
+
+@media (min-width: 769px) {
+  .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
   }
 }
