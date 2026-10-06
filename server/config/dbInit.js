@@ -304,6 +304,14 @@ export async function initDatabaseSchema() {
       );
       CREATE INDEX IF NOT EXISTS idx_push_sub_user_id ON push_subscriptions(user_id);
     `);
+    await pool.query(`
+      ALTER TABLE IF EXISTS daily_work_reports
+      ADD COLUMN IF NOT EXISTS interns_work_summary TEXT;
+    `);
+    await pool.query(`
+      ALTER TABLE IF EXISTS work_report_classes
+      ALTER COLUMN video_recording_url DROP NOT NULL;
+    `);
 
     // 2. Ensure "admissions" & "admission_payments" tables exist
     await pool.query(`

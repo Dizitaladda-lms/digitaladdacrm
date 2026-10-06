@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Calendar,
   Clock,
@@ -16,6 +16,8 @@ import {
   GraduationCap,
   Users,
   Lock,
+  Bold,
+  Heading2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -82,7 +84,9 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
   const [workStatus, setWorkStatus] = useState("COMPLETED");
   const [deliverableLinks, setDeliverableLinks] = useState("");
   const [blockers, setBlockers] = useState("");
+  const [internsWorkSummary, setInternsWorkSummary] = useState("");
   const [nextDayPlan, setNextDayPlan] = useState("");
+  const internsWorkSummaryRef = useRef(null);
   const [tookClass, setTookClass] = useState(false);
   const [classes, setClasses] = useState([emptyClassItem()]);
   const [submitting, setSubmitting] = useState(false);
@@ -169,7 +173,19 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
           }
           setWorkStatus(rep.work_status || "COMPLETED");
           setDeliverableLinks(rep.deliverable_links || "");
-          setBlockers(rep.blockers || "");
+          const savedBlockers = rep.blockers || "";
+          const legacyInternsIndex = savedBlockers.indexOf("INTERNS_REPORT:");
+          setBlockers(
+            legacyInternsIndex >= 0
+              ? savedBlockers.slice(0, legacyInternsIndex).trim()
+              : savedBlockers
+          );
+          setInternsWorkSummary(
+            rep.interns_work_summary ||
+              (legacyInternsIndex >= 0
+                ? savedBlockers.slice(legacyInternsIndex + "INTERNS_REPORT:".length).trim()
+                : "")
+          );
           setNextDayPlan(rep.next_day_plan || "");
           setTookClass(Boolean(rep.took_class));
           if (rep.classes && rep.classes.length > 0) {
@@ -214,6 +230,40 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
     });
   };
 
+  const applyInternSummaryFormat = (format) => {
+    const textarea = internsWorkSummaryRef.current;
+    if (!textarea) return;
+
+    const value = internsWorkSummary;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    let nextValue;
+    let nextStart = start;
+    let nextEnd = end;
+
+    if (format === "heading") {
+      const lineStart = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+      const hasHeading = value.slice(lineStart, lineStart + 2) === "##";
+      nextValue = hasHeading
+        ? `${value.slice(0, lineStart)}${value.slice(lineStart + 3)}`
+        : `${value.slice(0, lineStart)}## ${value.slice(lineStart)}`;
+      const offset = hasHeading ? -3 : 3;
+      nextStart = Math.max(lineStart, start + offset);
+      nextEnd = Math.max(lineStart, end + offset);
+    } else {
+      const selectedText = value.slice(start, end);
+      nextValue = `${value.slice(0, start)}**${selectedText}**${value.slice(end)}`;
+      nextStart = start + 2;
+      nextEnd = selectedText ? end + 2 : start + 2;
+    }
+
+    setInternsWorkSummary(nextValue);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextStart, nextEnd);
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -224,7 +274,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
 
     if (tookClass) {
       if (classes.length === 0) {
-        toast.error("Please add at least one class session details.");
+        toast.error("Please add at least one class session.");
         return;
       }
 
@@ -236,12 +286,6 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
         }
         if (!cls.topic_covered.trim()) {
           toast.error(`Class #${i + 1}: Topic covered is required.`);
-          return;
-        }
-        if (!cls.video_recording_url.trim()) {
-          toast.error(
-            `Class #${i + 1}: Video recording link (Google Drive, Zoom, YouTube) is mandatory as proof of class.`
-          );
           return;
         }
       }
@@ -258,6 +302,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
         work_status: workStatus,
         deliverable_links: deliverableLinks,
         blockers: blockers,
+        interns_work_summary: internsWorkSummary,
         next_day_plan: nextDayPlan,
         took_class: tookClass,
         classes: tookClass ? classes : [],
@@ -354,7 +399,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
           <div className="route-banner-content">
             <Sparkles size={16} className="text-blue-600" />
             <div>
-              <strong>Multi-Tier Workflow:</strong> Your daily report will be submitted to your department's <strong>Team Leader (TL)</strong> for review, then forwarded to <strong>HR</strong>.
+              <strong>Multi-Tier Workflow:</strong> Your daily report will be submitted to your assigned <strong>Team Leader (TL)</strong> for review, then forwarded to <strong>HR</strong>.
             </div>
           </div>
         )}
@@ -438,7 +483,30 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
           <label className="form-label">
             Tasks Completed Today <span className="req">*</span>
           </label>
+          <div className="summary-format-toolbar" role="toolbar" aria-label="Summary formatting">
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => applyInternSummaryFormat("heading")}
+              title="Toggle heading for the current line"
+              aria-label="Toggle heading"
+            >
+              <Heading2 size={15} />
+              <span>Heading</span>
+            </button>
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => applyInternSummaryFormat("bold")}
+              title="Bold selected text"
+              aria-label="Bold selected text"
+            >
+              <Bold size={15} />
+              <span>Bold</span>
+            </button>
+          </div>
           <textarea
+            ref={internsWorkSummaryRef}
             className="form-textarea"
             rows={4}
             placeholder={`1. Handled 35 lead follow-ups and scheduled 4 walk-ins.\n2. Conducted 2 hours digital marketing class on Google Search Ads.\n3. Reviewed design creatives for upcoming webinar.`}
@@ -508,24 +576,8 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
                 ? `• Executive Amit: Monitored Google Ads campaigns and verified daily spend targets.\n• Intern Rahul: Guided on keyword negative matching and review report submission.\n• Overall Team Target: 100% completed without blockers.`
                 : `• Intern Rahul: Completed 20 lead research profiles and design mockups.\n• Intern Priya: Compiled weekly attendance and lead follow-up sheets.`
             }
-            value={
-              blockers
-                ? blockers.includes("INTERNS_REPORT:")
-                  ? blockers.split("INTERNS_REPORT:")[1]?.trim()
-                  : ""
-                : ""
-            }
-            onChange={(e) => {
-              const val = e.target.value;
-              const cleanBlockers = blockers
-                ? blockers.split("INTERNS_REPORT:")[0]?.trim()
-                : "";
-              setBlockers(
-                val
-                  ? `${cleanBlockers ? cleanBlockers + "\n" : ""}INTERNS_REPORT: ${val}`
-                  : cleanBlockers
-              );
-            }}
+            value={internsWorkSummary}
+            onChange={(e) => setInternsWorkSummary(e.target.value)}
           />
         </div>
 
@@ -540,7 +592,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
                 Did you conduct any classes or training sessions today?
               </h3>
               <p className="toggle-subtitle">
-                Trainers, mentors, and staff taking sessions must provide class details and <strong>video recording proof links</strong>.
+                Add class details now; recording links can be added or updated later.
               </p>
             </div>
           </div>
@@ -683,10 +735,10 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
                   </div>
                 </div>
 
-                {/* Mandatory Video Recording Link */}
+                {/* Optional Video Recording Link */}
                 <div className="form-group video-link-group">
                   <label className="form-label highlight-label">
-                    <Video size={16} /> Class Video Recording Link (Mandatory Proof) <span className="req">*</span>
+                    <Video size={16} /> Class Video Recording Link <span className="optional">(Optional, can be added later)</span>
                   </label>
                   <div className="input-with-action">
                     <input
@@ -697,7 +749,6 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
                       onChange={(e) =>
                         handleClassChange(idx, "video_recording_url", e.target.value)
                       }
-                      required={tookClass}
                     />
                     {cls.video_recording_url && (
                       <a
@@ -712,7 +763,7 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
                     )}
                   </div>
                   <span className="field-hint">
-                    Upload recording to Google Drive / YouTube (unlisted) / Zoom Cloud and paste the shareable link.
+                    You can add or update the recording link later by editing this report.
                   </span>
                 </div>
 

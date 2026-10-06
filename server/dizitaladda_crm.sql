@@ -494,6 +494,7 @@ CREATE TABLE IF NOT EXISTS daily_work_reports (
     work_status VARCHAR(50) NOT NULL DEFAULT 'COMPLETED',
     deliverable_links TEXT,
     blockers TEXT,
+    interns_work_summary TEXT,
     next_day_plan TEXT,
     took_class BOOLEAN NOT NULL DEFAULT FALSE,
     status VARCHAR(50) NOT NULL DEFAULT 'SUBMITTED',
@@ -520,7 +521,7 @@ CREATE TABLE IF NOT EXISTS work_report_classes (
     class_time_end VARCHAR(50),
     duration_minutes INT DEFAULT 60,
     students_count INT DEFAULT 0,
-    video_recording_url TEXT NOT NULL,
+    video_recording_url TEXT,
     materials_url TEXT,
     remarks TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

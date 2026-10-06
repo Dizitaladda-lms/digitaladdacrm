@@ -130,10 +130,21 @@ export const submitDailyReportService = async (user, payload) => {
   const tookClass = Boolean(payload.took_class || (payload.classes && payload.classes.length > 0));
   const classesList = Array.isArray(payload.classes) ? payload.classes : [];
 
+  const legacyBlockers = String(payload.blockers || "");
+  const legacyInternsMarker = legacyBlockers.indexOf("INTERNS_REPORT:");
+  const normalizedBlockers = legacyInternsMarker >= 0
+    ? legacyBlockers.slice(0, legacyInternsMarker).trim()
+    : legacyBlockers.trim();
+  const internsWorkSummary = payload.interns_work_summary || (
+    legacyInternsMarker >= 0
+      ? legacyBlockers.slice(legacyInternsMarker + "INTERNS_REPORT:".length).trim()
+      : ""
+  );
+
   // If user took classes, validate video link for each class
   if (tookClass) {
     if (classesList.length === 0) {
-      throw new ApiError(400, "Please add at least one class log with its video recording link.");
+      throw new ApiError(400, "Please add at least one class session.");
     }
 
     for (let i = 0; i < classesList.length; i++) {
@@ -143,12 +154,6 @@ export const submitDailyReportService = async (user, payload) => {
       }
       if (!cls.topic_covered || !cls.topic_covered.trim()) {
         throw new ApiError(400, `Class #${i + 1}: Topic covered is required.`);
-      }
-      if (!cls.video_recording_url || !cls.video_recording_url.trim()) {
-        throw new ApiError(
-          400,
-          `Class #${i + 1}: Video recording link (Google Drive, Zoom, YouTube, Loom, etc.) is mandatory as proof of class.`
-        );
       }
     }
   }
@@ -164,7 +169,8 @@ export const submitDailyReportService = async (user, payload) => {
     total_hours_worked: finalHoursWorked,
     work_status: payload.work_status || "COMPLETED",
     deliverable_links: payload.deliverable_links || null,
-    blockers: payload.blockers || null,
+    blockers: normalizedBlockers || null,
+    interns_work_summary: internsWorkSummary || null,
     next_day_plan: payload.next_day_plan || null,
     took_class: tookClass,
     status: initialStatus,

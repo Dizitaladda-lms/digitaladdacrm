@@ -93,11 +93,15 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
           d.department_name
         FROM daily_work_reports r
         JOIN users u ON r.user_id = u.id
+        LEFT JOIN employees e ON e.user_id = r.user_id
         LEFT JOIN departments d ON r.department_id = d.id
         WHERE r.report_date = CURRENT_DATE
+          AND (NOT $1::boolean OR e.reporting_manager_id = (
+            SELECT id FROM employees WHERE user_id = $2
+          ))
         ORDER BY r.created_at DESC
         LIMIT 10;
-      `);
+      `, [isTL, user.id]);
 
       reportLogs.forEach((rep) => {
         notifications.push({
@@ -105,7 +109,7 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
           type: "DAILY_REPORT_SUBMITTED",
           category: "REPORT",
           title: "Daily Work Report Submitted",
-          message: `${rep.user_name} (${rep.department_name || "Staff"}) logged today's report ${rep.took_class ? "📹 (Video Recording Proof Attached)" : ""}`,
+          message: `${rep.user_name} (${rep.department_name || "Staff"}) logged today's report ${rep.took_class ? "📹 (Class Session Logged)" : ""}`,
           time: rep.created_at,
           link: "/team-reports",
           priority: "INFO",

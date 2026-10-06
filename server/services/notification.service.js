@@ -68,10 +68,10 @@ export const getRoleNotificationsService = async (user) => {
     // -------------------------------------------------------------
     // 2. DAILY WORK REPORTS WORKFLOW
     // -------------------------------------------------------------
-    // (A) Team Leader: Reports from their department needing TL review
+    // (A) Team Leader: Reports from their direct reports needing TL review
     if (isTL && hasValidUserId) {
       const tlEmp = await findEmployeeByUserIdRepository(userId);
-      if (tlEmp?.department_id) {
+      if (tlEmp?.id) {
         const { rows: tlPendingReports } = await pool.query(`
           SELECT 
             r.id,
@@ -86,14 +86,15 @@ export const getRoleNotificationsService = async (user) => {
             d.department_name
           FROM daily_work_reports r
           JOIN users u ON r.user_id = u.id
+          JOIN employees e ON e.user_id = r.user_id
           LEFT JOIN departments d ON r.department_id = d.id
-          WHERE r.department_id = $1
+          WHERE e.reporting_manager_id = $1
             AND r.user_id != $2
             AND r.status IN ('SUBMITTED', 'PENDING_TL_APPROVAL')
             AND r.report_date >= CURRENT_DATE - INTERVAL '3 days'
           ORDER BY r.created_at DESC
           LIMIT 10;
-        `, [tlEmp.department_id, user.id]);
+        `, [tlEmp.id, user.id]);
 
         tlPendingReports.forEach((rep) => {
           notifications.push(item(rep, {

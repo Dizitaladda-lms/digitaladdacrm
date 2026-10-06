@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Send,
   LoaderCircle,
+  Users,
 } from "lucide-react";
 import "./ReportDetailsModal.css";
 
@@ -26,6 +27,37 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
   const [requestingRevision, setRequestingRevision] = useState(false);
 
   if (!report) return null;
+
+  const savedBlockers = report.blockers || "";
+  const legacyInternsIndex = savedBlockers.indexOf("INTERNS_REPORT:");
+  const blockersText = legacyInternsIndex >= 0
+    ? savedBlockers.slice(0, legacyInternsIndex).trim()
+    : savedBlockers;
+  const internsWorkSummary = report.interns_work_summary || (
+    legacyInternsIndex >= 0
+      ? savedBlockers.slice(legacyInternsIndex + "INTERNS_REPORT:".length).trim()
+      : ""
+  );
+
+  const renderFormattedSummary = (value) => {
+    const lines = value.split("\n");
+    return lines.map((line, lineIndex) => {
+    const isHeading = line.startsWith("## ");
+    const text = isHeading ? line.slice(3) : line;
+    const formattedText = text.split(/(\*\*.*?\*\*)/g).map((part, partIndex) =>
+      part.startsWith("**") && part.endsWith("**")
+        ? <strong key={partIndex}>{part.slice(2, -2)}</strong>
+        : part
+    );
+
+    return (
+      <React.Fragment key={lineIndex}>
+        {isHeading ? <strong>{formattedText}</strong> : formattedText}
+        {lineIndex < lines.length - 1 && <br />}
+      </React.Fragment>
+    );
+    });
+  };
 
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isHR = userRole === "HR" || isSuperAdmin;
@@ -170,19 +202,23 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
                         <Video size={18} className="video-icon" />
                         <div>
                           <strong>Class Recording Link</strong>
-                          <span className="video-url-truncate">{cls.video_recording_url}</span>
+                          <span className="video-url-truncate">
+                            {cls.video_recording_url || "Not added yet"}
+                          </span>
                         </div>
                       </div>
 
-                      <a
-                        href={cls.video_recording_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="play-video-btn"
-                        title="Open Video Recording in New Tab"
-                      >
-                        <ExternalLink size={14} /> Open Recording
-                      </a>
+                      {cls.video_recording_url && (
+                        <a
+                          href={cls.video_recording_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="play-video-btn"
+                          title="Open Video Recording in New Tab"
+                        >
+                          <ExternalLink size={14} /> Open Recording
+                        </a>
+                      )}
                     </div>
 
                     {cls.materials_url && (
@@ -204,14 +240,22 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
           )}
 
           {/* Blockers & Plan */}
-          {(report.blockers || report.next_day_plan) && (
+          {(blockersText || internsWorkSummary || report.next_day_plan) && (
             <div className="modal-meta-grid">
-              {report.blockers && (
+              {internsWorkSummary && (
+                <div className="meta-card interns-summary-card">
+                  <h4 className="meta-card-label">
+                    <Users size={14} /> Interns Work Summary &amp; Team Progress
+                  </h4>
+                  <p className="report-rich-text">{renderFormattedSummary(internsWorkSummary)}</p>
+                </div>
+              )}
+              {blockersText && (
                 <div className="meta-card blocker-card">
                   <h4 className="meta-card-label">
-                    <AlertCircle size={14} /> Blockers / Dependencies / Interns Report
+                    <AlertCircle size={14} /> Blockers / Dependencies
                   </h4>
-                  <p>{report.blockers}</p>
+                  <p>{blockersText}</p>
                 </div>
               )}
               {report.next_day_plan && (

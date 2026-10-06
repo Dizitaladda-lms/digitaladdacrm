@@ -24,6 +24,7 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
       work_status,
       deliverable_links,
       blockers,
+      interns_work_summary,
       next_day_plan,
       took_class,
       status,
@@ -33,7 +34,7 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
     )
     VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-      $15, $16,
+      $15, $16, $17,
       CURRENT_TIMESTAMP
     )
     ON CONFLICT (user_id, report_date)
@@ -46,6 +47,7 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
       work_status = EXCLUDED.work_status,
       deliverable_links = EXCLUDED.deliverable_links,
       blockers = EXCLUDED.blockers,
+      interns_work_summary = EXCLUDED.interns_work_summary,
       next_day_plan = EXCLUDED.next_day_plan,
       took_class = EXCLUDED.took_class,
       status = CASE 
@@ -70,6 +72,7 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
     data.work_status || "COMPLETED",
     data.deliverable_links || null,
     data.blockers || null,
+    data.interns_work_summary || null,
     data.next_day_plan || null,
     Boolean(data.took_class),
     data.status || "SUBMITTED",
@@ -126,7 +129,7 @@ export const syncReportClassesRepository = async (clientOrPool, reportId, userId
       item.class_time_end || null,
       Number(item.duration_minutes) || 60,
       Number(item.students_count) || 0,
-      item.video_recording_url,
+      item.video_recording_url || null,
       item.materials_url || null,
       item.remarks || null,
     ];
@@ -154,6 +157,7 @@ export const findReportByIdRepository = async (reportId) => {
       r.work_status,
       r.deliverable_links,
       r.blockers,
+      r.interns_work_summary,
       r.next_day_plan,
       r.took_class,
       r.status,
@@ -239,6 +243,7 @@ export const findMyReportByDateRepository = async (userId, reportDate) => {
       r.work_status,
       r.deliverable_links,
       r.blockers,
+      r.interns_work_summary,
       r.next_day_plan,
       r.took_class,
       r.status,
@@ -335,6 +340,7 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
       r.work_status,
       r.deliverable_links,
       r.blockers,
+      r.interns_work_summary,
       r.next_day_plan,
       r.took_class,
       r.status,
@@ -518,6 +524,7 @@ export const findTeamReportsRepository = async ({
       r.work_status,
       r.deliverable_links,
       r.blockers,
+      r.interns_work_summary,
       r.next_day_plan,
       r.took_class,
       r.status,

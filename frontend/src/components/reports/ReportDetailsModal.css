@@ -389,6 +389,21 @@
   gap: 5px;
 }
 
+.interns-summary-card {
+  background: #eff8ff;
+  border: 1px solid #bae6fd;
+  color: #075985;
+}
+
+.meta-card p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.report-rich-text strong {
+  font-weight: 700;
+}
+
 .blocker-card {
   background: #fef2f2;
   border: 1px solid #fecaca;
