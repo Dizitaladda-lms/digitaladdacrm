@@ -6,8 +6,8 @@ import {
   Clock,
   LogOut,
   Smartphone,
+  Laptop,
   MapPin,
-  Globe,
   Camera,
   AlertTriangle,
   X,
@@ -24,12 +24,16 @@ import {
 } from "../../services/attendanceService";
 import { useAuth } from "../../context/AuthContext";
 import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
+import "./MobileBiometricAttendance.css";
 
-// 100% In-House Geofence Protection - Zero external 3rd-party calls
+// 100% In-House Geofence Protection - Strict 100 Meters Office Radius
 const OFFICE_LAT = 28.541778;
 const OFFICE_LNG = 77.240750;
 const MAX_GEOFENCE_RADIUS_METERS = 100;
 
+/**
+ * Calculates straight-line distance in meters using Haversine formula
+ */
 const calculateDistanceInMeters = (userLat, userLng) => {
   const R = 6371000; // Earth's radius in meters
   const rad = Math.PI / 180;
@@ -42,30 +46,98 @@ const calculateDistanceInMeters = (userLat, userLng) => {
   return R * c;
 };
 
-const getGPSLocation = () => {
+/**
+ * Helper to detect client device type (Laptop/Desktop vs iPhone/Android)
+ */
+export const checkDeviceType = () => {
+  if (typeof navigator === "undefined") return { isLaptop: true, isIPhone: false, isAndroid: false, name: "Laptop / PC" };
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isIPhone = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  return {
+    isLaptop: !isMobile,
+    isIPhone,
+    isAndroid,
+    name: !isMobile ? "Laptop / Desktop" : isIPhone ? "iPhone" : "Mobile Phone",
+  };
+};
+
+/**
+ * Multi-tier Geolocation fetcher:
+ * Supports laptops (Windows/Mac Wi-Fi positioning) and mobile phones (GPS)
+ */
+export const getGPSLocation = () => {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      return resolve({ latitude: null, longitude: null, location_name: "Location Not Supported", distance: null });
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      return resolve({
+        latitude: null,
+        longitude: null,
+        location_name: "Location Not Supported on this Browser",
+        distance: null,
+        error_code: -1,
+      });
     }
+
+    const device = checkDeviceType();
+
+    const processPosition = (position) => {
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+      const distance = calculateDistanceInMeters(latitude, longitude);
+
+      const location_name =
+        distance <= MAX_GEOFENCE_RADIUS_METERS
+          ? "Dizital Adda Office Premises"
+          : `Outside Office (${Math.round(distance)}m away)`;
+
+      resolve({
+        latitude,
+        longitude,
+        location_name,
+        distance,
+        accuracy: position.coords.accuracy,
+      });
+    };
+
+    // Attempt 1: High Accuracy (fast for GPS, quick timeout for laptops)
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        const distance = calculateDistanceInMeters(latitude, longitude);
+      processPosition,
+      (firstErr) => {
+        // If user explicitly denied permission (code 1), do NOT retry
+        if (firstErr.code === 1) {
+          return resolve({
+            latitude: null,
+            longitude: null,
+            location_name: "Location Permission Denied",
+            distance: null,
+            error_code: 1,
+            error_msg: firstErr.message,
+          });
+        }
 
-        // 100% In-house local label - no coordinates sent to OpenStreetMap or any external servers
-        const location_name =
-          distance <= MAX_GEOFENCE_RADIUS_METERS
-            ? "Dizital Adda Office Premises"
-            : `Outside Office (${Math.round(distance)}m away)`;
-
-        resolve({ latitude, longitude, location_name, distance });
+        // On laptops/desktops without GPS chips, high-accuracy often times out (code 3)
+        // or is unavailable (code 2). Immediately fallback to Wi-Fi network positioning!
+        navigator.geolocation.getCurrentPosition(
+          processPosition,
+          (secondErr) => {
+            console.warn("Geolocation fallback failed:", secondErr);
+            resolve({
+              latitude: null,
+              longitude: null,
+              location_name:
+                secondErr.code === 1
+                  ? "Location Permission Denied"
+                  : "GPS Location Unavailable / Timed Out",
+              distance: null,
+              error_code: secondErr.code,
+              error_msg: secondErr.message,
+            });
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+        );
       },
-      (error) => {
-        console.warn("GPS Location Error:", error.message);
-        resolve({ latitude: null, longitude: null, location_name: "GPS Location Denied / Unavailable", distance: null });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: device.isLaptop ? 5000 : 10000, maximumAge: 0 }
     );
   });
 };
@@ -92,14 +164,17 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [locationStatus, setLocationStatus] = useState("");
+  const [locationData, setLocationData] = useState(null);
+  const [locating, setLocating] = useState(false);
 
-  // Camera Selfie State for Face ID
+  // Camera Selfie State for Face ID (Laptop Webcam & Mobile Camera)
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [cameraMode, setCameraMode] = useState("CHECK_IN"); // "CHECK_IN" | "CHECK_OUT" | "REGISTRATION"
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
+
+  const device = checkDeviceType();
 
   const loadStatus = async () => {
     try {
@@ -115,20 +190,28 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
+  const refreshLocation = async () => {
+    try {
+      setLocating(true);
+      const loc = await getGPSLocation();
+      setLocationData(loc);
+    } catch (err) {
+      console.warn("Failed to refresh location:", err);
+    } finally {
+      setLocating(false);
+    }
+  };
+
   useEffect(() => {
     loadStatus();
-    getGPSLocation().then((loc) => {
-      if (loc && loc.location_name) {
-        setLocationStatus(loc.location_name);
-      }
-    });
+    refreshLocation();
   }, []);
 
-  // Ensure stream is properly attached to <video> ref when modal opens (critical for iOS Safari / iPhone)
+  // Ensure stream is properly attached to <video> ref when modal opens
   useEffect(() => {
     if (showCameraModal && !capturedPhoto && mediaStreamRef.current && videoRef.current) {
       videoRef.current.srcObject = mediaStreamRef.current;
-      videoRef.current.play().catch((e) => console.log("Video playback catch on iOS:", e));
+      videoRef.current.play().catch((e) => console.log("Video playback catch on camera open:", e));
     }
   }, [showCameraModal, capturedPhoto]);
 
@@ -146,13 +229,16 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       let stream;
       try {
-        // Ideal user-facing camera constraint for iPhone & iOS Safari
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "user" } },
+          video: {
+            facingMode: device.isLaptop ? undefined : { ideal: "user" },
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
           audio: false,
         });
       } catch (e1) {
-        console.warn("Fallback basic video constraint for iOS:", e1);
+        console.warn("Fallback generic video constraint for webcam:", e1);
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
@@ -170,7 +256,22 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       }
     } catch (err) {
       console.error("Camera access error:", err);
-      toast.error("Camera access required for Face ID selfie capture. Please allow camera permissions in iPhone Settings -> Safari -> Camera.");
+      if (device.isLaptop) {
+        toast.error(
+          "Webcam access required for Face ID. Please click the camera/lock icon in your browser URL bar (top-left) and select 'Allow' for camera access.",
+          { duration: 6000 }
+        );
+      } else if (device.isIPhone) {
+        toast.error(
+          "Camera access required. Please allow camera permissions in iPhone Settings -> Safari -> Camera.",
+          { duration: 6000 }
+        );
+      } else {
+        toast.error(
+          "Camera access required. Please allow camera permissions in your browser site settings.",
+          { duration: 6000 }
+        );
+      }
     }
   };
 
@@ -189,7 +290,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     const srcW = video.videoWidth || 640;
     const srcH = video.videoHeight || 480;
 
-    // Scale down to max 480px to keep payload ultra-lightweight (~50KB) and prevent 413 request entity too large
+    // Scale down to max 480px to keep payload ultra-lightweight (~50KB) and prevent 413
     const maxDim = 480;
     let targetW = srcW;
     let targetH = srcH;
@@ -210,7 +311,12 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     canvas.width = targetW;
     canvas.height = targetH;
     const ctx = canvas.getContext("2d");
+
+    // Mirror horizontal so the final snapshot matches the user's live preview
+    ctx.translate(targetW, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, targetW, targetH);
+
     const dataUrl = canvas.toDataURL("image/jpeg", 0.70);
     setCapturedPhoto(dataUrl);
 
@@ -218,6 +324,53 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
+  };
+
+  const validateGPSLocation = (loc) => {
+    if (!loc || loc.latitude == null || loc.longitude == null) {
+      if (loc?.error_code === 1) {
+        if (device.isLaptop) {
+          toast.error(
+            "📍 Laptop Location Blocked! Click the lock/tune icon 🔒 in your browser URL bar (top left), set Location to 'Allow', and refresh. Also ensure Windows Location is turned ON in Windows Settings.",
+            { duration: 7000 }
+          );
+        } else if (device.isIPhone) {
+          toast.error(
+            "📍 iPhone Location Blocked! Turn ON Location in iPhone Settings -> Privacy -> Location Services and Safari -> Allow.",
+            { duration: 7000 }
+          );
+        } else {
+          toast.error(
+            "📍 Phone Location Blocked! Turn ON Location in phone settings and allow browser site access.",
+            { duration: 7000 }
+          );
+        }
+      } else {
+        toast.error(
+          device.isLaptop
+            ? "📍 Laptop Location Unavailable! Please make sure your laptop is connected to Wi-Fi and Windows Location is ON."
+            : "📍 GPS Location Unavailable! Please turn ON high accuracy GPS on your phone.",
+          { duration: 6000 }
+        );
+      }
+      return false;
+    }
+
+    const distance =
+      loc.distance != null
+        ? loc.distance
+        : calculateDistanceInMeters(Number(loc.latitude), Number(loc.longitude));
+
+    // STRICT 100-METER GEOFENCE ENFORCEMENT ON BOTH LAPTOP & MOBILE
+    if (distance > MAX_GEOFENCE_RADIUS_METERS) {
+      toast.error(
+        `📍 Out of Office Range! You are ${Math.round(distance)} meters away from the office. Attendance can ONLY be marked within 100 meters of the Dizital Adda office premises.`,
+        { duration: 7000 }
+      );
+      return false;
+    }
+
+    return true;
   };
 
   const submitFaceRegistration = async () => {
@@ -229,25 +382,102 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      const credentialId = "FACE_ID_MOBILE_" + Date.now();
+      const credentialId = "FACE_ID_" + (device.isLaptop ? "LAPTOP_" : "MOBILE_") + Date.now();
       const publicKey = "FIDO2_FACE_KEY_" + Math.random().toString(36).substring(7);
 
       const res = await registerBiometricCredential({
         credentialId,
         publicKey,
         faceImage: capturedPhoto,
-        deviceInfo: navigator.userAgent.includes("iPhone")
+        deviceInfo: device.isLaptop
+          ? "Laptop / Desktop Webcam Face ID"
+          : device.isIPhone
           ? "iPhone / iOS Face ID"
-          : navigator.userAgent.includes("Mobile")
-          ? "Mobile Face ID"
-          : "Desktop Face Camera",
+          : "Mobile Face ID",
       });
 
-      toast.success("Face Biometric selfie captured successfully & sent to HR for approval! 📸");
+      toast.success(
+        device.isLaptop
+          ? "Laptop Webcam Face photo captured & sent to HR for approval! 📸"
+          : "Face selfie captured & sent to HR for approval! 📸"
+      );
       closeCamera();
       await loadStatus();
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to register face biometric.";
+      toast.error(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleFaceCheckIn = async () => {
+    if (!capturedPhoto) {
+      toast.error("Please capture your face photo first.");
+      return;
+    }
+    try {
+      setActionLoading(true);
+
+      const loc = await getGPSLocation();
+      setLocationData(loc);
+
+      if (!validateGPSLocation(loc)) {
+        return;
+      }
+
+      const credentialId = "FACE_ID_CHECKIN_" + Date.now();
+      const res = await checkInAttendance({
+        credentialId,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        location_name: loc.location_name,
+        faceImage: capturedPhoto,
+      });
+
+      toast.success(
+        `Face ID Attendance Checked-In! 📍 ${loc.location_name} (${Math.round(loc.distance || 0)}m)`
+      );
+      closeCamera();
+      await loadStatus();
+      if (onCheckInSuccess) onCheckInSuccess(res?.data);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-in.";
+      toast.error(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleFaceCheckOut = async () => {
+    if (!capturedPhoto) {
+      toast.error("Please capture your face photo first.");
+      return;
+    }
+    try {
+      setActionLoading(true);
+
+      const loc = await getGPSLocation();
+      setLocationData(loc);
+
+      if (!validateGPSLocation(loc)) {
+        return;
+      }
+
+      const res = await checkOutAttendance({
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        location_name: loc.location_name,
+        faceImage: capturedPhoto,
+      });
+
+      toast.success(
+        `Face ID Check-Out Marked! 📍 ${loc.location_name} (${Math.round(loc.distance || 0)}m)`
+      );
+      closeCamera();
+      await loadStatus();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-out.";
       toast.error(msg);
     } finally {
       setActionLoading(false);
@@ -292,8 +522,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             { type: "public-key", alg: -257 }, // RS256
           ],
           authenticatorSelection: {
-            authenticatorAttachment: "platform", // Strictly built-in fingerprint / Touch ID / Windows Hello
-            userVerification: "required",        // Strictly requires biometric touch
+            authenticatorAttachment: "platform",
+            userVerification: "required",
             residentKey: "preferred",
             requireResidentKey: false,
           },
@@ -340,110 +570,11 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
-  const validateGPSLocation = (locationData) => {
-    if (
-      !locationData ||
-      !locationData.latitude ||
-      !locationData.longitude ||
-      !locationData.location_name ||
-      locationData.location_name.includes("Denied") ||
-      locationData.location_name.includes("Unavailable") ||
-      locationData.location_name.includes("Not Supported")
-    ) {
-      toast.error("📍 Device Location OFF or Permission Denied! Attendance cannot be marked. Please turn ON Location in iPhone Settings -> Privacy -> Location Services.");
-      return false;
-    }
-
-    const distance = locationData.distance != null 
-      ? locationData.distance 
-      : calculateDistanceInMeters(Number(locationData.latitude), Number(locationData.longitude));
-
-    if (distance > MAX_GEOFENCE_RADIUS_METERS) {
-      toast.error(
-        `📍 Out of Office Geofence Range! You are ${Math.round(distance)}m away from office premises. Attendance can only be marked within 100 meters of office location.`
-      );
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleFaceCheckIn = async () => {
-    if (!capturedPhoto) {
-      toast.error("Please capture your selfie photo first.");
-      return;
-    }
-    try {
-      setActionLoading(true);
-      setLocationStatus("Fetching exact GPS location...");
-
-      const locationData = await getGPSLocation();
-      setLocationStatus(locationData.location_name);
-
-      if (!validateGPSLocation(locationData)) {
-        return;
-      }
-
-      const credentialId = "FACE_ID_CHECKIN_" + Date.now();
-      const res = await checkInAttendance({
-        credentialId,
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        location_name: locationData.location_name,
-        faceImage: capturedPhoto,
-      });
-
-      toast.success(`Face ID Attendance Marked! 📍 ${locationData.location_name}`);
-      closeCamera();
-      await loadStatus();
-      if (onCheckInSuccess) onCheckInSuccess(res?.data);
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-in.";
-      toast.error(msg);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleFaceCheckOut = async () => {
-    if (!capturedPhoto) {
-      toast.error("Please capture your selfie photo first.");
-      return;
-    }
-    try {
-      setActionLoading(true);
-      setLocationStatus("Fetching exact GPS location...");
-
-      const locationData = await getGPSLocation();
-      setLocationStatus(locationData.location_name);
-
-      if (!validateGPSLocation(locationData)) {
-        return;
-      }
-
-      const res = await checkOutAttendance({
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        location_name: locationData.location_name,
-        faceImage: capturedPhoto,
-      });
-
-      toast.success(`Face ID Check-Out Marked! 📍 ${locationData.location_name}`);
-      closeCamera();
-      await loadStatus();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-out.";
-      toast.error(msg);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleCheckIn = async () => {
+  const handleFingerprintCheckIn = async () => {
     try {
       setActionLoading(true);
 
-      // 1. Mandatory Biometric Hardware Scan: Pop up device fingerprint scanner!
+      // 1. Mandatory Biometric Hardware Scan
       let credentialId = null;
       if (window.isSecureContext && window.PublicKeyCredential) {
         toast.loading("Touch your fingerprint sensor to verify attendance...", { id: "biometric-auth" });
@@ -458,7 +589,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             publicKey: {
               challenge: challenge,
               rpId: window.location.hostname,
-              userVerification: "required", // Strictly prompts Windows Hello / Touch ID / Fingerprint sensor!
+              userVerification: "required",
               timeout: 60000,
               ...(credBuffer
                 ? {
@@ -475,7 +606,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           };
 
           const assertion = await navigator.credentials.get(getOptions);
-
           toast.dismiss("biometric-auth");
           if (!assertion || !assertion.id) {
             toast.error("Fingerprint scan failed. Please touch the sensor again.");
@@ -486,35 +616,34 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           toast.dismiss("biometric-auth");
           console.error("Biometric verification error:", authErr);
           if (authErr.name === "NotAllowedError") {
-            toast.error("Fingerprint verification cancelled or not detected. You must place your finger on the sensor to mark attendance!");
+            toast.error("Fingerprint verification cancelled or not detected. You must place your finger on the sensor!");
           } else {
             toast.error(`Fingerprint Scan Error: ${authErr.message || "Device fingerprint not verified"}`);
           }
-          return; // Strictly stop: do NOT mark attendance without fingerprint scan!
+          return;
         }
       } else {
-        toast.error("Biometric fingerprint sensor is not supported on this browser or requires localhost / HTTPS.");
+        toast.error("Fingerprint sensor not supported on this browser. Please use Face ID camera check-in.");
         return;
       }
 
       // 2. Fetch GPS Location
-      setLocationStatus("Fetching exact GPS location...");
-      const locationData = await getGPSLocation();
-      setLocationStatus(locationData.location_name);
+      const loc = await getGPSLocation();
+      setLocationData(loc);
 
-      if (!validateGPSLocation(locationData)) {
+      if (!validateGPSLocation(loc)) {
         return;
       }
 
       // 3. Mark check-in in DB
       const res = await checkInAttendance({
         credentialId: credentialId || "WEBAUTHN_VERIFIED_" + Date.now(),
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        location_name: locationData.location_name,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        location_name: loc.location_name,
       });
 
-      toast.success(`Fingerprint Verified! Check-In marked at 📍 ${locationData.location_name}`);
+      toast.success(`Fingerprint Verified! Check-In marked at 📍 ${loc.location_name}`);
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(res?.data);
     } catch (err) {
@@ -525,11 +654,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
-  const handleCheckOut = async () => {
+  const handleFingerprintCheckOut = async () => {
     try {
       setActionLoading(true);
 
-      // 1. Mandatory Biometric Hardware Scan: Pop up device fingerprint scanner!
       if (window.isSecureContext && window.PublicKeyCredential) {
         toast.loading("Touch your fingerprint sensor to verify check-out...", { id: "biometric-auth" });
         try {
@@ -543,7 +671,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             publicKey: {
               challenge: challenge,
               rpId: window.location.hostname,
-              userVerification: "required", // Strictly prompts Windows Hello / Touch ID / Fingerprint sensor!
+              userVerification: "required",
               timeout: 60000,
               ...(credBuffer
                 ? {
@@ -560,7 +688,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           };
 
           const assertion = await navigator.credentials.get(getOptions);
-
           toast.dismiss("biometric-auth");
           if (!assertion || !assertion.id) {
             toast.error("Fingerprint scan failed. Please touch the sensor again.");
@@ -570,34 +697,32 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           toast.dismiss("biometric-auth");
           console.error("Biometric verification error:", authErr);
           if (authErr.name === "NotAllowedError") {
-            toast.error("Fingerprint verification cancelled or not detected. Fingerprint is required to check-out!");
+            toast.error("Fingerprint verification cancelled. Fingerprint is required to check-out!");
           } else {
             toast.error(`Fingerprint Scan Error: ${authErr.message || "Device fingerprint not verified"}`);
           }
-          return; // Strictly stop!
+          return;
         }
       } else {
-        toast.error("Biometric fingerprint sensor is not supported on this browser or requires localhost / HTTPS.");
+        toast.error("Fingerprint sensor not supported on this browser. Please use Face ID camera check-out.");
         return;
       }
 
-      // 2. Fetch GPS Location
-      setLocationStatus("Fetching exact GPS location...");
-      const locationData = await getGPSLocation();
-      setLocationStatus(locationData.location_name);
+      // Fetch GPS Location
+      const loc = await getGPSLocation();
+      setLocationData(loc);
 
-      if (!validateGPSLocation(locationData)) {
+      if (!validateGPSLocation(loc)) {
         return;
       }
 
-      // 3. Mark check-out in DB
       const res = await checkOutAttendance({
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        location_name: locationData.location_name,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        location_name: loc.location_name,
       });
 
-      toast.success(`Fingerprint Verified! Check-Out marked at 📍 ${locationData.location_name}`);
+      toast.success(`Fingerprint Verified! Check-Out marked at 📍 ${loc.location_name}`);
       await loadStatus();
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to check out.";
@@ -610,331 +735,170 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const today = statusData?.today_attendance;
   const approvalStatus = statusData?.approval_status || (statusData?.is_registered ? "APPROVED" : "NOT_REGISTERED");
 
+  const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
+
   return (
-    <div
-      style={{
-        background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
-        borderRadius: "16px",
-        padding: "24px",
-        color: "#ffffff",
-        marginBottom: "24px",
-        boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.25)",
-        position: "relative",
-        width: "100%",
-        maxWidth: "100%",
-        boxSizing: "border-box",
-        overflowX: "hidden",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
-        {/* Title & Status */}
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
-            <span
-              style={{
-                background: "rgba(59, 130, 246, 0.2)",
-                color: "#60a5fa",
-                padding: "4px 12px",
-                borderRadius: "20px",
-                fontSize: "12px",
-                fontWeight: "600",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                border: "1px solid rgba(96, 165, 250, 0.3)",
-              }}
-            >
-              <Smartphone size={14} /> iPhone & Mobile Face ID / Fingerprint
+    <div className="biometric-card">
+      <div className="biometric-card-header">
+        {/* Title, Device, and Geofence Info */}
+        <div className="biometric-card-info">
+          <div className="biometric-pill-row">
+            {/* Device pill */}
+            <span className="biometric-pill biometric-pill-device">
+              {device.isLaptop ? <Laptop size={14} /> : <Smartphone size={14} />}
+              {device.isLaptop ? "Laptop & Desktop Webcam Face ID" : "Mobile Phone & iPhone Face ID"}
             </span>
 
+            {/* Approval status */}
             {approvalStatus === "APPROVED" && (
-              <span
-                style={{
-                  background: "rgba(16, 185, 129, 0.2)",
-                  color: "#34d399",
-                  padding: "4px 12px",
-                  borderRadius: "20px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  border: "1px solid rgba(52, 211, 153, 0.3)",
-                }}
-              >
+              <span className="biometric-pill biometric-pill-approved">
                 <ShieldCheck size={14} /> Face ID HR Approved
               </span>
             )}
-
             {approvalStatus === "PENDING_APPROVAL" && (
-              <span
-                style={{
-                  background: "rgba(245, 158, 11, 0.2)",
-                  color: "#fbbf24",
-                  padding: "4px 12px",
-                  borderRadius: "20px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
-                }}
-              >
+              <span className="biometric-pill biometric-pill-pending">
                 <Clock size={14} /> Pending HR Approval
               </span>
             )}
-
             {approvalStatus === "REJECTED" && (
-              <span
-                style={{
-                  background: "rgba(239, 68, 68, 0.2)",
-                  color: "#f87171",
-                  padding: "4px 12px",
-                  borderRadius: "20px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  border: "1px solid rgba(239, 68, 68, 0.3)",
-                }}
-              >
+              <span className="biometric-pill biometric-pill-rejected">
                 <AlertTriangle size={14} /> Face ID Rejected by HR
               </span>
             )}
+
+            {/* Geofence GPS status pill */}
+            {locating ? (
+              <span className="biometric-pill biometric-pill-geofence-loading">
+                <RefreshCw size={12} className="spin-anim" /> Checking Geofence...
+              </span>
+            ) : locationData?.distance != null ? (
+              isWithinOffice ? (
+                <span className="biometric-pill biometric-pill-geofence-ok" title="Within 100 meters of office location">
+                  <MapPin size={12} /> Office Premises ({Math.round(locationData.distance)}m • Within 100m)
+                </span>
+              ) : (
+                <span
+                  className="biometric-pill biometric-pill-geofence-outside"
+                  title="Attendance can only be marked within 100m of office location"
+                >
+                  <AlertTriangle size={12} /> Outside Office ({Math.round(locationData.distance)}m away • 100m Req)
+                </span>
+              )
+            ) : (
+              <span className="biometric-pill biometric-pill-geofence-loading" title={locationData?.location_name}>
+                <MapPin size={12} /> {locationData?.location_name || "Detecting GPS..."}
+              </span>
+            )}
+
+            {/* Fast Location Refresh button */}
+            <button
+              type="button"
+              className="btn-loc-refresh"
+              onClick={refreshLocation}
+              disabled={locating}
+              title="Re-verify GPS location distance"
+            >
+              <RefreshCw size={11} className={locating ? "spin-anim" : ""} /> Refresh
+            </button>
           </div>
 
-          <h2 style={{ margin: 0, fontSize: "22px", fontWeight: "700" }}>
+          <h2 className="biometric-title">
             {today?.check_in_time
               ? today.check_out_time
                 ? "Attendance Marked & Completed Today"
                 : "Checked-In (Shift Active)"
-              : "Mark Daily Mobile Attendance"}
+              : device.isLaptop
+              ? "Mark Daily Attendance (Laptop Webcam Face ID)"
+              : "Mark Daily Attendance (Mobile Face ID)"}
           </h2>
-          <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>
+
+          <p className="biometric-subtitle">
             {statusData?.shift_timing_type === "CUSTOM"
               ? `Your Assigned Shift: ${format12hTime(statusData.shift_start_time || "10:00")} - ${format12hTime(statusData.shift_end_time || "18:00")} (Custom Schedule)`
               : "Office Timings: Mon-Fri (10:00 AM - 6:00 PM), Sat (9:30 AM - 5:30 PM), Sun (9:30 AM - 2:00 PM)"}
           </p>
         </div>
 
-        {/* Action Buttons: Both Fingerprint and Face ID supported after HR Approval */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        {/* Action Buttons: Seamless on both Laptop & Mobile */}
+        <div className="biometric-actions">
           {loading ? (
             <div style={{ color: "#94a3b8", fontSize: "14px" }}>Loading Status...</div>
           ) : approvalStatus === "NOT_REGISTERED" || approvalStatus === "REJECTED" ? (
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <>
+              {/* Primary: Face ID Registration (Webcam on Laptop / Front Camera on Mobile) */}
               <button
-                onClick={handleRegisterFingerprint}
-                disabled={actionLoading}
-                style={{
-                  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-                  color: "#fff",
-                  border: "none",
-                  padding: "12px 18px",
-                  borderRadius: "10px",
-                  fontWeight: "700",
-                  fontSize: "13.5px",
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
-                }}
-              >
-                <Fingerprint size={18} /> Register Fingerprint (Biometric Sensor)
-              </button>
-
-              <button
+                type="button"
+                className="btn-bio-face-checkin"
                 onClick={() => openCamera("REGISTRATION")}
                 disabled={actionLoading}
-                style={{
-                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                  color: "#fff",
-                  border: "none",
-                  padding: "12px 18px",
-                  borderRadius: "10px",
-                  fontWeight: "700",
-                  fontSize: "13.5px",
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
-                }}
               >
-                <Camera size={18} /> Register Face ID (Selfie Scan)
+                <Camera size={18} /> Register Face ID ({device.isLaptop ? "Laptop Webcam" : "Selfie Camera"})
               </button>
-            </div>
+
+              {/* Secondary: Fingerprint Hardware sensor */}
+              <button
+                type="button"
+                className="btn-bio-secondary"
+                onClick={handleRegisterFingerprint}
+                disabled={actionLoading}
+              >
+                <Fingerprint size={16} /> Register Fingerprint
+              </button>
+            </>
           ) : approvalStatus === "PENDING_APPROVAL" ? (
             <button
+              type="button"
+              className="btn-bio-pending"
               onClick={() => openCamera("REGISTRATION")}
-              style={{
-                background: "rgba(245, 158, 11, 0.2)",
-                border: "1px solid rgba(245, 158, 11, 0.4)",
-                color: "#fbbf24",
-                padding: "12px 20px",
-                borderRadius: "10px",
-                fontWeight: "700",
-                fontSize: "13.5px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
             >
               <Clock size={16} /> Pending HR Approval — Re-capture Photo
             </button>
           ) : !today?.check_in_time ? (
             <>
-              {/* Check-In Option 1: Fingerprint */}
-              <button
-                onClick={handleCheckIn}
-                disabled={actionLoading}
-                style={{
-                  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-                  color: "#fff",
-                  border: "none",
-                  padding: "12px 18px",
-                  borderRadius: "10px",
-                  fontWeight: "700",
-                  fontSize: "13.5px",
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
-                }}
-              >
-                <Fingerprint size={18} /> {actionLoading ? "Fetching GPS..." : "Check-In (Fingerprint)"}
-              </button>
-
-              {/* Check-In Option 2: Face ID Scan */}
-              <button
-                onClick={() => openCamera("CHECK_IN")}
-                disabled={actionLoading}
-                style={{
-                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                  color: "#fff",
-                  border: "none",
-                  padding: "12px 18px",
-                  borderRadius: "10px",
-                  fontWeight: "700",
-                  fontSize: "13.5px",
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
-                }}
-              >
-                <Camera size={18} /> Check-In (Face ID)
-              </button>
-
+              {/* Primary on Laptop & Mobile: Face ID Camera Check-In */}
               <button
                 type="button"
-                onClick={handleRegisterFingerprint}
-                title="Enroll or re-sync fingerprint on this computer or phone"
-                style={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  border: "1px solid rgba(255, 255, 255, 0.18)",
-                  color: "#93c5fd",
-                  padding: "11px 14px",
-                  borderRadius: "10px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
+                className="btn-bio-face-checkin"
+                onClick={() => openCamera("CHECK_IN")}
+                disabled={actionLoading}
               >
-                <Fingerprint size={15} /> Re-Enroll Fingerprint
+                <Camera size={18} /> Check-In with Face ID ({device.isLaptop ? "Laptop Webcam" : "Camera"})
+              </button>
+
+              {/* Secondary Option: Fingerprint hardware */}
+              <button
+                type="button"
+                className="btn-bio-secondary"
+                onClick={handleFingerprintCheckIn}
+                disabled={actionLoading}
+              >
+                <Fingerprint size={16} /> Check-In (Fingerprint)
               </button>
             </>
           ) : !today?.check_out_time ? (
             <>
-              {/* Check-Out Option 1: Fingerprint */}
-              <button
-                onClick={handleCheckOut}
-                disabled={actionLoading}
-                style={{
-                  background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                  color: "#fff",
-                  border: "none",
-                  padding: "12px 18px",
-                  borderRadius: "10px",
-                  fontWeight: "700",
-                  fontSize: "13.5px",
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
-                }}
-              >
-                <LogOut size={18} /> {actionLoading ? "Fetching GPS..." : "Check-Out (Fingerprint)"}
-              </button>
-
-              {/* Check-Out Option 2: Face ID Scan */}
-              <button
-                onClick={() => openCamera("CHECK_OUT")}
-                disabled={actionLoading}
-                style={{
-                  background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
-                  color: "#fff",
-                  border: "none",
-                  padding: "12px 18px",
-                  borderRadius: "10px",
-                  fontWeight: "700",
-                  fontSize: "13.5px",
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  boxShadow: "0 4px 14px rgba(139, 92, 246, 0.35)",
-                }}
-              >
-                <Camera size={18} /> Check-Out (Face ID)
-              </button>
-
+              {/* Primary: Face ID Camera Check-Out */}
               <button
                 type="button"
-                onClick={handleRegisterFingerprint}
-                title="Enroll or re-sync fingerprint on this computer or phone"
-                style={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  border: "1px solid rgba(255, 255, 255, 0.18)",
-                  color: "#93c5fd",
-                  padding: "11px 14px",
-                  borderRadius: "10px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
+                className="btn-bio-face-checkout"
+                onClick={() => openCamera("CHECK_OUT")}
+                disabled={actionLoading}
               >
-                <Fingerprint size={15} /> Re-Enroll Fingerprint
+                <Camera size={18} /> Check-Out with Face ID ({device.isLaptop ? "Laptop Webcam" : "Camera"})
+              </button>
+
+              {/* Secondary: Fingerprint hardware */}
+              <button
+                type="button"
+                className="btn-bio-secondary"
+                onClick={handleFingerprintCheckOut}
+                disabled={actionLoading}
+              >
+                <LogOut size={16} /> Check-Out (Fingerprint)
               </button>
             </>
           ) : (
-            <div
-              style={{
-                background: "rgba(16, 185, 129, 0.15)",
-                border: "1px solid rgba(52, 211, 153, 0.3)",
-                color: "#34d399",
-                padding: "10px 18px",
-                borderRadius: "10px",
-                fontWeight: "600",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
+            <div className="btn-bio-complete">
               {(() => {
                 const totalMinutes = Math.round(Number(today.total_hours || 0) * 60);
                 const h = Math.floor(totalMinutes / 60);
@@ -953,19 +917,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
       {/* Live Check-in Details Bar */}
       {today?.check_in_time && (
-        <div
-          style={{
-            marginTop: "20px",
-            paddingTop: "16px",
-            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-            display: "flex",
-            gap: "24px",
-            flexWrap: "wrap",
-            fontSize: "13px",
-            color: "#cbd5e1",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+        <div className="biometric-details-strip">
+          <div className="biometric-detail-col">
             <strong style={{ color: "#94a3b8" }}>Check-In Time:</strong>{" "}
             <span style={{ color: "#fff", fontWeight: "600" }}>
               {new Date(today.check_in_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
@@ -1014,7 +967,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           </div>
 
           {today.check_out_time && (
-            <div>
+            <div className="biometric-detail-col">
               <strong style={{ color: "#94a3b8" }}>Check-Out Time:</strong>{" "}
               <span style={{ color: "#fff", fontWeight: "600" }}>
                 {new Date(today.check_out_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
@@ -1022,7 +975,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
           )}
 
-          <div>
+          <div className="biometric-detail-col">
             <strong style={{ color: "#94a3b8" }}>Shift Hours:</strong>{" "}
             {(() => {
               const isActive = Boolean(today.check_in_time && !today.check_out_time);
@@ -1044,84 +997,77 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               );
             })()}
           </div>
+
+          {today.check_in_location && (
+            <div className="biometric-detail-col">
+              <strong style={{ color: "#94a3b8" }}>Location:</strong>{" "}
+              <span style={{ color: "#93c5fd", fontWeight: "600" }}>
+                📍 {today.check_in_location}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Camera Selfie Modal for iPhone & Mobile Face ID Registration */}
+      {/* Camera Face ID Modal (Laptop Webcam & Mobile Camera) */}
       {showCameraModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 23, 42, 0.85)",
-            backdropFilter: "blur(6px)",
-            zIndex: 99999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px",
-            fontFamily: "Inter, sans-serif",
-          }}
-        >
-          <div
-            style={{
-              background: "#0f172a",
-              border: "1px solid #334155",
-              borderRadius: "20px",
-              padding: "24px",
-              maxWidth: "460px",
-              width: "100%",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-              color: "#ffffff",
-              position: "relative",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Camera size={20} style={{ color: "#10b981" }} />
-                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>
+        <div className="bio-camera-modal-overlay">
+          <div className="bio-camera-modal">
+            {/* Header */}
+            <div className="bio-camera-modal-header">
+              <div className="bio-camera-modal-title">
+                {device.isLaptop ? <Laptop size={20} style={{ color: "#3b82f6" }} /> : <Camera size={20} style={{ color: "#10b981" }} />}
+                <h3>
                   {cameraMode === "CHECK_IN"
-                    ? "Face ID Attendance Check-In"
+                    ? device.isLaptop
+                      ? "Laptop Webcam Face ID Check-In"
+                      : "Face ID Attendance Check-In"
                     : cameraMode === "CHECK_OUT"
-                    ? "Face ID Attendance Check-Out"
+                    ? device.isLaptop
+                      ? "Laptop Webcam Face ID Check-Out"
+                      : "Face ID Attendance Check-Out"
+                    : device.isLaptop
+                    ? "Laptop Webcam Face ID Registration"
                     : "Face ID & Selfie Registration"}
                 </h3>
               </div>
-              <button
-                onClick={closeCamera}
-                style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: "4px" }}
-              >
+              <button type="button" className="bio-camera-close-btn" onClick={closeCamera}>
                 <X size={20} />
               </button>
             </div>
 
-            <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 16px 0" }}>
+            <p className="bio-camera-desc">
               {cameraMode === "CHECK_IN"
-                ? "Position your face inside the frame and capture your live selfie to mark check-in."
+                ? "Align your face inside the frame and capture your live photo to mark check-in (Within 100m of office)."
                 : cameraMode === "CHECK_OUT"
-                ? "Position your face inside the frame and capture your live selfie to mark check-out."
-                : "Position your face inside the frame. Your selfie snapshot will be sent to HR for approval."}
+                ? "Align your face inside the frame and capture your live photo to mark check-out (Within 100m of office)."
+                : "Align your face inside the frame. Your selfie snapshot will be sent to HR for verification & approval."}
             </p>
 
-            {/* Video Stream / Photo Preview Container */}
+            {/* In-modal Geofence Status Banner */}
             <div
-              style={{
-                position: "relative",
-                width: "100%",
-                height: "280px",
-                background: "#020617",
-                borderRadius: "14px",
-                overflow: "hidden",
-                border: "2px solid #3b82f6",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "20px",
-              }}
+              className={`bio-camera-geofence-status ${
+                locating
+                  ? "checking"
+                  : isWithinOffice
+                  ? "valid"
+                  : "invalid"
+              }`}
             >
+              <MapPin size={14} />
+              {locating ? (
+                <span>Checking office distance...</span>
+              ) : isWithinOffice ? (
+                <span>✓ Verified: Inside Office Premises ({Math.round(locationData?.distance || 0)}m • 100m Geofence OK)</span>
+              ) : locationData?.distance != null ? (
+                <span>⚠️ Out of Range: {Math.round(locationData.distance)}m away (Must be within 100m of office)</span>
+              ) : (
+                <span>{locationData?.location_name || "Location permission required"}</span>
+              )}
+            </div>
+
+            {/* Video Stream / Photo Preview Container */}
+            <div className="bio-camera-viewport">
               {!capturedPhoto ? (
                 <>
                   <video
@@ -1129,75 +1075,43 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                     autoPlay
                     playsInline
                     muted
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    className="bio-camera-video"
                   />
                   {/* Oval Face Guide Overlay */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      width: "180px",
-                      height: "220px",
-                      borderRadius: "50%",
-                      border: "2px dashed #34d399",
-                      boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.45)",
-                      pointerEvents: "none",
-                    }}
-                  />
+                  <div className="bio-camera-oval-guide" />
                 </>
               ) : (
                 <img
                   src={capturedPhoto}
                   alt="Captured Selfie"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  className="bio-camera-photo-preview"
                 />
               )}
             </div>
 
             {/* Modal Footer Controls */}
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+            <div className="bio-camera-modal-footer">
               {!capturedPhoto ? (
                 <button
+                  type="button"
                   onClick={takeSelfie}
-                  style={{
-                    flex: 1,
-                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                    color: "#fff",
-                    border: "none",
-                    padding: "12px 18px",
-                    borderRadius: "10px",
-                    fontWeight: "700",
-                    fontSize: "14px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                  }}
+                  className="btn-bio-face-checkin"
+                  style={{ flex: 1 }}
                 >
-                  <Camera size={18} /> Capture Selfie Photo
+                  <Camera size={18} /> Capture Face Photo
                 </button>
               ) : (
                 <>
                   <button
+                    type="button"
                     onClick={() => openCamera(cameraMode)}
                     disabled={actionLoading}
-                    style={{
-                      background: "#334155",
-                      color: "#fff",
-                      border: "none",
-                      padding: "12px 16px",
-                      borderRadius: "10px",
-                      fontWeight: "600",
-                      fontSize: "13.5px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
+                    className="btn-bio-secondary"
                   >
                     <RefreshCw size={16} /> Retake
                   </button>
                   <button
+                    type="button"
                     onClick={
                       cameraMode === "CHECK_IN"
                         ? handleFaceCheckIn
@@ -1206,23 +1120,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                         : submitFaceRegistration
                     }
                     disabled={actionLoading}
-                    style={{
-                      flex: 1,
-                      background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-                      color: "#fff",
-                      border: "none",
-                      padding: "12px 18px",
-                      borderRadius: "10px",
-                      fontWeight: "700",
-                      fontSize: "14px",
-                      cursor: actionLoading ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                    }}
+                    className="btn-bio-primary"
+                    style={{ flex: 1 }}
                   >
-                    <UserCheck size={18} />{" "}
+                    <UserCheck size={18} />
                     {actionLoading
                       ? "Processing..."
                       : cameraMode === "CHECK_IN"

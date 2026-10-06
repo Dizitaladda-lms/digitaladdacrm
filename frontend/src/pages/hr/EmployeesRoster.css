@@ -378,3 +378,80 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+
+/* ── Mobile Responsive (< 768px) ────────────────────────── */
+@media (max-width: 768px) {
+  .hr-roster-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .hr-roster-kpis {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  .kpi-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .kpi-icon-wrap {
+    width: 36px;
+    height: 36px;
+  }
+
+  .kpi-content strong {
+    font-size: 18px;
+  }
+
+  .hr-roster-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+
+  .filter-selects {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filter-selects select {
+    flex: 1;
+  }
+
+  .view-toggle-btns {
+    width: 100%;
+  }
+
+  .view-toggle-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .matrix-table th.emp-header,
+  .matrix-table td.emp-name-cell {
+    min-width: 120px;
+    font-size: 11px;
+  }
+
+  .hr-modal-content {
+    width: 96vw;
+    max-width: 96vw;
+    max-height: 94vh;
+  }
+
+  .hr-modal-header,
+  .hr-modal-body,
+  .hr-modal-footer {
+    padding: 14px 16px;
+  }
+}
+

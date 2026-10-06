@@ -59,15 +59,23 @@ docker compose up --build
 
 ## Environment
 
-Copy
+Copy `.env.example` to `.env` and update the values.
 
-.env.example
+### Web Push notifications
 
-to
+Push notifications require a VAPID key pair. From the `server` directory, generate
+a pair with:
 
-.env
+```sh
+npx web-push generate-vapid-keys
+```
 
-and update the values.
+Set the matching `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
+values in `server/.env` for local development. In production, add them as
+backend deployment environment variables (for Vercel, in the project's
+Environment Variables settings) and redeploy the backend. Keep the private key
+secret, and do not rotate the pair after clients have subscribed unless users
+will re-subscribe with the new public key.
 
 ---
 

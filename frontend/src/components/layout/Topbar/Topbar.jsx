@@ -33,7 +33,7 @@ const Topbar = ({ isSidebarOpen = true, onMenuClick }) => {
         </button>
 
         <div>
-          <h1 className="text-[15px] sm:text-[17px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[15px] sm:text-[17px] font-bold text-slate-900 tracking-tight leading-tight max-w-[130px] sm:max-w-none truncate">
             {portalTitle}
           </h1>
           <div className="hidden sm:flex items-center gap-1.5 mt-0.5">

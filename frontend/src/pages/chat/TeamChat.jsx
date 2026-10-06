@@ -12,6 +12,7 @@ import {
   Clock,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   X,
   AtSign,
   Filter,
@@ -50,6 +51,7 @@ const TeamChat = () => {
   const [groups, setGroups] = useState([]);
   const [activeGroup, setActiveGroup] = useState(null);
   const [loadingGroups, setLoadingGroups] = useState(true);
+  const [showMobileChannels, setShowMobileChannels] = useState(false);
 
   // Group Details & Members (with live availability)
   const [members, setMembers] = useState([]);
@@ -521,23 +523,35 @@ const TeamChat = () => {
       {/* ======================================================== */}
       {/* 1. LEFT SIDEBAR: Channels & Team Groups                   */}
       {/* ======================================================== */}
-      <aside className="chat-sidebar">
+      <aside className={`chat-sidebar ${showMobileChannels ? "mobile-active" : "mobile-hidden"}`}>
         <div className="chat-sidebar-header">
           <div className="chat-sidebar-title">
             <MessageSquare size={20} className="text-primary" />
             <h2>Team Chat</h2>
           </div>
-          {canCreateGroup && (
-            <button
-              type="button"
-              className="chat-btn-new-group"
-              onClick={openCreateGroupModal}
-              title="Create New Team Group"
-            >
-              <Plus size={16} />
-              <span>New Group</span>
-            </button>
-          )}
+          <div className="chat-sidebar-header-actions">
+            {canCreateGroup && (
+              <button
+                type="button"
+                className="chat-btn-new-group"
+                onClick={openCreateGroupModal}
+                title="Create New Team Group"
+              >
+                <Plus size={16} />
+                <span>New</span>
+              </button>
+            )}
+            {activeGroup && (
+              <button
+                type="button"
+                className="chat-btn-mobile-close-sidebar"
+                onClick={() => setShowMobileChannels(false)}
+                title="Return to conversation"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Channel Search */}
@@ -569,7 +583,10 @@ const TeamChat = () => {
                 <div
                   key={g.id}
                   className={`chat-group-item ${isActive ? "active" : ""}`}
-                  onClick={() => setActiveGroup(g)}
+                  onClick={() => {
+                    setActiveGroup(g);
+                    setShowMobileChannels(false);
+                  }}
                 >
                   <div className="chat-group-icon-wrap">
                     {isAllCompany ? (
@@ -625,11 +642,21 @@ const TeamChat = () => {
       {/* ======================================================== */}
       {/* 2. CENTER: Chat Feed & Messaging Area                    */}
       {/* ======================================================== */}
-      <main className="chat-main-area">
+      <main className={`chat-main-area ${showMobileChannels ? "mobile-hidden" : "mobile-active"}`}>
         {/* Top Chat Header */}
         <header className="chat-main-header">
           <div className="chat-header-left">
             <div className="chat-header-title-row">
+              <button
+                type="button"
+                className="btn-mobile-back-channels"
+                onClick={() => setShowMobileChannels(true)}
+                title="View All Channels"
+              >
+                <ChevronLeft size={19} />
+                <span>Channels</span>
+              </button>
+
               <span className="chat-header-hash">
                 {activeGroup?.is_default || activeGroup?.group_type === "ALL_COMPANY" ? "🌐" : "#"}
               </span>

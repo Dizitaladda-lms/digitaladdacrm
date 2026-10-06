@@ -711,3 +711,35 @@ input:checked + .slider:before {
   color: #64748b;
 }
 
+/* ── Mobile Responsive (< 640px) ────────────────────────── */
+@media (max-width: 640px) {
+  .daily-report-card {
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+
+  .report-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .report-form-grid-3,
+  .report-form-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .report-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .report-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+

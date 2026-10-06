@@ -494,3 +494,66 @@
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* ── Mobile Responsive (< 640px) ────────────────────────── */
+@media (max-width: 640px) {
+  .roster-header-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .month-selector-bar {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .roster-summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  .roster-summary-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .summary-icon-box {
+    width: 36px;
+    height: 36px;
+  }
+
+  .summary-info strong {
+    font-size: 16px;
+  }
+
+  .calendar-days-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+
+  .footer-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .roster-modal-content {
+    width: 95vw;
+    margin: auto;
+  }
+
+  .roster-modal-header,
+  .roster-modal-body,
+  .roster-modal-footer {
+    padding: 14px 16px;
+  }
+}
+

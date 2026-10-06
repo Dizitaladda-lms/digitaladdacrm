@@ -640,3 +640,18 @@
   cursor: not-allowed;
 }
 
+/* ── Mobile Responsive (< 640px) ────────────────────────── */
+@media (max-width: 640px) {
+  .notif-popover {
+    position: fixed !important;
+    top: 64px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: 80vh !important;
+    border-radius: 14px !important;
+  }
+}
+
+

@@ -223,7 +223,7 @@ const AttendanceReports = () => {
               Employee Attendance & Face Biometric Approval
             </h1>
             <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "14px" }}>
-              Approve new iPhone FaceID / selfie registrations and track live daily GPS attendance check-ins.
+              Approve new Laptop Webcam / Mobile Face ID registrations and track live daily GPS attendance check-ins.
             </p>
           </div>
 

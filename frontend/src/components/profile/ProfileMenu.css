@@ -300,3 +300,28 @@
   opacity: 0.65;
   cursor: not-allowed;
 }
+
+/* ── Mobile Responsive (< 640px) ────────────────────────── */
+@media (max-width: 640px) {
+  .profile-menu-details {
+    display: none !important;
+  }
+
+  .profile-menu-trigger {
+    padding: 3px 5px;
+    gap: 4px;
+    border-radius: 8px;
+  }
+
+  .profile-menu-dropdown {
+    width: 220px;
+    right: 0;
+  }
+
+  .profile-editor {
+    width: 94vw;
+    max-width: 400px;
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+}
