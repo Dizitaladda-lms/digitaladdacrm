@@ -1,6 +1,7 @@
 import express from "express";
 import {
   loginLimiter,
+  loginIpLimiter,
   accountRecoveryLimiter,
   registrationLimiter,
 } from "../middleware/rateLimiter.js";
@@ -48,6 +49,7 @@ router.post(
 
 router.post(
   "/login",
+  loginIpLimiter,
   loginLimiter,
   loginValidator,
   validate,

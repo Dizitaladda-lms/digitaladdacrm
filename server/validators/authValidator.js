@@ -72,7 +72,7 @@ export const loginValidator = [
   body("email")
     .trim()
     .notEmpty()
-    .withMessage("Email or username is required."),
+    .withMessage("Email address is required."),
 
   body("password")
     .notEmpty()

@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * =====================================================
@@ -30,21 +30,41 @@ export const globalLimiter = rateLimit({
  * =====================================================
  */
 
+const loginAccountKey = (req) => {
+  const email = typeof req.body?.email === "string"
+    ? req.body.email.trim().toLowerCase().slice(0, 320)
+    : "";
+
+  return email ? `account:${email}` : `ip:${ipKeyGenerator(req.ip)}`;
+};
+
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-
   max: 5,
-
+  keyGenerator: loginAccountKey,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
-
   legacyHeaders: false,
-
   skip: () => process.env.NODE_ENV === "test",
 
   message: {
     success: false,
     message:
       "Too many login attempts. Please try again after 15 minutes.",
+  },
+});
+
+export const loginIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  message: {
+    success: false,
+    message:
+      "Too many login attempts from this network. Please try again after 15 minutes.",
   },
 });
 

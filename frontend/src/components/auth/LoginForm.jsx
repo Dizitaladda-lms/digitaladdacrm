@@ -53,6 +53,7 @@ const LoginForm = () => {
         switch (role) {
           case "MANAGER":
           case "SUPER_ADMIN":
+          case "ADMIN":
             navigate("/dashboard", { replace: true });
             break;
 
@@ -88,10 +89,10 @@ const LoginForm = () => {
         <Mail size={18} className="auth-input-icon" />
         <input
           type="text"
-          placeholder="admin@dizitaladda.com or username"
+          placeholder="Work email address"
           autoComplete="username"
           {...register("email", {
-            required: "Email or username is required",
+            required: "Email address is required",
           })}
         />
         {errors.email && <p className="auth-error">{errors.email.message}</p>}
