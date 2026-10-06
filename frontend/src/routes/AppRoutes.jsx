@@ -145,7 +145,7 @@ const AppRoutes = () => {
             <Route path="/team-chat" element={renderPage(TeamChat)} />
             <Route path="/chat" element={renderPage(TeamChat)} />
 
-            <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN", "HR", "MANAGER", "TL", "ADMIN"]} />}>
+            <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN", "HR"]} />}>
               <Route
                 path="/sales-department-report"
                 element={

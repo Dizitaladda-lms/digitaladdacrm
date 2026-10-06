@@ -28,7 +28,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isHR = role === "HR";
   const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
-  const canSeeSalesReport = isSuperAdmin || isHR || isHead;
+  const canSeeSalesReport = isSuperAdmin || isHR;
 
   let menuItems = [];
 
@@ -47,12 +47,25 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
   } else if (canSeeSalesReport) {
-    // HR, Super Admin, Department Head, TL, or Manager Portal
+    // HR & Super Admin Portal (Full Access including Sales Dept Overview)
     menuItems = [
       { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
       { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/employee/sales-report" },
+      { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
+      { title: "TL Team & Intern Reports", icon: UsersRound, path: "/employee/team-reports" },
+      { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
+      { title: "Monthly Roster", icon: CalendarDays, path: "/employee/roster" },
+      { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "Settings", icon: Settings, path: "/employee/settings" },
+    ];
+  } else if (isHead) {
+    // Team Leads (TL) & Department Heads Portal (Sales Overview hidden, team reports visible)
+    menuItems = [
+      { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
+      { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
       { title: "TL Team & Intern Reports", icon: UsersRound, path: "/employee/team-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },

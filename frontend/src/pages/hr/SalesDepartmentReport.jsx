@@ -31,8 +31,7 @@ const SalesDepartmentReport = () => {
   const role = user?.role || "";
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isHR = role === "HR";
-  const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
-  const canSeeSalesReport = isSuperAdmin || isHR || isHead;
+  const canSeeSalesReport = isSuperAdmin || isHR;
 
   const [loading, setLoading] = useState(false);
   const [dateRangeMode, setDateRangeMode] = useState("TODAY"); // "TODAY" | "THIS_WEEK" | "THIS_MONTH" | "ALL_TIME" | "CUSTOM"
@@ -76,7 +75,7 @@ const SalesDepartmentReport = () => {
             Access Restricted
           </h2>
           <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.5", margin: 0 }}>
-            The Sales Department Performance & Revenue Overview is strictly restricted to <strong>HR, Super Admin, and Department Heads</strong>.
+            The Sales Department Performance & Revenue Overview is strictly restricted to <strong>HR and Super Admin</strong>.
           </p>
         </div>
       </div>

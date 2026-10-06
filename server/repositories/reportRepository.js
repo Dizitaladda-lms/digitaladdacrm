@@ -564,7 +564,9 @@ export const findTeamReportsRepository = async ({
   values.push(limit, offset);
 
   const result = await pool.query(query, values);
-  const salesMetrics = await getSalesTeamMetricsRepository({ date, startDate, endDate });
+  const salesMetrics = isSuperAdminOrHR
+    ? await getSalesTeamMetricsRepository({ date, startDate, endDate })
+    : null;
 
   return {
     reports: result.rows,

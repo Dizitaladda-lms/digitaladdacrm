@@ -39,8 +39,7 @@ const EmployeeRoutes = () => {
   const isCounsellor = role === "COUNSELLOR";
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isHR = role === "HR";
-  const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
-  const canSeeSalesReport = isSuperAdmin || isHR || isHead;
+  const canSeeSalesReport = isSuperAdmin || isHR;
 
   return (
     <Suspense fallback={<LoadingFallback />}>
