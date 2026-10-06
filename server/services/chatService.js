@@ -1,4 +1,5 @@
 import ApiError from "../utils/ApiError.js";
+import pool from "../config/db.js";
 import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
 import {
   findUserGroupsRepository,
@@ -9,6 +10,9 @@ import {
   createChatMessageRepository,
   markGroupReadRepository,
   addMembersToGroupRepository,
+  getChatUsersRepository,
+  getOrCreateDirectGroupRepository,
+  isGroupMemberRepository,
 } from "../repositories/chatRepository.js";
 import { sendPushToEmployeesService } from "./pushNotificationService.js";
 
@@ -21,7 +25,19 @@ const getEmployeeForUser = async (currentUser) => {
 };
 
 /**
- * Get all groups accessible by logged-in user
+ * Get all active colleagues & interns for starting personal 1-on-1 chats
+ */
+export const getChatUsersService = async (currentUser) => {
+  const employee = await getEmployeeForUser(currentUser);
+  const users = await getChatUsersRepository(employee.id);
+  return {
+    employee_id: employee.id,
+    users,
+  };
+};
+
+/**
+ * Get all groups & personal chats accessible by logged-in user
  */
 export const getUserGroupsService = async (currentUser) => {
   const employee = await getEmployeeForUser(currentUser);
@@ -33,12 +49,51 @@ export const getUserGroupsService = async (currentUser) => {
 };
 
 /**
+ * Get or create a personal 1-on-1 direct message chat with a colleague or intern
+ */
+export const getOrCreateDirectChatService = async (payload = {}, currentUser) => {
+  const { targetEmployeeId } = payload;
+  const targetId = Number(targetEmployeeId);
+
+  if (!targetId) {
+    throw new ApiError(400, "Target employee ID is required.");
+  }
+
+  const employee = await getEmployeeForUser(currentUser);
+
+  if (targetId === employee.id) {
+    throw new ApiError(400, "You cannot start a direct chat with yourself.");
+  }
+
+  // Validate target exists and is active
+  const { rows } = await pool.query(
+    `SELECT id, full_name, status, is_deleted FROM employees WHERE id = $1;`,
+    [targetId]
+  );
+  if (!rows[0] || rows[0].is_deleted || rows[0].status !== "ACTIVE") {
+    throw new ApiError(404, "Selected employee or intern is not available.");
+  }
+
+  const group = await getOrCreateDirectGroupRepository(employee.id, targetId);
+  return group;
+};
+
+/**
  * Get group details & its members with live availability & off status
  */
 export const getGroupDetailsService = async (groupId, currentUser) => {
-  const group = await findGroupByIdRepository(groupId);
+  const employee = await getEmployeeForUser(currentUser);
+  const group = await findGroupByIdRepository(groupId, employee.id);
   if (!group) {
-    throw new ApiError(404, "Chat group not found.");
+    throw new ApiError(404, "Chat conversation not found.");
+  }
+
+  // Privacy protection: Ensure user is a participant of direct message
+  if (group.group_type === "DIRECT") {
+    const isMember = await isGroupMemberRepository(groupId, employee.id);
+    if (!isMember) {
+      throw new ApiError(403, "You do not have permission to view this personal chat.");
+    }
   }
 
   const members = await findGroupMembersWithLiveStatusRepository(groupId);
@@ -97,6 +152,19 @@ export const createTeamGroupService = async (payload = {}, currentUser) => {
  */
 export const getGroupMessagesService = async (groupId, query = {}, currentUser) => {
   const employee = await getEmployeeForUser(currentUser);
+  const group = await findGroupByIdRepository(groupId, employee.id);
+  if (!group) {
+    throw new ApiError(404, "Chat conversation not found.");
+  }
+
+  // Security check for direct chats
+  if (group.group_type === "DIRECT") {
+    const isMember = await isGroupMemberRepository(groupId, employee.id);
+    if (!isMember) {
+      throw new ApiError(403, "You do not have permission to view this personal chat.");
+    }
+  }
+
   const { limit = 60, beforeId = null } = query;
 
   const messages = await findGroupMessagesRepository(groupId, {
@@ -117,8 +185,8 @@ export const getGroupMessagesService = async (groupId, query = {}, currentUser) 
 };
 
 /**
- * Send a message in a group
- * Checks mentioned employees and alerts if any mentioned member is OFF today
+ * Send a message in a group or direct chat
+ * Checks mentioned employees or partner and alerts if recipient is OFF today
  */
 export const sendChatMessageService = async (groupId, payload = {}, currentUser) => {
   const { messageText = "", mentionedEmployeeIds = [], attachments = [] } = payload;
@@ -132,9 +200,17 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
 
   const employee = await getEmployeeForUser(currentUser);
 
-  const group = await findGroupByIdRepository(groupId);
+  const group = await findGroupByIdRepository(groupId, employee.id);
   if (!group) {
-    throw new ApiError(404, "Chat group not found.");
+    throw new ApiError(404, "Chat conversation not found.");
+  }
+
+  // Security check for direct chats
+  if (group.group_type === "DIRECT") {
+    const isMember = await isGroupMemberRepository(groupId, employee.id);
+    if (!isMember) {
+      throw new ApiError(403, "You do not have permission to send messages in this personal chat.");
+    }
   }
 
   // Create message
@@ -147,13 +223,46 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
     attachments: Array.isArray(attachments) ? attachments : [],
   });
 
-  // Check if any mentioned employee is OFF today
   let offAlerts = [];
+  const senderName = employee.full_name || "Team Member";
+  const preview = finalMessageText.length > 90 ? `${finalMessageText.slice(0, 87)}...` : finalMessageText;
+
+  // 1. Direct 1-on-1 Message Handling: notify partner
+  if (group.group_type === "DIRECT") {
+    const { rows: partnerRows } = await pool.query(
+      `SELECT employee_id FROM chat_group_members WHERE group_id = $1 AND employee_id != $2 LIMIT 1;`,
+      [group.id, employee.id]
+    );
+
+    if (partnerRows[0]?.employee_id) {
+      const partnerId = partnerRows[0].employee_id;
+
+      // Check if partner is off today
+      if (group.partner?.is_off_today) {
+        offAlerts.push({
+          employee_id: group.partner.id,
+          full_name: group.partner.name,
+          off_reason: group.partner.off_reason || "Off Today",
+        });
+      }
+
+      // Send background web push to partner
+      sendPushToEmployeesService([partnerId], {
+        title: `💬 Personal message from ${senderName}`,
+        body: preview,
+        url: `/team-chat`,
+        tag: `chat-dm-${group.id}`,
+        data: { groupId: group.id, messageId: message.id },
+      }).catch((err) => console.error("Push dispatch error on DM:", err.message));
+    }
+  }
+
+  // 2. Mentions in Group Handling
   if (Array.isArray(mentionedEmployeeIds) && mentionedEmployeeIds.length > 0) {
     const members = await findGroupMembersWithLiveStatusRepository(groupId);
     const mentionedSet = new Set(mentionedEmployeeIds.map(Number));
 
-    offAlerts = members
+    const groupOffAlerts = members
       .filter((m) => mentionedSet.has(Number(m.employee_id)) && m.is_off_today)
       .map((m) => ({
         employee_id: m.employee_id,
@@ -161,11 +270,9 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
         off_reason: m.off_reason || "Off Today",
       }));
 
-    // Dispatch background web push notification to mentioned members (delivered even if browser/app is closed)
-    const senderName = employee.full_name || "Team Member";
-    const groupName = group.name || "Chat";
-    const preview = finalMessageText.length > 90 ? `${finalMessageText.slice(0, 87)}...` : finalMessageText;
+    offAlerts = [...offAlerts, ...groupOffAlerts];
 
+    const groupName = group.name || "Chat";
     sendPushToEmployeesService(mentionedEmployeeIds, {
       title: `💬 ${senderName} mentioned you in #${groupName}`,
       body: preview,
@@ -177,12 +284,12 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
 
   return {
     message,
-    off_alerts: offAlerts, // Provides instant notification to sender if someone mentioned is off!
+    off_alerts: offAlerts,
   };
 };
 
 /**
- * Mark group messages as read
+ * Mark group or direct messages as read
  */
 export const markChatGroupReadService = async (groupId, payload = {}, currentUser) => {
   const employee = await getEmployeeForUser(currentUser);

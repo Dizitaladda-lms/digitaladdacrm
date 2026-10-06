@@ -27,10 +27,16 @@ import {
   Download,
   Eye,
   Maximize2,
+  User,
+  UserPlus,
+  GraduationCap,
+  Briefcase,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   getUserChatGroups,
+  getChatUsers,
+  getOrCreateDirectChat,
   getChatGroupDetails,
   createTeamChatGroup,
   getChatGroupMessages,
@@ -78,7 +84,7 @@ const TeamChat = () => {
   const [previewImageModal, setPreviewImageModal] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Create Group Modal
+  // Create Team Group Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDesc, setNewGroupDesc] = useState("");
@@ -87,10 +93,17 @@ const TeamChat = () => {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [staffSearchQuery, setStaffSearchQuery] = useState("");
 
-  // Search Filter for channels
+  // Direct Messaging (1-on-1 Personal Chat) Modal
+  const [showDirectChatModal, setShowDirectChatModal] = useState(false);
+  const [chatUsers, setChatUsers] = useState([]);
+  const [loadingChatUsers, setLoadingChatUsers] = useState(false);
+  const [directSearchQuery, setDirectSearchQuery] = useState("");
+  const [directRoleFilter, setDirectRoleFilter] = useState("ALL");
+
+  // Search Filter for sidebar channels
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
 
-  // 1. Fetch All Groups for Logged In User
+  // 1. Fetch All Groups & Personal Chats for Logged In User
   const loadGroups = useCallback(async (selectGroupId = null) => {
     try {
       setLoadingGroups(true);
@@ -127,6 +140,14 @@ const TeamChat = () => {
       setLoadingMembers(true);
       const res = await getChatGroupDetails(groupId);
       setMembers(res?.data?.members || []);
+      // If group is a direct chat, update its partner details
+      if (res?.data?.group?.partner) {
+        setActiveGroup((prev) => ({
+          ...prev,
+          partner: res.data.group.partner,
+          name: res.data.group.partner.name || prev?.name,
+        }));
+      }
     } catch (err) {
       console.error("Failed to load group details:", err);
     } finally {
@@ -200,139 +221,102 @@ const TeamChat = () => {
     return members.filter(
       (m) =>
         m.full_name?.toLowerCase().includes(mentionFilter) ||
-        m.employee_code?.toLowerCase().includes(mentionFilter) ||
-        m.designation?.toLowerCase().includes(mentionFilter)
+        m.designation?.toLowerCase().includes(mentionFilter) ||
+        m.role?.toLowerCase().includes(mentionFilter)
     );
   }, [members, mentionFilter]);
 
-  const insertMention = (member) => {
-    if (!member) return;
-    const cursor = inputRef.current ? inputRef.current.selectionStart : inputText.length;
+  // Insert mention into text
+  const handleSelectMention = (member) => {
+    if (!inputRef.current) return;
+    const cursor = inputRef.current.selectionStart;
     const textBeforeCursor = inputText.slice(0, cursor);
     const textAfterCursor = inputText.slice(cursor);
     const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
     if (lastAtIndex !== -1) {
-      const newText =
-        textBeforeCursor.slice(0, lastAtIndex) +
-        `@${member.full_name} ` +
-        textAfterCursor;
-      setInputText(newText);
+      const newTextBefore = textBeforeCursor.slice(0, lastAtIndex) + `@${member.full_name} `;
+      setInputText(newTextBefore + textAfterCursor);
       setMentionedEmployees((prev) => new Set([...prev, member.employee_id]));
-    }
-    setShowMentionPopup(false);
-    if (inputRef.current) inputRef.current.focus();
+      setShowMentionPopup(false);
 
-    // Instant warning toast if member is OFF today
-    if (member.is_off_today) {
-      toast(
-        (t) => (
-          <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>⚠️</span>
-            <span>
-              <strong>{member.full_name}</strong> is <strong>OFF Today</strong> ({member.off_reason}). They may not respond immediately.
-            </span>
-          </span>
-        ),
-        { icon: "🔴", duration: 4000 }
-      );
+      // Re-focus input
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const newCursor = newTextBefore.length;
+          inputRef.current.setSelectionRange(newCursor, newCursor);
+        }
+      }, 50);
     }
   };
 
-  // Identify any currently typed mentioned members that are OFF today to show top alert banner
-  const activeOffMentions = useMemo(() => {
-    if (!inputText || !members) return [];
-    const offList = [];
-    members.forEach((m) => {
-      if (m.is_off_today && inputText.includes(`@${m.full_name}`)) {
-        offList.push(m);
-      }
-    });
-    return offList;
-  }, [inputText, members]);
-
-  // Format bytes helper
-  const formatBytes = (bytes, decimals = 1) => {
-    if (!bytes || bytes === 0) return "0 B";
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-  };
-
-  // Image Selection Handler
-  const handleImageFileChange = async (e) => {
+  // 5. Image & Attachment Upload Handler
+  const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    setUploadingImage(true);
-    try {
-      const processed = [];
-      for (const file of files) {
-        if (!file.type.startsWith("image/")) {
-          toast.error(`${file.name} is not a supported image file.`);
-          continue;
-        }
-        if (file.size > 15 * 1024 * 1024) {
-          toast.error(`${file.name} is too large (max 15MB).`);
-          continue;
-        }
-        const prepared = await compressAndPrepareImage(file);
-        processed.push(prepared);
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} is not an image. Only image attachments are supported.`);
+        continue;
       }
 
-      if (processed.length > 0) {
-        setSelectedAttachments((prev) => [...prev, ...processed]);
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 15MB file size limit.`);
+        continue;
       }
-    } catch (err) {
-      console.error("Image processing error:", err);
-      toast.error(err.message || "Failed to process image.");
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      try {
+        setUploadingImage(true);
+        const processed = await compressAndPrepareImage(file);
+        setSelectedAttachments((prev) => [...prev, processed]);
+        toast.success(`Attached ${file.name} 📷`);
+      } catch (err) {
+        toast.error(err.message || "Failed to process image.");
+      } finally {
+        setUploadingImage(false);
+      }
     }
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Remove pending attachment
-  const handleRemoveAttachment = (attachmentId) => {
-    setSelectedAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
-  };
-
-  // Paste image from clipboard handler
   const handlePaste = async (e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
 
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type && items[i].type.indexOf("image") !== -1) {
+      if (items[i].type.indexOf("image") !== -1) {
         const file = items[i].getAsFile();
         if (file) {
           e.preventDefault();
-          setUploadingImage(true);
           try {
-            const prepared = await compressAndPrepareImage(file);
-            setSelectedAttachments((prev) => [...prev, prepared]);
-            toast.success("Image pasted from clipboard! 📋");
-          } catch {
-            toast.error("Failed to paste image.");
+            setUploadingImage(true);
+            const processed = await compressAndPrepareImage(file);
+            setSelectedAttachments((prev) => [...prev, processed]);
+            toast.success("Image pasted from clipboard 📋");
+          } catch (err) {
+            toast.error("Could not process pasted image.");
           } finally {
             setUploadingImage(false);
           }
-          break;
         }
       }
     }
   };
 
-  // Download image handler
+  const removeAttachment = (index) => {
+    setSelectedAttachments((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleDownloadImage = (attachment, e) => {
     if (e) e.stopPropagation();
     downloadChatAttachment(attachment);
     toast.success("Image downloading to your device! 📥");
   };
 
-  // 5. Send Message
+  // 6. Send Message
   const handleSendMessage = async (e) => {
     e?.preventDefault();
     const hasText = inputText.trim().length > 0;
@@ -400,10 +384,11 @@ const TeamChat = () => {
       }
       if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
-        insertMention(filteredMentionMembers[selectedMentionIndex]);
+        handleSelectMention(filteredMentionMembers[selectedMentionIndex]);
         return;
       }
       if (e.key === "Escape") {
+        e.preventDefault();
         setShowMentionPopup(false);
         return;
       }
@@ -411,22 +396,98 @@ const TeamChat = () => {
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSendMessage(e);
     }
   };
 
-  // 6. Open Create Group Modal
+  // 7. Direct Messaging (Personal Chat) Helpers
+  const loadChatUsersList = useCallback(async () => {
+    try {
+      setLoadingChatUsers(true);
+      const res = await getChatUsers();
+      setChatUsers(res?.data?.users || []);
+    } catch (err) {
+      console.error("Failed to load chat users:", err);
+      toast.error("Could not load colleagues list.");
+    } finally {
+      setLoadingChatUsers(false);
+    }
+  }, []);
+
+  const openDirectChatModal = () => {
+    setShowDirectChatModal(true);
+    setDirectSearchQuery("");
+    setDirectRoleFilter("ALL");
+    loadChatUsersList();
+  };
+
+  const handleStartDirectChat = async (targetEmployeeId) => {
+    try {
+      toast.loading("Opening personal chat...", { id: "open-dm" });
+      const res = await getOrCreateDirectChat(targetEmployeeId);
+      const dmGroup = res?.data;
+      toast.dismiss("open-dm");
+
+      if (dmGroup) {
+        setGroups((prev) => {
+          const exists = prev.some((g) => Number(g.id) === Number(dmGroup.id));
+          return exists ? prev : [dmGroup, ...prev];
+        });
+        setActiveGroup(dmGroup);
+        setShowDirectChatModal(false);
+        setShowMobileChannels(false);
+        setShowMembersDrawer(false);
+      }
+    } catch (err) {
+      toast.dismiss("open-dm");
+      toast.error(err.response?.data?.message || "Failed to start personal chat.");
+    }
+  };
+
+  // Filter users in Direct Chat modal
+  const filteredChatUsers = useMemo(() => {
+    if (!chatUsers) return [];
+    let list = chatUsers;
+
+    // Filter by role chip
+    if (directRoleFilter === "INTERN") {
+      list = list.filter((u) => u.role === "INTERN");
+    } else if (directRoleFilter === "EMPLOYEE") {
+      list = list.filter((u) => u.role === "EMPLOYEE");
+    } else if (directRoleFilter === "COUNSELLOR") {
+      list = list.filter((u) => u.role === "COUNSELLOR");
+    } else if (directRoleFilter === "TRAINER") {
+      list = list.filter((u) => u.role === "TRAINER");
+    } else if (directRoleFilter === "TL") {
+      list = list.filter((u) => u.role === "TL");
+    } else if (directRoleFilter === "ONLINE") {
+      list = list.filter((u) => u.availability_status === "ONLINE");
+    }
+
+    if (!directSearchQuery) return list;
+    const q = directSearchQuery.toLowerCase();
+    return list.filter(
+      (u) =>
+        u.full_name?.toLowerCase().includes(q) ||
+        u.designation?.toLowerCase().includes(q) ||
+        u.department_name?.toLowerCase().includes(q) ||
+        u.role?.toLowerCase().includes(q)
+    );
+  }, [chatUsers, directRoleFilter, directSearchQuery]);
+
+  // 8. Create Group Modal Helpers
   const openCreateGroupModal = async () => {
     setShowCreateModal(true);
     setNewGroupName("");
     setNewGroupDesc("");
     setSelectedStaffIds(new Set());
+    setStaffSearchQuery("");
+
     try {
       const res = await getEmployees({ limit: 100 });
-      const list = res?.data?.employees || res?.employees || [];
-      setAllStaffList(list);
+      setAllStaffList(res?.data?.employees || []);
     } catch (err) {
-      console.error("Failed to load staff for group creation:", err);
+      console.error("Failed to load staff list:", err);
     }
   };
 
@@ -445,6 +506,7 @@ const TeamChat = () => {
       toast.error("Please enter a group name.");
       return;
     }
+
     try {
       setCreatingGroup(true);
       const res = await createTeamChatGroup({
@@ -453,28 +515,53 @@ const TeamChat = () => {
         memberEmployeeIds: Array.from(selectedStaffIds),
       });
 
-      toast.success(`Group "${newGroupName}" created successfully! Super Admin & HR added automatically. 🎉`);
+      toast.success("Team Chat Group created successfully! 🚀");
       setShowCreateModal(false);
       await loadGroups(res?.data?.id);
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Failed to create team group.";
-      toast.error(msg);
+      toast.error(err.response?.data?.message || "Failed to create group.");
     } finally {
       setCreatingGroup(false);
     }
   };
 
-  // 7. Format Mention Highlights in Message Text
-  const renderFormattedMessage = (text) => {
-    if (!text) return "";
-    // Match @[Word or Multiple Words]
-    const parts = text.split(/(@[a-zA-Z0-9_\s]{2,35}(?=\s|[.,!?]|$))/g);
+  // Filter staff in Create Modal
+  const filteredModalStaff = useMemo(() => {
+    if (!allStaffList) return [];
+    if (!staffSearchQuery) return allStaffList;
+    const q = staffSearchQuery.toLowerCase();
+    return allStaffList.filter(
+      (s) =>
+        s.full_name?.toLowerCase().includes(q) ||
+        s.designation?.toLowerCase().includes(q) ||
+        s.department_name?.toLowerCase().includes(q)
+    );
+  }, [allStaffList, staffSearchQuery]);
+
+  // Filter channels & direct messages
+  const filteredGroups = useMemo(() => {
+    if (!groups) return [];
+    if (!groupSearchQuery) return groups;
+    return groups.filter((g) => g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()));
+  }, [groups, groupSearchQuery]);
+
+  const channelGroups = useMemo(() => {
+    return filteredGroups.filter((g) => g.group_type !== "DIRECT");
+  }, [filteredGroups]);
+
+  const directGroups = useMemo(() => {
+    return filteredGroups.filter((g) => g.group_type === "DIRECT");
+  }, [filteredGroups]);
+
+  // Mentions parser for message display
+  const renderMessageContent = (text, mentionedIds = []) => {
+    if (!text) return null;
+    const parts = text.split(/(@[a-zA-Z0-9_\s]+?(?=\s|[.,!?]|$))/g);
+
     return parts.map((part, i) => {
       if (part.startsWith("@")) {
-        const mentionedName = part.slice(1).trim();
-        const matchedMember = members.find(
-          (m) => m.full_name?.toLowerCase() === mentionedName.toLowerCase()
-        );
+        const nameQuery = part.slice(1).trim().toLowerCase();
+        const matchedMember = members.find((m) => m.full_name.toLowerCase() === nameQuery);
         const isOff = matchedMember?.is_off_today;
 
         return (
@@ -498,30 +585,20 @@ const TeamChat = () => {
     });
   };
 
-  // Filter staff in Create Modal
-  const filteredModalStaff = useMemo(() => {
-    if (!allStaffList) return [];
-    if (!staffSearchQuery) return allStaffList;
-    const q = staffSearchQuery.toLowerCase();
-    return allStaffList.filter(
-      (s) =>
-        s.full_name?.toLowerCase().includes(q) ||
-        s.designation?.toLowerCase().includes(q) ||
-        s.department_name?.toLowerCase().includes(q)
-    );
-  }, [allStaffList, staffSearchQuery]);
+  const formatBytes = (bytes) => {
+    if (!bytes) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
 
-  // Filter channels
-  const filteredGroups = useMemo(() => {
-    if (!groups) return [];
-    if (!groupSearchQuery) return groups;
-    return groups.filter((g) => g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()));
-  }, [groups, groupSearchQuery]);
+  const isDirectChat = activeGroup?.group_type === "DIRECT";
 
   return (
     <div className="team-chat-wrapper">
       {/* ======================================================== */}
-      {/* 1. LEFT SIDEBAR: Channels & Team Groups                   */}
+      {/* 1. LEFT SIDEBAR: Channels & Direct Messages               */}
       {/* ======================================================== */}
       <aside className={`chat-sidebar ${showMobileChannels ? "mobile-active" : "mobile-hidden"}`}>
         <div className="chat-sidebar-header">
@@ -530,17 +607,6 @@ const TeamChat = () => {
             <h2>Team Chat</h2>
           </div>
           <div className="chat-sidebar-header-actions">
-            {canCreateGroup && (
-              <button
-                type="button"
-                className="chat-btn-new-group"
-                onClick={openCreateGroupModal}
-                title="Create New Team Group"
-              >
-                <Plus size={16} />
-                <span>New</span>
-              </button>
-            )}
             {activeGroup && (
               <button
                 type="button"
@@ -554,71 +620,181 @@ const TeamChat = () => {
           </div>
         </div>
 
-        {/* Channel Search */}
+        {/* Global Chat Search */}
         <div className="chat-search-box">
           <Search size={14} className="chat-search-icon" />
           <input
             type="text"
-            placeholder="Search channels..."
+            placeholder="Search channels or chats..."
             value={groupSearchQuery}
             onChange={(e) => setGroupSearchQuery(e.target.value)}
           />
         </div>
 
-        {/* Channels List */}
+        {/* Channels & Direct Messages List */}
         <div className="chat-groups-list">
           {loadingGroups ? (
             <div className="chat-loading-state">
               <RefreshCw size={18} className="animate-spin" />
-              <span>Loading channels...</span>
+              <span>Loading conversations...</span>
             </div>
-          ) : filteredGroups.length === 0 ? (
-            <div className="chat-empty-state">No groups found</div>
           ) : (
-            filteredGroups.map((g) => {
-              const isActive = activeGroup?.id === g.id;
-              const isAllCompany = g.is_default || g.group_type === "ALL_COMPANY";
+            <>
+              {/* SECTION 1: CHANNELS & GROUPS */}
+              <div className="chat-sidebar-section-header">
+                <span>Channels</span>
+                {canCreateGroup && (
+                  <button
+                    type="button"
+                    className="chat-btn-new-dm"
+                    onClick={openCreateGroupModal}
+                    title="Create New Team Group"
+                  >
+                    <Plus size={13} />
+                    <span>Group</span>
+                  </button>
+                )}
+              </div>
 
-              return (
-                <div
-                  key={g.id}
-                  className={`chat-group-item ${isActive ? "active" : ""}`}
-                  onClick={() => {
-                    setActiveGroup(g);
-                    setShowMobileChannels(false);
-                  }}
-                >
-                  <div className="chat-group-icon-wrap">
-                    {isAllCompany ? (
-                      <Sparkles size={16} className="all-company-icon" />
-                    ) : (
-                      <Hash size={16} />
-                    )}
-                  </div>
-
-                  <div className="chat-group-info">
-                    <div className="chat-group-name-row">
-                      <span className="chat-group-name" title={g.name}>
-                        {g.name}
-                      </span>
-                      {Number(g.unread_count) > 0 && (
-                        <span className="chat-unread-badge">{g.unread_count}</span>
-                      )}
-                    </div>
-                    <div className="chat-group-snippet">
-                      {g.last_message_text ? (
-                        <span>
-                          <strong>{g.last_message_sender_name?.split(" ")[0] || "User"}: </strong>
-                          {g.last_message_text}
-                        </span>
-                      ) : (
-                        <span className="text-muted">No messages yet</span>
-                      )}
-                    </div>
-                  </div>
+              {channelGroups.length === 0 ? (
+                <div className="chat-empty-state" style={{ padding: "8px 12px", fontSize: "12px" }}>
+                  No channels found
                 </div>
-              );
-            })
+              ) : (
+                channelGroups.map((g) => {
+                  const isActive = activeGroup?.id === g.id;
+                  const isAllCompany = g.is_default || g.group_type === "ALL_COMPANY";
+
+                  return (
+                    <div
+                      key={g.id}
+                      className={`chat-group-item ${isActive ? "active" : ""}`}
+                      onClick={() => {
+                        setActiveGroup(g);
+                        setShowMobileChannels(false);
+                      }}
+                    >
+                      <div className="chat-group-icon-wrap">
+                        {isAllCompany ? (
+                          <Sparkles size={16} className="all-company-icon" />
+                        ) : (
+                          <Hash size={16} />
+                        )}
+                      </div>
+
+                      <div className="chat-group-info">
+                        <div className="chat-group-name-row">
+                          <span className="chat-group-name" title={g.name}>
+                            {g.name}
+                          </span>
+                          {Number(g.unread_count) > 0 && (
+                            <span className="chat-unread-badge">{g.unread_count}</span>
+                          )}
+                        </div>
+                        <div className="chat-group-snippet">
+                          {g.last_message_text ? (
+                            <span>
+                              <strong>{g.last_message_sender_name?.split(" ")[0] || "User"}: </strong>
+                              {g.last_message_text}
+                            </span>
+                          ) : (
+                            <span className="text-muted">No messages yet</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              {/* SECTION 2: DIRECT MESSAGES (PERSONAL 1-ON-1 CHAT) */}
+              <div className="chat-sidebar-section-header" style={{ marginTop: "14px" }}>
+                <span>Personal Chats</span>
+                <button
+                  type="button"
+                  className="chat-btn-new-dm"
+                  onClick={openDirectChatModal}
+                  title="Start Personal Chat with Employee or Intern"
+                >
+                  <Plus size={13} />
+                  <span>New Chat</span>
+                </button>
+              </div>
+
+              {directGroups.length === 0 ? (
+                <div className="chat-empty-state" style={{ padding: "10px 12px", fontSize: "12px" }}>
+                  <span>No personal chats yet.</span>
+                  <br />
+                  <button
+                    type="button"
+                    onClick={openDirectChatModal}
+                    className="chat-btn-new-dm"
+                    style={{ marginTop: "6px" }}
+                  >
+                    <Plus size={12} /> Chat with someone
+                  </button>
+                </div>
+              ) : (
+                directGroups.map((g) => {
+                  const isActive = activeGroup?.id === g.id;
+                  const partner = g.partner;
+                  const isOff = partner?.is_off_today;
+
+                  return (
+                    <div
+                      key={g.id}
+                      className={`chat-group-item ${isActive ? "active" : ""}`}
+                      onClick={() => {
+                        setActiveGroup(g);
+                        setShowMobileChannels(false);
+                      }}
+                    >
+                      <div className="chat-dm-avatar-wrap">
+                        {partner?.avatar ? (
+                          <img src={partner.avatar} alt={g.name} />
+                        ) : (
+                          <span>{g.name?.charAt(0) || "U"}</span>
+                        )}
+                        <span
+                          className={`dm-live-dot ${
+                            isOff
+                              ? "off"
+                              : partner?.availability_status === "ONLINE"
+                              ? "online"
+                              : "not-checked"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="chat-group-info">
+                        <div className="chat-group-name-row">
+                          <span className="chat-group-name" title={g.name}>
+                            {g.name}
+                            {partner?.role === "INTERN" && (
+                              <span className="chat-dm-role-badge intern">INTERN</span>
+                            )}
+                            {isOff && <span className="chat-dm-role-badge off-pill">OFF</span>}
+                          </span>
+                          {Number(g.unread_count) > 0 && (
+                            <span className="chat-unread-badge">{g.unread_count}</span>
+                          )}
+                        </div>
+                        <div className="chat-group-snippet">
+                          {g.last_message_text ? (
+                            <span>
+                              <strong>{g.last_message_sender_name?.split(" ")[0] || "You"}: </strong>
+                              {g.last_message_text}
+                            </span>
+                          ) : (
+                            <span className="text-muted">Start personal chat</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </>
           )}
         </div>
 
@@ -646,73 +822,158 @@ const TeamChat = () => {
         {/* Top Chat Header */}
         <header className="chat-main-header">
           <div className="chat-header-left">
-            <div className="chat-header-title-row">
-              <button
-                type="button"
-                className="btn-mobile-back-channels"
-                onClick={() => setShowMobileChannels(true)}
-                title="View All Channels"
-              >
-                <ChevronLeft size={19} />
-                <span>Channels</span>
-              </button>
+            {isDirectChat ? (
+              /* Direct Message Top Header */
+              <div className="chat-header-dm-info">
+                <button
+                  type="button"
+                  className="btn-mobile-back-channels"
+                  onClick={() => setShowMobileChannels(true)}
+                  title="View All Conversations"
+                >
+                  <ChevronLeft size={19} />
+                  <span>Chats</span>
+                </button>
 
-              <span className="chat-header-hash">
-                {activeGroup?.is_default || activeGroup?.group_type === "ALL_COMPANY" ? "🌐" : "#"}
-              </span>
-              <h3>{activeGroup?.name || "Select a Channel"}</h3>
-              {activeGroup?.department_name && (
-                <span className="chat-dept-badge">
-                  <Building2 size={12} /> {activeGroup.department_name}
+                <div className="chat-header-dm-avatar">
+                  {activeGroup.partner?.avatar ? (
+                    <img src={activeGroup.partner.avatar} alt={activeGroup.name} />
+                  ) : (
+                    <span>{activeGroup.name?.charAt(0) || "U"}</span>
+                  )}
+                  <span
+                    className={`dm-live-dot ${
+                      activeGroup.partner?.is_off_today
+                        ? "off"
+                        : activeGroup.partner?.availability_status === "ONLINE"
+                        ? "online"
+                        : "not-checked"
+                    }`}
+                  />
+                </div>
+
+                <div className="chat-header-dm-meta">
+                  <h3>
+                    <span>{activeGroup.name}</span>
+                    {activeGroup.partner?.role && (
+                      <span
+                        className={`chat-dm-role-badge ${
+                          activeGroup.partner.role === "INTERN"
+                            ? "intern"
+                            : activeGroup.partner.role === "TL"
+                            ? "tl"
+                            : "counsellor"
+                        }`}
+                      >
+                        {activeGroup.partner.role}
+                      </span>
+                    )}
+
+                    {activeGroup.partner?.is_off_today ? (
+                      <span className="chat-header-dm-status-badge off">
+                        🔴 {activeGroup.partner.off_reason || "OFF Today"}
+                      </span>
+                    ) : activeGroup.partner?.availability_status === "ONLINE" ? (
+                      <span className="chat-header-dm-status-badge online">
+                        🟢 In Office
+                      </span>
+                    ) : (
+                      <span className="chat-header-dm-status-badge idle">
+                        🟡 Not Checked In
+                      </span>
+                    )}
+                  </h3>
+
+                  <p>
+                    <span>
+                      {activeGroup.partner?.designation || activeGroup.partner?.role || "Team Member"}
+                    </span>
+                    {activeGroup.partner?.department && (
+                      <span>• {activeGroup.partner.department}</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* Group / Channel Top Header */
+              <div className="chat-header-title-row">
+                <button
+                  type="button"
+                  className="btn-mobile-back-channels"
+                  onClick={() => setShowMobileChannels(true)}
+                  title="View All Channels"
+                >
+                  <ChevronLeft size={19} />
+                  <span>Channels</span>
+                </button>
+
+                <span className="chat-header-hash">
+                  {activeGroup?.is_default || activeGroup?.group_type === "ALL_COMPANY" ? "🌐" : "#"}
                 </span>
-              )}
-            </div>
-            <p className="chat-header-desc">
-              {activeGroup?.description || "Welcome to the team channel."}
-            </p>
+                <h3>{activeGroup?.name || "Select a Channel"}</h3>
+                {activeGroup?.department_name && (
+                  <span className="chat-dept-badge">
+                    <Building2 size={12} /> {activeGroup.department_name}
+                  </span>
+                )}
+                <p className="chat-header-desc" style={{ margin: "2px 0 0 0", width: "100%" }}>
+                  {activeGroup?.description || "Team discussion channel."}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="chat-header-actions">
-            {/* Live Off Count */}
-            {members.filter((m) => m.is_off_today).length > 0 && (
-              <div
-                className="chat-off-summary-pill"
-                onClick={() => setShowMembersDrawer(true)}
-                title="Click to see who is off today"
-              >
-                <span className="off-dot" />
-                <span>
-                  <strong>{members.filter((m) => m.is_off_today).length}</strong> Off Today
-                </span>
-              </div>
+            {!isDirectChat && (
+              <>
+                {/* Live Off Count for Group Channels */}
+                {members.filter((m) => m.is_off_today).length > 0 && (
+                  <div
+                    className="chat-off-summary-pill"
+                    onClick={() => setShowMembersDrawer(true)}
+                    title="Click to see who is off today"
+                  >
+                    <span className="off-dot" />
+                    <span>
+                      <strong>{members.filter((m) => m.is_off_today).length}</strong> Off Today
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className={`chat-toggle-members-btn ${showMembersDrawer ? "active" : ""}`}
+                  onClick={() => setShowMembersDrawer(!showMembersDrawer)}
+                  title="View Channel Members & Live Status"
+                >
+                  <Users size={16} />
+                  <span>{members.length} Members</span>
+                </button>
+              </>
             )}
 
+            {/* Quick Personal Chat button */}
             <button
               type="button"
-              className={`chat-toggle-members-btn ${showMembersDrawer ? "active" : ""}`}
-              onClick={() => setShowMembersDrawer(!showMembersDrawer)}
-              title="View Channel Members & Live Status"
+              className="chat-toggle-members-btn"
+              onClick={openDirectChatModal}
+              title="Start a new personal chat"
             >
-              <Users size={16} />
-              <span>{members.length} Members</span>
+              <UserPlus size={16} />
+              <span>New Chat</span>
             </button>
           </div>
         </header>
 
-        {/* Live Off Warning Alert Banner (Appears dynamically if user mentions an off person) */}
-        {activeOffMentions.length > 0 && (
-          <div className="chat-off-alert-banner">
-            <AlertCircle size={18} className="text-warning-icon" />
-            <div className="chat-off-alert-content">
-              <strong>Notice: </strong>
-              {activeOffMentions.map((m, idx) => (
-                <span key={m.employee_id}>
-                  <strong>{m.full_name}</strong> is <strong>OFF Today</strong> ({m.off_reason})
-                  {idx < activeOffMentions.length - 1 ? ", " : ". "}
-                </span>
-              ))}
-              <span>They may not reply right away.</span>
-            </div>
+        {/* Live Off Notice Banner in Direct Personal Chat */}
+        {isDirectChat && activeGroup.partner?.is_off_today && (
+          <div className="chat-dm-off-notice-banner">
+            <AlertCircle size={17} className="icon" />
+            <span>
+              <strong>Notice: {activeGroup.name}</strong> is currently{" "}
+              <strong>OFF Today ({activeGroup.partner.off_reason || "Weekly Off"})</strong>. You can
+              still leave a message, and they will receive it when they are back.
+            </span>
           </div>
         )}
 
@@ -728,9 +989,15 @@ const TeamChat = () => {
               <div className="chat-empty-bubble">
                 <MessageSquare size={36} />
               </div>
-              <h4>Welcome to #{activeGroup?.name}!</h4>
+              <h4>
+                {isDirectChat
+                  ? `Personal Chat with ${activeGroup?.name}`
+                  : `Welcome to #${activeGroup?.name}!`}
+              </h4>
               <p>
-                Start the conversation. Type <strong>@</strong> to mention any colleague and ask about work.
+                {isDirectChat
+                  ? "This is the start of your 1-on-1 personal chat. You can send messages, attach images, or ask questions directly."
+                  : "Start the conversation. Type @ to mention any colleague and coordinate work."}
               </p>
             </div>
           ) : (
@@ -751,66 +1018,72 @@ const TeamChat = () => {
                     )}
                   </div>
 
-                  <div className="msg-content-box">
+                  <div className="msg-body">
                     <div className="msg-header">
-                      <span className="msg-sender-name">{msg.sender_name}</span>
+                      <span className="msg-author">{msg.sender_name}</span>
                       {senderRole && (
-                        <span className={`msg-role-tag role-${senderRole.toLowerCase()}`}>
-                          {msg.sender_designation || senderRole}
+                        <span
+                          className={`msg-role-tag ${
+                            senderRole === "SUPER_ADMIN"
+                              ? "tag-admin"
+                              : senderRole === "HR"
+                              ? "tag-hr"
+                              : senderRole === "TL"
+                              ? "tag-tl"
+                              : senderRole === "INTERN"
+                              ? "tag-intern"
+                              : "tag-emp"
+                          }`}
+                        >
+                          {senderRole}
                         </span>
                       )}
-                      <span className="msg-time">
-                        {new Date(msg.created_at).toLocaleTimeString([], {
+                      <span className="msg-timestamp">
+                        {new Date(msg.created_at).toLocaleTimeString("en-IN", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </span>
                     </div>
 
-                    <div className="msg-body">{renderFormattedMessage(msg.message_text)}</div>
+                    {/* Text Content with @Mentions */}
+                    {msg.message_text && (
+                      <div className="msg-text">
+                        {renderMessageContent(msg.message_text, msg.mentioned_employee_ids)}
+                      </div>
+                    )}
 
-                    {/* Attached Images */}
-                    {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                    {/* Image Attachments */}
+                    {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                       <div className="msg-attachments-grid">
                         {msg.attachments.map((att, attIdx) => (
-                          <div key={att.id || attIdx} className="msg-attachment-card">
-                            <div
-                              className="msg-attachment-img-wrapper"
-                              onClick={() => setPreviewImageModal(att)}
-                              title="Click to view full image"
-                            >
-                              <img
-                                src={att.url}
-                                alt={att.name || "Attachment"}
-                                className="msg-attachment-thumbnail"
-                                loading="lazy"
-                              />
+                          <div
+                            key={attIdx}
+                            className="msg-attachment-card"
+                            onClick={() => setPreviewImageModal(att)}
+                            title="Click to view full image"
+                          >
+                            <div className="msg-attachment-img-wrapper">
+                              <img src={att.url} alt={att.name || "Attachment"} loading="lazy" />
                               <div className="msg-attachment-overlay">
-                                <span className="overlay-view-hint">
-                                  <Eye size={14} /> Full View
-                                </span>
+                                <Maximize2 size={16} />
+                                <span>Preview</span>
                               </div>
                             </div>
-
-                            <div className="msg-attachment-footer">
-                              <div className="msg-attachment-info">
-                                <span className="msg-attachment-filename" title={att.name}>
-                                  {att.name || "Image"}
-                                </span>
-                                <span className="msg-attachment-filesize">
-                                  {formatBytes(att.size)}
-                                </span>
+                            <div className="msg-attachment-meta">
+                              <span className="att-name">{att.name || "Attached Image"}</span>
+                              <div className="att-actions-row">
+                                <span className="att-size">{formatBytes(att.size)}</span>
+                                <button
+                                  type="button"
+                                  className="btn-att-download"
+                                  onClick={(e) => handleDownloadImage(att, e)}
+                                  title="Download image"
+                                >
+                                  <Download size={13} />
+                                  <span>Save</span>
+                                </button>
                               </div>
-
-                              <button
-                                type="button"
-                                className="btn-download-attachment"
-                                onClick={(e) => handleDownloadImage(att, e)}
-                                title="Download image to your phone or computer"
-                              >
-                                <Download size={13} />
-                                <span>Download</span>
-                              </button>
                             </div>
                           </div>
                         ))}
@@ -824,57 +1097,51 @@ const TeamChat = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar with Mention Autocomplete Popup */}
+        {/* 3. BOTTOM: Message Input Form with Mentions & Images */}
         <div className="chat-input-wrapper">
-          {/* Autocomplete Mention Popup */}
+          {/* Mentions Autocomplete Popup */}
           {showMentionPopup && filteredMentionMembers.length > 0 && (
-            <div className="chat-mention-popup">
-              <div className="mention-popup-header">
+            <div className="mentions-popup-menu">
+              <div className="mentions-popup-header">
                 <AtSign size={13} />
-                <span>Mention a Team Member (Shows Live Status)</span>
+                <span>Mention Team Member</span>
               </div>
-              <div className="mention-popup-list">
-                {filteredMentionMembers.slice(0, 8).map((mem, idx) => (
+              <div className="mentions-popup-list">
+                {filteredMentionMembers.slice(0, 7).map((m, idx) => (
                   <div
-                    key={mem.employee_id}
+                    key={m.employee_id}
                     className={`mention-popup-item ${idx === selectedMentionIndex ? "selected" : ""}`}
-                    onClick={() => insertMention(mem)}
+                    onClick={() => handleSelectMention(m)}
                     onMouseEnter={() => setSelectedMentionIndex(idx)}
                   >
                     <div className="mention-item-avatar">
-                      {mem.profile_image ? (
-                        <img src={mem.profile_image} alt={mem.full_name} />
+                      {m.profile_image ? (
+                        <img src={m.profile_image} alt={m.full_name} />
                       ) : (
-                        <span>{mem.full_name?.charAt(0) || "U"}</span>
+                        <span>{m.full_name?.charAt(0) || "U"}</span>
                       )}
                       <span
-                        className={`status-dot-mini ${
-                          mem.is_off_today
-                            ? "status-off"
-                            : mem.availability_status === "ONLINE"
-                            ? "status-online"
-                            : "status-offline"
+                        className={`mention-dot ${
+                          m.is_off_today ? "dot-off" : m.availability_status === "ONLINE" ? "dot-online" : "dot-idle"
                         }`}
                       />
                     </div>
-
                     <div className="mention-item-info">
-                      <span className="mention-item-name">{mem.full_name}</span>
-                      <span className="mention-item-role">
-                        {mem.designation || mem.role || "Staff"}
+                      <div className="mention-item-name-row">
+                        <strong className="mention-item-name">{m.full_name}</strong>
+                        {m.role === "INTERN" && <span className="mention-tag-intern">INTERN</span>}
+                      </div>
+                      <span className="mention-item-sub">
+                        {m.designation || m.role} • {m.department_name || "Dizital Adda"}
                       </span>
                     </div>
-
-                    {/* Live Availability Badge */}
                     <div className="mention-item-status">
-                      {mem.is_off_today ? (
-                        <span className="status-badge-off" title={mem.off_reason}>
-                          🔴 OFF TODAY
-                        </span>
-                      ) : mem.availability_status === "ONLINE" ? (
-                        <span className="status-badge-online">🟢 In Office</span>
+                      {m.is_off_today ? (
+                        <span className="mention-badge-off">🔴 {m.off_reason || "OFF Today"}</span>
+                      ) : m.availability_status === "ONLINE" ? (
+                        <span className="mention-badge-online">🟢 In Office</span>
                       ) : (
-                        <span className="status-badge-offline">🟡 Not Checked In</span>
+                        <span className="mention-badge-idle">🟡 Not Checked In</span>
                       )}
                     </div>
                   </div>
@@ -883,120 +1150,105 @@ const TeamChat = () => {
             </div>
           )}
 
-          {/* Selected Attachments Preview Bar */}
+          {/* Pending Attachments Strip */}
           {selectedAttachments.length > 0 && (
-            <div className="chat-attachment-previews">
-              {selectedAttachments.map((att) => (
-                <div key={att.id} className="attachment-preview-card">
-                  <img src={att.url} alt={att.name} className="attachment-preview-img" />
-                  <div className="attachment-preview-meta">
-                    <span className="attachment-preview-name">{att.name}</span>
-                    <span className="attachment-preview-size">{formatBytes(att.size)}</span>
-                  </div>
+            <div className="chat-pending-attachments-strip">
+              {selectedAttachments.map((att, idx) => (
+                <div key={idx} className="pending-attachment-pill">
+                  <img src={att.url} alt="Pending thumbnail" className="pending-thumb" />
+                  <span className="pending-name">{att.name}</span>
+                  <span className="pending-size">({formatBytes(att.size)})</span>
                   <button
                     type="button"
-                    className="attachment-remove-btn"
-                    onClick={() => handleRemoveAttachment(att.id)}
-                    title="Remove image"
+                    className="btn-remove-pending"
+                    onClick={() => removeAttachment(idx)}
+                    title="Remove"
                   >
-                    <X size={13} />
+                    <X size={14} />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Form */}
-          <form className="chat-input-form" onSubmit={handleSendMessage}>
-            <button
-              type="button"
-              className="chat-attach-btn"
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach Photo / Image"
-              disabled={uploadingImage}
-            >
-              {uploadingImage ? (
-                <RefreshCw size={18} className="animate-spin text-primary" />
-              ) : (
-                <ImageIcon size={19} />
-              )}
-            </button>
+          {/* Input Form */}
+          <form onSubmit={handleSendMessage} className="chat-composer-form">
+            {/* Hidden File Input */}
             <input
-              ref={fileInputRef}
               type="file"
-              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/png,image/jpeg,image/webp,image/gif"
               multiple
-              onChange={handleImageFileChange}
               style={{ display: "none" }}
             />
 
-            <textarea
-              ref={inputRef}
-              className="chat-textarea"
-              placeholder={`Message #${activeGroup?.name || "team"}... (Type @ to mention, click 📷 or paste images)`}
-              value={inputText}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              rows={2}
-            />
+            {/* Attach Image Button */}
+            <button
+              type="button"
+              className="chat-btn-attach"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingImage || sending}
+              title="Attach Images (PNG, JPG, WEBP)"
+            >
+              {uploadingImage ? <RefreshCw size={18} className="animate-spin" /> : <ImageIcon size={18} />}
+            </button>
+
+            <div className="chat-input-textarea-wrap">
+              <textarea
+                ref={inputRef}
+                rows={1}
+                placeholder={
+                  isDirectChat
+                    ? `Message ${activeGroup?.name}... (Click 📷 or paste images)`
+                    : `Message #${activeGroup?.name || "team"}... (Type @ to mention, click 📷 or paste images)`
+                }
+                value={inputText}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                disabled={sending}
+              />
+            </div>
 
             <button
               type="submit"
-              className="chat-send-btn"
+              className="chat-btn-send"
               disabled={(!inputText.trim() && selectedAttachments.length === 0) || sending}
-              title="Send Message (Enter)"
+              title="Send Message"
             >
               <Send size={18} />
             </button>
           </form>
-          <div className="chat-input-tip">
-            <span>
-              💡 Tip: Click 📷 or paste (Ctrl+V) images to attach. Press <strong>Enter</strong> to send.
-            </span>
-          </div>
         </div>
       </main>
 
       {/* ======================================================== */}
-      {/* 3. RIGHT DRAWER: Live Members Directory & Availability   */}
+      {/* 3. RIGHT DRAWER: Group Members & Live Attendance Status   */}
       {/* ======================================================== */}
-      {showMembersDrawer && (
+      {showMembersDrawer && !isDirectChat && (
         <aside className="chat-members-drawer">
-          <div className="drawer-header">
-            <div className="drawer-title">
-              <Users size={18} />
-              <h4>Group Members ({members.length})</h4>
+          <div className="chat-drawer-header">
+            <div className="drawer-title-row">
+              <Users size={18} className="text-primary" />
+              <h3>Channel Members ({members.length})</h3>
             </div>
             <button
               type="button"
               className="drawer-close-btn"
               onClick={() => setShowMembersDrawer(false)}
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
 
-          {/* Live Status Legend */}
-          <div className="drawer-legend">
-            <span className="legend-item">
-              <span className="dot dot-online" /> In Office
-            </span>
-            <span className="legend-item">
-              <span className="dot dot-off" /> Off Today
-            </span>
-            <span className="legend-item">
-              <span className="dot dot-not-checked" /> Not In Yet
-            </span>
-          </div>
-
-          <div className="drawer-members-list">
+          <div className="chat-drawer-members-list">
             {members.map((mem) => (
               <div
                 key={mem.employee_id}
-                className={`drawer-member-card ${mem.is_off_today ? "is-off" : ""}`}
+                className="drawer-member-item"
                 onClick={() => {
-                  insertMention(mem);
+                  setInputText((prev) => `${prev} @${mem.full_name} `);
                   if (inputRef.current) inputRef.current.focus();
                 }}
                 title="Click to mention in chat"
@@ -1024,6 +1276,9 @@ const TeamChat = () => {
                     {mem.group_member_role === "OWNER" && (
                       <span className="owner-badge">TL / Owner</span>
                     )}
+                    {mem.role === "INTERN" && (
+                      <span className="chat-dm-role-badge intern">INTERN</span>
+                    )}
                   </div>
                   <span className="drawer-member-designation">
                     {mem.designation || mem.role || "Team Member"}
@@ -1046,6 +1301,22 @@ const TeamChat = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Direct Personal Chat Shortcut */}
+                {String(mem.employee_id) !== String(user?.id) && (
+                  <button
+                    type="button"
+                    className="btn-chat-personally"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartDirectChat(mem.employee_id);
+                    }}
+                    title={`Start 1-on-1 personal chat with ${mem.full_name}`}
+                  >
+                    <MessageSquare size={13} />
+                    <span>Chat</span>
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1053,11 +1324,184 @@ const TeamChat = () => {
       )}
 
       {/* ======================================================== */}
-      {/* 4. MODAL: Create New Team Group                          */}
+      {/* 4. MODAL: Start 1-on-1 Personal Chat with Anyone          */}
+      {/* ======================================================== */}
+      {showDirectChatModal && (
+        <div className="modal-backdrop" onClick={() => setShowDirectChatModal(false)}>
+          <div className="chat-dm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-wrap">
+                <UserPlus size={20} className="text-primary" />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700" }}>Start Personal Chat</h3>
+                  <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#64748b" }}>
+                    Select any employee or intern to begin a private 1-on-1 conversation.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowDirectChatModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="chat-dm-search-wrap">
+              <Search size={15} className="chat-dm-search-icon" />
+              <input
+                type="text"
+                placeholder="Search by name, designation, department..."
+                value={directSearchQuery}
+                onChange={(e) => setDirectSearchQuery(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {/* Role Filter Chips */}
+            <div className="chat-dm-filter-chips">
+              <button
+                type="button"
+                className={`chip-btn ${directRoleFilter === "ALL" ? "active" : ""}`}
+                onClick={() => setDirectRoleFilter("ALL")}
+              >
+                All Staff
+              </button>
+              <button
+                type="button"
+                className={`chip-btn ${directRoleFilter === "INTERN" ? "active" : ""}`}
+                onClick={() => setDirectRoleFilter("INTERN")}
+              >
+                🎓 Interns
+              </button>
+              <button
+                type="button"
+                className={`chip-btn ${directRoleFilter === "EMPLOYEE" ? "active" : ""}`}
+                onClick={() => setDirectRoleFilter("EMPLOYEE")}
+              >
+                💼 Employees
+              </button>
+              <button
+                type="button"
+                className={`chip-btn ${directRoleFilter === "COUNSELLOR" ? "active" : ""}`}
+                onClick={() => setDirectRoleFilter("COUNSELLOR")}
+              >
+                🎯 Counselors
+              </button>
+              <button
+                type="button"
+                className={`chip-btn ${directRoleFilter === "TRAINER" ? "active" : ""}`}
+                onClick={() => setDirectRoleFilter("TRAINER")}
+              >
+                📚 Trainers
+              </button>
+              <button
+                type="button"
+                className={`chip-btn ${directRoleFilter === "TL" ? "active" : ""}`}
+                onClick={() => setDirectRoleFilter("TL")}
+              >
+                👑 Team Leads
+              </button>
+              <button
+                type="button"
+                className={`chip-btn ${directRoleFilter === "ONLINE" ? "active" : ""}`}
+                onClick={() => setDirectRoleFilter("ONLINE")}
+              >
+                🟢 In Office Today
+              </button>
+            </div>
+
+            {/* Users List */}
+            <div className="chat-dm-user-list">
+              {loadingChatUsers ? (
+                <div className="chat-loading-state" style={{ padding: "30px 0" }}>
+                  <RefreshCw size={20} className="animate-spin text-primary" />
+                  <span>Loading colleagues & interns...</span>
+                </div>
+              ) : filteredChatUsers.length === 0 ? (
+                <div className="chat-empty-state" style={{ padding: "30px 10px" }}>
+                  No colleagues matched your search.
+                </div>
+              ) : (
+                filteredChatUsers.map((u) => {
+                  const isOff = u.is_off_today;
+                  return (
+                    <div
+                      key={u.employee_id}
+                      className="chat-dm-user-card"
+                      onClick={() => handleStartDirectChat(u.employee_id)}
+                    >
+                      <div className="chat-dm-user-card-left">
+                        <div className="chat-dm-user-avatar">
+                          {u.profile_image ? (
+                            <img src={u.profile_image} alt={u.full_name} />
+                          ) : (
+                            <span>{u.full_name?.charAt(0) || "U"}</span>
+                          )}
+                          <span
+                            className={`dm-live-dot ${
+                              isOff
+                                ? "off"
+                                : u.availability_status === "ONLINE"
+                                ? "online"
+                                : "not-checked"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="chat-dm-user-meta">
+                          <div className="chat-dm-user-name-row">
+                            <span className="chat-dm-user-name">{u.full_name}</span>
+                            {u.role === "INTERN" && (
+                              <span className="chat-dm-role-badge intern">INTERN</span>
+                            )}
+                            {u.role === "TL" && (
+                              <span className="chat-dm-role-badge tl">TL</span>
+                            )}
+                          </div>
+                          <div className="chat-dm-user-sub">
+                            {u.designation || u.role} • {u.department_name || "General"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        {isOff ? (
+                          <span className="chat-dm-user-status-pill off">
+                            🔴 {u.off_reason || "OFF Today"}
+                          </span>
+                        ) : u.availability_status === "ONLINE" ? (
+                          <span className="chat-dm-user-status-pill online">
+                            🟢 In Office
+                          </span>
+                        ) : (
+                          <span className="chat-dm-user-status-pill idle">
+                            🟡 Not Checked In
+                          </span>
+                        )}
+
+                        <button type="button" className="btn-chat-personally">
+                          <MessageSquare size={13} />
+                          <span>Chat</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 5. MODAL: Create New Team Group                          */}
       {/* ======================================================== */}
       {showCreateModal && (
-        <div className="modal-backdrop">
-          <div className="chat-create-modal">
+        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+          <div className="chat-create-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-wrap">
                 <Users size={20} className="text-primary" />
@@ -1079,7 +1523,7 @@ const TeamChat = () => {
                 <div>
                   <strong>Management Oversight:</strong>
                   <p>
-                    Super Admin and HR are automatically added to all team groups for compliance and tracking.
+                    Super Admin and HR are automatically added to all team channels for compliance and tracking.
                   </p>
                 </div>
               </div>

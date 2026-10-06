@@ -1,7 +1,9 @@
 import express from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
 import {
+  getChatUsers,
   getUserGroups,
+  getOrCreateDirectChat,
   getGroupDetails,
   createTeamGroup,
   getGroupMessages,
@@ -14,9 +16,13 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// Chat Channels / Groups
+// Active colleagues & interns for starting personal chats
+router.get("/users", getChatUsers);
+
+// Chat Channels / Groups / Direct Chats
 router.get("/groups", getUserGroups);
 router.post("/groups", createTeamGroup);
+router.post("/direct", getOrCreateDirectChat);
 router.get("/groups/:groupId", getGroupDetails);
 router.post("/groups/:groupId/members", addMembersToGroup);
 

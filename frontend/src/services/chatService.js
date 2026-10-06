@@ -9,6 +9,16 @@ export const getUserChatGroups = async () => {
   return response.data;
 };
 
+export const getChatUsers = async () => {
+  const response = await axiosInstance.get("/chat/users");
+  return response.data;
+};
+
+export const getOrCreateDirectChat = async (targetEmployeeId) => {
+  const response = await axiosInstance.post("/chat/direct", { targetEmployeeId });
+  return response.data;
+};
+
 export const getChatGroupDetails = async (groupId) => {
   const response = await axiosInstance.get(`/chat/groups/${groupId}`);
   return response.data;

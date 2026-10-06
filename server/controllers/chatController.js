@@ -1,7 +1,9 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import {
+  getChatUsersService,
   getUserGroupsService,
+  getOrCreateDirectChatService,
   getGroupDetailsService,
   createTeamGroupService,
   getGroupMessagesService,
@@ -10,9 +12,19 @@ import {
   addMembersToGroupService,
 } from "../services/chatService.js";
 
+export const getChatUsers = asyncHandler(async (req, res) => {
+  const result = await getChatUsersService(req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Colleagues and interns list retrieved successfully."));
+});
+
 export const getUserGroups = asyncHandler(async (req, res) => {
   const result = await getUserGroupsService(req.user);
   return res.status(200).json(new ApiResponse(200, result, "User chat groups retrieved successfully."));
+});
+
+export const getOrCreateDirectChat = asyncHandler(async (req, res) => {
+  const result = await getOrCreateDirectChatService(req.body, req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Personal direct chat retrieved successfully."));
 });
 
 export const getGroupDetails = asyncHandler(async (req, res) => {
