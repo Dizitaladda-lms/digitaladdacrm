@@ -114,28 +114,27 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
       });
     }
 
-    if (isSuperAdmin) {
-      const { rows: securityEvents } = await pool.query(`
-        SELECT n.id, n.type, n.category, n.title, n.message, n.link, n.priority, n.created_at
-        FROM user_notifications n
-        WHERE n.user_id = $1
-        ORDER BY n.created_at DESC
-        LIMIT 10;
-      `, [user.id]);
-      securityEvents.forEach((event) => {
-        notifications.push({
-          id: `security_${event.id}`,
-          type: event.type,
-          category: event.category,
-          title: event.title,
-          message: event.message,
-          time: event.created_at,
-          link: event.link,
-          priority: event.priority,
-          icon: "ShieldCheck",
-        });
+    // ── 2.5 User Notifications & Alerts for Current User (Chat mentions, DMs, security, tasks) ──
+    const { rows: userEvents } = await pool.query(`
+      SELECT n.id, n.type, n.category, n.title, n.message, n.link, n.priority, n.created_at
+      FROM user_notifications n
+      WHERE n.user_id = $1
+      ORDER BY n.created_at DESC
+      LIMIT 20;
+    `, [user.id]);
+    userEvents.forEach((event) => {
+      notifications.push({
+        id: `un_${event.id}`,
+        type: event.type,
+        category: event.category,
+        title: event.title,
+        message: event.message,
+        time: event.created_at,
+        link: event.link || (role === "EMPLOYEE" ? "/employee/team-chat" : "/team-chat"),
+        priority: event.priority || "INFO",
+        icon: event.category === "CHAT" ? "MessageSquare" : (event.category === "SECURITY" ? "ShieldCheck" : "Bell"),
       });
-    }
+    });
 
     // ── 3. Leads & Admissions Notifications for Sales / Admin ──
     if (isSuperAdmin || isManager || role === "COUNSELLOR") {
@@ -321,18 +320,84 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
           icon: "CheckCircle2",
         });
       });
+      // ── 5. Live Unread Chat Messages & Mentions ──
+      const { rows: unreadChatLogs } = await pool.query(`
+        SELECT 
+          m.id,
+          m.group_id,
+          m.sender_id,
+          m.message_text,
+          m.mentioned_employee_ids,
+          m.created_at,
+          g.name AS group_name,
+          g.group_type,
+          sender.full_name AS sender_name
+        FROM chat_messages m
+        JOIN chat_groups g ON m.group_id = g.id
+        JOIN employees sender ON m.sender_id = sender.id
+        JOIN chat_group_members gm ON gm.group_id = g.id AND gm.employee_id = $1
+        WHERE m.id > COALESCE(gm.last_read_message_id, 0)
+          AND m.sender_id != $1
+        ORDER BY m.id DESC
+        LIMIT 15;
+      `, [employeeId]);
+
+      unreadChatLogs.forEach((cm) => {
+        const isMentioned = Array.isArray(cm.mentioned_employee_ids) && 
+          cm.mentioned_employee_ids.map(Number).includes(Number(employeeId));
+        const isDM = cm.group_type === "DIRECT";
+
+        let type = "CHAT_MESSAGE";
+        let title = `💬 #${cm.group_name || "Chat"}: ${cm.sender_name}`;
+        let priority = "HIGH";
+
+        if (isMentioned) {
+          type = "CHAT_MENTION";
+          title = `💬 Mentioned by ${cm.sender_name} in #${cm.group_name || "Chat"}`;
+          priority = "URGENT";
+        } else if (isDM) {
+          type = "CHAT_DM";
+          title = `💬 Personal message from ${cm.sender_name}`;
+          priority = "HIGH";
+        }
+
+        const preview = cm.message_text && cm.message_text.length > 85
+          ? `${cm.message_text.slice(0, 82)}...`
+          : (cm.message_text || "Sent an attachment");
+
+        notifications.push({
+          id: `chat_msg_${cm.id}`,
+          type,
+          category: "CHAT",
+          title,
+          message: preview,
+          time: cm.created_at,
+          link: role === "EMPLOYEE" ? "/employee/team-chat" : "/team-chat",
+          priority,
+          icon: "MessageSquare",
+        });
+      });
     }
 
+    // Deduplicate notifications by unique id
+    const seenMap = new Map();
+    notifications.forEach((item) => {
+      if (!seenMap.has(item.id)) {
+        seenMap.set(item.id, item);
+      }
+    });
+    const uniqueNotifications = Array.from(seenMap.values());
+
     // Sort by latest time
-    notifications.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+    uniqueNotifications.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 
     return res.status(200).json(
       new ApiResponse(
         200,
         {
-          notifications,
-          total_count: notifications.length,
-          unread_count: notifications.length,
+          notifications: uniqueNotifications,
+          total_count: uniqueNotifications.length,
+          unread_count: uniqueNotifications.length,
         },
         "Notifications fetched successfully."
       )
