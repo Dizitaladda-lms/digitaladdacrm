@@ -28,6 +28,7 @@ import {
   Smartphone,
   Send,
   BellRing,
+  MessageSquare,
 } from "lucide-react";
 import { getNotifications } from "../../../services/notificationService";
 import {
@@ -42,6 +43,9 @@ const READ_STORAGE_KEY = "dizitaladda_read_notifications";
 const SOUND_PREF_KEY = "dizitaladda_notif_sound_enabled";
 
 const URGENT_OR_ACTIONABLE_TYPES = [
+  "CHAT_MENTION",
+  "CHAT_DM",
+  "CHAT_MESSAGE",
   "BIOMETRIC_PENDING",
   "DAILY_REPORT_TL_PENDING",
   "DAILY_REPORT_HR_PENDING",
@@ -301,8 +305,8 @@ const NotificationsPopover = ({ isEmployee = false }) => {
 
   useEffect(() => {
     fetchNotifs();
-    // 25-second poll ensures immediate updates for incoming reports, approvals, and tasks
-    const interval = setInterval(fetchNotifs, 25000);
+    // 12-second poll ensures immediate updates for incoming chat messages, mentions, and tasks
+    const interval = setInterval(fetchNotifs, 12000);
     return () => clearInterval(interval);
   }, []);
 
@@ -337,12 +341,19 @@ const NotificationsPopover = ({ isEmployee = false }) => {
     }
     setIsOpen(false);
     if (notif.link) {
-      navigate(notif.link);
+      const targetLink = (notif.link === "/team-chat" && isEmployee) ? "/employee/team-chat" : notif.link;
+      navigate(targetLink);
     }
   };
 
   const getIcon = (type, category) => {
     switch (type) {
+      case "CHAT_MENTION":
+        return <MessageSquare size={16} className="text-rose-600 animate-pulse" />;
+      case "CHAT_DM":
+        return <MessageSquare size={16} className="text-violet-600" />;
+      case "CHAT_MESSAGE":
+        return <MessageSquare size={16} className="text-blue-600" />;
       case "BIOMETRIC_PENDING":
         return <Fingerprint size={16} className="text-rose-600" />;
       case "DAILY_REPORT_TL_PENDING":

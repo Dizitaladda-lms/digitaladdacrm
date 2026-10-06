@@ -230,12 +230,16 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
   // 1. Direct 1-on-1 Message Handling: notify partner
   if (group.group_type === "DIRECT") {
     const { rows: partnerRows } = await pool.query(
-      `SELECT employee_id FROM chat_group_members WHERE group_id = $1 AND employee_id != $2 LIMIT 1;`,
+      `SELECT gm.employee_id, e.user_id 
+       FROM chat_group_members gm
+       JOIN employees e ON gm.employee_id = e.id
+       WHERE gm.group_id = $1 AND gm.employee_id != $2 LIMIT 1;`,
       [group.id, employee.id]
     );
 
     if (partnerRows[0]?.employee_id) {
       const partnerId = partnerRows[0].employee_id;
+      const partnerUserId = partnerRows[0].user_id;
 
       // Check if partner is off today
       if (group.partner?.is_off_today) {
@@ -254,32 +258,109 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
         tag: `chat-dm-${group.id}`,
         data: { groupId: group.id, messageId: message.id },
       }).catch((err) => console.error("Push dispatch error on DM:", err.message));
+
+      // Save in user_notifications for in-app alert & topbar bell badge
+      if (partnerUserId) {
+        pool.query(
+          `INSERT INTO user_notifications (user_id, actor_user_id, type, category, title, message, link, priority)
+           VALUES ($1, $2, 'CHAT_DM', 'CHAT', $3, $4, $5, 'HIGH')`,
+          [
+            partnerUserId,
+            currentUser.id,
+            `💬 Personal message from ${senderName}`,
+            preview,
+            `/team-chat`,
+          ]
+        ).catch((err) => console.error("DB notification insert error on DM:", err.message));
+      }
     }
-  }
+  } else {
+    // 2. Group Channel Handling
+    const { rows: otherMembers } = await pool.query(
+      `SELECT gm.employee_id, e.user_id, e.full_name
+       FROM chat_group_members gm
+       JOIN employees e ON gm.employee_id = e.id
+       WHERE gm.group_id = $1 AND gm.employee_id != $2;`,
+      [group.id, employee.id]
+    );
 
-  // 2. Mentions in Group Handling
-  if (Array.isArray(mentionedEmployeeIds) && mentionedEmployeeIds.length > 0) {
-    const members = await findGroupMembersWithLiveStatusRepository(groupId);
-    const mentionedSet = new Set(mentionedEmployeeIds.map(Number));
+    // Detect @all or @everyone
+    let effectiveMentionedIds = Array.isArray(mentionedEmployeeIds) ? [...mentionedEmployeeIds] : [];
+    if (/@(all|everyone|channel|team)\b/i.test(finalMessageText)) {
+      effectiveMentionedIds = otherMembers.map((m) => m.employee_id);
+    }
 
-    const groupOffAlerts = members
-      .filter((m) => mentionedSet.has(Number(m.employee_id)) && m.is_off_today)
-      .map((m) => ({
-        employee_id: m.employee_id,
-        full_name: m.full_name,
-        off_reason: m.off_reason || "Off Today",
-      }));
+    const mentionedSet = new Set(effectiveMentionedIds.map(Number));
+    const groupName = group.name || "Team Chat";
 
-    offAlerts = [...offAlerts, ...groupOffAlerts];
+    // A. Handle Mentions in Group
+    if (effectiveMentionedIds.length > 0) {
+      const membersWithStatus = await findGroupMembersWithLiveStatusRepository(groupId);
+      const groupOffAlerts = membersWithStatus
+        .filter((m) => mentionedSet.has(Number(m.employee_id)) && m.is_off_today)
+        .map((m) => ({
+          employee_id: m.employee_id,
+          full_name: m.full_name,
+          off_reason: m.off_reason || "Off Today",
+        }));
+      offAlerts = [...offAlerts, ...groupOffAlerts];
 
-    const groupName = group.name || "Chat";
-    sendPushToEmployeesService(mentionedEmployeeIds, {
-      title: `💬 ${senderName} mentioned you in #${groupName}`,
-      body: preview,
-      url: `/team-chat`,
-      tag: `chat-mention-${groupId}`,
-      data: { groupId, messageId: message.id },
-    }).catch((err) => console.error("Push dispatch error on chat mention:", err.message));
+      // Dispatch WebPush for mentions
+      sendPushToEmployeesService(effectiveMentionedIds, {
+        title: `💬 ${senderName} mentioned you in #${groupName}`,
+        body: preview,
+        url: `/team-chat`,
+        tag: `chat-mention-${groupId}`,
+        data: { groupId, messageId: message.id },
+      }).catch((err) => console.error("Push dispatch error on chat mention:", err.message));
+
+      // Save in user_notifications
+      otherMembers.forEach((m) => {
+        if (mentionedSet.has(Number(m.employee_id)) && m.user_id) {
+          pool.query(
+            `INSERT INTO user_notifications (user_id, actor_user_id, type, category, title, message, link, priority)
+             VALUES ($1, $2, 'CHAT_MENTION', 'CHAT', $3, $4, $5, 'URGENT')`,
+            [
+              m.user_id,
+              currentUser.id,
+              `💬 Mentioned by ${senderName} in #${groupName}`,
+              preview,
+              `/team-chat`,
+            ]
+          ).catch((err) => console.error("DB notification insert error on mention:", err.message));
+        }
+      });
+    }
+
+    // B. Handle General Group Discussion for other members
+    const nonMentionedMembers = otherMembers.filter((m) => !mentionedSet.has(Number(m.employee_id)));
+    if (nonMentionedMembers.length > 0) {
+      const nonMentionedEmployeeIds = nonMentionedMembers.map((m) => m.employee_id);
+
+      sendPushToEmployeesService(nonMentionedEmployeeIds, {
+        title: `💬 #${groupName}: ${senderName}`,
+        body: preview,
+        url: `/team-chat`,
+        tag: `chat-group-${group.id}`,
+        data: { groupId: group.id, messageId: message.id },
+      }).catch((err) => console.error("Push dispatch error on group chat:", err.message));
+
+      nonMentionedMembers.forEach((m) => {
+        if (m.user_id) {
+          pool.query(
+            `INSERT INTO user_notifications (user_id, actor_user_id, type, category, title, message, link, priority)
+             VALUES ($1, $2, 'CHAT_MESSAGE', 'CHAT', $3, $4, $5, 'HIGH')`,
+            [
+              m.user_id,
+              currentUser.id,
+              `💬 #${groupName}: ${senderName}`,
+              preview,
+              `/team-chat`,
+            ]
+          ).catch((err) => console.error("DB notification insert error on group message:", err.message));
+        }
+      });
+    }
   }
 
   return {

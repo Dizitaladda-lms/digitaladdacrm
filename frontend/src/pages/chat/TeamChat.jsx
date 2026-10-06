@@ -103,12 +103,67 @@ const TeamChat = () => {
   // Search Filter for sidebar channels
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
 
-  // 1. Fetch All Groups & Personal Chats for Logged In User
-  const loadGroups = useCallback(async (selectGroupId = null) => {
+  // Real-time notification and audio alert tracking
+  const lastSeenMessageIdRef = useRef(0);
+  const knownGroupsUnreadRef = useRef(new Map());
+
+  // Web Audio chime synthesizer
+  const playChatChime = (isMention = false) => {
     try {
-      setLoadingGroups(true);
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") ctx.resume();
+      const now = ctx.currentTime;
+      const playTone = (freq, start, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.15, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + duration + 0.02);
+      };
+      if (isMention) {
+        playTone(980, now, 0.15);
+        playTone(1318, now + 0.16, 0.22);
+      } else {
+        playTone(659, now, 0.12);
+        playTone(880, now + 0.12, 0.18);
+      }
+    } catch {
+      // Audio playback fails silently if browser policy blocks
+    }
+  };
+
+  // 1. Fetch All Groups & Personal Chats for Logged In User
+  const loadGroups = useCallback(async (selectGroupId = null, isPolling = false) => {
+    try {
+      if (!isPolling) setLoadingGroups(true);
       const res = await getUserChatGroups();
       const groupList = res?.data?.groups || [];
+
+      // Check if unread count increased in another channel
+      if (isPolling && groupList.length > 0) {
+        groupList.forEach((g) => {
+          const prevUnread = knownGroupsUnreadRef.current.get(g.id) || 0;
+          const currentUnread = Number(g.unread_count) || 0;
+          if (currentUnread > prevUnread && Number(g.id) !== Number(activeGroup?.id)) {
+            playChatChime(false);
+            toast(`💬 #${g.name}: New message from ${g.last_message_sender_name || "Team"}`, {
+              duration: 4000,
+            });
+          }
+          knownGroupsUnreadRef.current.set(g.id, currentUnread);
+        });
+      } else {
+        groupList.forEach((g) => {
+          knownGroupsUnreadRef.current.set(g.id, Number(g.unread_count) || 0);
+        });
+      }
+
       setGroups(groupList);
 
       if (groupList.length > 0) {
@@ -122,16 +177,26 @@ const TeamChat = () => {
         }
       }
     } catch (err) {
-      console.error("Failed to load chat groups:", err);
-      toast.error("Could not load chat channels.");
+      if (!isPolling) {
+        console.error("Failed to load chat groups:", err);
+        toast.error("Could not load chat channels.");
+      }
     } finally {
-      setLoadingGroups(false);
+      if (!isPolling) setLoadingGroups(false);
     }
   }, [activeGroup]);
 
   useEffect(() => {
     loadGroups();
   }, []);
+
+  // Live polling for groups list every 5 seconds (updates unread counts and new DMs live)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadGroups(null, true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loadGroups]);
 
   // 2. Fetch Active Group Details & Members with Live Status
   const loadGroupDetails = useCallback(async (groupId) => {
@@ -162,13 +227,63 @@ const TeamChat = () => {
       if (!isPolling) setLoadingMessages(true);
       const res = await getChatGroupMessages(groupId);
       const newMessages = res?.data?.messages || [];
+
+      if (newMessages.length > 0) {
+        const maxId = Math.max(...newMessages.map((m) => Number(m.id) || 0));
+
+        if (isPolling && lastSeenMessageIdRef.current > 0 && maxId > lastSeenMessageIdRef.current) {
+          // Newly arrived messages during polling
+          const freshIncoming = newMessages.filter(
+            (m) =>
+              Number(m.id) > lastSeenMessageIdRef.current &&
+              String(m.sender_id) !== String(user?.id) &&
+              String(m.sender_id) !== String(user?.employee_id)
+          );
+
+          if (freshIncoming.length > 0) {
+            const hasMention = freshIncoming.some((m) =>
+              Array.isArray(m.mentioned_employee_ids) &&
+              m.mentioned_employee_ids.some(
+                (id) => String(id) === String(user?.id) || String(id) === String(user?.employee_id)
+              )
+            );
+
+            playChatChime(hasMention);
+
+            // Trigger visual in-app toast alert
+            const latestMsg = freshIncoming[freshIncoming.length - 1];
+            if (hasMention) {
+              toast(`🔔 ${latestMsg.sender_name} mentioned you: ${latestMsg.message_text || "Sent an attachment"}`, {
+                duration: 5000,
+              });
+            } else if (document.hidden) {
+              toast(`💬 ${latestMsg.sender_name}: ${latestMsg.message_text || "Sent an attachment"}`, {
+                duration: 4000,
+              });
+            }
+
+            // Native desktop OS notification if permitted
+            if ("Notification" in window && Notification.permission === "granted") {
+              try {
+                new Notification(latestMsg.sender_name, {
+                  body: latestMsg.message_text || "Sent an attachment",
+                  tag: `chat-msg-${latestMsg.id}`,
+                });
+              } catch {}
+            }
+          }
+        }
+
+        lastSeenMessageIdRef.current = maxId;
+      }
+
       setMessages(newMessages);
     } catch (err) {
       if (!isPolling) console.error("Failed to load messages:", err);
     } finally {
       if (!isPolling) setLoadingMessages(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (activeGroup?.id) {
@@ -177,12 +292,12 @@ const TeamChat = () => {
     }
   }, [activeGroup?.id, loadGroupDetails, loadMessages]);
 
-  // Polling for live messages every 4 seconds
+  // Polling for live messages every 3.5 seconds
   useEffect(() => {
     if (!activeGroup?.id) return;
     const interval = setInterval(() => {
       loadMessages(activeGroup.id, true);
-    }, 4000);
+    }, 3500);
     return () => clearInterval(interval);
   }, [activeGroup?.id, loadMessages]);
 
@@ -324,13 +439,33 @@ const TeamChat = () => {
 
     if ((!hasText && !hasImages) || !activeGroup?.id || sending) return;
 
-    // Detect all mentioned IDs from text
-    const mentionedIds = [];
+    // Detect all mentioned IDs from text & mention selections
+    const mentionedIdsSet = new Set(mentionedEmployees);
     members.forEach((m) => {
-      if (inputText.includes(`@${m.full_name}`)) {
-        mentionedIds.push(m.employee_id);
+      const lowerText = inputText.toLowerCase();
+      const lowerName = (m.full_name || "").toLowerCase();
+      const firstName = lowerName.split(" ")[0];
+      if (
+        lowerText.includes(`@${lowerName}`) ||
+        (firstName && firstName.length > 2 && lowerText.includes(`@${firstName}`))
+      ) {
+        mentionedIdsSet.add(m.employee_id);
       }
     });
+
+    // Support @all, @everyone, @team
+    if (/@(all|everyone|channel|team)\b/i.test(inputText)) {
+      members.forEach((m) => {
+        if (
+          String(m.employee_id) !== String(user?.id) &&
+          String(m.employee_id) !== String(user?.employee_id)
+        ) {
+          mentionedIdsSet.add(m.employee_id);
+        }
+      });
+    }
+
+    const mentionedIds = Array.from(mentionedIdsSet);
 
     try {
       setSending(true);
@@ -1002,7 +1137,9 @@ const TeamChat = () => {
             </div>
           ) : (
             messages.map((msg, index) => {
-              const isMine = String(msg.sender_id) === String(user?.id);
+              const isMine =
+                String(msg.sender_id) === String(user?.id) ||
+                String(msg.sender_id) === String(user?.employee_id);
               const senderRole = String(msg.sender_role || "").toUpperCase();
 
               return (
