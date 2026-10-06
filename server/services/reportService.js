@@ -1,4 +1,4 @@
-import { withTransaction } from "../config/db.js";
+import pool, { withTransaction } from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
 import {

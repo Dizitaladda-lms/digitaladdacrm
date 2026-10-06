@@ -290,6 +290,21 @@ export async function initDatabaseSchema() {
       console.log("✅ Core database tables and seed users initialized successfully.");
     }
 
+    // Ensure background push subscriptions exist even when SQL migrations are not run at startup.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        endpoint TEXT NOT NULL UNIQUE,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        user_agent TEXT,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_push_sub_user_id ON push_subscriptions(user_id);
+    `);
+
     // 2. Ensure "admissions" & "admission_payments" tables exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS admissions (
