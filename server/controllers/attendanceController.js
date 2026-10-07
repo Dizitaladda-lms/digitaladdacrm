@@ -26,12 +26,15 @@ export const getMyBiometricStatus = asyncHandler(async (req, res) => {
 });
 
 export const registerBiometric = asyncHandler(async (req, res) => {
-  const result = await registerBiometricService(req.body, req.user);
-  return res.status(201).json(new ApiResponse(201, result, "Passkey and attendance face registered and locked."));
+  const result = await registerBiometricService(req.body, req.user, req);
+  const message = result.face_registered
+    ? "Passkey and attendance face registered and locked."
+    : "Passkey registered and locked.";
+  return res.status(201).json(new ApiResponse(201, result, message));
 });
 
 export const getBiometricRegistrationOptions = asyncHandler(async (req, res) => {
-  const result = await getBiometricRegistrationOptionsService(req.user);
+  const result = await getBiometricRegistrationOptionsService(req.user, req);
   return res.status(200).json(new ApiResponse(200, result, "Passkey registration options created."));
 });
 
@@ -41,7 +44,7 @@ export const getBiometricAuthenticationOptions = asyncHandler(async (req, res) =
 });
 
 export const getBiometricFaceChallenge = asyncHandler(async (req, res) => {
-  const result = await getBiometricFaceChallengeService(req.user, req.body?.purpose);
+  const result = await getBiometricFaceChallengeService(req.user, req.body?.purpose, req);
   return res.status(200).json(new ApiResponse(200, result, "Face verification challenge created."));
 });
 
@@ -69,12 +72,12 @@ export const rejectBiometric = asyncHandler(async (req, res) => {
 
 export const checkInAttendance = asyncHandler(async (req, res) => {
   const result = await checkInAttendanceService(req.body, req.user, req);
-  return res.status(200).json(new ApiResponse(200, result, "Attendance check-in marked after passkey and face verification."));
+  return res.status(200).json(new ApiResponse(200, result, "Attendance check-in marked successfully."));
 });
 
 export const checkOutAttendance = asyncHandler(async (req, res) => {
   const result = await checkOutAttendanceService(req.body, req.user, req);
-  return res.status(200).json(new ApiResponse(200, result, "Attendance check-out marked after passkey and face verification."));
+  return res.status(200).json(new ApiResponse(200, result, "Attendance check-out marked successfully."));
 });
 
 export const getMyAttendanceHistory = asyncHandler(async (req, res) => {

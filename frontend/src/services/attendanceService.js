@@ -1,4 +1,4 @@
-import axiosInstance from "../api/axiosInstance";
+import axiosInstance, { BIOMETRIC_REQUEST_TIMEOUT_MS } from "../api/axiosInstance";
 
 export const getBiometricStatus = async (params = {}) => {
   const response = await axiosInstance.get("/attendance/status", { params });
@@ -6,7 +6,9 @@ export const getBiometricStatus = async (params = {}) => {
 };
 
 export const registerBiometricCredential = async (payload) => {
-  const response = await axiosInstance.post("/attendance/biometric/register", payload);
+  const response = await axiosInstance.post("/attendance/biometric/register", payload, {
+    timeout: BIOMETRIC_REQUEST_TIMEOUT_MS,
+  });
   return response.data;
 };
 
@@ -47,12 +49,16 @@ export const rejectBiometricRegistration = async (id, reason) => {
 };
 
 export const checkInAttendance = async (payload = {}) => {
-  const response = await axiosInstance.post("/attendance/check-in", payload);
+  const response = await axiosInstance.post("/attendance/check-in", payload, {
+    timeout: BIOMETRIC_REQUEST_TIMEOUT_MS,
+  });
   return response.data;
 };
 
 export const checkOutAttendance = async (payload = {}) => {
-  const response = await axiosInstance.post("/attendance/check-out", payload);
+  const response = await axiosInstance.post("/attendance/check-out", payload, {
+    timeout: BIOMETRIC_REQUEST_TIMEOUT_MS,
+  });
   return response.data;
 };
 

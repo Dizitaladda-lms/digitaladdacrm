@@ -61,7 +61,8 @@ export const saveEmployeeBiometricRepository = async (client, {
         device_info, face_template_encrypted, face_template_iv, face_template_tag,
         face_consent_at, is_locked, approval_status, approved_by, approved_at, registered_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+        CASE WHEN $7 IS NOT NULL THEN CURRENT_TIMESTAMP ELSE NULL END,
         TRUE, 'APPROVED', NULL, NULL, CURRENT_TIMESTAMP)
       ON CONFLICT (employee_id) DO UPDATE SET
         credential_id = EXCLUDED.credential_id,

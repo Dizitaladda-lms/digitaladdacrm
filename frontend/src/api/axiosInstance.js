@@ -17,6 +17,8 @@ const axiosInstance = axios.create({
   withCredentials: true,
 });
 
+export const BIOMETRIC_REQUEST_TIMEOUT_MS = 120_000;
+
 axiosInstance.interceptors.request.use((config) => {
   if (
     config.url &&

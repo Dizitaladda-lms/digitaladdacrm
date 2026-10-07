@@ -78,6 +78,11 @@ const hasUsablePasskey = (biometric) =>
   isCanonicalBase64Url(biometric?.credential_id, 16) &&
   isCanonicalBase64Url(biometric?.public_key, 32);
 
+export const requiresIOSFaceVerification = (req) =>
+  /iPhone|iPad|iPod|Macintosh.*Mobile/i.test(
+    req?.get?.("user-agent") || req?.headers?.["user-agent"] || ""
+  );
+
 // ==========================================
 // Service Methods
 // ==========================================
@@ -110,8 +115,10 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
   };
 };
 
-export const getBiometricRegistrationOptionsService = async (currentUser) => {
-  assertFaceEncryptionConfigured();
+export const getBiometricRegistrationOptionsService = async (currentUser, req) => {
+  if (requiresIOSFaceVerification(req)) {
+    assertFaceEncryptionConfigured();
+  }
   const employee = await getEmployeeId(currentUser);
   const existing = await findEmployeeBiometricRepository(employee.id);
   if (
@@ -146,9 +153,10 @@ export const getBiometricRegistrationOptionsService = async (currentUser) => {
   return options;
 };
 
-export const registerBiometricService = async (response, currentUser) => {
+export const registerBiometricService = async (response, currentUser, req) => {
   const { faceProof, faceConsent, ...credentialResponse } = response || {};
-  if (faceConsent !== true) {
+  const requiresFace = requiresIOSFaceVerification(req);
+  if (requiresFace && faceConsent !== true) {
     throw new ApiError(400, "Consent is required to create and use an attendance face template.");
   }
   const employee = await getEmployeeId(currentUser);
@@ -180,27 +188,30 @@ export const registerBiometricService = async (response, currentUser) => {
   }
 
   const { credential } = verification.registrationInfo;
-  const faceChallengeResponse = await consumeEmployeeBiometricChallengeRepository(
-    employee.id,
-    "face_registration"
-  );
-  if (!faceChallengeResponse) {
-    throw new ApiError(400, "Face registration expired. Please start registration again.");
+  let faceTemplate = null;
+  if (requiresFace) {
+    const faceChallengeResponse = await consumeEmployeeBiometricChallengeRepository(
+      employee.id,
+      "face_registration"
+    );
+    if (!faceChallengeResponse) {
+      throw new ApiError(400, "Face registration expired. Please start registration again.");
+    }
+    let faceChallenge;
+    try {
+      faceChallenge = JSON.parse(faceChallengeResponse);
+    } catch {
+      throw new ApiError(500, "Face registration challenge is invalid. Please start again.");
+    }
+    faceTemplate = await verifyAndCreateFaceTemplate(faceProof, faceChallenge);
   }
-  let faceChallenge;
-  try {
-    faceChallenge = JSON.parse(faceChallengeResponse);
-  } catch {
-    throw new ApiError(500, "Face registration challenge is invalid. Please start again.");
-  }
-  const faceTemplate = await verifyAndCreateFaceTemplate(faceProof, faceChallenge);
   const registered = await saveEmployeeBiometricRepository(null, {
     employee_id: employee.id,
     credential_id: credential.id,
     public_key: Buffer.from(credential.publicKey).toString("base64url"),
     sign_count: credential.counter,
     authenticator_transports: credential.transports || [],
-    device_info: "Platform Passkey",
+    device_info: requiresFace ? "iOS Passkey and Face" : "Platform Passkey",
     face_template: faceTemplate,
   });
   if (!registered) {
@@ -214,7 +225,7 @@ export const registerBiometricService = async (response, currentUser) => {
     device_info: registered.device_info,
     is_locked: registered.is_locked,
     approval_status: registered.approval_status,
-    face_registered: true,
+    face_registered: Boolean(faceTemplate),
     registered_at: registered.registered_at,
   };
 };
@@ -247,7 +258,10 @@ export const getBiometricAuthenticationOptionsService = async (currentUser) => {
   return options;
 };
 
-export const getBiometricFaceChallengeService = async (currentUser, purpose) => {
+export const getBiometricFaceChallengeService = async (currentUser, purpose, req) => {
+  if (!requiresIOSFaceVerification(req)) {
+    throw new ApiError(400, "Camera face verification is only required on iPhone and iPad.");
+  }
   if (purpose !== "registration" && purpose !== "authentication") {
     throw new ApiError(400, "A valid face verification purpose is required.");
   }
@@ -431,7 +445,9 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
 
   const employee = await getEmployeeId(currentUser);
   const biometric = await verifyAttendancePasskey(employee.id, assertion);
-  await verifyAttendanceFace(employee.id, biometric, faceProof);
+  if (requiresIOSFaceVerification(req)) {
+    await verifyAttendanceFace(employee.id, biometric, faceProof);
+  }
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -524,7 +540,9 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
   const biometric = await verifyAttendancePasskey(employee.id, assertion);
-  await verifyAttendanceFace(employee.id, biometric, faceProof);
+  if (requiresIOSFaceVerification(req)) {
+    await verifyAttendanceFace(employee.id, biometric, faceProof);
+  }
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayAttendance = await findTodayAttendanceRepository(employee.id, todayStr);
