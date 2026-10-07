@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 
 const STEPS = [
   { title: "Look straight at the camera", prompt: "Keep your face centered and capture." },
-  { title: "Turn your head", prompt: (turn) => `Turn your head ${turn.toLowerCase()} and capture.` },
+  { title: "Turn your head", prompt: (turn) => `Move toward the ${turn} arrow shown below.` },
   { title: "Look straight again", prompt: "Return to the center and capture." },
 ];
 
@@ -78,7 +78,10 @@ const AttendanceFaceCapture = ({ turn, onComplete, onCancel }) => {
   };
 
   const currentStep = STEPS[step];
-  const prompt = typeof currentStep.prompt === "function" ? currentStep.prompt(turn) : currentStep.prompt;
+  const displayTurn = turn === "LEFT" ? "RIGHT" : "LEFT";
+  const prompt = typeof currentStep.prompt === "function"
+    ? currentStep.prompt(displayTurn)
+    : currentStep.prompt;
 
   return (
     <div className="bio-camera-modal-overlay" role="presentation">
@@ -99,6 +102,12 @@ const AttendanceFaceCapture = ({ turn, onComplete, onCancel }) => {
         </header>
         <p className="attendance-face-capture-step">Step {step + 1} of {STEPS.length}</p>
         <p className="attendance-face-capture-prompt">{prompt}</p>
+        {step === 1 && (
+          <div className="attendance-face-capture-direction" role="img" aria-label={`Move toward screen ${displayTurn.toLowerCase()}`}>
+            <span aria-hidden="true">{displayTurn === "LEFT" ? "←" : "→"}</span>
+            <strong>{displayTurn} SIDE</strong>
+          </div>
+        )}
         <video ref={videoRef} autoPlay playsInline muted className="attendance-face-capture-video" />
         <p className="attendance-face-capture-note">
           Keep only your face in the frame. Captured frames are checked on the attendance server and are not saved as photos.
