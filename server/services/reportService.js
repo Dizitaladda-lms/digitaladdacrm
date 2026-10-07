@@ -1,6 +1,7 @@
 import pool, { withTransaction } from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
+import { buildApprovalChain, getRoleLevel } from "./reportHierarchyService.js";
 import {
   upsertDailyReportRepository,
   syncReportClassesRepository,
@@ -111,20 +112,39 @@ export const submitDailyReportService = async (user, payload) => {
   // Calculate final total hours worked strictly based on attendance punch-in and punch-out
   const finalHoursWorked = attendanceHours !== null ? attendanceHours : 0.0;
 
+  // Hierarchical approval chain using the actual reporting line.
+  // This is intentionally level-based so the same logic works for all roles.
+  const hierarchyChain = await buildApprovalChain({
+    submitterUserId: userId,
+    submitterRole: empProfile?.role || user.role,
+    submitterDesignation: empProfile?.designation || user?.designation,
+    departmentId: departmentId,
+  });
+
+  const nextTlInChain = hierarchyChain.find((step) => step.level === 3);
+  const nextHrInChain = hierarchyChain.find((step) => step.level === 5);
+  const nextSuperAdminInChain = hierarchyChain.find((step) => step.level === 6);
+
   // Initial workflow status:
-  // - Interns & Executives/Employees -> 'SUBMITTED' (Pending TL Verification)
-  // - Team Leaders -> 'TL_REVIEWED' (Pending HR Approval)
-  // - HR / Super Admin -> 'HR_APPROVED' (Visible to Super Admin)
+  // - Interns & Executives/Employees -> 'SUBMITTED' (Pending verification in chain)
+  // - Department Head / TL -> 'TL_REVIEWED' when they submit from their own level
+  // - HR / Super Admin -> 'HR_APPROVED' when they submit directly
   let initialStatus = "SUBMITTED";
-  let tlId = null;
+  let tlId = nextTlInChain?.userId || null;
   let tlReviewedAt = null;
 
-  if (roleType === "TL" || user.role === "TL" || user.role === "MANAGER") {
+  const submitterLevel = getRoleLevel({
+    role: empProfile?.role || user.role,
+    designation: empProfile?.designation || user?.designation,
+  });
+
+  if (submitterLevel >= 5 || user.role === "HR" || user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
+    initialStatus = "HR_APPROVED";
+    tlId = nextTlInChain?.userId || null;
+  } else if (submitterLevel >= 3 || roleType === "TL" || user.role === "TL" || user.role === "MANAGER") {
     initialStatus = "TL_REVIEWED";
     tlId = userId;
     tlReviewedAt = new Date();
-  } else if (user.role === "HR" || user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
-    initialStatus = "HR_APPROVED";
   }
 
   const tookClass = Boolean(payload.took_class || (payload.classes && payload.classes.length > 0));
@@ -176,6 +196,8 @@ export const submitDailyReportService = async (user, payload) => {
     status: initialStatus,
     tl_id: tlId,
     tl_reviewed_at: tlReviewedAt,
+    hr_id: nextHrInChain?.userId || null,
+    super_admin_id: nextSuperAdminInChain?.userId || null,
   };
 
   // Run in database transaction
@@ -311,6 +333,10 @@ export const reviewReportAsTLService = async (user, reportId, payload) => {
     throw new ApiError(404, "Report not found.");
   }
 
+  if (Number(report.tl_id) !== Number(user.id) && Number(report.user_id) !== Number(user.id)) {
+    throw new ApiError(403, "Only the assigned TL or the submitter can review this report.");
+  }
+
   const feedback = payload.feedback || payload.tl_feedback || "";
   const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : (payload.status || "TL_REVIEWED");
 
@@ -365,6 +391,10 @@ export const reviewReportAsHRService = async (user, reportId, payload) => {
     throw new ApiError(404, "Report not found.");
   }
 
+  if (Number(report.hr_id) !== Number(user.id) && !["SUPER_ADMIN", "ADMIN"].includes(String(user.role || "").toUpperCase())) {
+    throw new ApiError(403, "Only the assigned HR approver can act on this report.");
+  }
+
   const feedback = payload.feedback || payload.hr_feedback || "";
   const status = payload.status === "REVISION_REQUESTED" ? "REVISION_REQUESTED" : (payload.status || "HR_APPROVED");
 
@@ -378,6 +408,10 @@ export const reviewReportAsSuperAdminService = async (user, reportId, payload) =
   const report = await findReportByIdRepository(reportId);
   if (!report) {
     throw new ApiError(404, "Report not found.");
+  }
+
+  if (String(user.role || "").toUpperCase() !== "SUPER_ADMIN") {
+    throw new ApiError(403, "Only Super Admin can final-approve this report.");
   }
 
   const feedback = payload.feedback || payload.super_admin_feedback || "";

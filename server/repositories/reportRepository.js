@@ -30,11 +30,15 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
       status,
       tl_id,
       tl_reviewed_at,
+      hr_id,
+      hr_reviewed_at,
+      super_admin_id,
+      super_admin_reviewed_at,
       updated_at
     )
     VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-      $15, $16, $17,
+      $15, $16, $17, $18, $19, $20, $21,
       CURRENT_TIMESTAMP
     )
     ON CONFLICT (user_id, report_date)
@@ -56,6 +60,10 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
       END,
       tl_id = COALESCE(EXCLUDED.tl_id, daily_work_reports.tl_id),
       tl_reviewed_at = COALESCE(EXCLUDED.tl_reviewed_at, daily_work_reports.tl_reviewed_at),
+      hr_id = COALESCE(EXCLUDED.hr_id, daily_work_reports.hr_id),
+      hr_reviewed_at = COALESCE(EXCLUDED.hr_reviewed_at, daily_work_reports.hr_reviewed_at),
+      super_admin_id = COALESCE(EXCLUDED.super_admin_id, daily_work_reports.super_admin_id),
+      super_admin_reviewed_at = COALESCE(EXCLUDED.super_admin_reviewed_at, daily_work_reports.super_admin_reviewed_at),
       updated_at = CURRENT_TIMESTAMP
     RETURNING *;
   `;
@@ -78,6 +86,10 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
     data.status || "SUBMITTED",
     data.tl_id || null,
     data.tl_reviewed_at || null,
+    data.hr_id || null,
+    data.hr_reviewed_at || null,
+    data.super_admin_id || null,
+    data.super_admin_reviewed_at || null,
   ];
 
   const result = await executor.query(query, values);
