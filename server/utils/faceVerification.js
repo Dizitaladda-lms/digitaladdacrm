@@ -143,7 +143,7 @@ const detectFace = async (image) => {
       Math.min(face.box?.[2] || 0, face.box?.[3] || 0) < 120 ||
       Number(face.faceScore || face.boxScore || 0) < 0.6 ||
       Number(face.real || 0) < 0.6 ||
-      Number(face.live || 0) < 0.6
+      !Number.isFinite(face.live)
     ) {
       throw new ApiError(
         400,
@@ -153,6 +153,7 @@ const detectFace = async (image) => {
     const analyzedFace = {
       embedding: Array.from(face.embedding, Number),
       yaw: face.rotation.angle.yaw,
+      live: face.live,
     };
     return analyzedFace;
   } finally {
@@ -162,6 +163,12 @@ const detectFace = async (image) => {
     });
   }
 };
+
+export const hasConsistentLivenessScores = (scores) =>
+  scores.length === 3 &&
+  scores.every(Number.isFinite) &&
+  Math.min(...scores) >= 0.4 &&
+  scores.reduce((total, score) => total + score, 0) / scores.length >= 0.6;
 
 const getEncryptionKey = () => {
   const encodedKey = process.env.ATTENDANCE_FACE_ENCRYPTION_KEY;
@@ -213,6 +220,13 @@ export const verifyAndCreateFaceTemplate = async (faceProof, expectedChallenge) 
     const results = [];
     for (const dataUrl of faceProof.frames) {
       results.push(await detectFace(await decodeImage(dataUrl)));
+    }
+
+    if (!hasConsistentLivenessScores(results.map(({ live }) => live))) {
+      throw new ApiError(
+        400,
+        "Live face check failed. Use good lighting, look at the camera, and follow the movement prompt."
+      );
     }
 
     const [centerStart, turned, centerEnd] = results;
@@ -284,6 +298,13 @@ export const verifyFaceAttendance = async (faceProof, expectedChallenge, encrypt
     const results = [];
     for (const dataUrl of faceProof.frames) {
       results.push(await detectFace(await decodeImage(dataUrl)));
+    }
+
+    if (!hasConsistentLivenessScores(results.map(({ live }) => live))) {
+      throw new ApiError(
+        400,
+        "Live face check failed. Use good lighting, look at the camera, and follow the movement prompt."
+      );
     }
 
     const [centerStart, turned, centerEnd] = results;

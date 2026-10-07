@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { encryptFaceTemplate } from "../utils/faceVerification.js";
+import {
+  encryptFaceTemplate,
+  hasConsistentLivenessScores,
+} from "../utils/faceVerification.js";
 
 describe("face template encryption", () => {
   afterEach(() => {
@@ -33,5 +36,18 @@ describe("face template encryption", () => {
     expect(() => encryptFaceTemplate([0.1])).toThrow(
       "Face attendance is not configured."
     );
+  });
+});
+
+describe("face liveness scoring", () => {
+  it("allows one noisy capture when the three-frame average remains strong", () => {
+    expect(hasConsistentLivenessScores([0.42, 0.78, 0.72])).toBe(true);
+  });
+
+  it("rejects weak, incomplete, and invalid liveness scores", () => {
+    expect(hasConsistentLivenessScores([0.39, 0.9, 0.9])).toBe(false);
+    expect(hasConsistentLivenessScores([0.5, 0.55, 0.6])).toBe(false);
+    expect(hasConsistentLivenessScores([0.8, 0.8])).toBe(false);
+    expect(hasConsistentLivenessScores([0.8, Number.NaN, 0.8])).toBe(false);
   });
 });
