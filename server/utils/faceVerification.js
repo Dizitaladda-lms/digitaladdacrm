@@ -1,16 +1,13 @@
 import { readFile } from "node:fs/promises";
 import crypto from "node:crypto";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import sharp from "sharp";
 import "@tensorflow/tfjs-backend-cpu";
 import "@tensorflow/tfjs-backend-wasm";
+import humanModule from "../node_modules/@vladmandic/human/dist/human.node-wasm.js";
 import ApiError from "./ApiError.js";
 
-const require = createRequire(import.meta.url);
-const humanNodeBuild = path.join(path.dirname(require.resolve("@vladmandic/human")), "human.node-wasm.js");
-const humanModule = await import(pathToFileURL(humanNodeBuild).href);
 const Human = humanModule.Human || humanModule.default;
 const MODEL_DIRECTORY = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
