@@ -19,7 +19,6 @@ import {
   getBiometricStatus,
   getBiometricRegistrationOptions,
   getBiometricAuthenticationOptions,
-  getBiometricFaceChallenge,
   registerBiometricCredential,
   checkInAttendance,
   checkOutAttendance,
@@ -482,10 +481,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   };
 
   const handleRegisterPasskey = async () => {
-    if (device.isIPhone && !faceConsentChecked) {
-      toast.error("Please read and accept the face-template consent before registering.");
-      return;
-    }
     if (!window.isSecureContext) {
       toast.error("Biometric registration requires a secure connection (localhost or HTTPS).");
       return;
@@ -503,23 +498,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       const credential = await startRegistration({
         optionsJSON: optionsResponse.data,
       });
-      if (device.isIPhone) {
-        const faceChallengeResponse = await getBiometricFaceChallenge("registration");
-        toast.dismiss("biometric-reg");
-        setFaceCaptureRequest({
-          purpose: "registration",
-          challenge: faceChallengeResponse.data,
-          credential,
-        });
-      } else {
-        await registerBiometricCredential({
-          ...credential,
-          faceConsent: false,
-        });
-        toast.dismiss("biometric-reg");
-        toast.success("Device passkey registered and active.");
-        await loadStatus();
-      }
+      await registerBiometricCredential(credential);
+      toast.dismiss("biometric-reg");
+      toast.success("Device passkey registered and active.");
+      await loadStatus();
     } catch (err) {
       toast.dismiss("biometric-reg");
       await showBiometricActionError(err, "Failed to register passkey.");
@@ -598,15 +580,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         longitude: loc.longitude,
         location_name: loc.location_name,
       };
-      if (device.isIPhone) {
-        const faceChallengeResponse = await getBiometricFaceChallenge("authentication");
-        toast.dismiss("biometric-auth");
-        setFaceCaptureRequest({
-          purpose: "check-in",
-          challenge: faceChallengeResponse.data,
-          attendancePayload,
-        });
-      } else {
+      {
         const result = await checkInAttendance(attendancePayload);
         toast.dismiss("biometric-auth");
         toast.success(`Passkey verified. Check-in marked at 📍 ${loc.location_name}`);
@@ -645,15 +619,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         longitude: loc.longitude,
         location_name: loc.location_name,
       };
-      if (device.isIPhone) {
-        const faceChallengeResponse = await getBiometricFaceChallenge("authentication");
-        toast.dismiss("biometric-auth");
-        setFaceCaptureRequest({
-          purpose: "check-out",
-          challenge: faceChallengeResponse.data,
-          attendancePayload,
-        });
-      } else {
+      {
         await checkOutAttendance(attendancePayload);
         toast.dismiss("biometric-auth");
         toast.success(`Passkey verified. Check-out marked at 📍 ${loc.location_name}`);
@@ -673,19 +639,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     approvalStatus === "NOT_REGISTERED" ||
     approvalStatus === "RE_ENROLL_REQUIRED" ||
     (approvalStatus === "APPROVED" && !statusData?.passkey_ready);
-  const needsFaceRegistration =
-    !loading &&
-    device.isIPhone &&
-    approvalStatus === "APPROVED" &&
-    statusData?.passkey_ready &&
-    !statusData?.face_registered;
+  const needsFaceRegistration = false;
   const biometricStatusLabel = !statusData?.passkey_ready
     ? "Passkey setup required"
-    : device.isIPhone
-      ? statusData?.face_registered
-        ? "Passkey & Face Active"
-        : "Face setup required"
-      : "Passkey Active & Locked";
+    : "Passkey Active & Locked";
 
   const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
 
@@ -781,29 +738,16 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 <strong>Attendance security update</strong>
                 <p>
                   Attendance system mein security changes kiye gaye hain. Pehli baar attendance lagane se pehle
-                  yahan device passkey register karein{device.isIPhone ? " aur apna live face capture karein" : ""}. Registration ke baad ye turant active
+                  yahan device passkey register karein. Registration ke baad ye turant active
                   ho jayenge—HR approval ka wait nahi karna hoga.
                 </p>
                 <p>
                   {device.isIPhone
-                    ? "iPhone par Face ID ya phone passcode se confirm karein, phir face registration ke 3 steps follow karein."
+                    ? "iPhone par Face ID ya phone passcode se device passkey confirm karein."
                     : device.isAndroid
                     ? "Android par apne device ke fingerprint ya screen lock prompt se passkey confirm karein."
                     : "Apne device ke security prompt se passkey confirm karein; face capture required nahi hai."}
                 </p>
-                {device.isIPhone && (
-                  <label className="biometric-face-consent">
-                    <input
-                      type="checkbox"
-                      checked={faceConsentChecked}
-                      onChange={(event) => setFaceConsentChecked(event.target.checked)}
-                    />
-                    <span>
-                      I agree to create an encrypted face template for attendance matching. Live camera frames are
-                      processed for verification and discarded; HR reset removes the saved template.
-                    </span>
-                  </label>
-                )}
               </div>
             </div>
           )}
@@ -823,9 +767,9 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 type="button"
                 className="btn-bio-face-checkin"
                 onClick={handleRegisterPasskey}
-                disabled={actionLoading || (device.isIPhone && !faceConsentChecked)}
+                disabled={actionLoading}
               >
-                <ScanFace size={18} /> {device.isIPhone ? "Register Passkey & Face" : "Register Device Passkey"}
+                <ScanFace size={18} /> Register Device Passkey
               </button>
             </>
           ) : needsFaceRegistration ? (
@@ -873,7 +817,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         {!needsPasskeyRegistration && (
           <p className="biometric-subtitle">
             {device.isIPhone
-              ? "On iPhone, confirm with Face ID or your device passcode, then follow the live face-check prompt."
+              ? "On iPhone, confirm with Face ID or your device passcode. No camera face scan is required."
               : device.isAndroid
               ? "On Android, confirm with your fingerprint or device screen lock. Camera face check is not required."
               : "Confirm with your device's passkey security prompt. Camera face check is not required."}

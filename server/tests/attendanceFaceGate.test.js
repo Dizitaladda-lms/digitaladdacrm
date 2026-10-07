@@ -129,23 +129,20 @@ describe("attendance face verification gate", () => {
     );
   });
 
-  it("does not create attendance unless the submitted face matches", async () => {
-    await expect(
-      checkInAttendanceService(
-        {
-          assertion: { id: "credential" },
-          faceProof: { challenge: "face-challenge", frames: [] },
-          latitude: 28.54175,
-          longitude: 77.240611111,
-          location_name: "Dizital Adda Office Premises",
-        },
-        { id: 9, email: "employee@example.com", full_name: "Employee" },
-        { headers: { "user-agent": "iPhone" }, ip: "127.0.0.1" }
-      )
-    ).rejects.toMatchObject({ statusCode: 401 });
+  it("uses the iPhone platform passkey without an additional camera face scan", async () => {
+    await checkInAttendanceService(
+      {
+        assertion: { id: "credential" },
+        latitude: 28.54175,
+        longitude: 77.240611111,
+        location_name: "Dizital Adda Office Premises",
+      },
+      { id: 9, email: "employee@example.com", full_name: "Employee" },
+      { headers: { "user-agent": "iPhone" }, ip: "127.0.0.1" }
+    );
 
-    expect(dependencies.verifyFaceAttendance).toHaveBeenCalledOnce();
-    expect(dependencies.createAttendanceCheckInRepository).not.toHaveBeenCalled();
+    expect(dependencies.verifyFaceAttendance).not.toHaveBeenCalled();
+    expect(dependencies.createAttendanceCheckInRepository).toHaveBeenCalledOnce();
   });
 
   it("requires camera face verification only for iOS user agents", () => {
@@ -202,7 +199,7 @@ describe("attendance face verification gate", () => {
     );
   });
 
-  it("requires and creates a face template for iOS passkey registration", async () => {
+  it("registers an iPhone passkey without creating a camera face template", async () => {
     await registerBiometricService(
       {
         id: "credential-response",
@@ -213,19 +210,12 @@ describe("attendance face verification gate", () => {
       { headers: { "user-agent": "iPhone" } }
     );
 
-    expect(dependencies.verifyAndCreateFaceTemplate).toHaveBeenCalledWith(
-      { challenge: "face-challenge", frames: ["one", "two", "three"] },
-      { nonce: "face-challenge", turn: "LEFT" }
-    );
+    expect(dependencies.verifyAndCreateFaceTemplate).not.toHaveBeenCalled();
     expect(dependencies.saveEmployeeBiometricRepository).toHaveBeenCalledWith(
       null,
       expect.objectContaining({
-        face_template: {
-          encrypted: "encrypted-face",
-          iv: "face-iv",
-          tag: "face-tag",
-        },
-        device_info: "iOS Passkey and Face",
+        face_template: null,
+        device_info: "Platform Passkey",
       })
     );
   });

@@ -2,7 +2,6 @@ import pool from "../config/db.js";
 import crypto from "node:crypto";
 import ApiError from "../utils/ApiError.js";
 import {
-  assertFaceEncryptionConfigured,
   verifyAndCreateFaceTemplate,
   verifyFaceAttendance,
 } from "../utils/faceVerification.js";
@@ -115,10 +114,7 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
   };
 };
 
-export const getBiometricRegistrationOptionsService = async (currentUser, req) => {
-  if (requiresIOSFaceVerification(req)) {
-    assertFaceEncryptionConfigured();
-  }
+export const getBiometricRegistrationOptionsService = async (currentUser) => {
   const employee = await getEmployeeId(currentUser);
   const existing = await findEmployeeBiometricRepository(employee.id);
   if (
@@ -153,12 +149,8 @@ export const getBiometricRegistrationOptionsService = async (currentUser, req) =
   return options;
 };
 
-export const registerBiometricService = async (response, currentUser, req) => {
-  const { faceProof, faceConsent, ...credentialResponse } = response || {};
-  const requiresFace = requiresIOSFaceVerification(req);
-  if (requiresFace && faceConsent !== true) {
-    throw new ApiError(400, "Consent is required to create and use an attendance face template.");
-  }
+export const registerBiometricService = async (response, currentUser) => {
+  const credentialResponse = response || {};
   const employee = await getEmployeeId(currentUser);
   const expectedChallenge = await consumeEmployeeBiometricChallengeRepository(employee.id, "registration");
   if (!expectedChallenge) {
@@ -188,31 +180,14 @@ export const registerBiometricService = async (response, currentUser, req) => {
   }
 
   const { credential } = verification.registrationInfo;
-  let faceTemplate = null;
-  if (requiresFace) {
-    const faceChallengeResponse = await consumeEmployeeBiometricChallengeRepository(
-      employee.id,
-      "face_registration"
-    );
-    if (!faceChallengeResponse) {
-      throw new ApiError(400, "Face registration expired. Please start registration again.");
-    }
-    let faceChallenge;
-    try {
-      faceChallenge = JSON.parse(faceChallengeResponse);
-    } catch {
-      throw new ApiError(500, "Face registration challenge is invalid. Please start again.");
-    }
-    faceTemplate = await verifyAndCreateFaceTemplate(faceProof, faceChallenge);
-  }
   const registered = await saveEmployeeBiometricRepository(null, {
     employee_id: employee.id,
     credential_id: credential.id,
     public_key: Buffer.from(credential.publicKey).toString("base64url"),
     sign_count: credential.counter,
     authenticator_transports: credential.transports || [],
-    device_info: requiresFace ? "iOS Passkey and Face" : "Platform Passkey",
-    face_template: faceTemplate,
+    device_info: "Platform Passkey",
+    face_template: null,
   });
   if (!registered) {
     throw new ApiError(
@@ -225,27 +200,20 @@ export const registerBiometricService = async (response, currentUser, req) => {
     device_info: registered.device_info,
     is_locked: registered.is_locked,
     approval_status: registered.approval_status,
-    face_registered: Boolean(faceTemplate),
+    face_registered: false,
     registered_at: registered.registered_at,
   };
 };
 
-export const getBiometricAuthenticationOptionsService = async (currentUser, req) => {
+export const getBiometricAuthenticationOptionsService = async (currentUser) => {
   const employee = await getEmployeeId(currentUser);
   const biometric = await findEmployeeBiometricRepository(employee.id);
-  const requiresFace = requiresIOSFaceVerification(req);
   if (
     !biometric ||
     biometric.approval_status !== "APPROVED" ||
-    !hasUsablePasskey(biometric) ||
-    (requiresFace && !biometric.face_template_encrypted)
+    !hasUsablePasskey(biometric)
   ) {
-    throw new ApiError(
-      403,
-      requiresFace
-        ? "Register your attendance passkey and face before marking attendance."
-        : "Register your attendance passkey before marking attendance."
-    );
+    throw new ApiError(403, "Register your attendance passkey before marking attendance.");
   }
 
   const { rpID } = getAttendanceWebAuthnConfig();
@@ -435,7 +403,7 @@ const getValidatedCoordinates = (latitude, longitude, locationName, action) => {
 };
 
 export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
-  const { assertion, faceProof, latitude, longitude, location_name } = payload || {};
+  const { assertion, latitude, longitude, location_name } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "mark attendance");
 
   const distanceInMeters = calculateGeofenceDistance(lat, lng);
@@ -447,10 +415,7 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }
 
   const employee = await getEmployeeId(currentUser);
-  const biometric = await verifyAttendancePasskey(employee.id, assertion);
-  if (requiresIOSFaceVerification(req)) {
-    await verifyAttendanceFace(employee.id, biometric, faceProof);
-  }
+  await verifyAttendancePasskey(employee.id, assertion);
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -529,7 +494,7 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
 };
 
 export const checkOutAttendanceService = async (payload = {}, currentUser, req) => {
-  const { assertion, faceProof, latitude, longitude, location_name } = payload || {};
+  const { assertion, latitude, longitude, location_name } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "check out");
 
   const distanceInMeters = calculateGeofenceDistance(lat, lng);
@@ -542,10 +507,7 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
 
   await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
-  const biometric = await verifyAttendancePasskey(employee.id, assertion);
-  if (requiresIOSFaceVerification(req)) {
-    await verifyAttendanceFace(employee.id, biometric, faceProof);
-  }
+  await verifyAttendancePasskey(employee.id, assertion);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayAttendance = await findTodayAttendanceRepository(employee.id, todayStr);
