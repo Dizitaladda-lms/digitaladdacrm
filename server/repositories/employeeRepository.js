@@ -27,6 +27,7 @@ const EMPLOYEE_SELECT_COLUMNS = `
     e.role,
     e.employment_type,
     e.reporting_manager_id,
+    COALESCE(e.lead_overview_read_only, FALSE) AS lead_overview_read_only,
     m.full_name AS reporting_manager_name,
     e.status,
     COALESCE(da.status, 'NOT_CHECKED_IN') AS today_attendance_status,
@@ -427,6 +428,10 @@ export const updateEmployeeRepository = async (
                 : null
         );
     }
+    if (employee.lead_overview_read_only !== undefined) {
+        fields.push(`lead_overview_read_only = $${idx++}`);
+        values.push(Boolean(employee.lead_overview_read_only));
+    }
     if (employee.status !== undefined && employee.status !== null) {
         fields.push(`status = $${idx++}`);
         values.push(employee.status);
@@ -519,6 +524,7 @@ export const deleteEmployeeRepository = async (
         SET
 
             is_deleted = TRUE,
+            lead_overview_read_only = FALSE,
             deleted_at = CURRENT_TIMESTAMP,
             deleted_by = $1,
             updated_by = $1,

@@ -344,7 +344,8 @@ export const updateEmployeeService = async (
             employeeData.mobile.trim();
     }
 
-    return await withTransaction(async (client) => {
+    try {
+        return await withTransaction(async (client) => {
 
         // Employee Exists
         const employee =
@@ -455,6 +456,14 @@ export const updateEmployeeService = async (
 
         // Update Employee (employees table does not have a password column)
         const { password: _ignoredPassword, ...cleanEmployeeData } = employeeData;
+        if (cleanEmployeeData.lead_overview_read_only === true) {
+            await client.query(
+                `UPDATE employees
+                 SET lead_overview_read_only = FALSE
+                 WHERE lead_overview_read_only = TRUE AND id <> $1;`,
+                [Number(id)]
+            );
+        }
         const updatedEmployee =
             await updateEmployeeRepository(
                 client,
@@ -502,7 +511,19 @@ export const updateEmployeeService = async (
 
         return updatedEmployee;
 
-    });
+        });
+    } catch (error) {
+        if (
+            error.code === "23505" &&
+            error.constraint === "employees_single_lead_overview_read_only_idx"
+        ) {
+            throw new ApiError(
+                409,
+                "Another employee was granted read-only lead overview access. Please reload and try again."
+            );
+        }
+        throw error;
+    }
 
 };
 

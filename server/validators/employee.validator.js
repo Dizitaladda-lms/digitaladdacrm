@@ -308,6 +308,9 @@ const updateEmployeeSchema = Joi.object({
         .allow(null, "")
         .optional(),
 
+    lead_overview_read_only: Joi.boolean()
+        .optional(),
+
     emergency_contact: Joi.string()
         .trim()
         .pattern(/^[6-9]\d{9}$/)

@@ -18,6 +18,7 @@ const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentRepo
 const MyAssignedWork = lazy(() => import("../pages/employee/MyAssignedWork"));
 const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
 const TeamChat = lazy(() => import("../pages/chat/TeamChat"));
+const ReadOnlyLeadOverview = lazy(() => import("../pages/employee/ReadOnlyLeadOverview"));
 
 import UnderMaintenance from "../pages/UnderMaintenance";
 import { IS_MAINTENANCE_MODE } from "../config/maintenanceConfig";
@@ -77,9 +78,32 @@ const EmployeeRoutes = () => {
           <Route path="profile" element={renderEmpPage(Profile)} />
           <Route path="settings" element={renderEmpPage(Settings)} />
 
+          <Route
+            path="lead-overview"
+            element={
+              user?.lead_overview_read_only
+                ? renderEmpPage(ReadOnlyLeadOverview)
+                : <Navigate to="/employee/dashboard" replace />
+            }
+          />
+
           {/* Sales Only Routes */}
-          <Route path="leads" element={renderEmpPage(MyLeads)} />
-          <Route path="leads/:id" element={renderEmpPage(LeadDetails)} />
+          <Route
+            path="leads"
+            element={
+              user?.lead_overview_read_only
+                ? <Navigate to="/employee/lead-overview" replace />
+                : renderEmpPage(MyLeads)
+            }
+          />
+          <Route
+            path="leads/:id"
+            element={
+              user?.lead_overview_read_only
+                ? <Navigate to="/employee/lead-overview" replace />
+                : renderEmpPage(LeadDetails)
+            }
+          />
           <Route path="followups" element={renderEmpPage(MyFollowups)} />
           <Route path="admissions" element={renderEmpPage(MyAdmissions)} />
         </Route>

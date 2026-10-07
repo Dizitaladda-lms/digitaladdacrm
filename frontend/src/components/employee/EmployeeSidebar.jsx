@@ -88,6 +88,15 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     ];
   }
 
+  if (user?.lead_overview_read_only) {
+    menuItems = menuItems.filter((item) => item.path !== "/employee/leads");
+    menuItems.splice(menuItems.length - 2, 0, {
+      title: "Lead Overview (Read-only)",
+      icon: Users,
+      path: "/employee/lead-overview",
+    });
+  }
+
   const handleLogout = () => {
     logout();
     navigate("/", { replace: true });

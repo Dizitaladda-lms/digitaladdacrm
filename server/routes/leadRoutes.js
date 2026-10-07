@@ -3,6 +3,7 @@ import express from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import validate from "../middleware/validate.js";
+import ApiError from "../utils/ApiError.js";
 
 import ROLES from "../constants/roles.js";
 
@@ -19,6 +20,7 @@ import {
 import {
   createLead,
   getAllLeads,
+  getReadOnlyLeadOverview,
   getAgencyLeads,
   getLeadById,
   updateLead,
@@ -44,16 +46,25 @@ import { handleBulkBroadcast } from "../controllers/communicationController.js";
 
 const router = express.Router();
 
+router.use(authMiddleware);
+router.use((req, _res, next) => {
+  if (
+    req.user?.lead_overview_read_only &&
+    !(req.method === "GET" && req.path === "/overview")
+  ) {
+    return next(new ApiError(403, "Read-only lead overview access does not allow this action."));
+  }
+  return next();
+});
+
 router.post(
   "/bulk-whatsapp",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
   handleBulkWhatsAppBroadcast
 );
 
 router.post(
   "/bulk-broadcast",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
   handleBulkBroadcast
 );
@@ -66,7 +77,6 @@ router.post(
 
 router.post(
   "/",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
   createLeadValidator,
   validate,
@@ -75,9 +85,10 @@ router.post(
 
 router.get(
   "/",
-  authMiddleware,
   getAllLeads
 );
+
+router.get("/overview", getReadOnlyLeadOverview);
 
 /**
  * Statistics
@@ -87,20 +98,17 @@ router.get(
 
 router.get(
   "/agency-leads",
-  authMiddleware,
   roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   getAgencyLeads
 );
 
 router.get(
   "/statistics",
-  authMiddleware,
   getLeadStatistics
 );
 
 router.post(
   "/bulk-delete",
-  authMiddleware,
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR),
   deleteBulkLeadValidator,
   validate,
@@ -109,20 +117,17 @@ router.post(
 
 router.post(
   "/import",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN),
   importLeads
 );
 
 router.get(
   "/:id",
-  authMiddleware,
   getLeadById
 );
 
 router.put(
   "/:id",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN),
   updateLeadValidator,
   validate,
@@ -131,14 +136,12 @@ router.put(
 
 router.delete(
   "/:id",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.HR),
   deleteLead
 );
 
 router.patch(
   "/:id/restore",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN),
   restoreLead
 );
@@ -151,7 +154,6 @@ router.patch(
 
 router.patch(
   "/:id/assign",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN),
   assignLeadValidator,
   validate,
@@ -160,7 +162,6 @@ router.patch(
 
 router.post(
   "/assign-bulk",
-  authMiddleware,
   roleMiddleware(ROLES.ADMIN),
   assignBulkLeadValidator,
   validate,
@@ -175,7 +176,6 @@ router.post(
 
 router.patch(
   "/:id/status",
-  authMiddleware,
   updateLeadStatusValidator,
   validate,
   updateLeadStatus
@@ -189,7 +189,6 @@ router.patch(
 
 router.post(
   "/:id/notes",
-  authMiddleware,
   addLeadNoteValidator,
   validate,
   addLeadNote
@@ -197,7 +196,6 @@ router.post(
 
 router.get(
   "/:id/notes",
-  authMiddleware,
   getLeadNotes
 );
 
@@ -209,7 +207,6 @@ router.get(
 
 router.get(
   "/:id/timeline",
-  authMiddleware,
   getLeadTimeline
 );
 
@@ -221,13 +218,11 @@ router.get(
 
 router.post(
   "/:id/feedback",
-  authMiddleware,
   addLeadFeedback
 );
 
 router.get(
   "/:id/feedback",
-  authMiddleware,
   getLeadFeedbackHistory
 );
 

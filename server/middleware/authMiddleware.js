@@ -90,6 +90,7 @@ const authMiddleware = async (req, res, next) => {
       full_name: user.full_name,
       email: user.email,
       role: user.role,
+      lead_overview_read_only: Boolean(user.lead_overview_read_only),
     };
 
     next();

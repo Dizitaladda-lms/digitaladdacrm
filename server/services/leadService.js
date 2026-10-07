@@ -358,6 +358,14 @@ export const getAllLeadsService = async (
 
 };
 
+export const getReadOnlyLeadOverviewService = async (filters, currentUser) => {
+  if (!currentUser?.lead_overview_read_only) {
+    throw new ApiError(403, "You do not have access to the read-only lead overview.");
+  }
+
+  return getLeadsRepository({ ...filters, is_agency_lead: "all" });
+};
+
 /**
  * =====================================================
  * Get Lead By ID

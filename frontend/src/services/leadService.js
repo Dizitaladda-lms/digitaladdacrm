@@ -14,6 +14,11 @@ export const getLeads = async (params = {}) => {
 
 };
 
+export const getReadOnlyLeadOverview = async (params = {}) => {
+  const response = await axiosInstance.get("/leads/overview", { params });
+  return response.data;
+};
+
 export const getAgencyLeads = async (params = {}) => {
 
   const response = await axiosInstance.get("/leads/agency-leads", {

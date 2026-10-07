@@ -108,6 +108,10 @@ prove the employee's legal identity. HR biometric reset deletes the passkey
 and face template. Mobile-data attendance remains enabled; client-reported GPS
 coordinates are still not a server-verifiable location signal.
 
+HR can grant an individual employee read-only company lead overview access from
+the employee edit form. That account can only list/filter leads through the
+dedicated overview endpoint; lead details and all lead mutations remain blocked.
+
 ---
 
 ## Features

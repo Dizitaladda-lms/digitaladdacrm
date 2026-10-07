@@ -115,7 +115,8 @@ export const findUserByEmailWithPasswordRepository = async (email) => {
       e.department_id,
       d.department_name,
       e.managed_department_ids,
-      e.employment_type
+      e.employment_type,
+      COALESCE(e.lead_overview_read_only, FALSE) AS lead_overview_read_only
     FROM users u
     LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE
     LEFT JOIN departments d ON e.department_id = d.id
@@ -153,7 +154,8 @@ export const findUserByIdRepository = async (id) => {
       e.department_id,
       d.department_name,
       e.managed_department_ids,
-      e.employment_type
+      e.employment_type,
+      COALESCE(e.lead_overview_read_only, FALSE) AS lead_overview_read_only
     FROM users u
     LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE
     LEFT JOIN departments d ON e.department_id = d.id
@@ -549,4 +551,3 @@ export const getUserCountRepository = async (
   return Number(result.rows[0].total);
 
 };
-

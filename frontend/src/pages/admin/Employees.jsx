@@ -136,6 +136,7 @@ const Employees = () => {
     reporting_level: "DIRECT_EMPLOYEE",
     status: "ACTIVE",
     reporting_manager_id: "",
+    lead_overview_read_only: false,
   });
   const [editSaving, setEditSaving] = useState(false);
 
@@ -391,6 +392,7 @@ const Employees = () => {
       reporting_level: getReportingLevel(employee),
       status: employee.status || "ACTIVE",
       reporting_manager_id: employee.reporting_manager_id || "",
+      lead_overview_read_only: Boolean(employee.lead_overview_read_only),
       shift_timing_type: employee.shift_timing_type || "DEFAULT",
       shift_start_time: employee.shift_start_time || "10:00",
       shift_end_time: employee.shift_end_time || "18:00",
@@ -418,6 +420,7 @@ const Employees = () => {
         designation: editForm.designation,
         status: editForm.status,
         reporting_manager_id: editForm.reporting_manager_id ? Number(editForm.reporting_manager_id) : null,
+        lead_overview_read_only: Boolean(editForm.lead_overview_read_only),
         shift_timing_type: editForm.shift_timing_type || "DEFAULT",
         shift_start_time: editForm.shift_start_time || "10:00",
         shift_end_time: editForm.shift_end_time || "18:00",
@@ -1746,6 +1749,27 @@ const Employees = () => {
                     <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
                       Set the next person in this employee&apos;s approval chain. Leave blank only when this person reports directly to HR.
                     </small>
+                  </label>
+
+                  <label style={{ gridColumn: "1 / -1" }}>
+                    <span>Lead Overview Access</span>
+                    <span style={{ display: "flex", alignItems: "flex-start", gap: "9px", marginTop: "8px" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editForm.lead_overview_read_only)}
+                        onChange={(event) =>
+                          setEditForm({
+                            ...editForm,
+                            lead_overview_read_only: event.target.checked,
+                          })
+                        }
+                      />
+                      <span>
+                        Allow this employee to view the company-wide leads table only. Only one employee can have
+                        this access at a time; enabling it here transfers access from the previous employee.
+                        Creating, editing, assigning, deleting, exporting, and viewing lead details remain unavailable.
+                      </span>
+                    </span>
                   </label>
 
                   {/* Managed Departments for TL / Manager in Edit Modal */}

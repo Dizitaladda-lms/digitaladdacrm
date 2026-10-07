@@ -301,14 +301,16 @@ export const getLeadsRepository = async (filters) => {
     WHERE l.is_deleted = FALSE
   `;
 
-  if (is_agency_lead) {
-    whereClause += `
-      AND (l.is_agency_lead = TRUE OR UPPER(COALESCE(l.source, '')) = 'AGENCY_WEBSITE' OR COALESCE(l.domain, '') ILIKE '%dizitaladdaagency%' OR COALESCE(l.domain, '') ILIKE '%clients%')
-    `;
-  } else {
-    whereClause += `
-      AND (l.is_agency_lead IS NOT TRUE AND UPPER(COALESCE(l.source, '')) != 'AGENCY_WEBSITE' AND COALESCE(l.domain, '') NOT ILIKE '%dizitaladdaagency%' AND COALESCE(l.domain, '') NOT ILIKE '%clients%')
-    `;
+  if (String(is_agency_lead).toLowerCase() !== "all") {
+    if (is_agency_lead) {
+      whereClause += `
+        AND (l.is_agency_lead = TRUE OR UPPER(COALESCE(l.source, '')) = 'AGENCY_WEBSITE' OR COALESCE(l.domain, '') ILIKE '%dizitaladdaagency%' OR COALESCE(l.domain, '') ILIKE '%clients%')
+      `;
+    } else {
+      whereClause += `
+        AND (l.is_agency_lead IS NOT TRUE AND UPPER(COALESCE(l.source, '')) != 'AGENCY_WEBSITE' AND COALESCE(l.domain, '') NOT ILIKE '%dizitaladdaagency%' AND COALESCE(l.domain, '') NOT ILIKE '%clients%')
+      `;
+    }
   }
 
   // ==========================

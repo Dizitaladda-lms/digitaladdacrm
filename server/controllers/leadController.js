@@ -4,6 +4,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import {
   createLeadService,
   getAllLeadsService,
+  getReadOnlyLeadOverviewService,
   getLeadByIdService,
   updateLeadService,
   deleteLeadService,
@@ -72,6 +73,13 @@ export const getAllLeads = asyncHandler(async (req, res) => {
     )
   );
 
+});
+
+export const getReadOnlyLeadOverview = asyncHandler(async (req, res) => {
+  const leads = await getReadOnlyLeadOverviewService(req.query, req.user);
+  return res.status(200).json(
+    new ApiResponse(200, leads, "Read-only lead overview fetched successfully.")
+  );
 });
 
 export const getAgencyLeads = asyncHandler(async (req, res) => {
