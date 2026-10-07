@@ -39,7 +39,7 @@ export const getBiometricRegistrationOptions = asyncHandler(async (req, res) => 
 });
 
 export const getBiometricAuthenticationOptions = asyncHandler(async (req, res) => {
-  const result = await getBiometricAuthenticationOptionsService(req.user);
+  const result = await getBiometricAuthenticationOptionsService(req.user, req);
   return res.status(200).json(new ApiResponse(200, result, "Passkey authentication options created."));
 });
 

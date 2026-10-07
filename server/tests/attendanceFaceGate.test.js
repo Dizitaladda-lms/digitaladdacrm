@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dependencies = vi.hoisted(() => ({
+  generateAuthenticationOptions: vi.fn(),
   verifyAuthenticationResponse: vi.fn(),
   verifyRegistrationResponse: vi.fn(),
   findEmployeeByUserIdRepository: vi.fn(),
@@ -15,7 +16,7 @@ const dependencies = vi.hoisted(() => ({
 }));
 
 vi.mock("@simplewebauthn/server", () => ({
-  generateAuthenticationOptions: vi.fn(),
+  generateAuthenticationOptions: dependencies.generateAuthenticationOptions,
   generateRegistrationOptions: vi.fn(),
   verifyAuthenticationResponse: dependencies.verifyAuthenticationResponse,
   verifyRegistrationResponse: dependencies.verifyRegistrationResponse,
@@ -58,6 +59,7 @@ vi.mock("../utils/attendanceWebAuthn.js", () => ({
 import ApiError from "../utils/ApiError.js";
 import {
   checkInAttendanceService,
+  getBiometricAuthenticationOptionsService,
   registerBiometricService,
   requiresIOSFaceVerification,
 } from "../services/attendanceService.js";
@@ -87,6 +89,9 @@ describe("attendance face verification gate", () => {
     dependencies.verifyAuthenticationResponse.mockResolvedValue({
       verified: true,
       authenticationInfo: { newCounter: 1 },
+    });
+    dependencies.generateAuthenticationOptions.mockResolvedValue({
+      challenge: "authentication-challenge",
     });
     dependencies.updateEmployeeBiometricCounterRepository.mockResolvedValue(true);
     dependencies.createAttendanceCheckInRepository.mockResolvedValue({
@@ -148,6 +153,23 @@ describe("attendance face verification gate", () => {
     expect(requiresIOSFaceVerification({ headers: { "user-agent": "iPad" } })).toBe(true);
     expect(requiresIOSFaceVerification({ headers: { "user-agent": "Android" } })).toBe(false);
     expect(requiresIOSFaceVerification({ headers: { "user-agent": "Windows" } })).toBe(false);
+  });
+
+  it("allows Android passkey authentication without a stored face template", async () => {
+    dependencies.findEmployeeBiometricRepository.mockResolvedValueOnce({
+      credential_id: Buffer.alloc(16, 1).toString("base64url"),
+      public_key: Buffer.alloc(32, 2).toString("base64url"),
+      authenticator_transports: ["internal"],
+      approval_status: "APPROVED",
+      face_template_encrypted: null,
+    });
+
+    await expect(
+      getBiometricAuthenticationOptionsService(
+        { id: 9, email: "employee@example.com" },
+        { headers: { "user-agent": "Android" } }
+      )
+    ).resolves.toEqual({ challenge: "authentication-challenge" });
   });
 
   it("marks Android attendance with the passkey without requesting a face frame", async () => {

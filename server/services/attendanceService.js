@@ -230,18 +230,21 @@ export const registerBiometricService = async (response, currentUser, req) => {
   };
 };
 
-export const getBiometricAuthenticationOptionsService = async (currentUser) => {
+export const getBiometricAuthenticationOptionsService = async (currentUser, req) => {
   const employee = await getEmployeeId(currentUser);
   const biometric = await findEmployeeBiometricRepository(employee.id);
+  const requiresFace = requiresIOSFaceVerification(req);
   if (
     !biometric ||
     biometric.approval_status !== "APPROVED" ||
     !hasUsablePasskey(biometric) ||
-    !biometric.face_template_encrypted
+    (requiresFace && !biometric.face_template_encrypted)
   ) {
     throw new ApiError(
       403,
-      "Register your attendance passkey and face before marking attendance."
+      requiresFace
+        ? "Register your attendance passkey and face before marking attendance."
+        : "Register your attendance passkey before marking attendance."
     );
   }
 
