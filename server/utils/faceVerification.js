@@ -219,10 +219,12 @@ export const verifyAndCreateFaceTemplate = async (faceProof, expectedChallenge) 
     const centered = Math.abs(centerStart.yaw) < 0.35 && Math.abs(centerEnd.yaw) < 0.35;
     const turnedCorrectly = Math.abs(turned.yaw) > 0.25;
     const matchOptions = { order: 2, multiplier: 25, min: 0.2, max: 0.8 };
-    const samePerson = results.every(
-      (frame) =>
-        human.match.similarity(centerStart.embedding, frame.embedding, matchOptions) >= 0.5
-    );
+    const samePerson =
+      human.match.similarity(
+        centerStart.embedding,
+        centerEnd.embedding,
+        matchOptions
+      ) >= 0.5;
     if (!centered || !turnedCorrectly || !samePerson) {
       throw new ApiError(
         401,
@@ -287,19 +289,15 @@ export const verifyFaceAttendance = async (faceProof, expectedChallenge, encrypt
     const [centerStart, turned, centerEnd] = results;
     const centered = Math.abs(centerStart.yaw) < 0.35 && Math.abs(centerEnd.yaw) < 0.35;
     const turnedCorrectly = Math.abs(turned.yaw) > 0.25;
-    const similarities = results.map((frame) =>
+    const centeredFramesMatch = [centerStart, centerEnd].every((frame) =>
       human.match.similarity(registeredEmbedding, frame.embedding, {
         order: 2,
         multiplier: 25,
         min: 0.2,
         max: 0.8,
-      })
+      }) >= 0.5
     );
-    if (
-      !centered ||
-      !turnedCorrectly ||
-      similarities.some((similarity) => similarity < 0.5)
-    ) {
+    if (!centered || !turnedCorrectly || !centeredFramesMatch) {
       throw new ApiError(401, "Face did not match the registered employee. Try again or contact HR.");
     }
     return true;
