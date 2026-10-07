@@ -69,6 +69,33 @@ const initials = (name = "") =>
     .join("")
     .toUpperCase();
 
+const getReportingLevel = (employee) => {
+  const role = String(employee?.role || "").toUpperCase();
+  const designation = String(employee?.designation || "").toLowerCase();
+
+  if (role === "INTERN" || designation.includes("intern")) return "INTERN";
+  if (designation.includes("sub-team lead") || designation.includes("sub tl")) return "SUB_TL";
+  if (
+    role === "MANAGER" ||
+    designation.includes("department head") ||
+    designation.includes("manager")
+  ) {
+    return "DEPARTMENT_HEAD";
+  }
+  if (role === "TL" || designation.includes("team lead") || designation.includes("team leader")) {
+    return "TL";
+  }
+  return "DIRECT_EMPLOYEE";
+};
+
+const REPORTING_LEVELS = {
+  DIRECT_EMPLOYEE: { role: "EMPLOYEE", designation: "Employee" },
+  DEPARTMENT_HEAD: { role: "TL", designation: "Department Head" },
+  TL: { role: "TL", designation: "Team Lead" },
+  SUB_TL: { role: "TL", designation: "Sub-Team Lead" },
+  INTERN: { role: "INTERN", designation: "Intern" },
+};
+
 const Employees = () => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
@@ -106,6 +133,7 @@ const Employees = () => {
     managed_department_ids: [],
     role: "COUNSELLOR",
     designation: "",
+    reporting_level: "DIRECT_EMPLOYEE",
     status: "ACTIVE",
     reporting_manager_id: "",
   });
@@ -360,6 +388,7 @@ const Employees = () => {
       managed_department_ids: managedDepts,
       role: employee.role || "COUNSELLOR",
       designation: employee.designation || "",
+      reporting_level: getReportingLevel(employee),
       status: employee.status || "ACTIVE",
       reporting_manager_id: employee.reporting_manager_id || "",
       shift_timing_type: employee.shift_timing_type || "DEFAULT",
@@ -1638,7 +1667,16 @@ const Employees = () => {
                         else if (newRole === "INTERN") defaultDesig = "Intern";
                         else if (newRole === "COUNSELLOR") defaultDesig = "Counsellor";
                         else if (newRole === "EMPLOYEE") defaultDesig = "Executive";
-                        setEditForm({ ...editForm, role: newRole, designation: defaultDesig });
+                        const reportingLevel = getReportingLevel({
+                          role: newRole,
+                          designation: defaultDesig,
+                        });
+                        setEditForm({
+                          ...editForm,
+                          role: newRole,
+                          designation: defaultDesig,
+                          reporting_level: reportingLevel,
+                        });
                       }}
                       required
                     >
@@ -1653,6 +1691,33 @@ const Employees = () => {
                   </label>
 
                   <label>
+                    Reporting Level (Approval Hierarchy) *
+                    <select
+                      value={editForm.reporting_level}
+                      onChange={(event) => {
+                        const reportingLevel = event.target.value;
+                        const levelSettings = REPORTING_LEVELS[reportingLevel];
+                        setEditForm({
+                          ...editForm,
+                          reporting_level: reportingLevel,
+                          role: levelSettings.role,
+                          designation: levelSettings.designation,
+                        });
+                      }}
+                      required
+                    >
+                      <option value="DIRECT_EMPLOYEE">Employee — Reports directly to HR</option>
+                      <option value="DEPARTMENT_HEAD">Department Head</option>
+                      <option value="TL">Team Lead (TL)</option>
+                      <option value="SUB_TL">Sub-Team Lead</option>
+                      <option value="INTERN">Intern</option>
+                    </select>
+                    <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
+                      Choose this person&apos;s place in the reporting chain. Department Head, TL, and Sub-Team Lead use team-report access without granting Manager or Super Admin access.
+                    </small>
+                  </label>
+
+                  <label>
                     Status
                     <select
                       value={editForm.status}
@@ -1664,12 +1729,12 @@ const Employees = () => {
                   </label>
 
                   <label>
-                    Department Head / Reporting Manager (Optional)
+                    Reports To (Direct Supervisor)
                     <select
                       value={editForm.reporting_manager_id}
                       onChange={(e) => setEditForm({ ...editForm, reporting_manager_id: e.target.value })}
                     >
-                      <option value="">Select Department Head / Manager / TL</option>
+                      <option value="">Select HR / Department Head / TL / Sub-TL</option>
                       {employees
                         .filter((emp) => emp.id !== editingEmployee.id)
                         .map((emp) => (
@@ -1679,7 +1744,7 @@ const Employees = () => {
                         ))}
                     </select>
                     <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
-                      Daily work reports submitted by this employee will first route to this Department Head for Tier-1 approval.
+                      Set the next person in this employee&apos;s approval chain. Leave blank only when this person reports directly to HR.
                     </small>
                   </label>
 
