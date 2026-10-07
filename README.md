@@ -87,9 +87,10 @@ the `CLIENT_URL` hostname.
 
 Before deploying the updated attendance service, run `npm run db:migrate`.
 The passkey migration invalidates old client-only biometric registrations.
-Each employee must register a passkey and face template once; registration is
-immediately active and does not wait for HR approval. Attendance requires both
-the passkey and a fresh camera face check. Configure a private 32-byte hex key
+Each employee must register a passkey and face template once; registration uses
+three camera frames with a randomized head turn, is immediately active, and does
+not wait for HR approval. Each attendance check requires both the passkey and one
+fresh, centered camera frame that matches the registered face. Configure a private 32-byte hex key
 as `ATTENDANCE_FACE_ENCRYPTION_KEY` before enabling face registration (generate
 one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
 Keep this key in the backend secret manager and back it up securely; rotating it
@@ -97,8 +98,8 @@ means existing face templates can no longer be decrypted and employees must
 re-register after an HR reset.
 
 Face embeddings are encrypted at rest. Camera frames are processed by the
-backend for face match, anti-spoof/liveness scoring, and a randomized head-turn
-check, then discarded. These checks reduce simple photo replay but are not a
+backend for face match and anti-spoof/liveness scoring, then discarded. The
+registration head-turn and attendance liveness checks reduce simple photo replay but are not a
 certified liveness guarantee. Self-registration binds the face seen at
 registration to the signed-in employee account; it does not independently
 prove the employee's legal identity. HR biometric reset deletes the passkey

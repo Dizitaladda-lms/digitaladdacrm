@@ -170,6 +170,12 @@ export const hasConsistentLivenessScores = (scores) =>
   Math.min(...scores) >= 0.4 &&
   scores.reduce((total, score) => total + score, 0) / scores.length >= 0.6;
 
+export const hasValidAttendanceLivenessScore = (score) =>
+  Number.isFinite(score) && score >= 0.6;
+
+export const hasExpectedFaceFrameCount = (frames, expectedCount) =>
+  Array.isArray(frames) && frames.length === expectedCount;
+
 const getEncryptionKey = () => {
   const encodedKey = process.env.ATTENDANCE_FACE_ENCRYPTION_KEY;
   if (!encodedKey || !/^[a-fA-F0-9]{64}$/.test(encodedKey)) {
@@ -210,8 +216,7 @@ export const verifyAndCreateFaceTemplate = async (faceProof, expectedChallenge) 
     if (
       !faceProof ||
       faceProof.challenge !== expectedChallenge.nonce ||
-      !Array.isArray(faceProof.frames) ||
-      faceProof.frames.length !== 3
+      !hasExpectedFaceFrameCount(faceProof.frames, 3)
     ) {
       throw new ApiError(400, "Face verification expired or incomplete. Please try again.");
     }
@@ -250,10 +255,7 @@ export const verifyAndCreateFaceTemplate = async (faceProof, expectedChallenge) 
 
 export const verifyFaceAttendance = async (faceProof, expectedChallenge, encryptedTemplate) =>
   runSerialized(async () => {
-    if (
-      !expectedChallenge?.nonce ||
-      !["LEFT", "RIGHT"].includes(expectedChallenge.turn)
-    ) {
+    if (!expectedChallenge?.nonce) {
       throw new ApiError(400, "Face verification challenge is invalid. Please start again.");
     }
     if (!encryptedTemplate?.encrypted || !encryptedTemplate?.iv || !encryptedTemplate?.tag) {
@@ -262,8 +264,7 @@ export const verifyFaceAttendance = async (faceProof, expectedChallenge, encrypt
     if (
       !faceProof ||
       faceProof.challenge !== expectedChallenge.nonce ||
-      !Array.isArray(faceProof.frames) ||
-      faceProof.frames.length !== 3
+      !hasExpectedFaceFrameCount(faceProof.frames, 1)
     ) {
       throw new ApiError(400, "Face verification expired or incomplete. Please try again.");
     }
@@ -300,25 +301,23 @@ export const verifyFaceAttendance = async (faceProof, expectedChallenge, encrypt
       results.push(await detectFace(await decodeImage(dataUrl)));
     }
 
-    if (!hasConsistentLivenessScores(results.map(({ live }) => live))) {
+    const [capturedFace] = results;
+    if (!hasValidAttendanceLivenessScore(capturedFace.live)) {
       throw new ApiError(
         400,
         "Live face check failed. Use good lighting, look at the camera, and follow the movement prompt."
       );
     }
 
-    const [centerStart, turned, centerEnd] = results;
-    const centered = Math.abs(centerStart.yaw) < 0.35 && Math.abs(centerEnd.yaw) < 0.35;
-    const turnedCorrectly = Math.abs(turned.yaw) > 0.25;
-    const centeredFramesMatch = [centerStart, centerEnd].every((frame) =>
-      human.match.similarity(registeredEmbedding, frame.embedding, {
+    const centered = Math.abs(capturedFace.yaw) < 0.35;
+    const matchesRegisteredFace =
+      human.match.similarity(registeredEmbedding, capturedFace.embedding, {
         order: 2,
         multiplier: 25,
         min: 0.2,
         max: 0.8,
-      }) >= 0.5
-    );
-    if (!centered || !turnedCorrectly || !centeredFramesMatch) {
+      }) >= 0.5;
+    if (!centered || !matchesRegisteredFace) {
       throw new ApiError(401, "Face did not match the registered employee. Try again or contact HR.");
     }
     return true;

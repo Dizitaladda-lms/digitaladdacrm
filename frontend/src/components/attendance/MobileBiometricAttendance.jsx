@@ -841,6 +841,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
       {faceCaptureRequest && (
         <AttendanceFaceCapture
+          purpose={faceCaptureRequest.purpose}
           turn={faceCaptureRequest.challenge.turn}
           onComplete={handleFaceCaptureComplete}
           onCancel={handleFaceCaptureCancel}

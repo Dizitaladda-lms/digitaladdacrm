@@ -2,7 +2,9 @@ import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   encryptFaceTemplate,
+  hasExpectedFaceFrameCount,
   hasConsistentLivenessScores,
+  hasValidAttendanceLivenessScore,
 } from "../utils/faceVerification.js";
 
 describe("face template encryption", () => {
@@ -49,5 +51,22 @@ describe("face liveness scoring", () => {
     expect(hasConsistentLivenessScores([0.5, 0.55, 0.6])).toBe(false);
     expect(hasConsistentLivenessScores([0.8, 0.8])).toBe(false);
     expect(hasConsistentLivenessScores([0.8, Number.NaN, 0.8])).toBe(false);
+  });
+
+  it("requires a strong liveness score for single-frame attendance", () => {
+    expect(hasValidAttendanceLivenessScore(0.6)).toBe(true);
+    expect(hasValidAttendanceLivenessScore(0.59)).toBe(false);
+    expect(hasValidAttendanceLivenessScore(Number.NaN)).toBe(false);
+  });
+});
+
+describe("face proof frame counts", () => {
+  it("keeps three captures for registration and one for attendance", () => {
+    const frames = ["frame-1", "frame-2", "frame-3"];
+    expect(hasExpectedFaceFrameCount(frames, 3)).toBe(true);
+    expect(hasExpectedFaceFrameCount([frames[0]], 1)).toBe(true);
+    expect(hasExpectedFaceFrameCount(frames, 1)).toBe(false);
+    expect(hasExpectedFaceFrameCount([], 1)).toBe(false);
+    expect(hasExpectedFaceFrameCount(null, 1)).toBe(false);
   });
 });

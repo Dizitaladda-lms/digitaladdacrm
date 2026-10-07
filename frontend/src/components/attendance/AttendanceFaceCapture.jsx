@@ -8,7 +8,7 @@ const STEPS = [
   { title: "Look straight again", prompt: "Return to the center and capture." },
 ];
 
-const AttendanceFaceCapture = ({ turn, onComplete, onCancel }) => {
+const AttendanceFaceCapture = ({ purpose, turn, onComplete, onCancel }) => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [cameraReady, setCameraReady] = useState(false);
@@ -69,7 +69,8 @@ const AttendanceFaceCapture = ({ turn, onComplete, onCancel }) => {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     framesRef.current = [...framesRef.current, canvas.toDataURL("image/jpeg", 0.72)];
 
-    if (step === STEPS.length - 1) {
+    const steps = purpose === "registration" ? STEPS : [STEPS[0]];
+    if (step === steps.length - 1) {
       setSubmitting(true);
       onComplete(framesRef.current);
       return;
@@ -77,11 +78,14 @@ const AttendanceFaceCapture = ({ turn, onComplete, onCancel }) => {
     setStep((currentStep) => currentStep + 1);
   };
 
-  const currentStep = STEPS[step];
+  const steps = purpose === "registration" ? STEPS : [STEPS[0]];
+  const currentStep = steps[step];
   const displayTurn = turn === "LEFT" ? "RIGHT" : "LEFT";
-  const prompt = typeof currentStep.prompt === "function"
-    ? currentStep.prompt(displayTurn)
-    : currentStep.prompt;
+  const prompt = purpose !== "registration" && step === 0
+    ? "Look straight at the camera and capture once."
+    : typeof currentStep.prompt === "function"
+      ? currentStep.prompt(displayTurn)
+      : currentStep.prompt;
 
   return (
     <div className="bio-camera-modal-overlay" role="presentation">
@@ -100,9 +104,9 @@ const AttendanceFaceCapture = ({ turn, onComplete, onCancel }) => {
             <X size={20} />
           </button>
         </header>
-        <p className="attendance-face-capture-step">Step {step + 1} of {STEPS.length}</p>
+        <p className="attendance-face-capture-step">Step {step + 1} of {steps.length}</p>
         <p className="attendance-face-capture-prompt">{prompt}</p>
-        {step === 1 && (
+        {purpose === "registration" && step === 1 && (
           <div className="attendance-face-capture-direction" role="img" aria-label={`Move toward screen ${displayTurn.toLowerCase()}`}>
             <span aria-hidden="true">{displayTurn === "LEFT" ? "←" : "→"}</span>
             <strong>{displayTurn} SIDE</strong>
@@ -120,7 +124,7 @@ const AttendanceFaceCapture = ({ turn, onComplete, onCancel }) => {
             onClick={capture}
             disabled={!cameraReady || submitting}
           >
-            <Camera size={16} /> Capture step
+            <Camera size={16} /> {purpose === "registration" ? "Capture step" : "Capture face"}
           </button>
         </div>
       </section>
