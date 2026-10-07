@@ -88,6 +88,31 @@ const getReportingLevel = (employee) => {
   return "DIRECT_EMPLOYEE";
 };
 
+const isEligibleReportingManager = (employee) => {
+  if (!employee) return false;
+
+  const role = String(employee.role || "").toUpperCase();
+  const designation = String(employee.designation || "").toLowerCase();
+
+  return (
+    role === "HR" ||
+    role === "MANAGER" ||
+    role === "ADMIN" ||
+    role === "SUPER_ADMIN" ||
+    role === "TL" ||
+    designation.includes("department head") ||
+    designation.includes("manager") ||
+    designation.includes("team lead") ||
+    designation.includes("team leader") ||
+    designation.includes("sub-team lead") ||
+    designation.includes("sub team lead") ||
+    designation.includes("sub-team leader") ||
+    designation.includes("sub tl") ||
+    designation.includes("supervisor") ||
+    designation.includes("lead")
+  );
+};
+
 const REPORTING_LEVELS = {
   DIRECT_EMPLOYEE: { role: "EMPLOYEE", designation: "Employee" },
   DEPARTMENT_HEAD: { role: "TL", designation: "Department Head" },
@@ -197,6 +222,10 @@ const Employees = () => {
   );
 
   const counsellors = employees.filter((employee) => employee.role === "COUNSELLOR");
+  const reportingManagerOptions = useMemo(
+    () => employees.filter((employee) => isEligibleReportingManager(employee)),
+    [employees]
+  );
 
   const [attendanceFilter, setAttendanceFilter] = useState("ALL"); // "ALL" | "PRESENT" | "ABSENT"
 
@@ -1215,13 +1244,16 @@ const Employees = () => {
                       value={form.reporting_manager_id}
                       onChange={(event) => setForm({ ...form, reporting_manager_id: event.target.value })}
                     >
-                      <option value="">Select Department Head / Manager / TL</option>
-                      {employees
-                        .map((emp) => (
+                      <option value="">Select Department Head / Manager / TL / Sub-TL</option>
+                      {reportingManagerOptions.length === 0 ? (
+                        <option value="" disabled>No eligible reporting managers available</option>
+                      ) : (
+                        reportingManagerOptions.map((emp) => (
                           <option key={emp.id} value={emp.id}>
                             {emp.full_name} ({emp.designation || emp.role})
                           </option>
-                        ))}
+                        ))
+                      )}
                     </select>
                     <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
                       Daily work reports submitted by this employee will first route to this Department Head for Tier-1 approval.
@@ -1738,8 +1770,8 @@ const Employees = () => {
                       onChange={(e) => setEditForm({ ...editForm, reporting_manager_id: e.target.value })}
                     >
                       <option value="">Select HR / Department Head / TL / Sub-TL</option>
-                      {employees
-                        .filter((emp) => emp.id !== editingEmployee.id)
+                      {reportingManagerOptions
+                        .filter((emp) => String(emp.id) !== String(editingEmployee?.id))
                         .map((emp) => (
                           <option key={emp.id} value={emp.id}>
                             {emp.full_name} ({emp.designation || emp.role})
