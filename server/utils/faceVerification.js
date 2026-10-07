@@ -124,9 +124,11 @@ const decodeImage = async (dataUrl) => {
 
 const detectFace = async (image) => {
   const human = await getHuman();
-  const input = human.tf.tensor3d(image.data, [image.height, image.width, 3], "int32")
-    .expandDims(0)
-    .toFloat();
+  const input = human.tf.tensor4d(
+    image.data,
+    [1, image.height, image.width, 3],
+    "float32"
+  );
   let result;
   try {
     result = await human.detect(input, HUMAN_CONFIG);
