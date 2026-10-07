@@ -45,6 +45,7 @@
   align-items: flex-start;
   justify-content: space-between;
   background: #fafafa;
+  flex-shrink: 0;
 }
 
 .modal-eyebrow {
@@ -135,6 +136,9 @@
 .report-modal-body {
   padding: 22px 24px;
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -463,6 +467,7 @@
   justify-content: flex-end;
   gap: 10px;
   background: #fafafa;
+  flex-shrink: 0;
 }
 
 .btn-secondary {
@@ -512,4 +517,33 @@
 
 .btn-success:hover {
   background: #059669;
+}
+
+@media (max-width: 640px) {
+  .report-modal-overlay {
+    padding: 8px;
+  }
+
+  .report-modal-box {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+  }
+
+  .report-modal-header {
+    padding: 16px;
+  }
+
+  .report-modal-body {
+    padding: 16px;
+  }
+
+  .report-modal-footer {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+  }
+
+  .report-modal-footer .btn-primary,
+  .report-modal-footer .btn-success {
+    flex: 1 1 180px;
+  }
 }
