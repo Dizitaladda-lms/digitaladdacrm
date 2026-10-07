@@ -290,6 +290,28 @@ const LeadTable = ({
 
   };
 
+  const formatReceivedAt = (lead) => {
+    const receivedAt = lead.last_received_at || lead.created_at;
+    if (!receivedAt || Number.isNaN(new Date(receivedAt).getTime())) return "--";
+
+    const timestamp = new Date(receivedAt);
+    return {
+      date: timestamp.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      }),
+      time: timestamp.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      }),
+      isRepeatInquiry: Boolean(lead.last_received_at),
+    };
+  };
+
   /*
   ======================================
   Loading State
@@ -400,7 +422,7 @@ const LeadTable = ({
                 ["priority","Priority"],
                 ["assigned_employee","Assigned To"],
                 ["next_followup","Follow-up"],
-                ["created_at","Created"],
+                ["created_at","Received"],
               ].map(([key,label])=>(
                 <th
                   key={key}
@@ -646,9 +668,19 @@ const LeadTable = ({
           )}
         </td>
 
-        {/* Created */}
+        {/* Received */}
         <td className="px-4 py-3 text-xs font-medium text-slate-600">
-          {formatDate(lead.created_at)}
+          {typeof formatReceivedAt(lead) === "string" ? (
+            formatReceivedAt(lead)
+          ) : (
+            <div className="flex flex-col gap-0.5 whitespace-nowrap">
+              <span>{formatReceivedAt(lead).date}</span>
+              <span className="font-semibold text-slate-800">{formatReceivedAt(lead).time}</span>
+              {formatReceivedAt(lead).isRepeatInquiry && (
+                <span className="text-[10px] font-bold text-amber-700">Latest repeat inquiry</span>
+              )}
+            </div>
+          )}
         </td>
 
         {/* Actions */}

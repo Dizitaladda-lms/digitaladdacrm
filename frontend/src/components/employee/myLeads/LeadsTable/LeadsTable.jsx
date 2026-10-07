@@ -52,10 +52,32 @@
     setSelectedLeadIds(allSelectableLeadsSelected ? new Set() : new Set(selectableLeads.map((lead) => lead.id)));
   };
 
-    const isMobile =
+  const isMobile =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
     );
+
+    const formatReceivedAt = (lead) => {
+      const receivedAt = lead.last_received_at || lead.created_at;
+      if (!receivedAt || Number.isNaN(new Date(receivedAt).getTime())) return "-";
+
+      const timestamp = new Date(receivedAt);
+      return {
+        date: timestamp.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          timeZone: "Asia/Kolkata",
+        }),
+        time: timestamp.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        }),
+        isRepeatInquiry: Boolean(lead.last_received_at),
+      };
+    };
 
     if (loading) {
       return (
@@ -124,6 +146,7 @@
               <th>Source</th>
               <th>Status</th>
               <th>Priority</th>
+              <th>Received</th>
               <th>Next Follow-up</th>
               <th>Actions</th>
             </tr>
@@ -224,6 +247,20 @@
                   >
                     {lead.priority || "-"}
                   </span>
+                </td>
+
+                <td style={{ fontSize: "12px", color: "#475569", whiteSpace: "nowrap" }}>
+                  {typeof formatReceivedAt(lead) === "string" ? (
+                    formatReceivedAt(lead)
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span>{formatReceivedAt(lead).date}</span>
+                      <strong style={{ color: "#1e293b" }}>{formatReceivedAt(lead).time}</strong>
+                      {formatReceivedAt(lead).isRepeatInquiry && (
+                        <span style={{ fontSize: "10px", color: "#b45309", fontWeight: 700 }}>Latest inquiry</span>
+                      )}
+                    </div>
+                  )}
                 </td>
 
                 <td style={{ fontSize: "12px", color: "#64748b" }}>
