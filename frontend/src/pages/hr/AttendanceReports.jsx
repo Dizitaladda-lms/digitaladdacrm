@@ -15,6 +15,7 @@ import {
   UserCheck,
   UserX,
   Camera,
+  ScanFace,
   Smartphone,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -64,28 +65,28 @@ const AttendanceReports = () => {
     try {
       setActionId(id);
       await approveBiometricRegistration(id);
-      toast.success(`Face Biometric approved for ${employeeName}! They can now mark attendance.`);
+      toast.success(`Passkey approved for ${employeeName}. They can now mark attendance.`);
       fetchPendingApprovals();
     } catch (err) {
       console.error("Failed to approve biometric:", err);
-      toast.error(err.response?.data?.message || "Failed to approve face biometric.");
+      toast.error(err.response?.data?.message || "Failed to approve passkey.");
     } finally {
       setActionId(null);
     }
   };
 
   const handleRejectFace = async (id, employeeName) => {
-    const reason = window.prompt(`Enter reason for rejecting Face Biometric for ${employeeName}:`, "Selfie photo unclear or face mismatch");
+    const reason = window.prompt(`Enter reason for rejecting the passkey registration for ${employeeName}:`, "Passkey registration needs to be repeated.");
     if (reason === null) return;
 
     try {
       setActionId(id);
       await rejectBiometricRegistration(id, reason);
-      toast.success(`Face Biometric rejected for ${employeeName}.`);
+      toast.success(`Passkey rejected for ${employeeName}.`);
       fetchPendingApprovals();
     } catch (err) {
       console.error("Failed to reject biometric:", err);
-      toast.error(err.response?.data?.message || "Failed to reject face biometric.");
+      toast.error(err.response?.data?.message || "Failed to reject passkey.");
     } finally {
       setActionId(null);
     }
@@ -216,14 +217,14 @@ const AttendanceReports = () => {
                   border: "1px solid rgba(52, 211, 153, 0.3)",
                 }}
               >
-                <Navigation size={13} /> GPS & Face ID Verified
+                <Navigation size={13} /> GPS, Passkey & Face Verified
               </span>
             </div>
             <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
-              Employee Attendance & Face Biometric Approval
+              Employee Attendance Security & Reports
             </h1>
             <p style={{ margin: "6px 0 0 0", color: "#94a3b8", fontSize: "14px" }}>
-              Approve new Laptop Webcam / Mobile Face ID registrations and track live daily GPS attendance check-ins.
+              Manage locked passkey and face registrations, reset employee credentials, and track GPS attendance.
             </p>
           </div>
 
@@ -287,7 +288,7 @@ const AttendanceReports = () => {
               gap: "8px",
             }}
           >
-            <Camera size={16} /> Face Biometric HR Approvals
+            <Camera size={16} /> Passkey HR Approvals
             {pendingCount > 0 && (
               <span style={{ background: "#ef4444", color: "#fff", fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "12px" }}>
                 {pendingCount} Pending
@@ -297,29 +298,29 @@ const AttendanceReports = () => {
         </div>
       </div>
 
-      {/* TAB 1: FACE BIOMETRIC HR APPROVALS */}
+      {/* TAB 1: PASSKEY HR APPROVALS */}
       {activeTab === "FACE_APPROVALS" ? (
         <div style={{ background: "#ffffff", borderRadius: "12px", padding: "24px", border: "1px solid #e2e8f0" }}>
           {/* Section Header & Sub-filter controls */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
             <div>
               <h3 style={{ margin: "0 0 6px 0", fontSize: "20px", fontWeight: "700", color: "#0f172a" }}>
-                📸 {approvalTab === "PENDING"
-                  ? `Pending Face Biometric Approvals (${pendingCount})`
+                🔐 {approvalTab === "PENDING"
+                  ? `Pending Passkey Approvals (${pendingCount})`
                   : approvalTab === "APPROVED"
-                  ? `Approved Face Biometrics (${approvedCount})`
+                  ? `Approved Passkeys (${approvedCount})`
                   : approvalTab === "REJECTED"
-                  ? `Rejected Face Biometrics (${rejectedCount})`
-                  : `All Face Biometric Registrations (${totalApprovalsCount})`}
+                  ? `Rejected Passkeys (${rejectedCount})`
+                  : `All Passkey Registrations (${totalApprovalsCount})`}
               </h3>
               <p style={{ margin: 0, color: "#64748b", fontSize: "13.5px" }}>
                 {approvalTab === "PENDING"
-                  ? "Review employee selfie face photos captured during iPhone/mobile Face ID registration. Approve to allow them to mark attendance."
+                  ? "Review legacy pending registrations. New passkeys and face templates activate immediately without HR approval."
                   : approvalTab === "APPROVED"
-                  ? "Employees with approved Face ID biometrics who are authorized to mark daily attendance."
+                  ? "Employees with active, locked passkeys and face templates who are authorized to mark attendance."
                   : approvalTab === "REJECTED"
-                  ? "Registrations that were rejected by HR. Employees cannot mark attendance until re-approved or reset."
-                  : "Complete directory of all employee Face ID registrations and their current approval status."}
+                  ? "Registrations rejected by HR. HR must reset the credential before an employee can register again."
+                  : "Directory of employee passkey registrations and their current approval status."}
               </p>
             </div>
 
@@ -471,9 +472,9 @@ const AttendanceReports = () => {
           ) : approvalTab === "PENDING" && pendingCount === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 24px", background: "#f8fafc", borderRadius: "14px", border: "1px dashed #cbd5e1" }}>
               <CheckCircle2 size={44} style={{ color: "#10b981", marginBottom: "10px" }} />
-              <h4 style={{ margin: "0 0 6px 0", color: "#1e293b", fontSize: "17px", fontWeight: "700" }}>All Face Registrations Approved!</h4>
+              <h4 style={{ margin: "0 0 6px 0", color: "#1e293b", fontSize: "17px", fontWeight: "700" }}>All Passkey Registrations Approved!</h4>
               <p style={{ margin: "0 0 16px 0", fontSize: "13.5px", color: "#64748b" }}>
-                There are no pending employee face biometric registrations requiring HR review right now.
+                There are no pending employee passkey registrations requiring HR review right now.
               </p>
               {approvedCount > 0 && (
                 <button
@@ -574,7 +575,7 @@ const AttendanceReports = () => {
                       </span>
                     </div>
 
-                    {/* Face Photo Selfie Preview */}
+                    {/* Passkey proof is verified by the server; private key material is never displayed. */}
                     <div
                       style={{
                         width: "100%",
@@ -589,18 +590,10 @@ const AttendanceReports = () => {
                         border: "1px solid #e2e8f0",
                       }}
                     >
-                      {item.face_image_url ? (
-                        <img
-                          src={item.face_image_url}
-                          alt={`${item.employee_name} Face Selfie`}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                      ) : (
-                        <div style={{ color: "#94a3b8", fontSize: "13px", textAlign: "center" }}>
-                          <Camera size={32} style={{ marginBottom: "6px" }} />
-                          <br /> No Face Selfie Captured
-                        </div>
-                      )}
+                      <div style={{ color: "#94a3b8", fontSize: "13px", textAlign: "center" }}>
+                        <ScanFace size={32} style={{ marginBottom: "6px" }} />
+                        <br /> {item.passkey_ready ? "Passkey registered; key verified server-side" : "Passkey re-enrollment required"}
+                      </div>
                     </div>
 
                     <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px", lineHeight: "1.6" }}>
@@ -664,7 +657,7 @@ const AttendanceReports = () => {
                           boxShadow: "0 2px 8px rgba(22, 101, 52, 0.3)",
                         }}
                       >
-                        <UserCheck size={15} /> Approve Face
+                        <UserCheck size={15} /> Approve Passkey
                       </button>
                     </div>
                   ) : item.approval_status === "APPROVED" ? (
@@ -1214,4 +1207,3 @@ const AttendanceReports = () => {
 };
 
 export default AttendanceReports;
-

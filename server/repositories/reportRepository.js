@@ -429,8 +429,18 @@ export const findTeamReportsRepository = async ({
 
   // Department filter (support specific department ID, multiple allowed departments for TL, or all for SuperAdmin/HR)
   if (departmentId && departmentId !== "ALL") {
-    whereClauses.push(`(r.department_id = $${paramIdx++} OR e.department_id = $${paramIdx - 1})`);
-    values.push(departmentId);
+    if (!isSuperAdminOrHR && tlEmployeeId) {
+      whereClauses.push(`(
+        r.department_id = $${paramIdx} OR
+        e.department_id = $${paramIdx} OR
+        e.reporting_manager_id = $${paramIdx + 1}
+      )`);
+      values.push(departmentId, tlEmployeeId);
+      paramIdx += 2;
+    } else {
+      whereClauses.push(`(r.department_id = $${paramIdx++} OR e.department_id = $${paramIdx - 1})`);
+      values.push(departmentId);
+    }
   } else if (!isSuperAdminOrHR) {
     if (Array.isArray(allowedDepartmentIds) && allowedDepartmentIds.length > 0) {
       if (tlEmployeeId) {

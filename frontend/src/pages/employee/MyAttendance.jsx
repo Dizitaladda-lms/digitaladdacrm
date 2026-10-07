@@ -130,7 +130,7 @@ const MyAttendance = () => {
             <AlertCircle size={36} style={{ color: "#94a3b8", marginBottom: "8px" }} />
             <h3 style={{ margin: "0 0 4px 0", color: "#334155" }}>No Attendance Records Found</h3>
             <p style={{ margin: 0, fontSize: "14px" }}>
-              Mark your Face ID or Biometric check-in above to create your first attendance entry.
+              Register a passkey, then use it with GPS above to create your attendance entry.
             </p>
           </div>
         ) : (

@@ -1,5 +1,5 @@
 /* ==========================================================
-   DIZITALADDA CRM — Biometric & Face ID Attendance Card
+   DIZITALADDA CRM — Passkey Attendance Card
    Laptop & Mobile Cross-Platform Styles with Geofence
    ========================================================== */
 
@@ -123,6 +123,101 @@
   color: #94a3b8;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.biometric-registration-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 12px;
+  color: #dbeafe;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.biometric-registration-notice > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #60a5fa;
+}
+
+.biometric-registration-notice strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.biometric-registration-notice p {
+  margin: 0;
+}
+
+.biometric-registration-notice p + p {
+  margin-top: 5px;
+}
+
+.biometric-face-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 10px;
+  color: #dbeafe;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.biometric-face-consent input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  accent-color: #3b82f6;
+}
+
+.attendance-face-capture-step {
+  margin: 0;
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.attendance-face-capture {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+
+.attendance-face-capture-prompt {
+  margin: 6px 0 14px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.attendance-face-capture-video {
+  display: block;
+  width: 100%;
+  max-height: 52vh;
+  background: #020617;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.attendance-face-capture-note {
+  margin: 10px 0 0;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.attendance-face-capture-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 /* Action Buttons */

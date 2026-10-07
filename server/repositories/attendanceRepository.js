@@ -44,53 +44,116 @@ export const findEmployeeBiometricRepository = async (employee_id) => {
   return result.rows[0];
 };
 
-export const saveEmployeeBiometricRepository = async (client, { employee_id, credential_id, public_key, device_info, face_image_url }) => {
+export const saveEmployeeBiometricRepository = async (client, {
+  employee_id,
+  credential_id,
+  public_key,
+  sign_count,
+  authenticator_transports,
+  device_info,
+  face_template,
+}) => {
   const dbClient = client || pool;
-
-  // 1. Check if a biometric record already exists for this employee
-  const existing = await dbClient.query(
-    `SELECT id, face_image_url FROM employee_biometrics WHERE employee_id = $1 LIMIT 1;`,
-    [employee_id]
-  );
-
-  if (existing.rows.length > 0) {
-    const row = existing.rows[0];
-    const updateResult = await dbClient.query(
-      `
-        UPDATE employee_biometrics
-        SET
-          credential_id = $1,
-          public_key = $2,
-          device_info = $3,
-          face_image_url = COALESCE($4, face_image_url),
-          approval_status = 'PENDING_APPROVAL',
-          is_locked = TRUE,
-          registered_at = CURRENT_TIMESTAMP
-        WHERE id = $5
-        RETURNING *;
-      `,
-      [credential_id, public_key, device_info || "Mobile Biometric Device", face_image_url || null, row.id]
-    );
-    return updateResult.rows[0];
-  }
-
-  // 2. Otherwise insert new biometric record
-  const insertResult = await dbClient.query(
+  const result = await dbClient.query(
     `
       INSERT INTO employee_biometrics (
-        employee_id, credential_id, public_key, device_info, face_image_url, is_locked, approval_status, registered_at
+        employee_id, credential_id, public_key, sign_count, authenticator_transports,
+        device_info, face_template_encrypted, face_template_iv, face_template_tag,
+        face_consent_at, is_locked, approval_status, approved_by, approved_at, registered_at
       )
-      VALUES ($1, $2, $3, $4, $5, TRUE, 'PENDING_APPROVAL', CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP,
+        TRUE, 'APPROVED', NULL, NULL, CURRENT_TIMESTAMP)
+      ON CONFLICT (employee_id) DO UPDATE SET
+        credential_id = EXCLUDED.credential_id,
+        public_key = EXCLUDED.public_key,
+        sign_count = EXCLUDED.sign_count,
+        authenticator_transports = EXCLUDED.authenticator_transports,
+        device_info = EXCLUDED.device_info,
+        face_template_encrypted = EXCLUDED.face_template_encrypted,
+        face_template_iv = EXCLUDED.face_template_iv,
+        face_template_tag = EXCLUDED.face_template_tag,
+        face_consent_at = EXCLUDED.face_consent_at,
+        face_image_url = NULL,
+        approval_status = 'APPROVED',
+        approved_by = NULL,
+        approved_at = NULL,
+        rejection_reason = NULL,
+        is_locked = TRUE,
+        registered_at = CURRENT_TIMESTAMP
+      WHERE employee_biometrics.approval_status = 'RE_ENROLL_REQUIRED'
+        AND COALESCE(employee_biometrics.public_key, '') = ''
       RETURNING *;
     `,
-    [employee_id, credential_id, public_key, device_info || "Mobile Biometric Device", face_image_url || null]
+    [
+      employee_id,
+      credential_id,
+      public_key,
+      Number(sign_count) || 0,
+      authenticator_transports || [],
+      device_info || "Platform Passkey",
+      face_template?.encrypted || null,
+      face_template?.iv || null,
+      face_template?.tag || null,
+    ]
   );
-  return insertResult.rows[0];
+  return result.rows[0] || null;
+};
+
+export const saveEmployeeBiometricChallengeRepository = async (
+  employeeId,
+  purpose,
+  challenge
+) => {
+  const result = await pool.query(
+    `INSERT INTO employee_biometric_challenges (employee_id, purpose, challenge, expires_at)
+     VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '5 minutes')
+     ON CONFLICT (employee_id, purpose)
+     DO UPDATE SET challenge = EXCLUDED.challenge,
+                   expires_at = EXCLUDED.expires_at,
+                   created_at = CURRENT_TIMESTAMP
+     RETURNING challenge;`,
+    [employeeId, purpose, challenge]
+  );
+  return result.rows[0]?.challenge;
+};
+
+export const consumeEmployeeBiometricChallengeRepository = async (employeeId, purpose) => {
+  const result = await pool.query(
+    `DELETE FROM employee_biometric_challenges
+     WHERE employee_id = $1 AND purpose = $2 AND expires_at > CURRENT_TIMESTAMP
+     RETURNING challenge;`,
+    [employeeId, purpose]
+  );
+  return result.rows[0]?.challenge || null;
+};
+
+export const updateEmployeeBiometricCounterRepository = async ({
+  employee_id,
+  credential_id,
+  previous_count,
+  sign_count,
+}) => {
+  const result = await pool.query(
+    `UPDATE employee_biometrics
+     SET sign_count = $1
+     WHERE employee_id = $2
+       AND credential_id = $3
+       AND sign_count = $4
+       AND approval_status = 'APPROVED'
+     RETURNING id;`,
+    [Number(sign_count) || 0, employee_id, credential_id, Number(previous_count) || 0]
+  );
+  return result.rowCount === 1;
 };
 
 export const deleteEmployeeBiometricRepository = async (employee_id) => {
   const result = await pool.query(
-    `DELETE FROM employee_biometrics WHERE employee_id = $1 RETURNING *;`,
+    `WITH deleted_challenges AS (
+      DELETE FROM employee_biometric_challenges
+      WHERE employee_id = $1
+      RETURNING employee_id
+    )
+     DELETE FROM employee_biometrics WHERE employee_id = $1 RETURNING *;`,
     [employee_id]
   );
   return result.rows[0];
@@ -99,8 +162,18 @@ export const deleteEmployeeBiometricRepository = async (employee_id) => {
 export const getPendingBiometricApprovalsRepository = async () => {
   const result = await pool.query(
     `
-      SELECT 
-        b.*,
+      SELECT
+        b.id,
+        b.employee_id,
+        b.device_info,
+        b.is_locked,
+        b.approval_status,
+        b.approved_by,
+        b.approved_at,
+        b.registered_at,
+        b.face_image_url,
+        b.rejection_reason,
+        (COALESCE(b.public_key, '') <> '') AS passkey_ready,
         e.full_name AS employee_name,
         e.employee_code,
         e.designation,
@@ -150,7 +223,7 @@ export const rejectBiometricRepository = async (id, reason) => {
       WHERE id = $2
       RETURNING *;
     `,
-    [reason || "Face Biometric rejected by HR. Please re-register.", id]
+    [reason || "Passkey registration rejected by HR. Please re-register.", id]
   );
   return result.rows[0];
 };

@@ -10,6 +10,21 @@ export const registerBiometricCredential = async (payload) => {
   return response.data;
 };
 
+export const getBiometricRegistrationOptions = async () => {
+  const response = await axiosInstance.post("/attendance/biometric/registration-options");
+  return response.data;
+};
+
+export const getBiometricAuthenticationOptions = async () => {
+  const response = await axiosInstance.post("/attendance/biometric/authentication-options");
+  return response.data;
+};
+
+export const getBiometricFaceChallenge = async (purpose) => {
+  const response = await axiosInstance.post("/attendance/biometric/face-challenge", { purpose });
+  return response.data;
+};
+
 export const resetBiometricCredential = async (employeeId) => {
   const url = employeeId ? `/attendance/biometric/reset/${employeeId}` : "/attendance/biometric/reset";
   const response = await axiosInstance.delete(url);

@@ -1,5 +1,18 @@
 import pool from "../config/db.js";
+import crypto from "node:crypto";
 import ApiError from "../utils/ApiError.js";
+import {
+  assertFaceEncryptionConfigured,
+  verifyAndCreateFaceTemplate,
+  verifyFaceAttendance,
+} from "../utils/faceVerification.js";
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+} from "@simplewebauthn/server";
+import { getAttendanceWebAuthnConfig } from "../utils/attendanceWebAuthn.js";
 import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
 import {
   getWhitelistedIPsRepository,
@@ -9,6 +22,9 @@ import {
   saveEmployeeBiometricRepository,
   deleteEmployeeBiometricRepository,
   getPendingBiometricApprovalsRepository,
+  saveEmployeeBiometricChallengeRepository,
+  consumeEmployeeBiometricChallengeRepository,
+  updateEmployeeBiometricCounterRepository,
   approveBiometricRepository,
   rejectBiometricRepository,
   findTodayAttendanceRepository,
@@ -52,6 +68,16 @@ const getEmployeeId = async (currentUser) => {
   return employee;
 };
 
+const isCanonicalBase64Url = (value, minimumBytes) => {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/.test(value)) return false;
+  const decoded = Buffer.from(value, "base64url");
+  return decoded.length >= minimumBytes && decoded.toString("base64url") === value;
+};
+
+const hasUsablePasskey = (biometric) =>
+  isCanonicalBase64Url(biometric?.credential_id, 16) &&
+  isCanonicalBase64Url(biometric?.public_key, 32);
+
 // ==========================================
 // Service Methods
 // ==========================================
@@ -65,6 +91,12 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
     employee_id: employee.id,
     is_registered: !!biometric,
     credential_id: biometric ? biometric.credential_id : null,
+    passkey_ready: hasUsablePasskey(biometric),
+    face_registered: Boolean(
+      biometric?.face_template_encrypted &&
+      biometric?.face_template_iv &&
+      biometric?.face_template_tag
+    ),
     is_locked: biometric ? biometric.is_locked : false,
     approval_status: biometric ? (biometric.approval_status || "APPROVED") : "NOT_REGISTERED",
     face_image_url: biometric ? biometric.face_image_url : null,
@@ -78,30 +110,274 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
   };
 };
 
-export const registerBiometricService = async (payload = {}, currentUser) => {
-  const { credentialId, publicKey, deviceInfo, faceImage } = payload || {};
+export const getBiometricRegistrationOptionsService = async (currentUser) => {
+  assertFaceEncryptionConfigured();
   const employee = await getEmployeeId(currentUser);
   const existing = await findEmployeeBiometricRepository(employee.id);
-
-  if (existing && existing.approval_status === "APPROVED") {
+  if (
+    existing &&
+    !(
+      existing.approval_status === "RE_ENROLL_REQUIRED" &&
+      !hasUsablePasskey(existing)
+    )
+  ) {
     throw new ApiError(
-      400,
-      "Your Face Biometric is already approved by HR and locked. If you need to update your face photo, please ask HR to reset your biometric registration."
+      409,
+      "A passkey is already registered and locked. Contact HR to reset it before registering a new one."
     );
   }
 
-  return await saveEmployeeBiometricRepository(null, {
+  const { rpID, rpName } = getAttendanceWebAuthnConfig();
+  const options = await generateRegistrationOptions({
+    rpName,
+    rpID,
+    userID: Buffer.from(String(employee.id)),
+    userName: currentUser.email,
+    userDisplayName: currentUser.full_name,
+    attestationType: "none",
+    authenticatorSelection: {
+      authenticatorAttachment: "platform",
+      residentKey: "preferred",
+      userVerification: "required",
+    },
+  });
+
+  await saveEmployeeBiometricChallengeRepository(employee.id, "registration", options.challenge);
+  return options;
+};
+
+export const registerBiometricService = async (response, currentUser) => {
+  const { faceProof, faceConsent, ...credentialResponse } = response || {};
+  if (faceConsent !== true) {
+    throw new ApiError(400, "Consent is required to create and use an attendance face template.");
+  }
+  const employee = await getEmployeeId(currentUser);
+  const expectedChallenge = await consumeEmployeeBiometricChallengeRepository(employee.id, "registration");
+  if (!expectedChallenge) {
+    throw new ApiError(400, "Passkey registration expired. Please try again.");
+  }
+
+  const { rpID, origins } = getAttendanceWebAuthnConfig();
+  let verification;
+  try {
+    verification = await verifyRegistrationResponse({
+      response: credentialResponse,
+      expectedChallenge,
+      expectedOrigin: origins,
+      expectedRPID: rpID,
+      requireUserVerification: true,
+    });
+  } catch (error) {
+    console.warn(
+      "Passkey registration response was rejected:",
+      error instanceof Error ? error.message : "Unknown verification error."
+    );
+    throw new ApiError(400, "Passkey registration could not be verified.");
+  }
+
+  if (!verification.verified || !verification.registrationInfo?.credential) {
+    throw new ApiError(400, "Passkey registration could not be verified.");
+  }
+
+  const { credential } = verification.registrationInfo;
+  const faceChallengeResponse = await consumeEmployeeBiometricChallengeRepository(
+    employee.id,
+    "face_registration"
+  );
+  if (!faceChallengeResponse) {
+    throw new ApiError(400, "Face registration expired. Please start registration again.");
+  }
+  let faceChallenge;
+  try {
+    faceChallenge = JSON.parse(faceChallengeResponse);
+  } catch {
+    throw new ApiError(500, "Face registration challenge is invalid. Please start again.");
+  }
+  const faceTemplate = await verifyAndCreateFaceTemplate(faceProof, faceChallenge);
+  const registered = await saveEmployeeBiometricRepository(null, {
     employee_id: employee.id,
-    credential_id: credentialId || `FACE_ID_${employee.id}_${Date.now()}`,
-    public_key: publicKey || "FIDO2_FACE_ID_KEY",
-    device_info: deviceInfo || "Mobile Face ID Device",
-    face_image_url: faceImage || (existing ? existing.face_image_url : null),
+    credential_id: credential.id,
+    public_key: Buffer.from(credential.publicKey).toString("base64url"),
+    sign_count: credential.counter,
+    authenticator_transports: credential.transports || [],
+    device_info: "Platform Passkey",
+    face_template: faceTemplate,
+  });
+  if (!registered) {
+    throw new ApiError(
+      409,
+      "A passkey is already registered and locked. Contact HR to reset it before registering a new one."
+    );
+  }
+  return {
+    employee_id: registered.employee_id,
+    device_info: registered.device_info,
+    is_locked: registered.is_locked,
+    approval_status: registered.approval_status,
+    face_registered: true,
+    registered_at: registered.registered_at,
+  };
+};
+
+export const getBiometricAuthenticationOptionsService = async (currentUser) => {
+  const employee = await getEmployeeId(currentUser);
+  const biometric = await findEmployeeBiometricRepository(employee.id);
+  if (
+    !biometric ||
+    biometric.approval_status !== "APPROVED" ||
+    !hasUsablePasskey(biometric) ||
+    !biometric.face_template_encrypted
+  ) {
+    throw new ApiError(
+      403,
+      "Register your attendance passkey and face before marking attendance."
+    );
+  }
+
+  const { rpID } = getAttendanceWebAuthnConfig();
+  const options = await generateAuthenticationOptions({
+    rpID,
+    allowCredentials: [{
+      id: biometric.credential_id,
+      transports: biometric.authenticator_transports || [],
+    }],
+    userVerification: "required",
+  });
+  await saveEmployeeBiometricChallengeRepository(employee.id, "authentication", options.challenge);
+  return options;
+};
+
+export const getBiometricFaceChallengeService = async (currentUser, purpose) => {
+  if (purpose !== "registration" && purpose !== "authentication") {
+    throw new ApiError(400, "A valid face verification purpose is required.");
+  }
+  const employee = await getEmployeeId(currentUser);
+  const registration = purpose === "registration";
+  const biometric = await findEmployeeBiometricRepository(employee.id);
+  if (registration) {
+    if (
+      biometric &&
+      !(
+        biometric.approval_status === "RE_ENROLL_REQUIRED" &&
+        !hasUsablePasskey(biometric)
+      )
+    ) {
+      throw new ApiError(409, "This passkey is already registered and locked. Contact HR to reset it.");
+    }
+    const registrationChallenge = await pool.query(
+      `SELECT 1 FROM employee_biometric_challenges
+       WHERE employee_id = $1 AND purpose = 'registration' AND expires_at > CURRENT_TIMESTAMP`,
+      [employee.id]
+    );
+    if (registrationChallenge.rowCount !== 1) {
+      throw new ApiError(400, "Start passkey registration before face registration.");
+    }
+  } else {
+    if (
+      !biometric ||
+      biometric.approval_status !== "APPROVED" ||
+      !hasUsablePasskey(biometric) ||
+      !biometric.face_template_encrypted
+    ) {
+      throw new ApiError(403, "Register your attendance passkey and face before marking attendance.");
+    }
+  }
+
+  const faceChallenge = {
+    nonce: crypto.randomBytes(32).toString("base64url"),
+    turn: crypto.randomInt(0, 2) === 0 ? "LEFT" : "RIGHT",
+  };
+  await saveEmployeeBiometricChallengeRepository(
+    employee.id,
+    registration ? "face_registration" : "face_authentication",
+    JSON.stringify(faceChallenge)
+  );
+  return { challenge: faceChallenge.nonce, turn: faceChallenge.turn };
+};
+
+const verifyAttendancePasskey = async (employeeId, response) => {
+  if (!response || typeof response !== "object") {
+    throw new ApiError(401, "A verified passkey is required to mark attendance.");
+  }
+
+  const biometric = await findEmployeeBiometricRepository(employeeId);
+  if (
+    !biometric ||
+    biometric.approval_status !== "APPROVED" ||
+    !hasUsablePasskey(biometric)
+  ) {
+    throw new ApiError(403, "Register an attendance passkey before marking attendance.");
+  }
+
+  const expectedChallenge = await consumeEmployeeBiometricChallengeRepository(employeeId, "authentication");
+  if (!expectedChallenge) {
+    throw new ApiError(401, "Passkey verification expired. Please try again.");
+  }
+
+  const { rpID, origins } = getAttendanceWebAuthnConfig();
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response,
+      expectedChallenge,
+      expectedOrigin: origins,
+      expectedRPID: rpID,
+      credential: {
+        id: biometric.credential_id,
+        publicKey: Buffer.from(biometric.public_key, "base64url"),
+        counter: Number(biometric.sign_count) || 0,
+        transports: biometric.authenticator_transports || [],
+      },
+      requireUserVerification: true,
+    });
+  } catch (error) {
+    console.warn(
+      "Passkey authentication response was rejected:",
+      error instanceof Error ? error.message : "Unknown verification error."
+    );
+    throw new ApiError(401, "Passkey verification failed.");
+  }
+
+  if (!verification.verified) {
+    throw new ApiError(401, "Passkey verification failed.");
+  }
+
+  const counterUpdated = await updateEmployeeBiometricCounterRepository({
+    employee_id: employeeId,
+    credential_id: biometric.credential_id,
+    previous_count: biometric.sign_count,
+    sign_count: verification.authenticationInfo.newCounter,
+  });
+  if (!counterUpdated) {
+    throw new ApiError(409, "Passkey changed during verification. Please try again.");
+  }
+  return biometric;
+};
+
+const verifyAttendanceFace = async (employeeId, biometric, faceProof) => {
+  const challengeValue = await consumeEmployeeBiometricChallengeRepository(
+    employeeId,
+    "face_authentication"
+  );
+  if (!challengeValue) {
+    throw new ApiError(401, "Face verification expired. Please try again.");
+  }
+  let expectedChallenge;
+  try {
+    expectedChallenge = JSON.parse(challengeValue);
+  } catch {
+    throw new ApiError(500, "Face verification challenge is invalid. Please try again.");
+  }
+  await verifyFaceAttendance(faceProof, expectedChallenge, {
+    encrypted: biometric.face_template_encrypted,
+    iv: biometric.face_template_iv,
+    tag: biometric.face_template_tag,
   });
 };
 
-// Office Geofence Coordinates: 28°32'30.4"N 77°14'26.7"E (28.541778, 77.240750)
-const OFFICE_LAT = 28.541778;
-const OFFICE_LNG = 77.240750;
+// Office Geofence Coordinates: 28°32'30.3"N 77°14'26.2"E
+const OFFICE_LAT = 28.54175;
+const OFFICE_LNG = 77.240611111;
 const MAX_GEOFENCE_RADIUS_METERS = 100;
 
 export const calculateGeofenceDistance = (userLat, userLng) => {
@@ -116,17 +392,36 @@ export const calculateGeofenceDistance = (userLat, userLng) => {
   return R * c;
 };
 
-export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
-  const { credentialId, latitude, longitude, location_name, faceImage } = payload || {};
-
-  if (!latitude || !longitude || location_name?.includes("Denied") || location_name?.includes("Unavailable")) {
+const getValidatedCoordinates = (latitude, longitude, locationName, action) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  const locationUnavailable =
+    typeof locationName === "string" &&
+    (locationName.includes("Denied") || locationName.includes("Unavailable"));
+  if (
+    latitude === undefined ||
+    longitude === undefined ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180 ||
+    locationUnavailable
+  ) {
     throw new ApiError(
       400,
-      "📍 GPS Location Permission is mandatory to mark attendance! Please enable location access on your device."
+      `GPS location is required to ${action}. Please enable location access on your device.`
     );
   }
+  return { lat, lng };
+};
 
-  const distanceInMeters = calculateGeofenceDistance(Number(latitude), Number(longitude));
+export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
+  const { assertion, faceProof, latitude, longitude, location_name } = payload || {};
+  const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "mark attendance");
+
+  const distanceInMeters = calculateGeofenceDistance(lat, lng);
   if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
     throw new ApiError(
       400,
@@ -134,35 +429,10 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     );
   }
 
-  const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
-
-  let biometric = await findEmployeeBiometricRepository(employee.id);
-
-  // STRICT RULE: Attendance can ONLY be marked after HR APPROVAL!
-  if (!biometric || biometric.approval_status !== "APPROVED") {
-    if (!biometric || biometric.approval_status === "NOT_REGISTERED") {
-      throw new ApiError(
-        403,
-        "🔒 Attendance blocked! You must register your Face ID selfie photo for HR approval before marking attendance."
-      );
-    } else if (biometric.approval_status === "PENDING_APPROVAL") {
-      throw new ApiError(
-        403,
-        "⏳ Attendance blocked! Your Face ID registration is pending approval by HR. Attendance will unlock as soon as HR approves your Face ID."
-      );
-    } else if (biometric.approval_status === "REJECTED") {
-      throw new ApiError(
-        403,
-        "❌ Attendance blocked! Your Face ID was rejected by HR. Please re-capture your face selfie for approval."
-      );
-    } else {
-      throw new ApiError(
-        403,
-        "🔒 Attendance blocked! Your Face ID Biometric must be approved by HR first."
-      );
-    }
-  }
+  const biometric = await verifyAttendancePasskey(employee.id, assertion);
+  await verifyAttendanceFace(employee.id, biometric, faceProof);
+  const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -231,8 +501,8 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     ip_address: clientIp,
     is_office_wifi: isOfficeWifi,
     status,
-    check_in_lat: Number(latitude),
-    check_in_lng: Number(longitude),
+    check_in_lat: lat,
+    check_in_lng: lng,
     check_in_location: cleanLocation,
   });
 
@@ -240,16 +510,10 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
 };
 
 export const checkOutAttendanceService = async (payload = {}, currentUser, req) => {
-  const { latitude, longitude, location_name } = payload || {};
+  const { assertion, faceProof, latitude, longitude, location_name } = payload || {};
+  const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "check out");
 
-  if (!latitude || !longitude || location_name?.includes("Denied") || location_name?.includes("Unavailable")) {
-    throw new ApiError(
-      400,
-      "📍 GPS Location Permission is mandatory to check-out! Please enable location access on your device."
-    );
-  }
-
-  const distanceInMeters = calculateGeofenceDistance(Number(latitude), Number(longitude));
+  const distanceInMeters = calculateGeofenceDistance(lat, lng);
   if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
     throw new ApiError(
       400,
@@ -259,14 +523,8 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
 
   await verifyOfficeIP(req);
   const employee = await getEmployeeId(currentUser);
-
-  let biometric = await findEmployeeBiometricRepository(employee.id);
-  if (!biometric || biometric.approval_status !== "APPROVED") {
-    throw new ApiError(
-      403,
-      "🔒 Check-out blocked! Your Face ID Biometric must be approved by HR first."
-    );
-  }
+  const biometric = await verifyAttendancePasskey(employee.id, assertion);
+  await verifyAttendanceFace(employee.id, biometric, faceProof);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayAttendance = await findTodayAttendanceRepository(employee.id, todayStr);
@@ -282,8 +540,8 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
 
   return await updateAttendanceCheckOutRepository(null, {
     id: todayAttendance.id,
-    check_out_lat: Number(latitude),
-    check_out_lng: Number(longitude),
+    check_out_lat: lat,
+    check_out_lng: lng,
     check_out_location: cleanLocation,
   });
 };
@@ -338,15 +596,16 @@ export const deleteOfficeIPService = async (id) => {
 };
 
 export const resetEmployeeBiometricService = async (targetEmployeeId, currentUser) => {
-  const isHR = ["HR", "ADMIN", "SUPER_ADMIN"].includes(currentUser.role);
-  let empIdToReset = targetEmployeeId;
-
-  if (!empIdToReset || !isHR) {
-    const employee = await getEmployeeId(currentUser);
-    empIdToReset = employee.id;
+  if (!["HR", "ADMIN", "SUPER_ADMIN"].includes(currentUser.role)) {
+    throw new ApiError(403, "Only HR or an administrator can reset an attendance passkey.");
   }
 
-  const deleted = await deleteEmployeeBiometricRepository(empIdToReset);
+  const employeeId = Number(targetEmployeeId);
+  if (!Number.isSafeInteger(employeeId) || employeeId <= 0) {
+    throw new ApiError(400, "A valid employee ID is required to reset an attendance passkey.");
+  }
+
+  const deleted = await deleteEmployeeBiometricRepository(employeeId);
   if (!deleted) {
     throw new ApiError(404, "No biometric registration found for this employee.");
   }

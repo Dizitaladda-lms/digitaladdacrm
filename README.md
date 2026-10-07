@@ -77,6 +77,34 @@ Environment Variables settings) and redeploy the backend. Keep the private key
 secret, and do not rotate the pair after clients have subscribed unless users
 will re-subscribe with the new public key.
 
+### Attendance passkeys
+
+Attendance uses server-verified WebAuthn passkeys and requires HTTPS. Set
+`CLIENT_URL` to the canonical frontend origin; if `ALLOWED_ORIGINS` contains
+additional frontend origins, they must use the same WebAuthn relying-party
+domain. Set `WEBAUTHN_RP_ID` only when the relying-party domain differs from
+the `CLIENT_URL` hostname.
+
+Before deploying the updated attendance service, run `npm run db:migrate`.
+The passkey migration invalidates old client-only biometric registrations.
+Each employee must register a passkey and face template once; registration is
+immediately active and does not wait for HR approval. Attendance requires both
+the passkey and a fresh camera face check. Configure a private 32-byte hex key
+as `ATTENDANCE_FACE_ENCRYPTION_KEY` before enabling face registration (generate
+one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
+Keep this key in the backend secret manager and back it up securely; rotating it
+means existing face templates can no longer be decrypted and employees must
+re-register after an HR reset.
+
+Face embeddings are encrypted at rest. Camera frames are processed by the
+backend for face match, anti-spoof/liveness scoring, and a randomized head-turn
+check, then discarded. These checks reduce simple photo replay but are not a
+certified liveness guarantee. Self-registration binds the face seen at
+registration to the signed-in employee account; it does not independently
+prove the employee's legal identity. HR biometric reset deletes the passkey
+and face template. Mobile-data attendance remains enabled; client-reported GPS
+coordinates are still not a server-verifiable location signal.
+
 ---
 
 ## Features

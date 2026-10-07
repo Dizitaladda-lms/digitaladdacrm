@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Fingerprint,
+  ScanFace,
   CheckCircle2,
-  Lock,
   Clock,
-  LogOut,
   Smartphone,
   Laptop,
   MapPin,
@@ -16,19 +14,23 @@ import {
   UserCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import {
   getBiometricStatus,
+  getBiometricRegistrationOptions,
+  getBiometricAuthenticationOptions,
+  getBiometricFaceChallenge,
   registerBiometricCredential,
   checkInAttendance,
   checkOutAttendance,
 } from "../../services/attendanceService";
-import { useAuth } from "../../context/AuthContext";
+import AttendanceFaceCapture from "./AttendanceFaceCapture";
 import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
 import "./MobileBiometricAttendance.css";
 
 // 100% In-House Geofence Protection - Strict 100 Meters Office Radius
-const OFFICE_LAT = 28.541778;
-const OFFICE_LNG = 77.240750;
+const OFFICE_LAT = 28.54175;
+const OFFICE_LNG = 77.240611111;
 const MAX_GEOFENCE_RADIUS_METERS = 100;
 
 /**
@@ -142,30 +144,14 @@ export const getGPSLocation = () => {
   });
 };
 
-const parseCredentialId = (credId) => {
-  if (!credId || typeof credId !== "string") return null;
-  if (credId.startsWith("FACE_ID") || credId.startsWith("WEBAUTHN_")) return null;
-  try {
-    let b64 = credId.replace(/-/g, "+").replace(/_/g, "/");
-    while (b64.length % 4) b64 += "=";
-    const bin = atob(b64);
-    const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) {
-      arr[i] = bin.charCodeAt(i);
-    }
-    return arr;
-  } catch (e) {
-    return null;
-  }
-};
-
 const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
-  const { user } = useAuth();
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [locationData, setLocationData] = useState(null);
   const [locating, setLocating] = useState(false);
+  const [faceConsentChecked, setFaceConsentChecked] = useState(false);
+  const [faceCaptureRequest, setFaceCaptureRequest] = useState(null);
 
   // Camera Selfie State for Face ID (Laptop Webcam & Mobile Camera)
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -385,7 +371,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       const credentialId = "FACE_ID_" + (device.isLaptop ? "LAPTOP_" : "MOBILE_") + Date.now();
       const publicKey = "FIDO2_FACE_KEY_" + Math.random().toString(36).substring(7);
 
-      const res = await registerBiometricCredential({
+      await registerBiometricCredential({
         credentialId,
         publicKey,
         faceImage: capturedPhoto,
@@ -464,7 +450,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         return;
       }
 
-      const res = await checkOutAttendance({
+      await checkOutAttendance({
         latitude: loc.latitude,
         longitude: loc.longitude,
         location_name: loc.location_name,
@@ -484,169 +470,121 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
-  const handleRegisterFingerprint = async () => {
+  const handleRegisterPasskey = async () => {
+    if (!faceConsentChecked) {
+      toast.error("Please read and accept the face-template consent before registering.");
+      return;
+    }
     if (!window.isSecureContext) {
       toast.error("Biometric registration requires a secure connection (localhost or HTTPS).");
       return;
     }
 
     if (!window.PublicKeyCredential) {
-      toast.error("Fingerprint scanner / Biometric is not supported on this device/browser.");
+      toast.error("This device or browser does not support passkeys.");
       return;
     }
 
     try {
       setActionLoading(true);
-      toast.loading("Touch your fingerprint sensor to register...", { id: "biometric-reg" });
-
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      const userIdStr = String(user?.id || user?.email || "emp-" + Date.now());
-      const userBytes = new TextEncoder().encode(userIdStr);
-
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge: challenge,
-          rp: {
-            name: "Dizital Adda Biometric Attendance",
-            id: window.location.hostname,
-          },
-          user: {
-            id: userBytes,
-            name: user?.email || "employee@dizitaladda.com",
-            displayName: user?.full_name || "Employee",
-          },
-          pubKeyCredParams: [
-            { type: "public-key", alg: -7 },  // ES256
-            { type: "public-key", alg: -257 }, // RS256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform",
-            userVerification: "required",
-            residentKey: "preferred",
-            requireResidentKey: false,
-          },
-          timeout: 60000,
-          attestation: "none",
-        },
+      toast.loading("Set up your device passkey...", { id: "biometric-reg" });
+      const optionsResponse = await getBiometricRegistrationOptions();
+      const credential = await startRegistration({
+        optionsJSON: optionsResponse.data,
       });
-
+      const faceChallengeResponse = await getBiometricFaceChallenge("registration");
       toast.dismiss("biometric-reg");
-
-      if (!credential || !credential.id) {
-        toast.error("Failed to capture fingerprint credential from sensor.");
-        return;
-      }
-
-      try {
-        localStorage.setItem("dizitaladda_biometric_cred_id", credential.id);
-      } catch (e) {}
-
-      await registerBiometricCredential({
-        credentialId: credential.id,
-        publicKey: "WEBAUTHN_PUBLIC_KEY",
-        deviceInfo: navigator.userAgent.includes("Windows")
-          ? "Windows Hello Fingerprint / Biometric"
-          : navigator.userAgent.includes("iPhone")
-          ? "iOS Touch ID / Face ID"
-          : navigator.userAgent.includes("Android")
-          ? "Android Biometric / Fingerprint"
-          : "Device Biometric Authenticator",
+      setFaceCaptureRequest({
+        purpose: "registration",
+        challenge: faceChallengeResponse.data,
+        credential,
       });
-
-      toast.success("Fingerprint registered successfully and submitted for HR approval! 🖐️");
-      await loadStatus();
     } catch (err) {
       toast.dismiss("biometric-reg");
-      console.error("Biometric registration error:", err);
-      if (err.name === "NotAllowedError") {
-        toast.error("Fingerprint registration cancelled or timed out.");
-      } else {
-        toast.error(err.response?.data?.message || err.message || "Failed to register fingerprint.");
-      }
+      toast.error(err.response?.data?.message || err.message || "Failed to register passkey.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleFingerprintCheckIn = async () => {
+  const handleFaceCaptureCancel = useCallback(() => {
+    setFaceCaptureRequest(null);
+  }, []);
+
+  const handleFaceCaptureComplete = async (frames) => {
+    const captureRequest = faceCaptureRequest;
+    if (!captureRequest) return;
+
+    setActionLoading(true);
+    const faceProof = {
+      challenge: captureRequest.challenge.challenge,
+      frames,
+    };
+    try {
+      if (captureRequest.purpose === "registration") {
+        await registerBiometricCredential({
+          ...captureRequest.credential,
+          faceProof,
+          faceConsent: true,
+        });
+        toast.success("Passkey and face registered, active, and locked. HR approval is not required.");
+        await loadStatus();
+      } else {
+        const submitAttendance =
+          captureRequest.purpose === "check-in" ? checkInAttendance : checkOutAttendance;
+        const result = await submitAttendance({
+          ...captureRequest.attendancePayload,
+          faceProof,
+        });
+        toast.success(
+          captureRequest.purpose === "check-in"
+            ? `Passkey and face verified. Check-in marked at 📍 ${captureRequest.attendancePayload.location_name}`
+            : `Passkey and face verified. Check-out marked at 📍 ${captureRequest.attendancePayload.location_name}`
+        );
+        await loadStatus();
+        if (captureRequest.purpose === "check-in" && onCheckInSuccess) {
+          onCheckInSuccess(result?.data);
+        }
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || "Face verification failed.");
+    } finally {
+      setFaceCaptureRequest(null);
+      setActionLoading(false);
+    }
+  };
+
+  const handlePasskeyCheckIn = async () => {
     try {
       setActionLoading(true);
-
-      // 1. Mandatory Biometric Hardware Scan
-      let credentialId = null;
-      if (window.isSecureContext && window.PublicKeyCredential) {
-        toast.loading("Touch your fingerprint sensor to verify attendance...", { id: "biometric-auth" });
-        try {
-          const challenge = new Uint8Array(32);
-          window.crypto.getRandomValues(challenge);
-
-          const storedCredId = statusData?.credential_id || localStorage.getItem("dizitaladda_biometric_cred_id");
-          const credBuffer = parseCredentialId(storedCredId);
-
-          const getOptions = {
-            publicKey: {
-              challenge: challenge,
-              rpId: window.location.hostname,
-              userVerification: "required",
-              timeout: 60000,
-              ...(credBuffer
-                ? {
-                    allowCredentials: [
-                      {
-                        type: "public-key",
-                        id: credBuffer,
-                        transports: ["internal"],
-                      },
-                    ],
-                  }
-                : {}),
-            },
-          };
-
-          const assertion = await navigator.credentials.get(getOptions);
-          toast.dismiss("biometric-auth");
-          if (!assertion || !assertion.id) {
-            toast.error("Fingerprint scan failed. Please touch the sensor again.");
-            return;
-          }
-          credentialId = assertion.id;
-        } catch (authErr) {
-          toast.dismiss("biometric-auth");
-          console.error("Biometric verification error:", authErr);
-          if (authErr.name === "NotAllowedError") {
-            toast.error("Fingerprint verification cancelled or not detected. You must place your finger on the sensor!");
-          } else {
-            toast.error(`Fingerprint Scan Error: ${authErr.message || "Device fingerprint not verified"}`);
-          }
-          return;
-        }
-      } else {
-        toast.error("Fingerprint sensor not supported on this browser. Please use Face ID camera check-in.");
-        return;
-      }
-
-      // 2. Fetch GPS Location
       const loc = await getGPSLocation();
       setLocationData(loc);
-
       if (!validateGPSLocation(loc)) {
         return;
       }
 
-      // 3. Mark check-in in DB
-      const res = await checkInAttendance({
-        credentialId: credentialId || "WEBAUTHN_VERIFIED_" + Date.now(),
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        location_name: loc.location_name,
+      if (!window.isSecureContext || !window.PublicKeyCredential) {
+        throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
+      }
+      toast.loading("Verify your device passkey...", { id: "biometric-auth" });
+      const optionsResponse = await getBiometricAuthenticationOptions();
+      const assertion = await startAuthentication({
+        optionsJSON: optionsResponse.data,
       });
-
-      toast.success(`Fingerprint Verified! Check-In marked at 📍 ${loc.location_name}`);
-      await loadStatus();
-      if (onCheckInSuccess) onCheckInSuccess(res?.data);
+      const faceChallengeResponse = await getBiometricFaceChallenge("authentication");
+      toast.dismiss("biometric-auth");
+      setFaceCaptureRequest({
+        purpose: "check-in",
+        challenge: faceChallengeResponse.data,
+        attendancePayload: {
+          assertion,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          location_name: loc.location_name,
+        },
+      });
     } catch (err) {
+      toast.dismiss("biometric-auth");
       const msg = err.response?.data?.message || err.message || "Failed to mark check-in.";
       toast.error(msg);
     } finally {
@@ -654,77 +592,38 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
-  const handleFingerprintCheckOut = async () => {
+  const handlePasskeyCheckOut = async () => {
     try {
       setActionLoading(true);
 
-      if (window.isSecureContext && window.PublicKeyCredential) {
-        toast.loading("Touch your fingerprint sensor to verify check-out...", { id: "biometric-auth" });
-        try {
-          const challenge = new Uint8Array(32);
-          window.crypto.getRandomValues(challenge);
-
-          const storedCredId = statusData?.credential_id || localStorage.getItem("dizitaladda_biometric_cred_id");
-          const credBuffer = parseCredentialId(storedCredId);
-
-          const getOptions = {
-            publicKey: {
-              challenge: challenge,
-              rpId: window.location.hostname,
-              userVerification: "required",
-              timeout: 60000,
-              ...(credBuffer
-                ? {
-                    allowCredentials: [
-                      {
-                        type: "public-key",
-                        id: credBuffer,
-                        transports: ["internal"],
-                      },
-                    ],
-                  }
-                : {}),
-            },
-          };
-
-          const assertion = await navigator.credentials.get(getOptions);
-          toast.dismiss("biometric-auth");
-          if (!assertion || !assertion.id) {
-            toast.error("Fingerprint scan failed. Please touch the sensor again.");
-            return;
-          }
-        } catch (authErr) {
-          toast.dismiss("biometric-auth");
-          console.error("Biometric verification error:", authErr);
-          if (authErr.name === "NotAllowedError") {
-            toast.error("Fingerprint verification cancelled. Fingerprint is required to check-out!");
-          } else {
-            toast.error(`Fingerprint Scan Error: ${authErr.message || "Device fingerprint not verified"}`);
-          }
-          return;
-        }
-      } else {
-        toast.error("Fingerprint sensor not supported on this browser. Please use Face ID camera check-out.");
-        return;
-      }
-
-      // Fetch GPS Location
       const loc = await getGPSLocation();
       setLocationData(loc);
-
       if (!validateGPSLocation(loc)) {
         return;
       }
 
-      const res = await checkOutAttendance({
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        location_name: loc.location_name,
+      if (!window.isSecureContext || !window.PublicKeyCredential) {
+        throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
+      }
+      toast.loading("Verify your device passkey...", { id: "biometric-auth" });
+      const optionsResponse = await getBiometricAuthenticationOptions();
+      const assertion = await startAuthentication({
+        optionsJSON: optionsResponse.data,
       });
-
-      toast.success(`Fingerprint Verified! Check-Out marked at 📍 ${loc.location_name}`);
-      await loadStatus();
+      const faceChallengeResponse = await getBiometricFaceChallenge("authentication");
+      toast.dismiss("biometric-auth");
+      setFaceCaptureRequest({
+        purpose: "check-out",
+        challenge: faceChallengeResponse.data,
+        attendancePayload: {
+          assertion,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          location_name: loc.location_name,
+        },
+      });
     } catch (err) {
+      toast.dismiss("biometric-auth");
       const msg = err.response?.data?.message || err.message || "Failed to check out.";
       toast.error(msg);
     } finally {
@@ -734,6 +633,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const today = statusData?.today_attendance;
   const approvalStatus = statusData?.approval_status || (statusData?.is_registered ? "APPROVED" : "NOT_REGISTERED");
+  const needsPasskeyRegistration =
+    approvalStatus === "NOT_REGISTERED" ||
+    approvalStatus === "RE_ENROLL_REQUIRED" ||
+    (approvalStatus === "APPROVED" && !statusData?.passkey_ready);
+  const needsFaceRegistration =
+    !loading &&
+    approvalStatus === "APPROVED" &&
+    statusData?.passkey_ready &&
+    !statusData?.face_registered;
 
   const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
 
@@ -746,23 +654,33 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             {/* Device pill */}
             <span className="biometric-pill biometric-pill-device">
               {device.isLaptop ? <Laptop size={14} /> : <Smartphone size={14} />}
-              {device.isLaptop ? "Laptop & Desktop Webcam Face ID" : "Mobile Phone & iPhone Face ID"}
+              {device.isLaptop ? "Laptop & Desktop Passkey" : "Mobile Phone Passkey"}
             </span>
 
             {/* Approval status */}
             {approvalStatus === "APPROVED" && (
               <span className="biometric-pill biometric-pill-approved">
-                <ShieldCheck size={14} /> Face ID HR Approved
+                <ShieldCheck size={14} />{" "}
+                {statusData?.face_registered
+                  ? "Passkey & Face Active"
+                  : statusData?.passkey_ready
+                  ? "Face setup required"
+                  : "Passkey Active & Locked"}
               </span>
             )}
             {approvalStatus === "PENDING_APPROVAL" && (
               <span className="biometric-pill biometric-pill-pending">
-                <Clock size={14} /> Pending HR Approval
+                <Clock size={14} /> Passkey Pending Review
               </span>
             )}
             {approvalStatus === "REJECTED" && (
               <span className="biometric-pill biometric-pill-rejected">
-                <AlertTriangle size={14} /> Face ID Rejected by HR
+                <AlertTriangle size={14} /> Passkey Rejected by HR
+              </span>
+            )}
+            {approvalStatus === "RE_ENROLL_REQUIRED" && (
+              <span className="biometric-pill biometric-pill-rejected">
+                <AlertTriangle size={14} /> Passkey setup required
               </span>
             )}
 
@@ -807,9 +725,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ? today.check_out_time
                 ? "Attendance Marked & Completed Today"
                 : "Checked-In (Shift Active)"
-              : device.isLaptop
-              ? "Mark Daily Attendance (Laptop Webcam Face ID)"
-              : "Mark Daily Attendance (Mobile Face ID)"}
+              : "Mark Daily Attendance with Passkey"}
           </h2>
 
           <p className="biometric-subtitle">
@@ -817,86 +733,85 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ? `Your Assigned Shift: ${format12hTime(statusData.shift_start_time || "10:00")} - ${format12hTime(statusData.shift_end_time || "18:00")} (Custom Schedule)`
               : "Office Timings: Mon-Fri (10:00 AM - 6:00 PM), Sat (9:30 AM - 5:30 PM), Sun (9:30 AM - 2:00 PM)"}
           </p>
+
+          {!loading && needsPasskeyRegistration && (
+            <div className="biometric-registration-notice" role="status">
+              <ShieldCheck size={18} aria-hidden="true" />
+              <div>
+                <strong>Attendance security update</strong>
+                <p>
+                  Attendance system mein security changes kiye gaye hain. Pehli baar attendance lagane se pehle
+                  yahan passkey aur apna live face register karein. Registration ke baad ye turant active
+                  ho jayenge—HR approval ka wait nahi karna hoga.
+                </p>
+                <p>
+                  {device.isIPhone
+                    ? "iPhone par Face ID ya phone passcode se confirm karein."
+                    : device.isAndroid
+                    ? "Android par fingerprint ya phone screen lock se confirm karein—jo aapke device par available ho. Saath mein camera se live face match hoga."
+                    : "Apne device ke security prompt se passkey confirm karein."}
+                </p>
+                <label className="biometric-face-consent">
+                  <input
+                    type="checkbox"
+                    checked={faceConsentChecked}
+                    onChange={(event) => setFaceConsentChecked(event.target.checked)}
+                  />
+                  <span>
+                    I agree to create an encrypted face template for attendance matching. Live camera frames are
+                    processed for verification and discarded; HR reset removes the saved template.
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons: Seamless on both Laptop & Mobile */}
         <div className="biometric-actions">
           {loading ? (
             <div style={{ color: "#94a3b8", fontSize: "14px" }}>Loading Status...</div>
-          ) : approvalStatus === "NOT_REGISTERED" || approvalStatus === "REJECTED" ? (
+          ) : approvalStatus === "REJECTED" ? (
+            <div className="btn-bio-pending">
+              <AlertTriangle size={16} /> Contact HR to reset the rejected passkey before registering again.
+            </div>
+          ) : needsPasskeyRegistration ? (
             <>
-              {/* Primary: Face ID Registration (Webcam on Laptop / Front Camera on Mobile) */}
               <button
                 type="button"
                 className="btn-bio-face-checkin"
-                onClick={() => openCamera("REGISTRATION")}
-                disabled={actionLoading}
+                onClick={handleRegisterPasskey}
+                disabled={actionLoading || !faceConsentChecked}
               >
-                <Camera size={18} /> Register Face ID ({device.isLaptop ? "Laptop Webcam" : "Selfie Camera"})
-              </button>
-
-              {/* Secondary: Fingerprint Hardware sensor */}
-              <button
-                type="button"
-                className="btn-bio-secondary"
-                onClick={handleRegisterFingerprint}
-                disabled={actionLoading}
-              >
-                <Fingerprint size={16} /> Register Fingerprint
+                <ScanFace size={18} /> Register Passkey & Face
               </button>
             </>
+          ) : needsFaceRegistration ? (
+            <div className="btn-bio-pending">
+              <AlertTriangle size={16} /> Face template is missing. Contact HR to reset your attendance registration.
+            </div>
           ) : approvalStatus === "PENDING_APPROVAL" ? (
+            <div className="btn-bio-pending">
+              <Clock size={16} /> Passkey pending review
+            </div>
+          ) : !today?.check_in_time ? (
             <button
               type="button"
-              className="btn-bio-pending"
-              onClick={() => openCamera("REGISTRATION")}
+              className="btn-bio-secondary"
+              onClick={handlePasskeyCheckIn}
+              disabled={actionLoading}
             >
-              <Clock size={16} /> Pending HR Approval — Re-capture Photo
+              <ScanFace size={16} /> Check-In with Passkey
             </button>
-          ) : !today?.check_in_time ? (
-            <>
-              {/* Primary on Laptop & Mobile: Face ID Camera Check-In */}
-              <button
-                type="button"
-                className="btn-bio-face-checkin"
-                onClick={() => openCamera("CHECK_IN")}
-                disabled={actionLoading}
-              >
-                <Camera size={18} /> Check-In with Face ID ({device.isLaptop ? "Laptop Webcam" : "Camera"})
-              </button>
-
-              {/* Secondary Option: Fingerprint hardware */}
-              <button
-                type="button"
-                className="btn-bio-secondary"
-                onClick={handleFingerprintCheckIn}
-                disabled={actionLoading}
-              >
-                <Fingerprint size={16} /> Check-In (Fingerprint)
-              </button>
-            </>
           ) : !today?.check_out_time ? (
-            <>
-              {/* Primary: Face ID Camera Check-Out */}
-              <button
-                type="button"
-                className="btn-bio-face-checkout"
-                onClick={() => openCamera("CHECK_OUT")}
-                disabled={actionLoading}
-              >
-                <Camera size={18} /> Check-Out with Face ID ({device.isLaptop ? "Laptop Webcam" : "Camera"})
-              </button>
-
-              {/* Secondary: Fingerprint hardware */}
-              <button
-                type="button"
-                className="btn-bio-secondary"
-                onClick={handleFingerprintCheckOut}
-                disabled={actionLoading}
-              >
-                <LogOut size={16} /> Check-Out (Fingerprint)
-              </button>
-            </>
+            <button
+              type="button"
+              className="btn-bio-secondary"
+              onClick={handlePasskeyCheckOut}
+              disabled={actionLoading}
+            >
+              <ScanFace size={16} /> Check-Out with Passkey
+            </button>
           ) : (
             <div className="btn-bio-complete">
               {(() => {
@@ -913,7 +828,24 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
           )}
         </div>
+        {!needsPasskeyRegistration && (
+          <p className="biometric-subtitle">
+            {device.isIPhone
+              ? "On iPhone, confirm with Face ID or your device passcode, then follow the live face-check prompt."
+              : device.isAndroid
+              ? "On Android, confirm with your fingerprint or device screen lock, depending on your phone, then follow the live face-check prompt."
+              : "Confirm with your device's passkey security prompt, then follow the live face-check prompt."}
+          </p>
+        )}
       </div>
+
+      {faceCaptureRequest && (
+        <AttendanceFaceCapture
+          turn={faceCaptureRequest.challenge.turn}
+          onComplete={handleFaceCaptureComplete}
+          onCancel={handleFaceCaptureCancel}
+        />
+      )}
 
       {/* Live Check-in Details Bar */}
       {today?.check_in_time && (

@@ -2,6 +2,9 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import {
   getMyBiometricStatusService,
+  getBiometricRegistrationOptionsService,
+  getBiometricAuthenticationOptionsService,
+  getBiometricFaceChallengeService,
   registerBiometricService,
   resetEmployeeBiometricService,
   getPendingBiometricApprovalsService,
@@ -24,7 +27,22 @@ export const getMyBiometricStatus = asyncHandler(async (req, res) => {
 
 export const registerBiometric = asyncHandler(async (req, res) => {
   const result = await registerBiometricService(req.body, req.user);
-  return res.status(201).json(new ApiResponse(201, result, "Face Biometric registered successfully and sent for HR approval."));
+  return res.status(201).json(new ApiResponse(201, result, "Passkey and attendance face registered and locked."));
+});
+
+export const getBiometricRegistrationOptions = asyncHandler(async (req, res) => {
+  const result = await getBiometricRegistrationOptionsService(req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Passkey registration options created."));
+});
+
+export const getBiometricAuthenticationOptions = asyncHandler(async (req, res) => {
+  const result = await getBiometricAuthenticationOptionsService(req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Passkey authentication options created."));
+});
+
+export const getBiometricFaceChallenge = asyncHandler(async (req, res) => {
+  const result = await getBiometricFaceChallengeService(req.user, req.body?.purpose);
+  return res.status(200).json(new ApiResponse(200, result, "Face verification challenge created."));
 });
 
 export const resetEmployeeBiometric = asyncHandler(async (req, res) => {
@@ -40,23 +58,23 @@ export const getPendingBiometricApprovals = asyncHandler(async (req, res) => {
 
 export const approveBiometric = asyncHandler(async (req, res) => {
   const result = await approveBiometricService(req.params.id, req.user);
-  return res.status(200).json(new ApiResponse(200, result, "Employee Face Biometric approved successfully."));
+  return res.status(200).json(new ApiResponse(200, result, "Employee passkey approved successfully."));
 });
 
 export const rejectBiometric = asyncHandler(async (req, res) => {
   const { reason } = req.body || {};
   const result = await rejectBiometricService(req.params.id, reason, req.user);
-  return res.status(200).json(new ApiResponse(200, result, "Employee Face Biometric rejected."));
+  return res.status(200).json(new ApiResponse(200, result, "Employee passkey rejected."));
 });
 
 export const checkInAttendance = asyncHandler(async (req, res) => {
   const result = await checkInAttendanceService(req.body, req.user, req);
-  return res.status(200).json(new ApiResponse(200, result, "Attendance check-in marked successfully via Mobile Biometric."));
+  return res.status(200).json(new ApiResponse(200, result, "Attendance check-in marked after passkey and face verification."));
 });
 
 export const checkOutAttendance = asyncHandler(async (req, res) => {
   const result = await checkOutAttendanceService(req.body, req.user, req);
-  return res.status(200).json(new ApiResponse(200, result, "Attendance check-out marked successfully."));
+  return res.status(200).json(new ApiResponse(200, result, "Attendance check-out marked after passkey and face verification."));
 });
 
 export const getMyAttendanceHistory = asyncHandler(async (req, res) => {

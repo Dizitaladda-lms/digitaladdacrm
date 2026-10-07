@@ -32,7 +32,7 @@ export const getRoleNotificationsService = async (user) => {
 
   try {
     // -------------------------------------------------------------
-    // 1. PENDING FACE BIOMETRIC APPROVALS (For HR, Admin, Super Admin)
+    // 1. PENDING PASSKEY APPROVALS (For HR, Admin, Super Admin)
     // -------------------------------------------------------------
     if (isHR || isAdmin) {
       const { rows: biometrics } = await pool.query(`
@@ -56,8 +56,8 @@ export const getRoleNotificationsService = async (user) => {
           id: `biometric_pending_${b.id}`,
           type: "BIOMETRIC_PENDING",
           category: "BIOMETRIC",
-          title: "Face Biometric Approval Required",
-          message: `${b.employee_name} (${b.department_name || "Staff"}) registered face recognition. Tap to approve.`,
+          title: "Passkey Approval Required",
+          message: `${b.employee_name} (${b.department_name || "Staff"}) registered an attendance passkey. Tap to approve.`,
           link: "/attendance-reports",
           priority: "URGENT",
           icon: "Fingerprint",

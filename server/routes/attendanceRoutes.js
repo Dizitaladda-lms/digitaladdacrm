@@ -4,6 +4,9 @@ import roleMiddleware from "../middleware/roleMiddleware.js";
 import ROLES from "../constants/roles.js";
 import {
   getMyBiometricStatus,
+  getBiometricRegistrationOptions,
+  getBiometricAuthenticationOptions,
+  getBiometricFaceChallenge,
   registerBiometric,
   resetEmployeeBiometric,
   getPendingBiometricApprovals,
@@ -24,6 +27,9 @@ router.use(authMiddleware);
 
 // Employee Attendance & Mobile Biometrics
 router.get("/status", getMyBiometricStatus);
+router.post("/biometric/registration-options", getBiometricRegistrationOptions);
+router.post("/biometric/authentication-options", getBiometricAuthenticationOptions);
+router.post("/biometric/face-challenge", getBiometricFaceChallenge);
 router.post("/biometric/register", registerBiometric);
 router.delete("/biometric/reset", resetEmployeeBiometric);
 router.delete("/biometric/reset/:employeeId", resetEmployeeBiometric);

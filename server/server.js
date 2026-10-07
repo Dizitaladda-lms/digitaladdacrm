@@ -2,6 +2,7 @@ import app from "./app.js";
 import pool from "./config/db.js";
 import { initDatabaseSchema } from "./config/dbInit.js";
 import logger from "./utils/logger.js";
+import { initializeFaceVerification } from "./utils/faceVerification.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -10,6 +11,7 @@ let server;
 const startServer = async () => {
   try {
     await initDatabaseSchema();
+    await initializeFaceVerification();
 
     server = app.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);

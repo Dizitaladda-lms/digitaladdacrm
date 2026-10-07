@@ -87,7 +87,7 @@ const UnderMaintenance = ({ currentPath = "" }) => {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "12px" }}>
             <Fingerprint size={22} style={{ color: "#34d399" }} />
             <span style={{ fontWeight: "700", fontSize: "16px", color: "#34d399" }}>
-              Mobile & Face ID Attendance Active
+              Mobile & Passkey Attendance Active
             </span>
           </div>
           <p style={{ margin: "0 0 16px 0", color: "#cbd5e1", fontSize: "13px" }}>
