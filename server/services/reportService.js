@@ -423,7 +423,10 @@ export const reviewReportAsHRService = async (user, reportId, payload) => {
     throw new ApiError(404, "Report not found.");
   }
 
-  if (Number(report.hr_id) !== Number(user.id) && !["SUPER_ADMIN", "ADMIN"].includes(String(user.role || "").toUpperCase())) {
+  const userRole = String(user.role || "").toUpperCase();
+  const isAssignedApprover = Number(report.hr_id) === Number(user.id);
+  const canReviewAsOrganizationApprover = ["HR", "SUPER_ADMIN", "ADMIN"].includes(userRole);
+  if (!isAssignedApprover && !canReviewAsOrganizationApprover) {
     throw new ApiError(403, "Only the assigned HR approver can act on this report.");
   }
 
