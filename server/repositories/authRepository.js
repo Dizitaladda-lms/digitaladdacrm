@@ -37,7 +37,6 @@ export const createUserRepository = async (
       full_name,
       email,
       role,
-      profile_image,
       is_active,
       is_deleted,
       email_verified,
@@ -107,7 +106,17 @@ async (email) => {
 export const findUserByEmailWithPasswordRepository = async (email) => {
   const query = `
     SELECT 
-      u.*,
+      u.id,
+      u.full_name,
+      u.email,
+      u.password,
+      u.role,
+      u.is_active,
+      u.is_deleted,
+      u.email_verified,
+      u.last_login,
+      u.created_at,
+      u.updated_at,
       e.id AS employee_id,
       e.employee_code,
       COALESCE(e.designation, u.role) AS designation,
@@ -140,7 +149,6 @@ export const findUserByIdRepository = async (id) => {
       u.full_name,
       u.email,
       u.role,
-      u.profile_image,
       u.is_active,
       u.is_deleted,
       u.email_verified,
@@ -167,18 +175,28 @@ export const findUserByIdRepository = async (id) => {
   return result.rows[0];
 };
 
+export const findUserProfileImageRepository = async (userId) => {
+  const result = await pool.query(
+    `SELECT profile_image FROM users WHERE id = $1 AND is_deleted = FALSE LIMIT 1;`,
+    [userId]
+  );
+  return result.rows[0] || null;
+};
+
 export const updateOwnProfileRepository = async (userId, profile) => {
+  const hasProfileImage = Object.prototype.hasOwnProperty.call(profile, "profile_image");
   const query = `
     UPDATE users
     SET full_name = $1,
-        profile_image = $2,
+        profile_image = CASE WHEN $2 THEN $3 ELSE profile_image END,
         updated_at = CURRENT_TIMESTAMP
-    WHERE id = $3 AND is_deleted = FALSE
-    RETURNING id, full_name, email, role, profile_image, is_active, email_verified, updated_at;
+    WHERE id = $4 AND is_deleted = FALSE
+    RETURNING id, full_name, email, role, is_active, email_verified, updated_at;
   `;
 
   const result = await pool.query(query, [
     profile.full_name,
+    hasProfileImage,
     profile.profile_image || null,
     userId,
   ]);

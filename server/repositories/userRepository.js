@@ -21,7 +21,8 @@ export const createUserRepository = async (
 
         VALUES ($1,$2,$3,$4)
 
-        RETURNING *;
+        RETURNING id, full_name, email, role, is_active, is_deleted,
+                  email_verified, last_login, created_at, updated_at;
     `;
 
     const values = [
@@ -50,7 +51,8 @@ export const findUserByEmailRepository = async (
 
     const query = `
 
-        SELECT *
+        SELECT id, full_name, email, role, is_active, is_deleted,
+               email_verified, last_login, created_at, updated_at
 
         FROM users
 
@@ -77,7 +79,8 @@ export const findUserByIdRepository = async (
 
     const query = `
 
-        SELECT *
+        SELECT id, full_name, email, role, is_active, is_deleted,
+               email_verified, last_login, created_at, updated_at
 
         FROM users
 
@@ -128,7 +131,8 @@ export const updateUserRepository = async (
         SET ${fields.join(", ")}
         WHERE id = $${idx}
         AND is_deleted = FALSE
-        RETURNING *;
+        RETURNING id, full_name, email, role, is_active, is_deleted,
+                  email_verified, last_login, created_at, updated_at;
     `;
 
     const result = await client.query(query, values);
@@ -150,7 +154,8 @@ export const softDeleteUserRepository = async (
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         AND is_deleted = FALSE
-        RETURNING *;
+        RETURNING id, full_name, email, role, is_active, is_deleted,
+                  email_verified, last_login, created_at, updated_at;
     `;
 
     const result = await client.query(query,[id]);
@@ -172,7 +177,8 @@ export const restoreUserRepository = async (
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         AND is_deleted = TRUE
-        RETURNING *;
+        RETURNING id, full_name, email, role, is_active, is_deleted,
+                  email_verified, last_login, created_at, updated_at;
     `;
 
     const result = await client.query(query,[id]);
@@ -196,4 +202,3 @@ export const updateLastLoginRepository = async (
     await client.query(query,[id]);
 
 };
-

@@ -9,6 +9,7 @@ import {
 
 import {
   getProfileService,
+  getProfileImageService,
   updateOwnProfileService,
   changePasswordService,
 } from "../services/authService.js";
@@ -96,6 +97,14 @@ export const getProfile = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, user, "Profile fetched successfully."));
+});
+
+export const getProfileImage = asyncHandler(async (req, res) => {
+  const profileImage = await getProfileImageService(req.user.id);
+  res.set("Cache-Control", "private, max-age=300");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { profile_image: profileImage }, "Profile image fetched successfully."));
 });
 
 /**

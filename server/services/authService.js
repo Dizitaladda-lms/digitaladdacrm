@@ -36,6 +36,7 @@ import {
   findUserByEmailWithPasswordRepository,
   updateLastLoginRepository,
   findUserByIdRepository,
+  findUserProfileImageRepository,
   updatePasswordRepository,
   updateEmailVerificationRepository,
   updateOwnProfileRepository,
@@ -45,6 +46,7 @@ import auditLogger from "../utils/auditLogger.js";
 import { verifyStoredPassword } from "../utils/passwordUtils.js";
 import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
 import { createAttendanceCheckInRepository } from "../repositories/attendanceRepository.js";
+import { prepareProfileImageDataUrl } from "../utils/profileImage.js";
 
 /**
  * =====================================================
@@ -278,6 +280,12 @@ export const getProfileService = async (
 
   return user;
 
+};
+
+export const getProfileImageService = async (userId) => {
+  const user = await findUserProfileImageRepository(userId);
+  if (!user) throw new ApiError(404, "User not found.");
+  return user.profile_image || null;
 };
 
 /**
@@ -813,9 +821,12 @@ async (
 };
 
 export const updateOwnProfileService = async (userId, profile) => {
+  const profileImage = Object.hasOwn(profile, "profile_image")
+    ? await prepareProfileImageDataUrl(profile.profile_image)
+    : undefined;
   const user = await updateOwnProfileRepository(userId, {
     full_name: profile.full_name?.trim(),
-    profile_image: profile.profile_image || null,
+    ...(profileImage !== undefined && { profile_image: profileImage }),
     designation: profile.designation?.trim() || null,
   });
 

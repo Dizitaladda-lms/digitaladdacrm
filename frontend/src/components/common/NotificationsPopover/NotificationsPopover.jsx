@@ -305,8 +305,10 @@ const NotificationsPopover = ({ isEmployee = false }) => {
 
   useEffect(() => {
     fetchNotifs();
-    // 12-second poll ensures immediate updates for incoming chat messages, mentions, and tasks
-    const interval = setInterval(fetchNotifs, 12000);
+    // Poll notifications every 30 seconds while the tab is visible.
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchNotifs();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 

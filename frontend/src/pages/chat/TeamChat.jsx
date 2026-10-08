@@ -191,11 +191,11 @@ const TeamChat = () => {
     loadGroups();
   }, []);
 
-  // Live polling for groups list every 5 seconds (updates unread counts and new DMs live)
+  // Refresh sidebar activity without repeatedly reloading it in a background tab.
   useEffect(() => {
     const interval = setInterval(() => {
-      loadGroups(null, true);
-    }, 5000);
+      if (document.visibilityState === "visible") loadGroups(null, true);
+    }, 15000);
     return () => clearInterval(interval);
   }, [loadGroups]);
 
@@ -293,12 +293,12 @@ const TeamChat = () => {
     }
   }, [activeGroup?.id, loadGroupDetails, loadMessages]);
 
-  // Polling for live messages every 3.5 seconds
+  // Poll active messages less aggressively and pause DB reads in background tabs.
   useEffect(() => {
     if (!activeGroup?.id) return;
     const interval = setInterval(() => {
-      loadMessages(activeGroup.id, true);
-    }, 3500);
+      if (document.visibilityState === "visible") loadMessages(activeGroup.id, true);
+    }, 10000);
     return () => clearInterval(interval);
   }, [activeGroup?.id, loadMessages]);
 

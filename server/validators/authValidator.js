@@ -107,8 +107,8 @@ export const updateProfileValidator = [
     .optional({ checkFalsy: true })
     .isString()
     .withMessage("Profile image must be a string.")
-    .isLength({ max: 2100000 })
-    .withMessage("Profile image is too large.")
+    .isLength({ max: 280000 })
+    .withMessage("Profile image must be smaller than 200 KB after compression.")
     .matches(/^data:image\/(png|jpeg|webp);base64,/)
     .withMessage("Use a PNG, JPEG, or WebP image."),
   body("designation")

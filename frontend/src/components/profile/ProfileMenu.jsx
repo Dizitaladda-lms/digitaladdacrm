@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, ChevronDown, LogOut, Pencil, UserRound } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
+import { getProfileAvatar } from "../../services/authService";
+import { resizeProfileImage } from "../../utils/profileImage";
 import "./ProfileMenu.css";
 
 const initialsFor = (name) => (name || "User")
@@ -18,12 +20,33 @@ const ProfileMenu = ({ compact = false }) => {
   const [name, setName] = useState("");
   const [desig, setDesig] = useState("");
   const [photo, setPhoto] = useState("");
+  const [loadedAvatar, setLoadedAvatar] = useState({ userId: null, url: "" });
+  const [photoChanged, setPhotoChanged] = useState(false);
   const [saving, setSaving] = useState(false);
   const menuRef = useRef(null);
 
   const displayName = user?.full_name || user?.name || "User";
   const role = user?.role || "User";
-  const photoUrl = user?.profile_image;
+  const photoUrl = loadedAvatar.userId === user?.id ? loadedAvatar.url : "";
+  useEffect(() => {
+    let isCurrent = true;
+    if (!user?.id) return undefined;
+
+    getProfileAvatar(user.updated_at)
+      .then((response) => {
+        if (isCurrent) {
+          setLoadedAvatar({ userId: user.id, url: response?.data?.profile_image || "" });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load profile image:", error);
+        if (isCurrent) setLoadedAvatar({ userId: user.id, url: "" });
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [user?.id, user?.updated_at]);
 
   useEffect(() => {
     const closeMenu = (event) => {
@@ -37,27 +60,36 @@ const ProfileMenu = ({ compact = false }) => {
     setName(displayName);
     setDesig(user?.designation || "");
     setPhoto(photoUrl || "");
+    setPhotoChanged(false);
     setEditing(true);
     setOpen(false);
   };
 
-  const handlePhoto = (event) => {
+  const handlePhoto = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 1500000) {
-      toast.error("Choose a PNG, JPEG, or WebP image smaller than 1.5 MB.");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 10_000_000) {
+      toast.error("Choose a PNG, JPEG, or WebP image smaller than 10 MB.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setPhoto(reader.result);
-    reader.readAsDataURL(file);
+    try {
+      setPhoto(await resizeProfileImage(file));
+      setPhotoChanged(true);
+    } catch (error) {
+      toast.error(error.message || "Could not process the selected image.");
+    }
   };
 
   const saveProfile = async (event) => {
     event.preventDefault();
     setSaving(true);
     try {
-      await updateProfile({ full_name: name, designation: desig, profile_image: photo });
+      await updateProfile({
+        full_name: name,
+        designation: desig,
+        ...(photoChanged && { profile_image: photo }),
+      });
+      if (photoChanged) setLoadedAvatar({ userId: user.id, url: photo || "" });
       toast.success("Profile updated.");
       setEditing(false);
     } catch (error) {
@@ -71,7 +103,7 @@ const ProfileMenu = ({ compact = false }) => {
     <div className={`profile-menu ${compact ? "profile-menu-compact" : ""}`} ref={menuRef}>
       <button type="button" className="profile-menu-trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
         <div className="profile-menu-avatar">
-          {photoUrl ? <img src={photoUrl} alt="Profile" /> : initialsFor(displayName)}
+          {user?.id && photoUrl ? <img src={photoUrl} alt="Profile" /> : initialsFor(displayName)}
         </div>
         {!compact && <div className="profile-menu-details"><strong>{displayName}</strong><span>{user?.designation || role}</span></div>}
         <ChevronDown size={17} />
@@ -79,7 +111,7 @@ const ProfileMenu = ({ compact = false }) => {
 
       {open && <div className="profile-menu-dropdown">
         <div className="profile-menu-summary">
-          <div className="profile-menu-avatar">{photoUrl ? <img src={photoUrl} alt="Profile" /> : initialsFor(displayName)}</div>
+          <div className="profile-menu-avatar">{user?.id && photoUrl ? <img src={photoUrl} alt="Profile" /> : initialsFor(displayName)}</div>
           <div><strong>{displayName}</strong><span>{user?.designation ? `${user.designation} • ` : ""}{user?.email}</span></div>
         </div>
         <button type="button" onClick={openEditor}><Pencil size={16} /> Edit profile</button>
@@ -94,7 +126,7 @@ const ProfileMenu = ({ compact = false }) => {
             <span><Camera size={16} /> Choose photo</span>
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePhoto} />
           </label>
-          {photo && <button type="button" className="profile-remove-photo" onClick={() => setPhoto("")}>Remove photo</button>}
+          {photo && <button type="button" className="profile-remove-photo" onClick={() => { setPhoto(""); setPhotoChanged(true); }}>Remove photo</button>}
           <label className="profile-name-field">Display name<input value={name} onChange={(event) => setName(event.target.value)} minLength="3" maxLength="100" required /></label>
           <label className="profile-name-field" style={{ marginTop: "8px" }}>Designation<input value={desig} onChange={(event) => setDesig(event.target.value)} maxLength="100" placeholder="e.g. Full Stack Developer" /></label>
           <div className="profile-editor-actions"><button type="button" onClick={() => setEditing(false)} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button></div>

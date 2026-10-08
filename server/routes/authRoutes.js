@@ -9,6 +9,7 @@ import {
   register,
   login,
   getProfile,
+  getProfileImage,
   updateProfile,
   changePassword,
   forgotPassword,
@@ -87,6 +88,12 @@ router.get(
   "/me",
   authMiddleware,
   getProfile
+);
+
+router.get(
+  "/me/avatar",
+  authMiddleware,
+  getProfileImage
 );
 
 router.patch(
