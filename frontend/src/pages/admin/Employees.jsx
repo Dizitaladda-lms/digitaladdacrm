@@ -124,6 +124,9 @@ const REPORTING_LEVELS = {
 const Employees = () => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canManageLaptopAttendance = ["HR", "ADMIN", "SUPER_ADMIN"].includes(
+    String(user?.role || "").toUpperCase()
+  );
   const canManageRouting = ["SUPER_ADMIN", "MANAGER", "ADMIN"].includes(user?.role);
   const canAddEmployee = isSuperAdmin || user?.role === "HR" || user?.role === "MANAGER" || user?.role === "ADMIN";
 
@@ -162,6 +165,7 @@ const Employees = () => {
     status: "ACTIVE",
     reporting_manager_id: "",
     lead_overview_read_only: false,
+    laptop_attendance_enabled: false,
   });
   const [editSaving, setEditSaving] = useState(false);
 
@@ -422,6 +426,7 @@ const Employees = () => {
       status: employee.status || "ACTIVE",
       reporting_manager_id: employee.reporting_manager_id || "",
       lead_overview_read_only: Boolean(employee.lead_overview_read_only),
+      laptop_attendance_enabled: Boolean(employee.laptop_attendance_enabled),
       shift_timing_type: employee.shift_timing_type || "DEFAULT",
       shift_start_time: employee.shift_start_time || "10:00",
       shift_end_time: employee.shift_end_time || "18:00",
@@ -450,6 +455,9 @@ const Employees = () => {
         status: editForm.status,
         reporting_manager_id: editForm.reporting_manager_id ? Number(editForm.reporting_manager_id) : null,
         lead_overview_read_only: Boolean(editForm.lead_overview_read_only),
+        ...(canManageLaptopAttendance && {
+          laptop_attendance_enabled: Boolean(editForm.laptop_attendance_enabled),
+        }),
         shift_timing_type: editForm.shift_timing_type || "DEFAULT",
         shift_start_time: editForm.shift_start_time || "10:00",
         shift_end_time: editForm.shift_end_time || "18:00",
@@ -1803,6 +1811,28 @@ const Employees = () => {
                       </span>
                     </span>
                   </label>
+
+                  {canManageLaptopAttendance && (
+                    <label style={{ gridColumn: "1 / -1" }}>
+                      <span>Laptop Attendance Access</span>
+                      <span style={{ display: "flex", alignItems: "flex-start", gap: "9px", marginTop: "8px" }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(editForm.laptop_attendance_enabled)}
+                          onChange={(event) =>
+                            setEditForm({
+                              ...editForm,
+                              laptop_attendance_enabled: event.target.checked,
+                            })
+                          }
+                        />
+                        <span>
+                          Allow this employee to check in and check out from a laptop or desktop, only while
+                          within 100 meters of the office.
+                        </span>
+                      </span>
+                    </label>
+                  )}
 
                   {/* Managed Departments for TL / Manager in Edit Modal */}
                   {(editForm.role === "TL" || editForm.role === "MANAGER" || /lead|manager|head/i.test(editForm.designation || "")) && (

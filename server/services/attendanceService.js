@@ -67,6 +67,20 @@ const getEmployeeId = async (currentUser) => {
   return employee;
 };
 
+const isMobileAttendanceDevice = (req) =>
+  /iPhone|iPad|iPod|Macintosh.*Mobile|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    req?.get?.("user-agent") || req?.headers?.["user-agent"] || ""
+  );
+
+const ensureLaptopAttendanceIsEnabled = (employee, req) => {
+  if (!isMobileAttendanceDevice(req) && !employee.laptop_attendance_enabled) {
+    throw new ApiError(
+      403,
+      "Laptop attendance is not enabled for your account. Please contact HR."
+    );
+  }
+};
+
 const isCanonicalBase64Url = (value, minimumBytes) => {
   if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/.test(value)) return false;
   const decoded = Buffer.from(value, "base64url");
@@ -110,6 +124,7 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
     shift_start_time: employee.shift_start_time || "10:00",
     shift_end_time: employee.shift_end_time || "18:00",
     custom_shift_timings: employee.custom_shift_timings || null,
+    laptop_attendance_enabled: Boolean(employee.laptop_attendance_enabled),
     today_attendance: todayAttendance || null,
   };
 };
@@ -403,6 +418,9 @@ const getValidatedCoordinates = (latitude, longitude, locationName, action) => {
 };
 
 export const checkInAttendanceService = async (payload = {}, currentUser, req) => {
+  const employee = await getEmployeeId(currentUser);
+  ensureLaptopAttendanceIsEnabled(employee, req);
+
   const { assertion, latitude, longitude, location_name } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "mark attendance");
 
@@ -414,7 +432,6 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     );
   }
 
-  const employee = await getEmployeeId(currentUser);
   await verifyAttendancePasskey(employee.id, assertion);
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
 
@@ -494,6 +511,9 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
 };
 
 export const checkOutAttendanceService = async (payload = {}, currentUser, req) => {
+  const employee = await getEmployeeId(currentUser);
+  ensureLaptopAttendanceIsEnabled(employee, req);
+
   const { assertion, latitude, longitude, location_name } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "check out");
 
@@ -506,7 +526,6 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   }
 
   await verifyOfficeIP(req);
-  const employee = await getEmployeeId(currentUser);
   await verifyAttendancePasskey(employee.id, assertion);
 
   const todayStr = new Date().toISOString().split("T")[0];

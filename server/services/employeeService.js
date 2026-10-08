@@ -327,6 +327,12 @@ export const updateEmployeeService = async (
     currentUser,
     req
 ) => {
+    if (
+        employeeData.laptop_attendance_enabled !== undefined &&
+        !["HR", "ADMIN", "SUPER_ADMIN"].includes(String(currentUser.role || "").toUpperCase())
+    ) {
+        throw new ApiError(403, "Only HR or an administrator can manage laptop attendance access.");
+    }
 
     // Normalize Data
     if (employeeData.email) {

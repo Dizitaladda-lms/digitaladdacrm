@@ -203,6 +203,42 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     refreshLocation();
   }, []);
 
+  useEffect(() => {
+    if (!device.isLaptop || typeof navigator === "undefined" || !navigator.geolocation) return undefined;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        const distance = calculateDistanceInMeters(latitude, longitude);
+        setLocationData({
+          latitude,
+          longitude,
+          distance,
+          accuracy,
+          location_name:
+            distance <= MAX_GEOFENCE_RADIUS_METERS
+              ? "Dizital Adda Office Premises"
+              : `Outside Office (${Math.round(distance)}m away)`,
+        });
+      },
+      (error) => {
+        console.warn("Laptop location watch failed:", error);
+        setLocationData({
+          latitude: null,
+          longitude: null,
+          location_name:
+            error.code === 1 ? "Location Permission Denied" : "GPS Location Unavailable / Timed Out",
+          distance: null,
+          error_code: error.code,
+          error_msg: error.message,
+        });
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [device.isLaptop]);
+
   // Ensure stream is properly attached to <video> ref when modal opens
   useEffect(() => {
     if (showCameraModal && !capturedPhoto && mediaStreamRef.current && videoRef.current) {
@@ -645,6 +681,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     : "Passkey Active & Locked";
 
   const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
+  const laptopAttendanceAllowed = Boolean(statusData?.laptop_attendance_enabled);
+  const attendanceActionDisabled = actionLoading || (device.isLaptop && !isWithinOffice);
 
   return (
     <div className="biometric-card">
@@ -780,12 +818,17 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             <div className="btn-bio-pending">
               <Clock size={16} /> Passkey pending review
             </div>
+          ) : device.isLaptop && !laptopAttendanceAllowed ? (
+            <div className="btn-bio-pending" role="status">
+              <Laptop size={16} /> Laptop attendance is not enabled for your account. Please contact HR.
+            </div>
           ) : !today?.check_in_time ? (
             <button
               type="button"
               className="btn-bio-secondary"
               onClick={handlePasskeyCheckIn}
-              disabled={actionLoading}
+              disabled={attendanceActionDisabled}
+              title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
               <ScanFace size={16} /> Check-In with Passkey
             </button>
@@ -794,7 +837,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               type="button"
               className="btn-bio-secondary"
               onClick={handlePasskeyCheckOut}
-              disabled={actionLoading}
+              disabled={attendanceActionDisabled}
+              title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
               <ScanFace size={16} /> Check-Out with Passkey
             </button>

@@ -28,6 +28,7 @@ const EMPLOYEE_SELECT_COLUMNS = `
     e.employment_type,
     e.reporting_manager_id,
     COALESCE(e.lead_overview_read_only, FALSE) AS lead_overview_read_only,
+    COALESCE(e.laptop_attendance_enabled, FALSE) AS laptop_attendance_enabled,
     m.full_name AS reporting_manager_name,
     e.status,
     COALESCE(da.status, 'NOT_CHECKED_IN') AS today_attendance_status,
@@ -431,6 +432,10 @@ export const updateEmployeeRepository = async (
     if (employee.lead_overview_read_only !== undefined) {
         fields.push(`lead_overview_read_only = $${idx++}`);
         values.push(Boolean(employee.lead_overview_read_only));
+    }
+    if (employee.laptop_attendance_enabled !== undefined) {
+        fields.push(`laptop_attendance_enabled = $${idx++}`);
+        values.push(Boolean(employee.laptop_attendance_enabled));
     }
     if (employee.status !== undefined && employee.status !== null) {
         fields.push(`status = $${idx++}`);
@@ -1112,4 +1117,80 @@ export const getEmployeePerformanceRepository = async (employeeId, timeframe = "
         course_breakdown: courseBreakdownResult ? courseBreakdownResult.rows : [],
         week_wise: weekWiseResult ? weekWiseResult.rows : [],
     };
+};
+
+export const getEmployeePerformanceLeaderboardRepository = async ({ departmentId = null, days = 30, limit = 20 } = {}) => {
+    const windowDays = Number(days) > 0 ? Number(days) : 30;
+    const query = `
+        WITH attendance_stats AS (
+            SELECT
+                employee_id,
+                COUNT(DISTINCT date) AS attendance_days,
+                COUNT(DISTINCT CASE 
+                    WHEN check_in_time IS NOT NULL
+                     AND EXTRACT(HOUR FROM (check_in_time AT TIME ZONE 'Asia/Kolkata')) < 9
+                    THEN date
+                END) AS on_time_days,
+                COUNT(DISTINCT CASE 
+                    WHEN check_in_time IS NOT NULL
+                     AND EXTRACT(HOUR FROM (check_in_time AT TIME ZONE 'Asia/Kolkata')) >= 9
+                    THEN date
+                END) AS late_days
+            FROM daily_attendance
+            WHERE date >= CURRENT_DATE - ($1::int)
+            GROUP BY employee_id
+        ),
+        report_stats AS (
+            SELECT
+                employee_id,
+                COUNT(DISTINCT report_date) AS report_count,
+                MAX(report_date) AS last_report_date,
+                COUNT(DISTINCT CASE WHEN status IN ('SUBMITTED', 'TL_REVIEWED', 'HR_APPROVED', 'SUPER_ADMIN_APPROVED', 'FULLY_VERIFIED') THEN report_date END) AS submitted_reports
+            FROM daily_work_reports
+            WHERE report_date >= CURRENT_DATE - ($1::int)
+            GROUP BY employee_id
+        )
+        SELECT
+            e.id,
+            e.user_id,
+            e.full_name,
+            e.employee_code,
+            e.role,
+            e.designation,
+            d.department_name,
+            COALESCE(rs.report_count, 0) AS report_count,
+            COALESCE(rs.submitted_reports, 0) AS submitted_reports,
+            COALESCE(as.attendance_days, 0) AS attendance_days,
+            COALESCE(as.on_time_days, 0) AS on_time_days,
+            COALESCE(as.late_days, 0) AS late_days,
+            rs.last_report_date
+        FROM employees e
+        LEFT JOIN attendance_stats as ON as.employee_id = e.id
+        LEFT JOIN report_stats rs ON rs.employee_id = e.id
+        LEFT JOIN departments d ON d.id = e.department_id
+        WHERE e.is_deleted = FALSE
+          AND e.status IN ('ACTIVE', 'ON_LEAVE', 'INACTIVE')
+          ${departmentId ? ' AND e.department_id = $2' : ''}
+        ORDER BY report_count DESC, on_time_days DESC, late_days ASC, e.full_name ASC
+        LIMIT $${departmentId ? 3 : 2};
+    `;
+
+    const values = [windowDays];
+    if (departmentId) values.push(Number(departmentId));
+    const result = await pool.query(query, values);
+    return result.rows.map((row) => ({
+        id: row.id,
+        user_id: row.user_id,
+        full_name: row.full_name,
+        employee_code: row.employee_code,
+        role: row.role,
+        designation: row.designation,
+        department_name: row.department_name,
+        report_count: Number(row.report_count || 0),
+        submitted_reports: Number(row.submitted_reports || 0),
+        attendance_days: Number(row.attendance_days || 0),
+        on_time_days: Number(row.on_time_days || 0),
+        late_days: Number(row.late_days || 0),
+        last_report_date: row.last_report_date,
+    })).slice(0, Number(limit) || 20);
 };

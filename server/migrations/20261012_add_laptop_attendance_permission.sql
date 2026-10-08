@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE employees
+ADD COLUMN IF NOT EXISTS laptop_attendance_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMIT;
