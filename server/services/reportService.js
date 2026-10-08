@@ -11,6 +11,7 @@ import {
   upsertDailyReportRepository,
   syncReportClassesRepository,
   findReportByIdRepository,
+  reportExistsByIdRepository,
   findMyReportByDateRepository,
   findMyReportsHistoryRepository,
   findTeamReportsRepository,
@@ -252,10 +253,23 @@ export const getMyReportsHistoryService = async (userId, query) => {
 /**
  * Get Single Report by ID
  */
-export const getReportByIdService = async (reportId) => {
-  const report = await findReportByIdRepository(reportId);
+export const getReportByIdService = async (reportId, _user, visibility = {}) => {
+  const report = await findReportByIdRepository(reportId, {
+    userIds: visibility.unrestricted ? null : visibility.userIds,
+    reportIds: visibility.unrestricted ? null : visibility.reportIds,
+  });
   if (!report) {
+    if (await reportExistsByIdRepository(reportId)) {
+      throw new ApiError(403, "You are not allowed to view this report.");
+    }
     throw new ApiError(404, "Daily work report not found.");
+  }
+  if (
+    !visibility.unrestricted &&
+    !visibility.userIds?.includes(Number(report.user_id)) &&
+    !visibility.reportIds?.includes(Number(report.id))
+  ) {
+    throw new ApiError(403, "You are not allowed to view this report.");
   }
   return report;
 };
@@ -263,8 +277,8 @@ export const getReportByIdService = async (reportId) => {
 /**
  * Get Team Reports (for Team Lead, HR, Super Admin)
  */
-export const getTeamReportsService = async (user, query) => {
-  const isSuperAdminOrHR = ["SUPER_ADMIN", "ADMIN", "HR"].includes(user.role);
+export const getTeamReportsService = async (user, query, visibility = {}) => {
+  const isSuperAdminOrHR = Boolean(visibility.unrestricted);
   const empProfile = await ensureEmployeeProfileForUser(user.id);
   
   let departmentId = null;
@@ -315,6 +329,8 @@ export const getTeamReportsService = async (user, query) => {
   return await findTeamReportsRepository({
     tlUserId: null,
     tlEmployeeId: isSuperAdminOrHR ? null : (empProfile?.id || null),
+    visibleUserIds: isSuperAdminOrHR ? null : (visibility.userIds || [Number(user.id)]),
+    visibleReportIds: isSuperAdminOrHR ? null : (visibility.reportIds || []),
     departmentId,
     allowedDepartmentIds,
     date,
@@ -338,10 +354,15 @@ export const getTeamReportsService = async (user, query) => {
 /**
  * Department Head / TL Review Report
  */
-export const reviewReportAsTLService = async (user, reportId, payload) => {
+export const reviewReportAsTLService = async (user, reportId, payload, visibility) => {
   const report = await findReportByIdRepository(reportId);
   if (!report) {
     throw new ApiError(404, "Report not found.");
+  }
+  if (visibility && !visibility.unrestricted &&
+      !visibility.userIds?.includes(Number(report.user_id)) &&
+      !visibility.reportIds?.includes(Number(report.id))) {
+    throw new ApiError(403, "You are not allowed to review this report.");
   }
 
   const employeeProfile = await ensureEmployeeProfileForUser(user.id);
@@ -378,15 +399,19 @@ export const reviewReportAsTLService = async (user, reportId, payload) => {
 /**
  * HR Compliance Overview
  */
-export const getHROverviewService = async (queryDate) => {
+export const getHROverviewService = async (queryDate, visibility = {}) => {
   const dateStr = getFormattedDate(queryDate);
-  return await findHROverviewRepository(dateStr);
+  return await findHROverviewRepository(
+    dateStr,
+    visibility.unrestricted ? null : visibility.userIds,
+    visibility.unrestricted ? null : visibility.reportIds
+  );
 };
 
 /**
  * HR & Super Admin: Get All Company Reports
  */
-export const getAllCompanyReportsService = async (query) => {
+export const getAllCompanyReportsService = async (query, visibility = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 20));
   const date = query.date ? getFormattedDate(query.date) : undefined;
@@ -400,6 +425,8 @@ export const getAllCompanyReportsService = async (query) => {
   const search = query.search?.trim();
 
   return await findAllCompanyReportsRepository({
+    visibleUserIds: visibility.unrestricted ? null : visibility.userIds,
+    visibleReportIds: visibility.unrestricted ? null : visibility.reportIds,
     departmentId,
     employeeId,
     date,
@@ -417,10 +444,15 @@ export const getAllCompanyReportsService = async (query) => {
 /**
  * HR Review / Approve Report
  */
-export const reviewReportAsHRService = async (user, reportId, payload) => {
+export const reviewReportAsHRService = async (user, reportId, payload, visibility) => {
   const report = await findReportByIdRepository(reportId);
   if (!report) {
     throw new ApiError(404, "Report not found.");
+  }
+  if (visibility && !visibility.unrestricted &&
+      !visibility.userIds?.includes(Number(report.user_id)) &&
+      !visibility.reportIds?.includes(Number(report.id))) {
+    throw new ApiError(403, "You are not allowed to review this report.");
   }
 
   const userRole = String(user.role || "").toUpperCase();
@@ -439,10 +471,15 @@ export const reviewReportAsHRService = async (user, reportId, payload) => {
 /**
  * Super Admin Review / Final Approve Report
  */
-export const reviewReportAsSuperAdminService = async (user, reportId, payload) => {
+export const reviewReportAsSuperAdminService = async (user, reportId, payload, visibility) => {
   const report = await findReportByIdRepository(reportId);
   if (!report) {
     throw new ApiError(404, "Report not found.");
+  }
+  if (visibility && !visibility.unrestricted &&
+      !visibility.userIds?.includes(Number(report.user_id)) &&
+      !visibility.reportIds?.includes(Number(report.id))) {
+    throw new ApiError(403, "You are not allowed to review this report.");
   }
 
   if (String(user.role || "").toUpperCase() !== "SUPER_ADMIN") {
@@ -458,7 +495,7 @@ export const reviewReportAsSuperAdminService = async (user, reportId, payload) =
 /**
  * Classes Video Proof Audit Feed
  */
-export const getClassesAuditFeedService = async (query) => {
+export const getClassesAuditFeedService = async (query, visibility = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 20));
   const date = query.date ? getFormattedDate(query.date) : undefined;
@@ -468,6 +505,8 @@ export const getClassesAuditFeedService = async (query) => {
   const search = query.search?.trim();
 
   return await findClassesAuditRepository({
+    visibleUserIds: visibility.unrestricted ? null : visibility.userIds,
+    visibleReportIds: visibility.unrestricted ? null : visibility.reportIds,
     departmentId,
     date,
     startDate,

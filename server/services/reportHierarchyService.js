@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import ApiError from "../utils/ApiError.js";
 
 export const REPORT_ROLE_LEVELS = Object.freeze({
   INTERN: 1,
@@ -38,6 +39,32 @@ export const getRoleLevel = ({ role, designation, employmentType } = {}) => {
   if (normalizedRole === "INTERN" || normalizedEmploymentType === "INTERN" || normalizedDesignation.includes("intern")) return REPORT_ROLE_LEVELS.INTERN;
 
   return 0;
+};
+
+export const assertNoReportingCycle = async (client, employeeId, managerId) => {
+  const result = await client.query(
+    `WITH RECURSIVE manager_chain AS (
+       SELECT id, reporting_manager_id, ARRAY[id]::bigint[] AS path
+       FROM employees
+       WHERE id = $1 AND is_deleted = FALSE
+       UNION ALL
+       SELECT parent.id, parent.reporting_manager_id, child.path || parent.id
+       FROM employees parent
+       JOIN manager_chain child ON parent.id = child.reporting_manager_id
+       WHERE parent.is_deleted = FALSE
+         AND NOT parent.id = ANY(child.path)
+     )
+     SELECT
+       EXISTS(SELECT 1 FROM manager_chain WHERE id = $2) AS creates_cycle,
+       EXISTS(SELECT 1 FROM employees WHERE id = $1 AND is_deleted = FALSE) AS manager_exists;`,
+    [managerId, employeeId]
+  );
+  if (result.rows[0]?.creates_cycle) {
+    throw new ApiError(400, "This reporting manager would create a circular reporting hierarchy.");
+  }
+  if (!result.rows[0]?.manager_exists) {
+    throw new ApiError(400, "The selected reporting manager does not exist or is inactive.");
+  }
 };
 
 export const canDepartmentHeadVerifyReport = ({

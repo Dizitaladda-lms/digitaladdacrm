@@ -14,6 +14,15 @@ import {
   getClassesAuditFeedService,
 } from "../services/reportService.js";
 
+export const getReportVisibilityController = asyncHandler(async (req, res) => {
+  return res.status(200).json(
+    new ApiResponse(200, {
+      departmentIds: req.reportVisibility.departmentIds,
+      unrestricted: req.reportVisibility.unrestricted,
+    }, "Report visibility scope retrieved.")
+  );
+});
+
 /**
  * Submit or Update Daily Work Report
  * Supports tasks, total hours, deliverable links, and class logs with video proof links
@@ -50,7 +59,7 @@ export const getMyReportsHistoryController = asyncHandler(async (req, res) => {
  * Get Single Report Details by ID
  */
 export const getReportByIdController = asyncHandler(async (req, res) => {
-  const report = await getReportByIdService(req.params.id);
+  const report = await getReportByIdService(req.params.id, req.user, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, report, "Daily report retrieved successfully."));
@@ -60,7 +69,7 @@ export const getReportByIdController = asyncHandler(async (req, res) => {
  * Team Lead: Get Department / Team Member Reports
  */
 export const getTeamReportsController = asyncHandler(async (req, res) => {
-  const data = await getTeamReportsService(req.user, req.query);
+  const data = await getTeamReportsService(req.user, req.query, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, data, "Team member daily reports retrieved successfully."));
@@ -70,7 +79,7 @@ export const getTeamReportsController = asyncHandler(async (req, res) => {
  * Team Lead: Review / Verify a Report
  */
 export const reviewReportAsTLController = asyncHandler(async (req, res) => {
-  const report = await reviewReportAsTLService(req.user, req.params.id, req.body);
+  const report = await reviewReportAsTLService(req.user, req.params.id, req.body, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, report, "Report reviewed and verified by Team Lead."));
@@ -80,7 +89,7 @@ export const reviewReportAsTLController = asyncHandler(async (req, res) => {
  * HR: Get Company-wide Compliance Dashboard & Pending List
  */
 export const getHROverviewController = asyncHandler(async (req, res) => {
-  const overview = await getHROverviewService(req.query.date);
+  const overview = await getHROverviewService(req.query.date, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, overview, "HR compliance overview retrieved successfully."));
@@ -90,7 +99,7 @@ export const getHROverviewController = asyncHandler(async (req, res) => {
  * HR & Super Admin: Get All Company Reports with Filters
  */
 export const getAllCompanyReportsController = asyncHandler(async (req, res) => {
-  const data = await getAllCompanyReportsService(req.query);
+  const data = await getAllCompanyReportsService(req.query, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, data, "Company reports retrieved successfully."));
@@ -100,7 +109,7 @@ export const getAllCompanyReportsController = asyncHandler(async (req, res) => {
  * HR: Review / Approve a Report
  */
 export const reviewReportAsHRController = asyncHandler(async (req, res) => {
-  const report = await reviewReportAsHRService(req.user, req.params.id, req.body);
+  const report = await reviewReportAsHRService(req.user, req.params.id, req.body, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, report, "Report approved and updated by HR."));
@@ -110,7 +119,7 @@ export const reviewReportAsHRController = asyncHandler(async (req, res) => {
  * Super Admin: Final Review / Approve a Report
  */
 export const reviewReportAsSuperAdminController = asyncHandler(async (req, res) => {
-  const report = await reviewReportAsSuperAdminService(req.user, req.params.id, req.body);
+  const report = await reviewReportAsSuperAdminService(req.user, req.params.id, req.body, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, report, "Report given final approval by Super Admin."));
@@ -120,7 +129,7 @@ export const reviewReportAsSuperAdminController = asyncHandler(async (req, res) 
  * Super Admin & HR: Classes & Video Proofs Audit Feed
  */
 export const getClassesAuditFeedController = asyncHandler(async (req, res) => {
-  const data = await getClassesAuditFeedService(req.query);
+  const data = await getClassesAuditFeedService(req.query, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, data, "Class sessions and video recording proofs retrieved."));

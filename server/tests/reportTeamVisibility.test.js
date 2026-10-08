@@ -14,14 +14,16 @@ describe("findTeamReportsRepository", () => {
 
     await findTeamReportsRepository({
       tlEmployeeId: 41,
+      visibleUserIds: [500, 501],
+      visibleReportIds: [],
       departmentId: 7,
       isSuperAdminOrHR: false,
     });
 
     expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[0][0]).toContain("e.reporting_manager_id = $2");
-    expect(query.mock.calls[0][1].slice(0, 2)).toEqual([7, 41]);
-    expect(query.mock.calls[1][0]).toContain("e.reporting_manager_id = $2");
+    expect(query.mock.calls[0][0]).toContain("e.reporting_manager_id = $4");
+    expect(query.mock.calls[0][1].slice(0, 4)).toEqual([[500, 501], [], 7, 41]);
+    expect(query.mock.calls[1][0]).toContain("e.reporting_manager_id = $4");
   });
 
   it("selects pending reviewer details when a bottleneck viewer requests them", async () => {

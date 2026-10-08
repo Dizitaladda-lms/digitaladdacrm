@@ -44,6 +44,11 @@ export const getReportById = async (id) => {
   return response.data;
 };
 
+export const getReportVisibility = async () => {
+  const response = await axiosInstance.get("/reports/visibility");
+  return response.data;
+};
+
 /**
  * Team Lead: Get department team reports
  * @param {Object} [params] { page, limit, date, startDate, endDate, roleType, status }

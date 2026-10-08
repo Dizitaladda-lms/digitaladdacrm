@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
+import { getReportVisibilityScope } from "../services/reportVisibilityPolicy.js";
 import {
   getVapidPublicKeyService,
   saveSubscriptionService,
@@ -27,6 +28,7 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
   const notifications = [];
 
   try {
+    const reportScope = await getReportVisibilityScope(user);
     // ── 1. HR & Executive Real-Time Attendance Check-In / Check-Out Notifications ──
     if (isExecutive) {
       const { rows: attendanceLogs } = await pool.query(`
@@ -95,13 +97,11 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
         JOIN users u ON r.user_id = u.id
         LEFT JOIN employees e ON e.user_id = r.user_id
         LEFT JOIN departments d ON r.department_id = d.id
-        WHERE r.report_date = CURRENT_DATE
-          AND (NOT $1::boolean OR e.reporting_manager_id = (
-            SELECT id FROM employees WHERE user_id = $2
-          ))
+        WHERE ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))
+          AND r.report_date = CURRENT_DATE
         ORDER BY r.created_at DESC
         LIMIT 10;
-      `, [isTL, user.id]);
+      `, [reportScope.userIds, reportScope.reportIds || []]);
 
       reportLogs.forEach((rep) => {
         notifications.push({

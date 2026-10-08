@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findReportByIdRepository, reviewReportAsHRRepository } = vi.hoisted(() => ({
+const { findReportByIdRepository, reportExistsByIdRepository, reviewReportAsHRRepository } = vi.hoisted(() => ({
   findReportByIdRepository: vi.fn(),
+  reportExistsByIdRepository: vi.fn(),
   reviewReportAsHRRepository: vi.fn(),
 }));
 
@@ -9,6 +10,7 @@ vi.mock("../repositories/reportRepository.js", () => ({
   upsertDailyReportRepository: vi.fn(),
   syncReportClassesRepository: vi.fn(),
   findReportByIdRepository,
+  reportExistsByIdRepository,
   findMyReportByDateRepository: vi.fn(),
   findMyReportsHistoryRepository: vi.fn(),
   findTeamReportsRepository: vi.fn(),
@@ -20,13 +22,14 @@ vi.mock("../repositories/reportRepository.js", () => ({
   findClassesAuditRepository: vi.fn(),
 }));
 
-import { reviewReportAsHRService } from "../services/reportService.js";
+import { getReportByIdService, reviewReportAsHRService } from "../services/reportService.js";
 
 describe("HR report review authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     findReportByIdRepository.mockResolvedValue({
       id: 40,
+      user_id: 90,
       hr_id: 8,
       status: "TL_REVIEWED",
     });
@@ -69,5 +72,11 @@ describe("HR report review authorization", () => {
       )
     ).rejects.toMatchObject({ statusCode: 403 });
     expect(reviewReportAsHRRepository).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when a report ID belongs to a user outside the caller's visibility scope", async () => {
+    await expect(
+      getReportByIdService(40, { id: 25 }, { unrestricted: false, userIds: [25], reportIds: [] })
+    ).rejects.toMatchObject({ statusCode: 403 });
   });
 });

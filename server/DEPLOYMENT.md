@@ -8,6 +8,8 @@ Deployment checklist - DIZITALADDA CRM Backend
   npm run db:migrate
 
 - Device binding migration: `20261015_add_employee_device_binding.sql` creates device slots, blocked-attempt/admin-audit tables, and the refresh-token device binding. Existing access/refresh sessions have no approved device record and require users to sign in again after rollout; apply migrations before deploying the new application code.
+- Report hierarchy visibility migration: `20261016_add_report_hierarchy_visibility.sql` adds manager/department/report indexes and the report visibility snapshot table. `REPORT_GLOBAL_ACCESS_ENABLED` defaults to `true` to preserve existing HR/Super Admin-wide reporting access; set it to `false` to restrict those roles to their own hierarchy/department. `REPORT_HISTORY_VISIBILITY_MODE=current` (default) follows today's reporting tree, while `submission` retains the manager/department-head access captured when a report was first submitted. The existing normalized source of hierarchy is `employees.reporting_manager_id`, with department and employee role/designation on `employees`; do not duplicate these fields onto `users`.
+- `REPORT_VISIBILITY_CACHE_TTL_MS` defaults to 15000 ms. Employee creation, manager changes, department transfers, and status changes clear the in-process report visibility cache. In multi-instance deployments, the TTL bounds stale scopes on other instances.
 
 - Seed CI/test admin (optional):
 

@@ -93,7 +93,44 @@ export const upsertDailyReportRepository = async (clientOrPool, data) => {
   ];
 
   const result = await executor.query(query, values);
-  return result.rows[0];
+  const report = result.rows[0];
+  await executor.query(
+    `WITH RECURSIVE reporting_chain AS (
+       SELECT e.id, e.user_id, e.reporting_manager_id, ARRAY[e.id]::bigint[] AS path
+       FROM employees e
+       WHERE e.user_id = $2 AND e.is_deleted = FALSE
+       UNION ALL
+       SELECT manager.id, manager.user_id, manager.reporting_manager_id, child.path || manager.id
+       FROM employees manager
+       JOIN reporting_chain child ON manager.id = child.reporting_manager_id
+       WHERE manager.is_deleted = FALSE
+         AND NOT manager.id = ANY(child.path)
+     ),
+     visibility_viewers AS (
+       SELECT user_id AS viewer_user_id
+       FROM reporting_chain
+       WHERE user_id IS NOT NULL
+       UNION
+       SELECT head.user_id
+       FROM employees submitter
+       JOIN employees head ON head.department_id = submitter.department_id
+       WHERE submitter.user_id = $2
+         AND submitter.is_deleted = FALSE
+         AND head.is_deleted = FALSE
+         AND head.user_id IS NOT NULL
+         AND (
+           UPPER(COALESCE(head.role, '')) = 'MANAGER'
+           OR LOWER(COALESCE(head.designation, '')) LIKE '%department head%'
+           OR LOWER(COALESCE(head.designation, '')) LIKE '%head of department%'
+         )
+     )
+     INSERT INTO daily_work_report_visibility (report_id, viewer_user_id)
+     SELECT $1, viewer_user_id
+     FROM visibility_viewers
+     ON CONFLICT (report_id, viewer_user_id) DO NOTHING;`,
+    [report.id, data.user_id]
+  );
+  return report;
 };
 
 /**
@@ -155,7 +192,7 @@ export const syncReportClassesRepository = async (clientOrPool, reportId, userId
 /**
  * Get Report by ID with details and classes
  */
-export const findReportByIdRepository = async (reportId) => {
+export const findReportByIdRepository = async (reportId, visibility = {}) => {
   const reportQuery = `
     SELECT 
       r.id,
@@ -222,10 +259,15 @@ export const findReportByIdRepository = async (reportId) => {
     LEFT JOIN users sa_u ON r.super_admin_id = sa_u.id
     LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = e.id) AND da.date = r.report_date
     WHERE r.id = $1
+      AND ($2::bigint[] IS NULL OR r.user_id = ANY($2::bigint[]) OR r.id = ANY($3::bigint[]))
     LIMIT 1;
   `;
 
-  const reportRes = await pool.query(reportQuery, [reportId]);
+  const reportRes = await pool.query(reportQuery, [
+    reportId,
+    visibility.userIds ?? null,
+    visibility.reportIds || [],
+  ]);
   if (reportRes.rows.length === 0) return null;
 
   const report = reportRes.rows[0];
@@ -238,6 +280,14 @@ export const findReportByIdRepository = async (reportId) => {
   report.classes = classesRes.rows;
 
   return report;
+};
+
+export const reportExistsByIdRepository = async (reportId) => {
+  const result = await pool.query(
+    `SELECT EXISTS(SELECT 1 FROM daily_work_reports WHERE id = $1) AS exists;`,
+    [reportId]
+  );
+  return Boolean(result.rows[0]?.exists);
 };
 
 /**
@@ -424,6 +474,8 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
 export const findTeamReportsRepository = async ({
   tlUserId,
   tlEmployeeId,
+  visibleUserIds = null,
+  visibleReportIds = null,
   departmentId,
   allowedDepartmentIds = null,
   date,
@@ -438,9 +490,9 @@ export const findTeamReportsRepository = async ({
   limit = 25,
 }) => {
   const offset = (page - 1) * limit;
-  const whereClauses = [];
-  const values = [];
-  let paramIdx = 1;
+  const whereClauses = ["($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))"];
+  const values = [visibleUserIds, visibleReportIds || []];
+  let paramIdx = 3;
 
   // Department filter (support specific department ID, multiple allowed departments for TL, or all for SuperAdmin/HR)
   if (departmentId && departmentId !== "ALL") {
@@ -846,15 +898,16 @@ export const reviewReportAsSuperAdminRepository = async (reportId, superAdminUse
 /**
  * HR Overview / Compliance Dashboard
  */
-export const findHROverviewRepository = async (targetDate) => {
+export const findHROverviewRepository = async (targetDate, visibleUserIds = null, visibleReportIds = null) => {
   const dateStr = targetDate || new Date().toISOString().split("T")[0];
 
   // 1. Total Active Staff
   const totalStaffRes = await pool.query(`
     SELECT COUNT(*) AS total
     FROM employees
-    WHERE status = 'ACTIVE' AND is_deleted = FALSE;
-  `);
+    WHERE status = 'ACTIVE' AND is_deleted = FALSE
+      AND ($1::bigint[] IS NULL OR user_id = ANY($1::bigint[]));
+  `, [visibleUserIds]);
   const totalStaff = parseInt(totalStaffRes.rows[0]?.total || 0, 10);
 
   // 2. Reports submitted on dateStr
@@ -867,8 +920,9 @@ export const findHROverviewRepository = async (targetDate) => {
       COUNT(CASE WHEN status = 'TL_REVIEWED' THEN 1 END) AS tl_reviewed_count,
       COUNT(CASE WHEN status = 'SUBMITTED' THEN 1 END) AS pending_review_count
     FROM daily_work_reports
-    WHERE report_date = $1;
-  `, [dateStr]);
+    WHERE report_date = $3
+      AND ($1::bigint[] IS NULL OR user_id = ANY($1::bigint[]) OR id = ANY($2::bigint[]));
+  `, [visibleUserIds, visibleReportIds || [], dateStr]);
   const metrics = submittedRes.rows[0];
 
   // 3. Classes Count & Video Proofs Count
@@ -879,8 +933,9 @@ export const findHROverviewRepository = async (targetDate) => {
       COALESCE(SUM(duration_minutes), 0) AS total_class_minutes
     FROM work_report_classes c
     JOIN daily_work_reports r ON c.report_id = r.id
-    WHERE r.report_date = $1;
-  `, [dateStr]);
+    WHERE r.report_date = $3
+      AND ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]));
+  `, [visibleUserIds, visibleReportIds || [], dateStr]);
   const classMetrics = classesRes.rows[0];
 
   // 4. Department Breakdown for target date
@@ -893,11 +948,19 @@ export const findHROverviewRepository = async (targetDate) => {
       COUNT(DISTINCT CASE WHEN r.took_class = TRUE THEN r.id END) AS classes_taken
     FROM departments d
     LEFT JOIN employees e ON e.department_id = d.id AND e.status = 'ACTIVE' AND e.is_deleted = FALSE
-    LEFT JOIN daily_work_reports r ON r.department_id = d.id AND r.report_date = $1
+      AND ($1::bigint[] IS NULL OR e.user_id = ANY($1::bigint[]))
+    LEFT JOIN daily_work_reports r ON r.department_id = d.id AND r.report_date = $3
+      AND ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))
     WHERE d.status = TRUE
+      AND ($1::bigint[] IS NULL OR EXISTS (
+        SELECT 1 FROM employees visible_employee
+        WHERE visible_employee.department_id = d.id
+          AND visible_employee.user_id = ANY($1::bigint[])
+          AND visible_employee.is_deleted = FALSE
+      ))
     GROUP BY d.id, d.department_name
     ORDER BY d.id ASC;
-  `, [dateStr]);
+  `, [visibleUserIds, visibleReportIds || [], dateStr]);
 
   // 5. Employees Pending Submission for target date
   const pendingStaffRes = await pool.query(`
@@ -913,12 +976,15 @@ export const findHROverviewRepository = async (targetDate) => {
     LEFT JOIN departments d ON e.department_id = d.id
     WHERE e.status = 'ACTIVE' 
       AND e.is_deleted = FALSE
+      AND ($1::bigint[] IS NULL OR e.user_id = ANY($1::bigint[]))
       AND e.user_id NOT IN (
-        SELECT user_id FROM daily_work_reports WHERE report_date = $1
+        SELECT user_id FROM daily_work_reports
+        WHERE report_date = $3
+          AND ($1::bigint[] IS NULL OR user_id = ANY($1::bigint[]) OR id = ANY($2::bigint[]))
       )
     ORDER BY d.department_name ASC, e.full_name ASC
     LIMIT 100;
-  `, [dateStr]);
+  `, [visibleUserIds, visibleReportIds || [], dateStr]);
 
   return {
     date: dateStr,
@@ -941,6 +1007,8 @@ export const findHROverviewRepository = async (targetDate) => {
  * Company-wide All Reports Filter (HR & Super Admin)
  */
 export const findAllCompanyReportsRepository = async ({
+  visibleUserIds = null,
+  visibleReportIds = null,
   departmentId,
   employeeId,
   date,
@@ -954,9 +1022,9 @@ export const findAllCompanyReportsRepository = async ({
   limit = 20,
 }) => {
   const offset = (page - 1) * limit;
-  const whereClauses = [];
-  const values = [];
-  let paramIdx = 1;
+  const whereClauses = ["($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))"];
+  const values = [visibleUserIds, visibleReportIds || []];
+  let paramIdx = 3;
 
   if (departmentId) {
     whereClauses.push(`r.department_id = $${paramIdx++}`);
@@ -1053,6 +1121,8 @@ export const findAllCompanyReportsRepository = async ({
  * Classes Video Audit Feed (Super Admin & HR)
  */
 export const findClassesAuditRepository = async ({
+  visibleUserIds = null,
+  visibleReportIds = null,
   departmentId,
   date,
   startDate,
@@ -1062,9 +1132,9 @@ export const findClassesAuditRepository = async ({
   limit = 20,
 }) => {
   const offset = (page - 1) * limit;
-  const whereClauses = [];
-  const values = [];
-  let paramIdx = 1;
+  const whereClauses = ["($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))"];
+  const values = [visibleUserIds, visibleReportIds || []];
+  let paramIdx = 3;
 
   if (departmentId) {
     whereClauses.push(`r.department_id = $${paramIdx++}`);

@@ -27,6 +27,7 @@ import {
 import toast from "react-hot-toast";
 import {
   getTeamReports,
+  getReportVisibility,
   reviewReportAsTL,
   reviewReportAsHR,
   reviewReportAsSuperAdmin,
@@ -61,6 +62,7 @@ const TeamReports = () => {
     (user?.designation && /team lead|leader|head|manager/i.test(user.designation));
 
   const [departments, setDepartments] = useState([]);
+  const [reportScope, setReportScope] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState("ALL"); // "ALL" or department ID / name
   const [selectedRoleLevel, setSelectedRoleLevel] = useState("ALL"); // "ALL" | "TL" | "EXECUTIVE" | "INTERN"
   const [selectedStatus, setSelectedStatus] = useState("ALL"); // "ALL" | "SUBMITTED" | "TL_REVIEWED" | "HR_APPROVED" | "REVISION_REQUESTED"
@@ -92,6 +94,15 @@ const TeamReports = () => {
       .catch((err) => console.error("Failed to load departments:", err));
   }, []);
 
+  useEffect(() => {
+    getReportVisibility()
+      .then((res) => setReportScope(res?.data || null))
+      .catch((err) => {
+        console.error("Failed to load report visibility scope:", err);
+        toast.error(err.response?.data?.message || "Could not load report access scope.");
+      });
+  }, []);
+
   // Allowed department IDs for non-HR / TL
   const allowedDepartmentIds = useMemo(() => {
     if (isHR) return null; // Super Admin and HR see everything
@@ -111,6 +122,10 @@ const TeamReports = () => {
 
   // Visible departments list for filter tabs (strictly limited for TLs)
   const visibleDepartments = useMemo(() => {
+    if (reportScope && !reportScope.unrestricted) {
+      const allowedIds = new Set((reportScope.departmentIds || []).map(Number));
+      return departments.filter((department) => allowedIds.has(Number(department.id)));
+    }
     if (isHR) {
       if (departments.length > 0) return departments;
       return SIX_OFFICIAL_DEPARTMENTS.map((name, idx) => ({ id: idx + 1, department_name: name }));
@@ -130,7 +145,7 @@ const TeamReports = () => {
     }
 
     return [];
-  }, [isHR, departments, allowedDepartmentIds, user?.department_name, user?.department_id]);
+  }, [isHR, departments, allowedDepartmentIds, user?.department_name, user?.department_id, reportScope]);
 
   // Synchronize initial selectedDepartment for TL
   useEffect(() => {
@@ -372,7 +387,7 @@ const TeamReports = () => {
 
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {/* Show "All Departments" button if HR/SuperAdmin, OR if TL manages 2+ departments */}
-            {(isHR || visibleDepartments.length > 1) && (
+            {(reportScope?.unrestricted || visibleDepartments.length > 1) && (
               <button
                 onClick={() => updateReportFilter(() => setSelectedDepartment("ALL"))}
                 style={{

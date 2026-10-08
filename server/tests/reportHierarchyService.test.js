@@ -3,6 +3,7 @@ import pool from "../config/db.js";
 import {
   canDepartmentHeadVerifyReport,
   getRoleLevel,
+  assertNoReportingCycle,
   buildApprovalChain,
   getCurrentApproverForReport,
 } from "../services/reportHierarchyService.js";
@@ -22,6 +23,28 @@ describe("report hierarchy service", () => {
 
   it("maps department head to level 4", () => {
     expect(getRoleLevel({ designation: "Department Head" })).toBe(4);
+  });
+
+  it("rejects a manager assignment that would create a reporting cycle", async () => {
+    const client = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{ creates_cycle: true, manager_exists: true }],
+      }),
+    };
+
+    await expect(assertNoReportingCycle(client, 10, 20))
+      .rejects.toMatchObject({ statusCode: 400 });
+    expect(client.query.mock.calls[0][1]).toEqual([20, 10]);
+  });
+
+  it("accepts a valid manager assignment", async () => {
+    const client = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{ creates_cycle: false, manager_exists: true }],
+      }),
+    };
+
+    await expect(assertNoReportingCycle(client, 10, 20)).resolves.toBeUndefined();
   });
 
   it("allows a department head to verify a pending report in an allowed department", () => {

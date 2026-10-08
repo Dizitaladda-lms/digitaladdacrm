@@ -38,6 +38,14 @@ export const getCompanyPresenceRepository = async () => {
        ON work_mode.employee_id = e.id AND work_mode.work_date = CURRENT_DATE
      WHERE e.is_deleted = FALSE
        AND e.status IN ('ACTIVE', 'ON_LEAVE')
+       AND UPPER(COALESCE(e.role, '')) <> 'SUPER_ADMIN'
+       AND UPPER(COALESCE(e.designation, '')) NOT LIKE '%SUPER ADMIN%'
+       AND NOT EXISTS (
+         SELECT 1
+         FROM users super_admin
+         WHERE super_admin.id = e.user_id
+           AND UPPER(COALESCE(super_admin.role, '')) = 'SUPER_ADMIN'
+       )
      ORDER BY
        CASE
          WHEN UPPER(COALESCE(e.employment_type, '')) = 'INTERN'
@@ -62,6 +70,14 @@ export const setEmployeeWorkModeRepository = async (employeeId, workMode, adminU
      WHERE e.id = $1
        AND e.is_deleted = FALSE
        AND e.status IN ('ACTIVE', 'ON_LEAVE')
+       AND UPPER(COALESCE(e.role, '')) <> 'SUPER_ADMIN'
+       AND UPPER(COALESCE(e.designation, '')) NOT LIKE '%SUPER ADMIN%'
+       AND NOT EXISTS (
+         SELECT 1
+         FROM users super_admin
+         WHERE super_admin.id = e.user_id
+           AND UPPER(COALESCE(super_admin.role, '')) = 'SUPER_ADMIN'
+       )
      ON CONFLICT (employee_id, work_date)
      DO UPDATE SET
        work_mode = EXCLUDED.work_mode,

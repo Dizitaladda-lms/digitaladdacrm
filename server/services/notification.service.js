@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
+import { getReportVisibilityScope } from "./reportVisibilityPolicy.js";
 
 const item = (row, data) => ({
   time: row.created_at || row.updated_at || row.registered_at || row.check_in_time || new Date().toISOString(),
@@ -22,7 +23,10 @@ export const getRoleNotificationsService = async (user) => {
   const isManager = ["ADMIN", "MANAGER"].includes(role);
   const isAdmin = isSuperAdmin || isManager;
   const isHR = role === "HR" || isAdmin;
-  const isTL = role === "TL";
+  const employeeProfile = Number.isInteger(Number(user?.id))
+    ? await findEmployeeByUserIdRepository(Number(user.id))
+    : null;
+  const isTL = role === "TL" || /team lead|sub[\s-]?team lead/i.test(String(employeeProfile?.designation || ""));
   const isCounsellor = role === "COUNSELLOR";
 
   const userId = Number(user?.id);
@@ -31,6 +35,7 @@ export const getRoleNotificationsService = async (user) => {
   const notifications = [];
 
   try {
+    const reportScope = await getReportVisibilityScope(user);
     // -------------------------------------------------------------
     // 1. PENDING PASSKEY APPROVALS (For HR, Admin, Super Admin)
     // -------------------------------------------------------------
@@ -70,7 +75,7 @@ export const getRoleNotificationsService = async (user) => {
     // -------------------------------------------------------------
     // (A) Team Leader: Reports from their direct reports needing TL review
     if (isTL && hasValidUserId) {
-      const tlEmp = await findEmployeeByUserIdRepository(userId);
+      const tlEmp = employeeProfile;
       if (tlEmp?.id) {
         const { rows: tlPendingReports } = await pool.query(`
           SELECT 
@@ -88,13 +93,12 @@ export const getRoleNotificationsService = async (user) => {
           JOIN users u ON r.user_id = u.id
           JOIN employees e ON e.user_id = r.user_id
           LEFT JOIN departments d ON r.department_id = d.id
-          WHERE e.reporting_manager_id = $1
-            AND r.user_id != $2
+          WHERE ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))
             AND r.status IN ('SUBMITTED', 'PENDING_TL_APPROVAL')
             AND r.report_date >= CURRENT_DATE - INTERVAL '3 days'
           ORDER BY r.created_at DESC
           LIMIT 10;
-        `, [tlEmp.id, user.id]);
+        `, [reportScope.userIds, reportScope.reportIds || []]);
 
         tlPendingReports.forEach((rep) => {
           notifications.push(item(rep, {
@@ -129,11 +133,12 @@ export const getRoleNotificationsService = async (user) => {
         FROM daily_work_reports r
         JOIN users u ON r.user_id = u.id
         LEFT JOIN departments d ON r.department_id = d.id
-        WHERE r.status IN ('TL_REVIEWED', 'PENDING_HR_APPROVAL')
+        WHERE ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))
+          AND r.status IN ('TL_REVIEWED', 'PENDING_HR_APPROVAL')
           AND r.report_date >= CURRENT_DATE - INTERVAL '4 days'
         ORDER BY COALESCE(r.tl_reviewed_at, r.created_at) DESC
         LIMIT 10;
-      `);
+      `, [reportScope.userIds, reportScope.reportIds || []]);
 
       hrPendingReports.forEach((rep) => {
         notifications.push(item(rep, {
@@ -166,11 +171,12 @@ export const getRoleNotificationsService = async (user) => {
         FROM daily_work_reports r
         JOIN users u ON r.user_id = u.id
         LEFT JOIN departments d ON r.department_id = d.id
-        WHERE r.report_date = CURRENT_DATE
+        WHERE ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))
+          AND r.report_date = CURRENT_DATE
           AND r.status NOT IN ('TL_REVIEWED', 'PENDING_HR_APPROVAL')
         ORDER BY r.created_at DESC
         LIMIT 8;
-      `);
+      `, [reportScope.userIds, reportScope.reportIds || []]);
 
       recentSubmissions.forEach((rep) => {
         notifications.push(item(rep, {

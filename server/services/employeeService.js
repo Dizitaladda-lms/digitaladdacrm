@@ -37,6 +37,8 @@ import {
     reviewEmployeeApprovalRequestRepository,
 } from "../repositories/employeeApprovalRepository.js";
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
+import { invalidateReportVisibilityCache } from "./reportVisibilityPolicy.js";
+import { assertNoReportingCycle } from "./reportHierarchyService.js";
 
 const generateEmployeeCode = (sequence) => {
     const prefix = process.env.EMPLOYEE_CODE_PREFIX || "EMP";
@@ -152,6 +154,17 @@ const createEmployeeWithinTransaction = async (
 
         if (employee) {
             const existingId = employee.id;
+            if (
+                employeeData.reporting_manager_id !== undefined &&
+                employeeData.reporting_manager_id !== null &&
+                employeeData.reporting_manager_id !== ""
+            ) {
+                await assertNoReportingCycle(
+                    client,
+                    Number(existingId),
+                    Number(employeeData.reporting_manager_id)
+                );
+            }
             await client.query(
                 `UPDATE employees SET is_deleted = FALSE, status = 'ACTIVE', employee_code = $1, user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3;`,
                 [customCode, user.id, existingId]
@@ -177,6 +190,7 @@ const createEmployeeWithinTransaction = async (
                 created_by: currentUser?.id || null,
             });
         }
+        invalidateReportVisibilityCache();
 
         if (Array.isArray(employeeData.routing_assignments)) {
             for (const routing of employeeData.routing_assignments) {
@@ -290,6 +304,7 @@ export const approveEmployeeApprovalRequestService = async (id, currentUser, req
             req,
             request.password_hash
         );
+        invalidateReportVisibilityCache();
         await reviewEmployeeApprovalRequestRepository(
             client,
             id,
@@ -362,6 +377,14 @@ export const updateEmployeeService = async (
                 404,
                 "Employee not found."
             );
+        }
+
+        if (employeeData.reporting_manager_id !== undefined && employeeData.reporting_manager_id !== null && employeeData.reporting_manager_id !== "") {
+            const managerId = Number(employeeData.reporting_manager_id);
+            if (!Number.isInteger(managerId) || managerId <= 0) {
+                throw new ApiError(400, "Reporting manager must be a valid employee.");
+            }
+            await assertNoReportingCycle(client, Number(id), managerId);
         }
 
         // Duplicate Email Check
@@ -479,6 +502,7 @@ export const updateEmployeeService = async (
                     updated_by: currentUser.id,
                 }
             );
+        invalidateReportVisibilityCache();
 
         // Update User (Full Name, Role, Email, and Password)
         const userUpdatePayload = {

@@ -1,5 +1,6 @@
 import express from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
+import reportVisibilityMiddleware from "../middleware/reportVisibilityMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import ROLES from "../constants/roles.js";
 
@@ -15,6 +16,7 @@ import {
   reviewReportAsHRController,
   reviewReportAsSuperAdminController,
   getClassesAuditFeedController,
+  getReportVisibilityController,
 } from "../controllers/reportController.js";
 
 const router = express.Router();
@@ -23,6 +25,8 @@ const router = express.Router();
  * All routes require authentication
  */
 router.use(authMiddleware);
+router.use(reportVisibilityMiddleware);
+router.get("/visibility", getReportVisibilityController);
 
 /* ── Employee / Trainer / Intern / All Staff Routes ─────── */
 
