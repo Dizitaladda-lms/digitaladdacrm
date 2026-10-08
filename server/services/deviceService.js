@@ -5,8 +5,8 @@ import {
   insertDeviceAdminAuditLogRepository,
   listEmployeeBlockedAttemptsRepository,
   listEmployeeDevicesRepository,
-  revokeDeviceRefreshTokensRepository,
 } from "../repositories/deviceRepository.js";
+import { revokeDeviceRefreshTokensRepository } from "../repositories/refreshTokenRepository.js";
 
 const auditAdminAction = async (client, admin, employeeUserId, action, deviceId, details, ipAddress) => {
   await insertDeviceAdminAuditLogRepository(client, {
