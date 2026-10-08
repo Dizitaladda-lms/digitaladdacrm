@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import { useRef } from "react";
 import {
   X,
   Printer,
@@ -87,7 +87,7 @@ const FeeReceiptModal = ({ isOpen, onClose, admission, payment }) => {
     currentPayment.receipt_no ||
     currentPayment.receipt_number ||
     admission.receipt_no ||
-    `${brand.prefix}${Date.now().toString().slice(-7)}`;
+    `${brand.prefix}${String(admission.admission_code || admission.id || "Pending").slice(-7)}`;
 
   const paymentDate = currentPayment.payment_date
     ? new Date(currentPayment.payment_date).toLocaleDateString("en-GB", {
@@ -124,6 +124,15 @@ const FeeReceiptModal = ({ isOpen, onClose, admission, payment }) => {
       ? Number(admission.pending_fee)
       : Math.max(0, totalCourseFee - Number(admission.paid_fee || amountPaidNow));
 
+  const paidBeforeThisPayment = Math.max(
+    0,
+    Number(admission.paid_fee || amountPaidNow) - amountPaidNow
+  );
+  const formatCurrency = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   const amountInWords = numberToWordsINR(amountPaidNow);
 
   const paymentMode = (currentPayment.payment_mode || admission.payment_mode || "ONLINE").toUpperCase();
@@ -141,30 +150,32 @@ const FeeReceiptModal = ({ isOpen, onClose, admission, payment }) => {
     const phone = rawMobile.length === 10 ? `91${rawMobile}` : rawMobile;
 
     const message =
-`*OFFICIAL FEE PAYMENT RECEIPT* 🧾
-*----------------------------------------*
-*Institute:* ${brand.brandName}
-*Receipt No:* ${receiptNo}
-*Date:* ${paymentDate}
+`*COURSE FEE PAYMENT INVOICE*
+*${brand.brandName}*
 
-*Student Name:* ${studentName}
-${fatherName && fatherName !== "—" ? `*Father's/Husband Name:* ${fatherName}\n` : ""}*Course Applied:* ${courseName}
-*Fee Month(s):* ${feeMonth}
-*Course Fee:* ₹${totalCourseFee.toLocaleString("en-IN")}
+*Invoice / Receipt:* ${receiptNo}
+*Admission / Order ID:* ${admission.admission_code || admission.id || "—"}
+*Payment date:* ${paymentDate}
 
-*----------------------------------------*
-*Amount Paid Now:* ₹${amountPaidNow.toLocaleString("en-IN")}
-*Payment Mode:* ${paymentMode}
-*Transaction / RR No:* ${transactionId}
-*Amount in Words:* ${amountInWords}
-*Remaining Balance:* ${remainingBalance === 0 ? "Nil (Fully Paid)" : `₹${remainingBalance.toLocaleString("en-IN")}`}
-*----------------------------------------*
+*Bill to:* ${studentName}
+${fatherName && fatherName !== "—" ? `*Parent/Guardian:* ${fatherName}\n` : ""}*Phone:* ${admission.mobile || "—"}
+*Course:* ${courseName}
+*Fee period:* ${feeMonth}
 
-*Address:* ${brand.address}
-*Contact:* ${brand.phone} | ${brand.email}
-*Website:* ${brand.website}
+*Course fee:* ${formatCurrency(totalCourseFee)}
+*Paid before this payment:* ${formatCurrency(paidBeforeThisPayment)}
+*Paid in this transaction:* ${formatCurrency(amountPaidNow)}
+*Balance due:* ${formatCurrency(remainingBalance)}
+*Payment status:* ${remainingBalance <= 0 ? "PAID" : "PARTIALLY PAID"}
 
-_Note: This is a computer generated receipt which doesn't require signature. Fees once paid will not be refundable._`;
+*Payment method:* ${paymentMode}
+*Transaction reference:* ${transactionId}
+*Amount in words:* ${amountInWords}
+
+${brand.address}
+${brand.phone} | ${brand.email} | ${brand.website}
+
+Computer-generated payment receipt. This document records the payment received against the course fee; it is not a tax invoice.`;
 
     const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
@@ -212,211 +223,106 @@ _Note: This is a computer generated receipt which doesn't require signature. Fee
           </div>
         </div>
 
-        {/* Printable Receipt Paper */}
+        {/* Printable course-fee invoice */}
         <div className="printable-receipt-card" ref={receiptRef}>
-          {/* Outer Double Border Container */}
-          <div className="receipt-inner-frame">
-            {/* Header Section */}
-            <div className="receipt-header-row">
-              {/* Left Column: Brand Logo & Contacts */}
-              <div className="receipt-header-left">
-                {brand.key === "dizitaladda" ? (
-                  <div className="receipt-brand-logo-wrap">
-                    <img
-                      src={dizitalAddaLogo}
-                      alt="Dizital Adda"
-                      className="receipt-logo-img"
-                    />
-                  </div>
-                ) : brand.key === "nidads" ? (
-                  <div className="receipt-brand-text-logo">
-                    <span className="nidads-title">NIDADS</span>
-                    <span className="nidads-sub">National Institute of Digital Art & Design Skills</span>
-                  </div>
-                ) : (
-                  /* NIGAPE Default / Uploaded Template exact match */
-                  <div className="receipt-nigape-logo-wrap">
-                    <div className="nigape-ai-icon-group">
-                      <div className="nigape-circle-node">
-                        <span className="nigape-ai-badge">AI</span>
-                      </div>
-                      <div className="nigape-inst-text">
-                        <span>National Institute of GEN AI &</span>
-                        <span>Prompt Engineering</span>
-                      </div>
-                    </div>
-                    <div className="nigape-bold-text">nigape</div>
-                  </div>
-                )}
-
-                <div className="receipt-contact-info">
-                  <div>Ph : {brand.phone}</div>
-                  <div>Email Id : {brand.email}</div>
+          <article className="order-invoice">
+            <header className="order-invoice-header">
+              <div className="order-invoice-brand">
+                <img src={dizitalAddaLogo} alt={brand.brandName} />
+                <div>
+                  <strong>{brand.brandName}</strong>
+                  <span>{brand.website}</span>
                 </div>
               </div>
-
-              {/* Middle Column: Title & Website */}
-              <div className="receipt-header-center">
-                <h1 className="receipt-main-title">FEE RECEIPT</h1>
-                <div className="receipt-website-link">{brand.website}</div>
+              <div className="order-invoice-heading">
+                <span className="invoice-kicker">PAYMENT CONFIRMATION</span>
+                <h1>Course fee invoice</h1>
+                <span className={`invoice-status ${remainingBalance <= 0 ? "is-paid" : "is-partial"}`}>
+                  <CheckCircle size={14} />
+                  {remainingBalance <= 0 ? "Paid in full" : "Partially paid"}
+                </span>
               </div>
+            </header>
 
-              {/* Right Column: Address Box */}
-              <div className="receipt-header-right">
-                <div className="receipt-address-box">
-                  <div className="address-box-heading">Address:</div>
-                  <div className="address-box-text">
-                    2nd Floor, Spacetime Management Pvt Ltd Design House, Inder
-                    Mohan Bhardwaj Marg, opposite Savitri Cinema Complex, Block
-                    E, New, Greater Kailash, New Delhi, Delhi 110048.
-                  </div>
-                </div>
+            <section className="invoice-order-meta" aria-label="Order details">
+              <div><span>Invoice / receipt</span><strong>{receiptNo}</strong></div>
+              <div><span>Admission / order ID</span><strong>{admission.admission_code || admission.id || "—"}</strong></div>
+              <div><span>Payment date</span><strong>{paymentDate}</strong></div>
+              <div><span>Fee period</span><strong>{feeMonth}</strong></div>
+            </section>
+
+            <section className="invoice-parties">
+              <div className="invoice-party">
+                <span className="invoice-section-label">BILL TO</span>
+                <strong>{studentName}</strong>
+                {fatherName !== "—" && <span>Parent / guardian: {fatherName}</span>}
+                {admission.mobile && <span>Phone: {admission.mobile}</span>}
+                {admission.email && <span>Email: {admission.email}</span>}
+                {admission.campus_centre && <span>Centre: {admission.campus_centre}</span>}
               </div>
-            </div>
-
-            {/* Separator Divider */}
-            <div className="receipt-thick-divider"></div>
-
-            {/* Student Info Grid */}
-            <div className="receipt-student-grid">
-              <div className="receipt-info-row">
-                <div className="info-label">Rec No.</div>
-                <div className="info-colon">:</div>
-                <div className="info-val receipt-bold">{receiptNo}</div>
+              <div className="invoice-party">
+                <span className="invoice-section-label">SOLD BY</span>
+                <strong>{brand.brandName}</strong>
+                <span>{brand.address}</span>
+                <span>{brand.phone}</span>
+                <span>{brand.email}</span>
               </div>
+            </section>
 
-              <div className="receipt-info-row">
-                <div className="info-label">Date</div>
-                <div className="info-colon">:</div>
-                <div className="info-val receipt-bold">{paymentDate}</div>
+            <section className="invoice-items-section">
+              <h2>Order items</h2>
+              <div className="invoice-table-wrap">
+                <table className="invoice-items-table">
+                  <thead>
+                    <tr>
+                      <th>Item description</th>
+                      <th>Period</th>
+                      <th className="invoice-align-right">Qty</th>
+                      <th className="invoice-align-right">Course fee</th>
+                      <th className="invoice-align-right">Item total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <strong>{courseName}</strong>
+                        <span>Course / educational services</span>
+                      </td>
+                      <td>{feeMonth}</td>
+                      <td className="invoice-align-right">1</td>
+                      <td className="invoice-align-right">{formatCurrency(totalCourseFee)}</td>
+                      <td className="invoice-align-right invoice-item-total">{formatCurrency(totalCourseFee)}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
+            </section>
 
-              <div className="receipt-info-row">
-                <div className="info-label">Student Name</div>
-                <div className="info-colon">:</div>
-                <div className="info-val receipt-bold">{studentName}</div>
+            <section className="invoice-summary">
+              <div className="invoice-payment-details">
+                <h2>Payment details</h2>
+                <div><span>Payment method</span><strong>{paymentMode}</strong></div>
+                <div><span>Transaction reference</span><strong>{transactionId}</strong></div>
+                <div><span>Amount in words</span><strong>{amountInWords}</strong></div>
               </div>
-
-              <div className="receipt-info-row">
-                <div className="info-label">Father's/Husband Name</div>
-                <div className="info-colon">:</div>
-                <div className="info-val receipt-bold">{fatherName}</div>
+              <div className="invoice-totals">
+                <div><span>Course fee total</span><strong>{formatCurrency(totalCourseFee)}</strong></div>
+                <div><span>Paid before this payment</span><strong>{formatCurrency(paidBeforeThisPayment)}</strong></div>
+                <div className="invoice-paid-row"><span>Paid in this transaction</span><strong>{formatCurrency(amountPaidNow)}</strong></div>
+                <div className="invoice-balance-row"><span>Balance due</span><strong>{formatCurrency(remainingBalance)}</strong></div>
+                <small>Payment received against the course fee</small>
               </div>
+            </section>
 
-              <div className="receipt-info-row">
-                <div className="info-label">Course Applied</div>
-                <div className="info-colon">:</div>
-                <div className="info-val receipt-bold">{courseName}</div>
+            <footer className="invoice-footer">
+              <div>
+                <strong>Thank you for your payment.</strong>
+                <span>This computer-generated receipt confirms the payment received for the course listed above.</span>
+                <span>This is a payment receipt, not a tax invoice. No tax amount is represented here.</span>
               </div>
-
-              <div className="receipt-info-row">
-                <div className="info-label">Fee Month(s)</div>
-                <div className="info-colon">:</div>
-                <div className="info-val receipt-bold">{feeMonth}</div>
-              </div>
-
-              <div className="receipt-info-row">
-                <div className="info-label">Course Fee</div>
-                <div className="info-colon">:</div>
-                <div className="info-val receipt-bold">
-                  Rs. {totalCourseFee.toLocaleString("en-IN")}/-
-                </div>
-              </div>
-            </div>
-
-            {/* Particulars Table */}
-            <table className="receipt-particulars-table">
-              <thead>
-                <tr>
-                  <th className="th-desc">Description</th>
-                  <th className="th-mode">Payment Mode</th>
-                  <th className="th-amount">Amount Paid</th>
-                  <th className="th-online">Online Payment Details: (RR NO.)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="td-desc">{courseName}</td>
-                  <td className="td-mode">{paymentMode}</td>
-                  <td className="td-amount receipt-bold">
-                    Rs. {amountPaidNow.toLocaleString("en-IN")}/-
-                  </td>
-                  <td className="td-online receipt-bold">
-                    {transactionId || "UPI"}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* Calculations & Signatory Row */}
-            <div className="receipt-bottom-split">
-              {/* Left Column: Totals & Words */}
-              <div className="receipt-totals-left">
-                <div className="total-calc-line">
-                  <span className="total-label">Total Amount</span>
-                  <span className="total-colon">:</span>
-                  <strong className="total-val">
-                    Rs. {amountPaidNow.toLocaleString("en-IN")}/-
-                  </strong>
-                </div>
-
-                <div className="total-calc-line">
-                  <span className="total-label">Amount in Words</span>
-                  <span className="total-colon">:</span>
-                  <span className="total-words-val receipt-bold">
-                    {amountInWords}
-                  </span>
-                </div>
-
-                <div className="total-calc-line">
-                  <span className="total-label">Balance</span>
-                  <span className="total-colon">:</span>
-                  <span className="total-val receipt-bold">
-                    {remainingBalance === 0
-                      ? "Nil"
-                      : `Rs. ${remainingBalance.toLocaleString("en-IN")}/-`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Right Column: Authorized Signatory Box */}
-              <div className="receipt-signatory-right">
-                <div className="signatory-box">
-                  <div className="sign-signature-svg">
-                    {/* Artistic digital signature curve matching template */}
-                    <svg
-                      viewBox="0 0 200 60"
-                      className="sig-svg"
-                      fill="none"
-                      stroke="#1e3a8a"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    >
-                      <path d="M 20 42 Q 40 10 55 35 T 85 28 T 115 25 T 145 22 T 160 38" />
-                      <path d="M 50 25 Q 90 5 125 18 T 175 32" />
-                      <ellipse cx="160" cy="28" rx="20" ry="16" strokeWidth="1.8" />
-                      <line x1="80" y1="46" x2="175" y2="44" stroke="#1e3a8a" strokeWidth="1.5" />
-                    </svg>
-                  </div>
-                  <div className="signatory-title">(Authorized Signatory)</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Divider above Notes */}
-            <div className="receipt-medium-divider"></div>
-
-            {/* Note & Footer */}
-            <div className="receipt-notes-footer">
-              <div className="receipt-note-line">
-                <strong>Note:</strong> -This is computer generated receipt which doesn't require signature.
-              </div>
-              <div className="receipt-note-line indent">
-                -Fees once paid will not be refundable.
-              </div>
-              <div className="receipt-bottom-bar-line"></div>
-            </div>
-          </div>
+              <span className="invoice-footer-contact">{brand.phone} · {brand.email} · {brand.website}</span>
+            </footer>
+          </article>
         </div>
 
         {/* Payment Screenshot Proof Card (if available) - Hidden in Print */}
