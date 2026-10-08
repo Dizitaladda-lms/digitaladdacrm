@@ -67,6 +67,19 @@ export const getMyAttendanceHistory = async (params = {}) => {
   return response.data;
 };
 
+export const getCompanyPresence = async () => {
+  const response = await axiosInstance.get("/attendance/company-presence");
+  return response.data;
+};
+
+export const setEmployeeWorkMode = async (employeeId, workMode) => {
+  const response = await axiosInstance.patch(
+    `/attendance/company-presence/${employeeId}/work-mode`,
+    { work_mode: workMode }
+  );
+  return response.data;
+};
+
 export const getHRAttendanceReports = async (params = {}) => {
   const response = await axiosInstance.get("/attendance/hr-reports", { params });
   return response.data;

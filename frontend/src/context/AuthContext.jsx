@@ -8,6 +8,7 @@ import {
 import {
   loginUser,
   logoutUser,
+  logoutAllDevices as logoutAllDevicesRequest,
   getProfile,
   updateProfile as updateProfileRequest,
 } from "../services/authService";
@@ -58,6 +59,11 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const logoutAllDevices = async () => {
+    await logoutAllDevicesRequest();
+    setUser(null);
+  };
+
   const updateProfile = async (profile) => {
     const response = await updateProfileRequest(profile);
     const updatedUser = response?.data || response?.user || null;
@@ -76,6 +82,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         logout,
+        logoutAllDevices,
         updateProfile,
       }}
     >

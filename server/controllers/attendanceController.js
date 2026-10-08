@@ -18,6 +18,10 @@ import {
   addOfficeIPService,
   deleteOfficeIPService,
 } from "../services/attendanceService.js";
+import {
+  getCompanyPresenceService,
+  setEmployeeWorkModeService,
+} from "../services/employeePresenceService.js";
 
 export const getMyBiometricStatus = asyncHandler(async (req, res) => {
   const targetDate = req.query.date || null;
@@ -88,6 +92,20 @@ export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
 export const getHRAttendanceReports = asyncHandler(async (req, res) => {
   const result = await getHRAttendanceReportsService(req.query, req.user);
   return res.status(200).json(new ApiResponse(200, result, "HR attendance reports fetched successfully."));
+});
+
+export const getCompanyPresence = asyncHandler(async (_req, res) => {
+  const result = await getCompanyPresenceService();
+  return res.status(200).json(new ApiResponse(200, result, "Company presence retrieved."));
+});
+
+export const setEmployeeWorkMode = asyncHandler(async (req, res) => {
+  const result = await setEmployeeWorkModeService(
+    req.params.employeeId,
+    req.body?.work_mode,
+    req.user
+  );
+  return res.status(200).json(new ApiResponse(200, result, "Employee work mode updated."));
 });
 
 export const getOfficeIPs = asyncHandler(async (req, res) => {

@@ -22,6 +22,8 @@ const validateEnv = () => {
   process.env.LOG_LEVEL ||= "info";
   process.env.EMPLOYEE_CODE_PREFIX ||= "EMP";
   process.env.AUTO_ASSIGN_ENABLED ||= "false";
+  process.env.JWT_EXPIRES_IN ||= "15m";
+  process.env.JWT_REFRESH_EXPIRES_IN ||= "30d";
 
   /**
    * -------------------------------------
@@ -31,9 +33,7 @@ const validateEnv = () => {
 
   const required = [
     "JWT_SECRET",
-    "JWT_EXPIRES_IN",
     "JWT_REFRESH_SECRET",
-    "JWT_REFRESH_EXPIRES_IN",
   ];
 
   /**

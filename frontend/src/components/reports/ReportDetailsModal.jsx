@@ -61,6 +61,11 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
 
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isHR = userRole === "HR" || isSuperAdmin;
+  const tlApprovalLabel =
+    String(report.tl_user_role || "").toUpperCase() === "MANAGER" ||
+    /department head|head of department/i.test(String(report.tl_designation || ""))
+      ? "Department Head Approval"
+      : "TL Verification";
   const isTL = userRole === "TL" || userRole === "MANAGER" || isHR;
 
   const handleSendRevision = async (e) => {
@@ -279,7 +284,7 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
               {report.tl_feedback && (
                 <div className="review-comment-card tl-review">
                   <div className="review-author">
-                    <strong>Department Head Approval: {report.tl_name || "Dept Head"}</strong>
+                    <strong>{tlApprovalLabel}: {report.tl_name || (tlApprovalLabel === "Department Head Approval" ? "Dept Head" : "Team Lead")}</strong>
                     <span>{report.tl_reviewed_at ? new Date(report.tl_reviewed_at).toLocaleDateString() : ""}</span>
                   </div>
                   <p>{report.tl_feedback}</p>

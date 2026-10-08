@@ -20,6 +20,12 @@ import authenticate from "../middleware/authMiddleware.js";
 import authorize from "../middleware/authorize.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import PERMISSIONS from "../constants/permissions.js";
+import deviceAdminMiddleware from "../middleware/deviceAdminMiddleware.js";
+import {
+  getEmployeeDeviceOverviewController,
+  renameEmployeeDeviceController,
+  revokeEmployeeDeviceController,
+} from "../controllers/deviceController.js";
 
 import {
   validateCreateEmployee,
@@ -59,6 +65,30 @@ router.get(
   authenticate,
   roleMiddleware("SUPER_ADMIN"),
   getEmployeeApprovalRequestsController
+);
+
+router.get(
+  "/:id/devices",
+  authenticate,
+  deviceAdminMiddleware,
+  validateEmployeeId,
+  getEmployeeDeviceOverviewController
+);
+
+router.patch(
+  "/:id/devices/:deviceId",
+  authenticate,
+  deviceAdminMiddleware,
+  validateEmployeeId,
+  renameEmployeeDeviceController
+);
+
+router.post(
+  "/:id/devices/:deviceId/revoke",
+  authenticate,
+  deviceAdminMiddleware,
+  validateEmployeeId,
+  revokeEmployeeDeviceController
 );
 
 router.post(

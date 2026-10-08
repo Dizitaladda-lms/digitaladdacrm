@@ -45,7 +45,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
-const allowedMainWebsitesRegex = /^(https?:\/\/)?([a-z0-9-]+\.)*(nidads\.com|nipage\.com|nigape\.com|iidad\.com|dizitaladda\.com|vercel\.app)(:\d+)?$/i;
+const allowedMainWebsitesRegex = /^(https?:\/\/)?([a-z0-9-]+\.)*(nidads\.com|nipage\.com|nigape\.com|iidad\.com|dizitaladda\.com)(:\d+)?$/i;
 const explicitOrigins = [process.env.CLIENT_URL || "", process.env.ALLOWED_ORIGINS || ""]
   .join(",")
   .split(",")
@@ -78,7 +78,14 @@ app.use(cors((req, callback) => {
       origin: origin || true,
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Accept",
+        "X-Device-Id",
+        "X-Device-Name",
+      ],
     });
   }
 

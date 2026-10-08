@@ -12,6 +12,8 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: modalFadeIn 0.18s ease;
 }
 
@@ -25,8 +27,12 @@
   border: 1px solid #e8eaf0;
   border-radius: 16px;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
-  width: min(780px, 95vw);
-  max-height: 90vh;
+  width: min(780px, calc(100vw - 32px));
+  height: min(90vh, 900px);
+  height: min(90dvh, 900px);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -136,9 +142,12 @@
 .report-modal-body {
   padding: 22px 24px;
   overflow-y: auto;
-  flex: 1 1 auto;
+  overflow-x: hidden;
+  flex: 1 1 0;
   min-height: 0;
+  min-width: 0;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -148,6 +157,18 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+}
+
+.tasks-box,
+.task-line,
+.meta-card,
+.review-comment-card,
+.video-proof-box,
+.materials-box {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .section-label {
@@ -460,12 +481,16 @@
 
 /* ── Footer ─────────────────────────────────────────────── */
 .report-modal-footer {
-  padding: 16px 24px;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 12px 24px;
   border-top: 1px solid #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
   background: #fafafa;
   flex-shrink: 0;
 }
@@ -522,11 +547,15 @@
 @media (max-width: 640px) {
   .report-modal-overlay {
     padding: 8px;
+    align-items: flex-start;
   }
 
   .report-modal-box {
     width: 100%;
-    max-height: calc(100dvh - 16px);
+    height: calc(100vh - 16px);
+    height: calc(100dvh - 16px);
+    max-height: none;
+    border-radius: 12px;
   }
 
   .report-modal-header {
@@ -542,8 +571,22 @@
     flex-wrap: wrap;
   }
 
+  .report-modal-footer .btn-secondary,
   .report-modal-footer .btn-primary,
   .report-modal-footer .btn-success {
-    flex: 1 1 180px;
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+}
+
+@media (max-height: 520px) and (min-width: 641px) {
+  .report-modal-overlay {
+    align-items: flex-start;
+  }
+
+  .report-modal-box {
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
+    max-height: none;
   }
 }

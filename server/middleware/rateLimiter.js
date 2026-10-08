@@ -77,6 +77,18 @@ export const accountRecoveryLimiter = rateLimit({
   message: { success: false, message: "Too many account recovery attempts. Please try again later." },
 });
 
+export const refreshTokenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  message: {
+    success: false,
+    message: "Too many session refresh attempts. Please try again later.",
+  },
+});
+
 export const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,

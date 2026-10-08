@@ -51,20 +51,26 @@ const TeamReports = () => {
   const userRole = String(user?.role || "").toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isHR = userRole === "HR" || isSuperAdmin;
+  const isDepartmentHead =
+    userRole === "MANAGER" ||
+    /department head|head of department/i.test(String(user?.designation || ""));
+  const canSeeBottleneckOwner = isHR || userRole === "ADMIN" || isDepartmentHead;
   const isTL =
     userRole === "TL" ||
-    userRole === "MANAGER" ||
+    isDepartmentHead ||
     (user?.designation && /team lead|leader|head|manager/i.test(user.designation));
 
   const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState("ALL"); // "ALL" or department ID / name
   const [selectedRoleLevel, setSelectedRoleLevel] = useState("ALL"); // "ALL" | "TL" | "EXECUTIVE" | "INTERN"
   const [selectedStatus, setSelectedStatus] = useState("ALL"); // "ALL" | "SUBMITTED" | "TL_REVIEWED" | "HR_APPROVED" | "REVISION_REQUESTED"
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [selectedDate, setSelectedDate] = useState(() => (
+    canSeeBottleneckOwner ? "" : new Date().toISOString().split("T")[0]
+  ));
   const [searchTerm, setSearchTerm] = useState("");
   const [reports, setReports] = useState([]);
+  const [reportPage, setReportPage] = useState(1);
+  const [reportPagination, setReportPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
 
@@ -158,12 +164,11 @@ const TeamReports = () => {
         status: selectedStatus !== "ALL" ? selectedStatus : undefined,
         date: selectedDate || undefined,
         search: searchTerm || undefined,
+        page: reportPage,
+        limit: 100,
       });
-      if (res?.data?.reports) {
-        setReports(res.data.reports);
-      } else {
-        setReports([]);
-      }
+      setReports(Array.isArray(res?.data?.reports) ? res.data.reports : []);
+      setReportPagination(res?.data?.pagination || { page: 1, totalPages: 1, total: 0 });
     } catch (err) {
       console.error("Failed to fetch team reports:", err);
       toast.error(err.response?.data?.message || "Could not fetch team reports.");
@@ -174,7 +179,7 @@ const TeamReports = () => {
 
   useEffect(() => {
     fetchReports();
-  }, [selectedDepartment, selectedRoleLevel, selectedStatus, selectedDate, searchTerm]);
+  }, [selectedDepartment, selectedRoleLevel, selectedStatus, selectedDate, searchTerm, reportPage]);
 
   // Open review modal with appropriate role target
   const handleOpenReview = (report, targetRole = null) => {
@@ -214,6 +219,8 @@ const TeamReports = () => {
         toast.success(
           reviewDecision === "REVISE"
             ? "Revision requested from employee! ⚠️"
+            : isDepartmentHead
+            ? "Report verified by Department Head! Automatically forwarded to HR. 🚀"
             : "Report verified by Team Leader! Automatically forwarded to HR. 🚀"
         );
       } else if (reviewType === "HR") {
@@ -302,6 +309,11 @@ const TeamReports = () => {
     0
   );
 
+  const updateReportFilter = (updateFilter) => {
+    setReportPage(1);
+    updateFilter();
+  };
+
   return (
     <div className="team-reports-page">
       {/* Header Banner */}
@@ -362,7 +374,7 @@ const TeamReports = () => {
             {/* Show "All Departments" button if HR/SuperAdmin, OR if TL manages 2+ departments */}
             {(isHR || visibleDepartments.length > 1) && (
               <button
-                onClick={() => setSelectedDepartment("ALL")}
+                onClick={() => updateReportFilter(() => setSelectedDepartment("ALL"))}
                 style={{
                   padding: "7px 14px",
                   borderRadius: "20px",
@@ -389,7 +401,7 @@ const TeamReports = () => {
               return (
                 <button
                   key={deptId}
-                  onClick={() => setSelectedDepartment(deptId)}
+                  onClick={() => updateReportFilter(() => setSelectedDepartment(deptId))}
                   style={{
                     padding: "7px 14px",
                     borderRadius: "20px",
@@ -444,7 +456,7 @@ const TeamReports = () => {
               type="text"
               placeholder="Search employee name, code, designation..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => updateReportFilter(() => setSearchTerm(e.target.value))}
               style={{
                 width: "100%",
                 padding: "8px 12px 8px 32px",
@@ -462,7 +474,7 @@ const TeamReports = () => {
             <Layers size={15} style={{ color: "#64748b" }} />
             <select
               value={selectedRoleLevel}
-              onChange={(e) => setSelectedRoleLevel(e.target.value)}
+              onChange={(e) => updateReportFilter(() => setSelectedRoleLevel(e.target.value))}
               className="filter-select"
             >
               <option value="ALL">All Roles (TL, Exec & Interns)</option>
@@ -477,11 +489,11 @@ const TeamReports = () => {
             <Filter size={15} style={{ color: "#64748b" }} />
             <select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
+              onChange={(e) => updateReportFilter(() => setSelectedStatus(e.target.value))}
               className="filter-select"
             >
               <option value="ALL">All Approval Stages</option>
-              <option value="SUBMITTED">⏳ 1. Pending TL Verification ({pendingTLCount})</option>
+              <option value="SUBMITTED">⏳ 1. Pending TL / Department Head Verification ({pendingTLCount})</option>
               <option value="TL_REVIEWED">⏳ 2. Pending HR Approval ({pendingHRCount})</option>
               <option value="HR_APPROVED">✅ 3. Approved (Super Admin Ready) ({approvedCount})</option>
               <option value="REVISION_REQUESTED">🔄 Revision Requested</option>
@@ -494,12 +506,12 @@ const TeamReports = () => {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => updateReportFilter(() => setSelectedDate(e.target.value))}
               className="filter-date-input"
             />
             {selectedDate && (
               <button
-                onClick={() => setSelectedDate("")}
+                onClick={() => updateReportFilter(() => setSelectedDate(""))}
                 title="View All Dates"
                 style={{
                   background: "none",
@@ -534,7 +546,7 @@ const TeamReports = () => {
             <Clock size={20} />
           </div>
           <div>
-            <span className="stat-label">Pending TL Verification</span>
+            <span className="stat-label">Pending TL / Department Head Verification</span>
             <strong className="stat-number" style={{ color: "#d97706" }}>
               {pendingTLCount}
             </strong>
@@ -619,6 +631,28 @@ const TeamReports = () => {
               <tbody>
                 {reports.map((row) => {
                   const roleBadge = getRoleBadge(row);
+                  const pendingApproverName = row.pending_approver_name || row.tl_name;
+                  const pendingApproverRole = String(
+                    row.pending_approver_employee_role ||
+                    row.pending_approver_user_role ||
+                    row.tl_employee_role ||
+                    row.tl_user_role ||
+                    ""
+                  ).toUpperCase();
+                  const pendingApproverDesignation = String(
+                    row.pending_approver_designation || row.tl_designation || ""
+                  );
+                  const pendingApproverLabel =
+                    pendingApproverRole === "SUB_TL" || /sub[- ]?team lead|sub[- ]?tl/i.test(pendingApproverDesignation)
+                      ? "Sub-TL"
+                      : pendingApproverRole === "MANAGER" || /department head|head of department/i.test(pendingApproverDesignation)
+                        ? "Department Head"
+                        : pendingApproverRole === "TL" || /team lead|team leader/i.test(pendingApproverDesignation)
+                          ? "TL"
+                          : "Reviewer";
+                  const reviewerIsDepartmentHead =
+                    String(row.tl_user_role || "").toUpperCase() === "MANAGER" ||
+                    /department head|head of department/i.test(String(row.tl_designation || ""));
 
                   return (
                     <tr key={row.id}>
@@ -722,23 +756,32 @@ const TeamReports = () => {
                       <td>
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                           {row.status === "SUBMITTED" ? (
-                            <span
-                              style={{
-                                fontSize: "11.5px",
-                                fontWeight: "700",
-                                color: "#b45309",
-                                background: "#fef3c7",
-                                padding: "4px 8px",
-                                borderRadius: "6px",
-                                border: "1px solid #fde68a",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "5px",
-                                width: "fit-content",
-                              }}
-                            >
-                              ⏳ 1. Pending TL Verification
-                            </span>
+                            <>
+                              <span
+                                style={{
+                                  fontSize: "11.5px",
+                                  fontWeight: "700",
+                                  color: "#b45309",
+                                  background: "#fef3c7",
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  border: "1px solid #fde68a",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                  width: "fit-content",
+                                }}
+                              >
+                                ⏳ 1. Pending TL / Department Head Verification
+                              </span>
+                              {canSeeBottleneckOwner && (
+                                <span style={{ fontSize: "11px", color: "#92400e", paddingLeft: "3px" }}>
+                                  Waiting on: {pendingApproverName
+                                    ? `${pendingApproverLabel} — ${pendingApproverName}`
+                                    : "TL assignment / Department Head review"}
+                                </span>
+                              )}
+                            </>
                           ) : row.status === "TL_REVIEWED" ? (
                             <>
                               <span
@@ -751,7 +794,7 @@ const TeamReports = () => {
                                   gap: "3px",
                                 }}
                               >
-                                ✓ TL Verified ({row.tl_name || "Team Lead"})
+                                ✓ {reviewerIsDepartmentHead ? "Department Head Verified" : "TL Verified"} ({row.tl_name || (reviewerIsDepartmentHead ? "Department Head" : "Team Lead")})
                               </span>
                               <span
                                 style={{
@@ -833,7 +876,7 @@ const TeamReports = () => {
                             <Eye size={13} /> View
                           </button>
 
-                          {/* Action 1: If report is SUBMITTED, TL or HR/Admin can verify */}
+                          {/* The Department Head can complete the same pending TL approval stage. */}
                           {row.status === "SUBMITTED" && (isTL || isHR || isSuperAdmin) && (
                             <button
                               onClick={() => handleOpenReview(row, "TL")}
@@ -851,9 +894,9 @@ const TeamReports = () => {
                                 gap: "4px",
                                 boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)",
                               }}
-                              title="Verify as Team Leader & forward to HR"
+                              title={isDepartmentHead ? "Verify as Department Head & forward to HR" : "Verify as Team Leader & forward to HR"}
                             >
-                              <CheckCheck size={13} /> Verify TL
+                              <CheckCheck size={13} /> {isDepartmentHead ? "Verify as Dept. Head" : "Verify TL"}
                             </button>
                           )}
 
@@ -889,6 +932,29 @@ const TeamReports = () => {
             </table>
           </div>
         )}
+        {!loading && reportPagination.totalPages > 1 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", padding: "12px 16px", borderTop: "1px solid #e2e8f0" }}>
+            <span style={{ color: "#64748b", fontSize: "12px" }}>
+              {reportPagination.total} reports · Page {reportPagination.page} of {reportPagination.totalPages}
+            </span>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                disabled={reportPage <= 1}
+                onClick={() => setReportPage((current) => Math.max(1, current - 1))}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={reportPage >= reportPagination.totalPages}
+                onClick={() => setReportPage((current) => Math.min(reportPagination.totalPages, current + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 5. REVIEW & VERIFICATION MODAL ── */}
@@ -902,10 +968,16 @@ const TeamReports = () => {
                     ? "Tier-2 HR Compliance Review"
                     : reviewType === "SUPER_ADMIN"
                     ? "Tier-3 Super Admin Final Audit"
+                    : isDepartmentHead
+                    ? "Tier-1 Department Head Verification"
                     : "Tier-1 Team Leader Verification"}
                 </span>
                 <h3>
-                  {reviewType === "HR" ? "HR Approval" : "TL Verification"}: {reviewingReport.user_name}
+                  {reviewType === "HR"
+                    ? "HR Approval"
+                    : isDepartmentHead
+                    ? "Department Head Verification"
+                    : "TL Verification"}: {reviewingReport.user_name}
                 </h3>
                 <span className="modal-date-tag">
                   {reviewingReport.report_date} • {reviewingReport.department_name} ({getRoleBadge(reviewingReport).label})
@@ -941,6 +1013,8 @@ const TeamReports = () => {
                   <option value="APPROVE">
                     {reviewType === "HR"
                       ? "✅ Approve & Send to Super Admin (HR Approved)"
+                      : isDepartmentHead
+                      ? "✅ Verify & Forward to HR (Department Head Verified)"
                       : "✅ Verify & Forward to HR (TL Verified)"}
                   </option>
                   <option value="REVISE">
@@ -951,7 +1025,11 @@ const TeamReports = () => {
 
               <div className="form-group">
                 <label className="form-label">
-                  {reviewType === "HR" ? "HR Comments & Notes" : "Team Leader Feedback"}
+                  {reviewType === "HR"
+                    ? "HR Comments & Notes"
+                    : isDepartmentHead
+                    ? "Department Head Feedback"
+                    : "Team Leader Feedback"}
                 </label>
                 <textarea
                   className="form-textarea"
@@ -993,6 +1071,8 @@ const TeamReports = () => {
                     ? "Request Revision"
                     : reviewType === "HR"
                     ? "Confirm HR Approval"
+                    : isDepartmentHead
+                    ? "Confirm Department Head Verification"
                     : "Confirm TL Verification"}
                 </button>
               </div>

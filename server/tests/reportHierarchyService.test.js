@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import pool from "../config/db.js";
-import { getRoleLevel, buildApprovalChain, getCurrentApproverForReport } from "../services/reportHierarchyService.js";
+import {
+  canDepartmentHeadVerifyReport,
+  getRoleLevel,
+  buildApprovalChain,
+  getCurrentApproverForReport,
+} from "../services/reportHierarchyService.js";
 
 describe("report hierarchy service", () => {
   beforeEach(() => {
@@ -17,6 +22,34 @@ describe("report hierarchy service", () => {
 
   it("maps department head to level 4", () => {
     expect(getRoleLevel({ designation: "Department Head" })).toBe(4);
+  });
+
+  it("allows a department head to verify a pending report in an allowed department", () => {
+    expect(canDepartmentHeadVerifyReport({
+      reviewerUserId: 70,
+      reviewerRole: "MANAGER",
+      reviewerDesignation: "Department Head",
+      reviewerDepartmentIds: [7],
+      report: { user_id: 20, department_id: 7, status: "SUBMITTED" },
+    })).toBe(true);
+  });
+
+  it("does not allow a department head to verify another department or a report already reviewed by its TL", () => {
+    const reviewer = {
+      reviewerUserId: 70,
+      reviewerRole: "MANAGER",
+      reviewerDesignation: "Department Head",
+      reviewerDepartmentIds: [7],
+    };
+
+    expect(canDepartmentHeadVerifyReport({
+      ...reviewer,
+      report: { user_id: 20, department_id: 8, status: "SUBMITTED" },
+    })).toBe(false);
+    expect(canDepartmentHeadVerifyReport({
+      ...reviewer,
+      report: { user_id: 20, department_id: 7, status: "TL_REVIEWED" },
+    })).toBe(false);
   });
 
   it("builds the expected chain for an intern report", async () => {

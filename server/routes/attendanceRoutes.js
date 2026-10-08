@@ -16,6 +16,8 @@ import {
   checkOutAttendance,
   getMyAttendanceHistory,
   getHRAttendanceReports,
+  getCompanyPresence,
+  setEmployeeWorkMode,
   getOfficeIPs,
   addOfficeIP,
   deleteOfficeIP,
@@ -54,6 +56,12 @@ router.post(
 router.post("/check-in", checkInAttendance);
 router.post("/check-out", checkOutAttendance);
 router.get("/my-history", getMyAttendanceHistory);
+router.get("/company-presence", getCompanyPresence);
+router.patch(
+  "/company-presence/:employeeId/work-mode",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  setEmployeeWorkMode
+);
 
 // HR & Super Admin Attendance Reports
 router.get(

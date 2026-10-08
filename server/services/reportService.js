@@ -1,7 +1,12 @@
 import pool, { withTransaction } from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
-import { buildApprovalChain, getRoleLevel } from "./reportHierarchyService.js";
+import {
+  buildApprovalChain,
+  canDepartmentHeadVerifyReport,
+  getRoleLevel,
+  REPORT_ROLE_LEVELS,
+} from "./reportHierarchyService.js";
 import {
   upsertDailyReportRepository,
   syncReportClassesRepository,
@@ -321,6 +326,12 @@ export const getTeamReportsService = async (user, query) => {
     isSuperAdminOrHR,
     page,
     limit,
+    includePendingApprover:
+      isSuperAdminOrHR ||
+      getRoleLevel({
+        role: empProfile?.role || user.role,
+        designation: empProfile?.designation || user.designation,
+      }) === REPORT_ROLE_LEVELS.DEPARTMENT_HEAD,
   });
 };
 
@@ -333,8 +344,29 @@ export const reviewReportAsTLService = async (user, reportId, payload) => {
     throw new ApiError(404, "Report not found.");
   }
 
-  if (Number(report.tl_id) !== Number(user.id) && Number(report.user_id) !== Number(user.id)) {
-    throw new ApiError(403, "Only the assigned TL or the submitter can review this report.");
+  const employeeProfile = await ensureEmployeeProfileForUser(user.id);
+  const departmentIds = [
+    employeeProfile?.department_id,
+    ...(Array.isArray(employeeProfile?.managed_department_ids)
+      ? employeeProfile.managed_department_ids
+      : []),
+  ]
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0);
+  const isDepartmentHeadOverride = canDepartmentHeadVerifyReport({
+    reviewerUserId: user.id,
+    reviewerRole: employeeProfile?.role || user.role,
+    reviewerDesignation: employeeProfile?.designation || user.designation,
+    reviewerDepartmentIds: departmentIds,
+    report,
+  });
+
+  if (
+    Number(report.tl_id) !== Number(user.id) &&
+    Number(report.user_id) !== Number(user.id) &&
+    !isDepartmentHeadOverride
+  ) {
+    throw new ApiError(403, "Only the assigned TL or the Department Head assigned to this report's department can verify it.");
   }
 
   const feedback = payload.feedback || payload.tl_feedback || "";

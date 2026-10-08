@@ -4,6 +4,7 @@ import {
   loginIpLimiter,
   accountRecoveryLimiter,
   registrationLimiter,
+  refreshTokenLimiter,
 } from "../middleware/rateLimiter.js";
 import {
   register,
@@ -16,6 +17,7 @@ import {
   resetPassword,
   refreshToken,
   logout,
+  logoutAllDevices,
   verifyEmail,
 } from "../controllers/authController.js";
 
@@ -75,6 +77,7 @@ router.post(
 
 router.post(
   "/refresh-token",
+  refreshTokenLimiter,
   refreshToken
 );
 
@@ -114,8 +117,13 @@ router.patch(
 
 router.post(
   "/logout",
-  authMiddleware,
   logout
+);
+
+router.post(
+  "/logout-all",
+  authMiddleware,
+  logoutAllDevices
 );
 
 router.patch(

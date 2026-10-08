@@ -14,6 +14,7 @@ const MyDailyReport = lazy(() => import("../pages/employee/MyDailyReport"));
 const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
 const MyPerformance = lazy(() => import("../pages/employee/MyPerformance"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
+const CompanyPresence = lazy(() => import("../pages/employee/CompanyPresence"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const MyAssignedWork = lazy(() => import("../pages/employee/MyAssignedWork"));
 const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
@@ -51,6 +52,7 @@ const EmployeeRoutes = () => {
           
           {/* Active Attendance & Monthly Roster Routes */}
           <Route path="my-attendance" element={<MyAttendance />} />
+          <Route path="company-presence" element={<CompanyPresence />} />
           <Route path="roster" element={<MyRoster />} />
           <Route path="my-roster" element={<MyRoster />} />
 

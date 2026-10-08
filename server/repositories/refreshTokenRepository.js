@@ -20,16 +20,18 @@ export const createRefreshTokenRepository = async (
   client,
   userId,
   token,
-  expiresAt
+  expiresAt,
+  deviceId
 ) => {
 
   const query = `
     INSERT INTO refresh_tokens (
       user_id,
       token,
-      expires_at
+      expires_at,
+      device_id
     )
-    VALUES ($1, $2, $3)
+    VALUES ($1, $2, $3, $4)
     RETURNING *;
   `;
 
@@ -37,6 +39,7 @@ export const createRefreshTokenRepository = async (
     userId,
     hashToken(token),
     expiresAt,
+    deviceId,
   ];
 
   const result = await client.query(
@@ -53,18 +56,18 @@ export const createRefreshTokenRepository = async (
  * Find Refresh Token
  * =====================================================
  */
-export const findRefreshTokenRepository = async (
-  token
-) => {
+export const findRefreshTokenRepository = async (token, client = pool) => {
 
   const query = `
-    SELECT *
+    SELECT id, user_id, expires_at, device_id
     FROM refresh_tokens
     WHERE token = $1
-    LIMIT 1;
+      AND expires_at > CURRENT_TIMESTAMP
+    LIMIT 1
+    FOR UPDATE;
   `;
 
-  const result = await pool.query(
+  const result = await client.query(
     query,
     [hashToken(token)]
   );
@@ -167,4 +170,11 @@ async (userId) => {
 
   return result.rows;
 
+};
+
+export const revokeDeviceRefreshTokensRepository = async (client, userId, deviceId) => {
+  await client.query(
+    `DELETE FROM refresh_tokens WHERE user_id = $1 AND device_id = $2;`,
+    [userId, deviceId]
+  );
 };

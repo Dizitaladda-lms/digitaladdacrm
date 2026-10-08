@@ -8,6 +8,7 @@ import {
   Users,
   UserCheck,
   UserCog,
+  Laptop,
   X,
   TrendingUp,
   Building2,
@@ -36,6 +37,7 @@ import {
   setEmployeeDomains,
 } from "../../services/leadRoutingService";
 import EmployeePerformanceModal from "../../components/admin/employees/EmployeePerformanceModal";
+import EmployeeDeviceManager from "../../components/admin/employees/EmployeeDeviceManager";
 import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
 import "../../styles/LeadManagement/LeadHeader.css";
 import "../../styles/LeadManagement/LeadStats.css";
@@ -145,6 +147,7 @@ const Employees = () => {
   // Performance Modal State
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isPerfModalOpen, setIsPerfModalOpen] = useState(false);
+  const [deviceManagerEmployee, setDeviceManagerEmployee] = useState(null);
 
   // Domain Assignment Modal State
   const [domainModalOpen, setDomainModalOpen] = useState(false);
@@ -1070,6 +1073,23 @@ const Employees = () => {
                   </td>
                   <td style={{ textAlign: "right" }}>
                     <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                      {canManageLaptopAttendance && (
+                        <button
+                          className="view-more-btn"
+                          type="button"
+                          onClick={() => setDeviceManagerEmployee(employee)}
+                          style={{
+                            backgroundColor: "#EFF6FF",
+                            color: "#1D4ED8",
+                            border: "1px solid #BFDBFE",
+                            fontWeight: 600,
+                          }}
+                          title={`Manage registered devices for ${employee.full_name}`}
+                        >
+                          <Laptop size={15} />
+                          <span>Devices</span>
+                        </button>
+                      )}
                       {canManageRouting && (
                         <button
                           className="view-more-btn"
@@ -2101,6 +2121,12 @@ const Employees = () => {
         isOpen={isPerfModalOpen}
         onClose={() => setIsPerfModalOpen(false)}
       />
+      {deviceManagerEmployee && (
+        <EmployeeDeviceManager
+          employee={deviceManagerEmployee}
+          onClose={() => setDeviceManagerEmployee(null)}
+        />
+      )}
     </section>
   );
 };

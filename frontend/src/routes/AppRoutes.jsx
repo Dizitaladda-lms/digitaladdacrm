@@ -21,6 +21,7 @@ const DailyReportForm = lazy(() => import("../pages/admin/DailyReportForm"));
 const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
 const AgencyLeads = lazy(() => import("../pages/hr/AgencyLeads"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
+const CompanyPresence = lazy(() => import("../pages/employee/CompanyPresence"));
 const AttendanceReports = lazy(() => import("../pages/hr/AttendanceReports"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const AdminWorkAssignments = lazy(() => import("../pages/admin/AdminWorkAssignments"));
@@ -205,6 +206,15 @@ const AppRoutes = () => {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <MyAttendance />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/company-presence"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CompanyPresence />
                 </Suspense>
               }
             />

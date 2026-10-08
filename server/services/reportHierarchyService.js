@@ -40,6 +40,30 @@ export const getRoleLevel = ({ role, designation, employmentType } = {}) => {
   return 0;
 };
 
+export const canDepartmentHeadVerifyReport = ({
+  reviewerUserId,
+  reviewerRole,
+  reviewerDesignation,
+  reviewerDepartmentIds = [],
+  report,
+} = {}) => {
+  if (getRoleLevel({ role: reviewerRole, designation: reviewerDesignation }) !== REPORT_ROLE_LEVELS.DEPARTMENT_HEAD) {
+    return false;
+  }
+
+  if (String(report?.status || "").toUpperCase() !== "SUBMITTED") {
+    return false;
+  }
+
+  const reportDepartmentId = Number(report.department_id);
+  if (!Number.isInteger(reportDepartmentId) || reportDepartmentId <= 0) {
+    return false;
+  }
+
+  return reviewerDepartmentIds.some((departmentId) => Number(departmentId) === reportDepartmentId)
+    && Number(reviewerUserId) !== Number(report.user_id);
+};
+
 const normalizeRoleName = (value) => {
   if (!value) return "EMPLOYEE";
   const clean = String(value).trim().toUpperCase();

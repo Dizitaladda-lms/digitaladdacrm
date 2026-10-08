@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, ChevronDown, LogOut, Pencil, UserRound } from "lucide-react";
+import { Camera, ChevronDown, LogOut, Pencil, ShieldCheck, UserRound } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { getProfileAvatar } from "../../services/authService";
@@ -14,7 +14,7 @@ const initialsFor = (name) => (name || "User")
   .toUpperCase();
 
 const ProfileMenu = ({ compact = false }) => {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout, logoutAllDevices, updateProfile } = useAuth();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -99,6 +99,15 @@ const ProfileMenu = ({ compact = false }) => {
     }
   };
 
+  const handleLogoutAllDevices = async () => {
+    if (!window.confirm("Sign out of this account on all devices?")) return;
+    try {
+      await logoutAllDevices();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not sign out from all devices.");
+    }
+  };
+
   return (
     <div className={`profile-menu ${compact ? "profile-menu-compact" : ""}`} ref={menuRef}>
       <button type="button" className="profile-menu-trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
@@ -115,6 +124,7 @@ const ProfileMenu = ({ compact = false }) => {
           <div><strong>{displayName}</strong><span>{user?.designation ? `${user.designation} • ` : ""}{user?.email}</span></div>
         </div>
         <button type="button" onClick={openEditor}><Pencil size={16} /> Edit profile</button>
+        <button type="button" onClick={handleLogoutAllDevices}><ShieldCheck size={16} /> Sign out all devices</button>
         <button type="button" className="profile-menu-signout" onClick={logout}><LogOut size={16} /> Sign out</button>
       </div>}
 

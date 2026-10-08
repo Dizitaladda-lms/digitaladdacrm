@@ -41,6 +41,7 @@ describeAuth("Auth: login", () => {
     expect(cookies.some((c) => c.startsWith("accessToken="))).toBe(true);
     expect(cookies.some((c) => c.startsWith("refreshToken="))).toBe(true);
     expect(cookies.some((c) => c.toLowerCase().includes("httponly"))).toBe(true);
+    expect(cookies.every((c) => /max-age=\d+/i.test(c))).toBe(true);
   });
 
   it("rejects an incorrect password", async () => {
@@ -131,6 +132,7 @@ describeAuth("Auth: refresh token rotation", () => {
       .set("Cookie", loginCookies);
 
     expect(refreshRes.status).toBe(200);
+    expect(refreshRes.body.data.refreshToken).toBeUndefined();
     const refreshedCookies = refreshRes.headers["set-cookie"];
     expect(refreshedCookies).toBeDefined();
 
@@ -182,6 +184,33 @@ describeAuth("Auth: logout", () => {
       .set("Cookie", loginCookies);
 
     expect(refreshAfterLogout.status).toBe(401);
+  });
+
+  it("revokes every refresh session with the logout-all endpoint", async () => {
+    const testUser = await createTestUser({
+      email: "counsellor-all-devices@test.com",
+      role: ROLES.COUNSELLOR,
+    });
+
+    const loginRes = await request(app).post("/api/auth/login").send({
+      email: testUser.email,
+      password: testUser.plaintextPassword,
+    });
+    const loginCookies = loginRes.headers["set-cookie"];
+
+    const logoutAllRes = await request(app)
+      .post("/api/auth/logout-all")
+      .set("Cookie", loginCookies);
+
+    expect(logoutAllRes.status).toBe(200);
+    expect(logoutAllRes.headers["set-cookie"].some((cookie) =>
+      cookie.startsWith("refreshToken=;")
+    )).toBe(true);
+
+    const refreshRes = await request(app)
+      .post("/api/auth/refresh-token")
+      .set("Cookie", loginCookies);
+    expect(refreshRes.status).toBe(401);
   });
 });
 

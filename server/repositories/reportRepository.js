@@ -161,7 +161,7 @@ export const findReportByIdRepository = async (reportId) => {
       r.id,
       r.user_id,
       r.employee_id,
-      r.department_id,
+      COALESCE(r.department_id, e.department_id) AS department_id,
       r.report_date,
       r.role_type,
       r.work_title,
@@ -208,6 +208,8 @@ export const findReportByIdRepository = async (reportId) => {
       e.employment_type,
       d.department_name,
       tl_u.full_name AS tl_name,
+      tl_u.role AS tl_user_role,
+      tl_e.designation AS tl_designation,
       hr_u.full_name AS hr_name,
       sa_u.full_name AS super_admin_name
     FROM daily_work_reports r
@@ -215,6 +217,7 @@ export const findReportByIdRepository = async (reportId) => {
     LEFT JOIN employees e ON (r.employee_id = e.id OR e.user_id = r.user_id)
     LEFT JOIN departments d ON r.department_id = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
+    LEFT JOIN employees tl_e ON tl_e.user_id = tl_u.id AND tl_e.is_deleted = FALSE
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
     LEFT JOIN users sa_u ON r.super_admin_id = sa_u.id
     LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = e.id) AND da.date = r.report_date
@@ -430,6 +433,7 @@ export const findTeamReportsRepository = async ({
   status,
   search,
   isSuperAdminOrHR,
+  includePendingApprover = false,
   page = 1,
   limit = 25,
 }) => {
@@ -587,6 +591,13 @@ export const findTeamReportsRepository = async ({
       ${directParamIdx ? `(e.reporting_manager_id = $${directParamIdx})` : `false`} AS is_direct_intern,
       COALESCE(d.department_name, 'General') AS department_name,
       tl_u.full_name AS tl_name,
+      tl_u.role AS tl_user_role,
+      tl_e.role AS tl_employee_role,
+      tl_e.designation AS tl_designation,
+      ${includePendingApprover ? "tl_u.full_name" : "NULL"} AS pending_approver_name,
+      ${includePendingApprover ? "tl_u.role" : "NULL"} AS pending_approver_user_role,
+      ${includePendingApprover ? "tl_e.role" : "NULL"} AS pending_approver_employee_role,
+      ${includePendingApprover ? "tl_e.designation" : "NULL"} AS pending_approver_designation,
       hr_u.full_name AS hr_name,
       super_u.full_name AS super_admin_name,
       (SELECT JSON_AGG(c.*) FROM (
@@ -600,6 +611,7 @@ export const findTeamReportsRepository = async ({
     LEFT JOIN employees m ON e.reporting_manager_id = m.id
     LEFT JOIN departments d ON COALESCE(r.department_id, e.department_id) = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
+    LEFT JOIN employees tl_e ON tl_e.user_id = r.tl_id AND tl_e.is_deleted = FALSE
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
     LEFT JOIN users super_u ON r.super_admin_id = super_u.id
     LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = e.id) AND da.date = r.report_date

@@ -263,7 +263,8 @@ export const updatePasswordRepository = async (
  * =====================================================
  */
 export const updateLastLoginRepository = async (
-  userId
+  userId,
+  client = pool
 ) => {
 
   const query = `
@@ -276,7 +277,7 @@ export const updateLastLoginRepository = async (
     RETURNING last_login;
   `;
 
-  const result = await pool.query(
+  const result = await client.query(
     query,
     [userId]
   );

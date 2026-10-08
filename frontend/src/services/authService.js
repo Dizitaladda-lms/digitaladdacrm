@@ -49,6 +49,11 @@ export const logoutUser = async () => {
 
 };
 
+export const logoutAllDevices = async () => {
+  const response = await axiosInstance.post("/auth/logout-all");
+  return response.data;
+};
+
 export const changePassword = async (payload) => {
 
     const response = await axiosInstance.patch(

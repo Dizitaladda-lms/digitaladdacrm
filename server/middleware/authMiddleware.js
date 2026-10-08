@@ -2,6 +2,13 @@ import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 import { findUserByIdRepository } from "../repositories/authRepository.js";
+import { findApprovedUserDeviceRepository, updateDeviceLastSeenRepository } from "../repositories/deviceRepository.js";
+import {
+  assertDeviceCookieMatches,
+  getDeviceId,
+  getDeviceType,
+  setDeviceCookie,
+} from "../utils/deviceBinding.js";
 
 /**
  * =====================================================
@@ -46,6 +53,9 @@ const authMiddleware = async (req, res, next) => {
      * Verify JWT
      */
     const decoded = verifyAccessToken(token);
+    const deviceId = getDeviceId(req);
+    assertDeviceCookieMatches(req, deviceId);
+    const deviceType = getDeviceType(String(req.get("user-agent") || ""));
 
     /**
      * Check User Exists
@@ -82,11 +92,22 @@ const authMiddleware = async (req, res, next) => {
       );
     }
 
+    const device = await findApprovedUserDeviceRepository(user.id, deviceId);
+    if (!device || device.device_type !== deviceType) {
+      return next(new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        "This device is not approved. Contact HR or an administrator."
+      ));
+    }
+    await updateDeviceLastSeenRepository(user.id, deviceId);
+    setDeviceCookie(res, deviceId);
+
     /**
      * Attach Safe User Object
      */
     req.user = {
       id: user.id,
+      device_id: deviceId,
       full_name: user.full_name,
       email: user.email,
       role: user.role,
