@@ -91,6 +91,14 @@ const hasUsablePasskey = (biometric) =>
   isCanonicalBase64Url(biometric?.credential_id, 16) &&
   isCanonicalBase64Url(biometric?.public_key, 32);
 
+const isAttendancePasskeyRequired = () => {
+  const value = String(process.env.ATTENDANCE_PASSKEY_REQUIRED || "false").toLowerCase();
+  if (value !== "true" && value !== "false") {
+    throw new Error("ATTENDANCE_PASSKEY_REQUIRED must be set to true or false.");
+  }
+  return value === "true";
+};
+
 export const requiresIOSFaceVerification = (req) =>
   /iPhone|iPad|iPod|Macintosh.*Mobile/i.test(
     req?.get?.("user-agent") || req?.headers?.["user-agent"] || ""
@@ -107,6 +115,7 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
 
   return {
     employee_id: employee.id,
+    passkey_required: isAttendancePasskeyRequired(),
     is_registered: !!biometric,
     credential_id: biometric ? biometric.credential_id : null,
     passkey_ready: hasUsablePasskey(biometric),
@@ -432,7 +441,9 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     );
   }
 
-  await verifyAttendancePasskey(employee.id, assertion);
+  if (isAttendancePasskeyRequired()) {
+    await verifyAttendancePasskey(employee.id, assertion);
+  }
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -526,7 +537,9 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   }
 
   await verifyOfficeIP(req);
-  await verifyAttendancePasskey(employee.id, assertion);
+  if (isAttendancePasskeyRequired()) {
+    await verifyAttendancePasskey(employee.id, assertion);
+  }
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayAttendance = await findTodayAttendanceRepository(employee.id, todayStr);

@@ -1,6 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import SearchBox from "./SearchBox";
-import Notification from "./Notification";
 import UserMenu from "./UserMenu";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -49,7 +48,6 @@ const Topbar = ({ isSidebarOpen = true, onMenuClick }) => {
         <div className="hidden sm:block">
           <SearchBox />
         </div>
-        <Notification />
         <UserMenu />
       </div>
     </header>

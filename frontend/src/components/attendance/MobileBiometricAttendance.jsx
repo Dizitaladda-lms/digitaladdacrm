@@ -593,7 +593,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
-  const handlePasskeyCheckIn = async () => {
+  const handleCheckIn = async () => {
     try {
       setActionLoading(true);
       const loc = await getGPSLocation();
@@ -602,27 +602,32 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         return;
       }
 
-      if (!window.isSecureContext || !window.PublicKeyCredential) {
-        throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
+      let assertion;
+      if (statusData?.passkey_required !== false) {
+        if (!window.isSecureContext || !window.PublicKeyCredential) {
+          throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
+        }
+        toast.loading("Verify your device passkey...", { id: "biometric-auth" });
+        const optionsResponse = await getBiometricAuthenticationOptions();
+        assertion = await startAuthentication({
+          optionsJSON: optionsResponse.data,
+        });
       }
-      toast.loading("Verify your device passkey...", { id: "biometric-auth" });
-      const optionsResponse = await getBiometricAuthenticationOptions();
-      const assertion = await startAuthentication({
-        optionsJSON: optionsResponse.data,
-      });
       const attendancePayload = {
-        assertion,
         latitude: loc.latitude,
         longitude: loc.longitude,
         location_name: loc.location_name,
+        ...(assertion ? { assertion } : {}),
       };
-      {
-        const result = await checkInAttendance(attendancePayload);
-        toast.dismiss("biometric-auth");
-        toast.success(`Passkey verified. Check-in marked at 📍 ${loc.location_name}`);
-        await loadStatus();
-        if (onCheckInSuccess) onCheckInSuccess(result?.data);
-      }
+      const result = await checkInAttendance(attendancePayload);
+      toast.dismiss("biometric-auth");
+      toast.success(
+        statusData?.passkey_required === false
+          ? `Check-in marked at 📍 ${loc.location_name}`
+          : `Passkey verified. Check-in marked at 📍 ${loc.location_name}`
+      );
+      await loadStatus();
+      if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
       toast.dismiss("biometric-auth");
       await showBiometricActionError(err, "Failed to mark check-in.");
@@ -631,7 +636,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
-  const handlePasskeyCheckOut = async () => {
+  const handleCheckOut = async () => {
     try {
       setActionLoading(true);
 
@@ -641,26 +646,31 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         return;
       }
 
-      if (!window.isSecureContext || !window.PublicKeyCredential) {
-        throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
+      let assertion;
+      if (statusData?.passkey_required !== false) {
+        if (!window.isSecureContext || !window.PublicKeyCredential) {
+          throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
+        }
+        toast.loading("Verify your device passkey...", { id: "biometric-auth" });
+        const optionsResponse = await getBiometricAuthenticationOptions();
+        assertion = await startAuthentication({
+          optionsJSON: optionsResponse.data,
+        });
       }
-      toast.loading("Verify your device passkey...", { id: "biometric-auth" });
-      const optionsResponse = await getBiometricAuthenticationOptions();
-      const assertion = await startAuthentication({
-        optionsJSON: optionsResponse.data,
-      });
       const attendancePayload = {
-        assertion,
         latitude: loc.latitude,
         longitude: loc.longitude,
         location_name: loc.location_name,
+        ...(assertion ? { assertion } : {}),
       };
-      {
-        await checkOutAttendance(attendancePayload);
-        toast.dismiss("biometric-auth");
-        toast.success(`Passkey verified. Check-out marked at 📍 ${loc.location_name}`);
-        await loadStatus();
-      }
+      await checkOutAttendance(attendancePayload);
+      toast.dismiss("biometric-auth");
+      toast.success(
+        statusData?.passkey_required === false
+          ? `Check-out marked at 📍 ${loc.location_name}`
+          : `Passkey verified. Check-out marked at 📍 ${loc.location_name}`
+      );
+      await loadStatus();
     } catch (err) {
       toast.dismiss("biometric-auth");
       await showBiometricActionError(err, "Failed to check out.");
@@ -670,11 +680,13 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   };
 
   const today = statusData?.today_attendance;
+  const passkeyRequired = statusData?.passkey_required !== false;
   const approvalStatus = statusData?.approval_status || (statusData?.is_registered ? "APPROVED" : "NOT_REGISTERED");
   const needsPasskeyRegistration =
-    approvalStatus === "NOT_REGISTERED" ||
-    approvalStatus === "RE_ENROLL_REQUIRED" ||
-    (approvalStatus === "APPROVED" && !statusData?.passkey_ready);
+    passkeyRequired &&
+    (approvalStatus === "NOT_REGISTERED" ||
+      approvalStatus === "RE_ENROLL_REQUIRED" ||
+      (approvalStatus === "APPROVED" && !statusData?.passkey_ready));
   const needsFaceRegistration = false;
   const biometricStatusLabel = !statusData?.passkey_ready
     ? "Passkey setup required"
@@ -682,7 +694,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
   const laptopAttendanceAllowed = Boolean(statusData?.laptop_attendance_enabled);
-  const attendanceActionDisabled = actionLoading || (device.isLaptop && !isWithinOffice);
+  const attendanceActionDisabled = actionLoading || !isWithinOffice;
 
   return (
     <div className="biometric-card">
@@ -693,27 +705,29 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             {/* Device pill */}
             <span className="biometric-pill biometric-pill-device">
               {device.isLaptop ? <Laptop size={14} /> : <Smartphone size={14} />}
-              {device.isLaptop ? "Laptop & Desktop Passkey" : "Mobile Phone Passkey"}
+              {device.isLaptop
+                ? passkeyRequired ? "Laptop & Desktop Passkey" : "Laptop & Desktop Attendance"
+                : passkeyRequired ? "Mobile Phone Passkey" : "Mobile Phone Attendance"}
             </span>
 
             {/* Approval status */}
-            {approvalStatus === "APPROVED" && (
+            {passkeyRequired && approvalStatus === "APPROVED" && (
               <span className="biometric-pill biometric-pill-approved">
               <ShieldCheck size={14} />{" "}
               {biometricStatusLabel}
               </span>
             )}
-            {approvalStatus === "PENDING_APPROVAL" && (
+            {passkeyRequired && approvalStatus === "PENDING_APPROVAL" && (
               <span className="biometric-pill biometric-pill-pending">
                 <Clock size={14} /> Passkey Pending Review
               </span>
             )}
-            {approvalStatus === "REJECTED" && (
+            {passkeyRequired && approvalStatus === "REJECTED" && (
               <span className="biometric-pill biometric-pill-rejected">
                 <AlertTriangle size={14} /> Passkey Rejected by HR
               </span>
             )}
-            {approvalStatus === "RE_ENROLL_REQUIRED" && (
+            {passkeyRequired && approvalStatus === "RE_ENROLL_REQUIRED" && (
               <span className="biometric-pill biometric-pill-rejected">
                 <AlertTriangle size={14} /> Passkey setup required
               </span>
@@ -760,7 +774,9 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ? today.check_out_time
                 ? "Attendance Marked & Completed Today"
                 : "Checked-In (Shift Active)"
-              : "Mark Daily Attendance with Passkey"}
+                : passkeyRequired
+                ? "Mark Daily Attendance with Passkey"
+                : "Mark Daily Attendance"}
           </h2>
 
           <p className="biometric-subtitle">
@@ -795,7 +811,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         <div className="biometric-actions">
           {loading ? (
             <div style={{ color: "#94a3b8", fontSize: "14px" }}>Loading Status...</div>
-          ) : approvalStatus === "REJECTED" ? (
+          ) : passkeyRequired && approvalStatus === "REJECTED" ? (
             <div className="btn-bio-pending">
               <AlertTriangle size={16} /> Contact HR to reset the rejected passkey before registering again.
             </div>
@@ -810,11 +826,11 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 <ScanFace size={18} /> Register Device Passkey
               </button>
             </>
-          ) : needsFaceRegistration ? (
+          ) : passkeyRequired && needsFaceRegistration ? (
             <div className="btn-bio-pending">
               <AlertTriangle size={16} /> Face template is missing. Contact HR to reset your attendance registration.
             </div>
-          ) : approvalStatus === "PENDING_APPROVAL" ? (
+          ) : passkeyRequired && approvalStatus === "PENDING_APPROVAL" ? (
             <div className="btn-bio-pending">
               <Clock size={16} /> Passkey pending review
             </div>
@@ -826,21 +842,23 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             <button
               type="button"
               className="btn-bio-secondary"
-              onClick={handlePasskeyCheckIn}
+              onClick={handleCheckIn}
               disabled={attendanceActionDisabled}
               title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
-              <ScanFace size={16} /> Check-In with Passkey
+              {passkeyRequired ? <ScanFace size={16} /> : <MapPin size={16} />}
+              {passkeyRequired ? "Check-In with Passkey" : "Check In"}
             </button>
           ) : !today?.check_out_time ? (
             <button
               type="button"
               className="btn-bio-secondary"
-              onClick={handlePasskeyCheckOut}
+              onClick={handleCheckOut}
               disabled={attendanceActionDisabled}
               title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
-              <ScanFace size={16} /> Check-Out with Passkey
+              {passkeyRequired ? <ScanFace size={16} /> : <MapPin size={16} />}
+              {passkeyRequired ? "Check-Out with Passkey" : "Check Out"}
             </button>
           ) : (
             <div className="btn-bio-complete">
@@ -858,13 +876,18 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
           )}
         </div>
-        {!needsPasskeyRegistration && (
+        {!needsPasskeyRegistration && passkeyRequired && (
           <p className="biometric-subtitle">
             {device.isIPhone
               ? "On iPhone, confirm with Face ID or your device passcode. No camera face scan is required."
               : device.isAndroid
               ? "On Android, confirm with your fingerprint or device screen lock. Camera face check is not required."
               : "Confirm with your device's passkey security prompt. Camera face check is not required."}
+          </p>
+        )}
+        {!passkeyRequired && (
+          <p className="biometric-subtitle">
+            Location access is required. Attendance is available only within 100 meters of the office.
           </p>
         )}
       </div>

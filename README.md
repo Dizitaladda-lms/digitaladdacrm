@@ -77,18 +77,23 @@ Environment Variables settings) and redeploy the backend. Keep the private key
 secret, and do not rotate the pair after clients have subscribed unless users
 will re-subscribe with the new public key.
 
-### Attendance passkeys
+### Attendance passkeys and geofence
 
-Attendance uses server-verified WebAuthn passkeys and requires HTTPS. Set
+Attendance passkey verification is controlled by `ATTENDANCE_PASSKEY_REQUIRED`
+(`false` by default). When set to `true`, employees must use the existing
+server-verified WebAuthn passkey flow; when `false`, authenticated employees
+can check in and out with a button click and GPS location. The existing
+100-meter office geofence remains enforced. Set
 `CLIENT_URL` to the canonical frontend origin; if `ALLOWED_ORIGINS` contains
 additional frontend origins, they must use the same WebAuthn relying-party
 domain. Set `WEBAUTHN_RP_ID` only when the relying-party domain differs from
 the `CLIENT_URL` hostname.
 
 Before deploying the updated attendance service, run `npm run db:migrate`.
-The passkey migration invalidates old client-only biometric registrations.
-Each employee must register a device passkey once; registration is immediately
-active and does not wait for HR approval. iPhone/iPad registration additionally
+Passkey registration and verification code remain available when
+`ATTENDANCE_PASSKEY_REQUIRED=true`. In that mode, each employee must register
+a device passkey once; registration is immediately active and does not wait
+for HR approval. iPhone/iPad registration additionally
 creates an encrypted face template using three camera frames with a randomized
 head turn. iPhone/iPad attendance requires the passkey and one fresh, centered
 camera frame that matches the registered face. Android and other devices use

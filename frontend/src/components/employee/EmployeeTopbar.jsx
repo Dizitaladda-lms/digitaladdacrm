@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ProfileMenu from "../profile/ProfileMenu";
-import NotificationsPopover from "../common/NotificationsPopover/NotificationsPopover";
 
 const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
   const { user } = useAuth();
@@ -66,8 +65,6 @@ const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
           <Calendar size={14} />
           <span>{today}</span>
         </div>
-
-        <NotificationsPopover isEmployee />
 
         <ProfileMenu />
       </div>
