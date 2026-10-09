@@ -1,11 +1,14 @@
-import { test, beforeAll } from 'vitest';
+import { test as baseTest, beforeAll } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../app.js';
 import pool from '../config/db.js';
+import { isTestDatabase } from './helpers/testDb.js';
 
 const API_PREFIX = '/api/auth';
 const TEST_DEVICE_ID = 'a3bb189e-8bf9-4f26-9e4b-9f4e7fcd8123';
+const runIntegrationTest = isTestDatabase();
+const test = baseTest.skipIf(!runIntegrationTest);
 const randomEmail = `test.${Date.now()}@example.com`;
 const TEST_USER = {
   full_name: 'Test User',
@@ -19,6 +22,8 @@ let accessToken;
 let refreshToken;
 
 beforeAll(async () => {
+  if (!runIntegrationTest) return;
+
   const response = await request(app)
     .post(`${API_PREFIX}/register`)
     .send(TEST_USER)

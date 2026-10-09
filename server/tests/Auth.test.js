@@ -109,7 +109,10 @@ describeAuth("Auth: protected routes", () => {
 
     const cookies = loginRes.headers["set-cookie"];
 
-    const meRes = await request(app).get("/api/auth/me").set("Cookie", cookies);
+    const meRes = await request(app)
+      .get("/api/auth/me")
+      .set("X-Device-Id", testDeviceId)
+      .set("Cookie", cookies);
 
     expect(meRes.status).toBe(200);
     expect(meRes.body.data.email).toBe(testUser.email);

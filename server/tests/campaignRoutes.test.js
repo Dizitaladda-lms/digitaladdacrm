@@ -1,12 +1,15 @@
-import { test, beforeAll } from 'vitest';
+import { test as baseTest, beforeAll } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../app.js';
 import pool from '../config/db.js';
+import { isTestDatabase } from './helpers/testDb.js';
 
 const API_AUTH = '/api/auth';
 const API_CAMPAIGNS = '/api/campaigns';
 const TEST_DEVICE_ID = 'a3bb189e-8bf9-4f26-9e4b-9f4e7fcd8123';
+const runIntegrationTest = isTestDatabase();
+const test = baseTest.skipIf(!runIntegrationTest);
 
 const randomEmail = `campaign.test.${Date.now()}@example.com`;
 const ADMIN_USER = {
@@ -20,6 +23,8 @@ let accessToken;
 let campaignId;
 
 beforeAll(async () => {
+  if (!runIntegrationTest) return;
+
   // register admin
   const res = await request(app).post(`${API_AUTH}/register`).send(ADMIN_USER).expect(201);
   assert.equal(res.body.success, true);

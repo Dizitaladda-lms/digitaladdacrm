@@ -30,6 +30,7 @@ describe("findTeamReportsRepository", () => {
   it("selects pending reviewer details when a bottleneck viewer requests them", async () => {
     const query = vi.spyOn(pool, "query")
       .mockResolvedValueOnce({ rows: [{ total: "1" }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     await findTeamReportsRepository({

@@ -1,18 +1,23 @@
-import { test, beforeAll } from 'vitest';
+import { test as baseTest, beforeAll } from 'vitest';
 import request from 'supertest';
 import assert from 'node:assert/strict';
 import app from '../app.js';
 import pool from '../config/db.js';
+import { isTestDatabase } from './helpers/testDb.js';
 
 const API_AUTH = '/api/auth';
 const API_LEADS = '/api/leads';
 const TEST_DEVICE_ID = 'a3bb189e-8bf9-4f26-9e4b-9f4e7fcd8123';
+const runIntegrationTest = isTestDatabase();
+const test = baseTest.skipIf(!runIntegrationTest);
 
 const adminEmail = `val.admin.${Date.now()}@example.com`;
 const ADMIN = { full_name: 'Val Admin', email: adminEmail, password: 'Admin@1234', role: 'ADMIN' };
 let adminToken;
 
 beforeAll(async () => {
+  if (!runIntegrationTest) return;
+
   await request(app).post(`${API_AUTH}/register`).send(ADMIN).expect(201);
   await pool.query("UPDATE users SET role = 'ADMIN' WHERE email = $1", [ADMIN.email]);
   const a = await request(app)
