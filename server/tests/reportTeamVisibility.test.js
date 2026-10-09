@@ -10,7 +10,6 @@ describe("findTeamReportsRepository", () => {
   it("includes a TL's direct reports when a department filter is selected", async () => {
     const query = vi.spyOn(pool, "query")
       .mockResolvedValueOnce({ rows: [{ total: "1" }] })
-      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     await findTeamReportsRepository({

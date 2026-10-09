@@ -11,9 +11,9 @@
     "db:migrate": "node scripts/migrate.js",
     "db:seed:test": "node scripts/seed-test-db.js",
     "create:admin": "node scripts/create-admin.js",
-    "test": "vitest run",
+    "test": "node scripts/prepare-test-db.js && vitest run",
     "test:watch": "vitest",
-    "ci": "vitest run"
+    "ci": "npm test"
   },
   "keywords": [],
   "author": "",
