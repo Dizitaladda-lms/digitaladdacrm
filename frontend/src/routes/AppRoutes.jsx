@@ -9,7 +9,7 @@ import LeadManagement from "../pages/Lead/LeadManagement";
 import LeadSources from "../pages/leadSources/LeadSources";
 import AdminWorkspace from "../pages/admin/AdminWorkspace";
 import AdminSettings from "../pages/admin/Settings";
-import Employees from "../pages/admin/Employees";
+import EmployeeWorkspace from "../pages/hr/EmployeeWorkspace";
 
 // Lazy-loaded routes
 const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
@@ -21,12 +21,10 @@ const DailyReportForm = lazy(() => import("../pages/admin/DailyReportForm"));
 const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
 const AgencyLeads = lazy(() => import("../pages/hr/AgencyLeads"));
 const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
-const CompanyPresence = lazy(() => import("../pages/employee/CompanyPresence"));
-const AttendanceReports = lazy(() => import("../pages/hr/AttendanceReports"));
+const CompanyAttendanceWorkspace = lazy(() => import("../pages/hr/CompanyAttendanceWorkspace"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const AdminWorkAssignments = lazy(() => import("../pages/admin/AdminWorkAssignments"));
 const OrganizationTree = lazy(() => import("../pages/admin/OrganizationTree"));
-const EmployeesRoster = lazy(() => import("../pages/hr/EmployeesRoster"));
 const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
 const TeamChat = lazy(() => import("../pages/chat/TeamChat"));
 
@@ -87,7 +85,7 @@ const AppRoutes = () => {
 
             <Route path="/lead-sources" element={renderPage(LeadSources)} />
 
-            <Route path="/employees" element={renderPage(Employees)} />
+            <Route path="/employees" element={renderPage(EmployeeWorkspace)} />
 
             <Route
               path="/followups"
@@ -211,20 +209,19 @@ const AppRoutes = () => {
             />
 
             <Route
-              path="/company-presence"
+              path="/attendance-reports"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <CompanyPresence />
+                  <CompanyAttendanceWorkspace key="reports" />
                 </Suspense>
               }
             />
 
-            {/* Attendance Reports Page — ACCESSIBLE TO HR & SUPER ADMIN */}
             <Route
-              path="/attendance-reports"
+              path="/company-presence"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <AttendanceReports />
+                  <CompanyAttendanceWorkspace key="presence" initialTab="presence" />
                 </Suspense>
               }
             />
@@ -243,14 +240,9 @@ const AppRoutes = () => {
               }
             />
 
-            {/* Employees Roster — ACCESSIBLE TO HR & SUPER ADMIN */}
             <Route
               path="/employees-roster"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <EmployeesRoster />
-                </Suspense>
-              }
+              element={<EmployeeWorkspace key="roster" initialTab="roster" />}
             />
 
             {/* My Personal Monthly Roster */}

@@ -10,7 +10,9 @@ export const getCompanyPresenceRepository = async () => {
        e.designation,
        e.employment_type,
        d.department_name,
+       presence_override.status AS presence_override,
        CASE
+         WHEN presence_override.status = 'ON_LEAVE' THEN 'ON_LEAVE'
          WHEN a.check_in_time IS NOT NULL THEN 'PRESENT'
          WHEN UPPER(COALESCE(a.status, '')) = 'ON_LEAVE'
            OR e.status = 'ON_LEAVE'
@@ -21,6 +23,9 @@ export const getCompanyPresenceRepository = async () => {
        COALESCE(work_mode.work_mode, 'OFFICE') AS work_mode
      FROM employees e
      LEFT JOIN departments d ON d.id = e.department_id
+     LEFT JOIN daily_employee_presence_overrides presence_override
+       ON presence_override.employee_id = e.id
+      AND presence_override.presence_date = CURRENT_DATE
      LEFT JOIN daily_attendance a
        ON a.employee_id = e.id AND a.date = CURRENT_DATE
      LEFT JOIN employee_monthly_rosters roster
@@ -85,6 +90,66 @@ export const setEmployeeWorkModeRepository = async (employeeId, workMode, adminU
        updated_at = CURRENT_TIMESTAMP
      RETURNING employee_id, work_date, work_mode, updated_at;`,
     [employeeId, workMode, adminUserId]
+  );
+  return rows[0] || null;
+};
+
+export const setEmployeePresenceStatusRepository = async (employeeId, status, adminUserId) => {
+  if (status === "ON_LEAVE") {
+    const { rows } = await pool.query(
+      `INSERT INTO daily_employee_presence_overrides (
+         employee_id, presence_date, status, updated_by
+       )
+       SELECT e.id, CURRENT_DATE, $2, $3
+       FROM employees e
+       WHERE e.id = $1
+         AND e.is_deleted = FALSE
+         AND e.status IN ('ACTIVE', 'ON_LEAVE')
+         AND UPPER(COALESCE(e.role, '')) <> 'SUPER_ADMIN'
+         AND UPPER(COALESCE(e.designation, '')) NOT LIKE '%SUPER ADMIN%'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM users super_admin
+           WHERE super_admin.id = e.user_id
+             AND UPPER(COALESCE(super_admin.role, '')) = 'SUPER_ADMIN'
+         )
+       ON CONFLICT (employee_id, presence_date)
+       DO UPDATE SET
+         status = EXCLUDED.status,
+         updated_by = EXCLUDED.updated_by,
+         updated_at = CURRENT_TIMESTAMP
+       RETURNING employee_id, presence_date, status, updated_at;`,
+      [employeeId, status, adminUserId]
+    );
+    return rows[0] || null;
+  }
+
+  const { rows } = await pool.query(
+    `WITH eligible_employee AS (
+       SELECT e.id
+       FROM employees e
+       WHERE e.id = $1
+         AND e.is_deleted = FALSE
+         AND e.status IN ('ACTIVE', 'ON_LEAVE')
+         AND UPPER(COALESCE(e.role, '')) <> 'SUPER_ADMIN'
+         AND UPPER(COALESCE(e.designation, '')) NOT LIKE '%SUPER ADMIN%'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM users super_admin
+           WHERE super_admin.id = e.user_id
+             AND UPPER(COALESCE(super_admin.role, '')) = 'SUPER_ADMIN'
+         )
+     ),
+     removed_override AS (
+       DELETE FROM daily_employee_presence_overrides override
+       USING eligible_employee employee
+       WHERE override.employee_id = employee.id
+         AND override.presence_date = CURRENT_DATE
+       RETURNING override.employee_id
+     )
+     SELECT employee.id AS employee_id, 'AUTO' AS status
+     FROM eligible_employee employee;`,
+    [employeeId]
   );
   return rows[0] || null;
 };

@@ -137,6 +137,12 @@
   font-size: 13px;
 }
 
+.company-presence__actions {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+}
+
 .company-presence__refresh {
   display: inline-flex;
   align-items: center;
@@ -266,4 +272,5 @@
   .company-presence__search { max-width: none; }
   .company-presence__toolbar select,
   .company-presence__refresh { flex: 1 1 auto; justify-content: center; }
+  .company-presence__actions { min-width: 135px; }
 }

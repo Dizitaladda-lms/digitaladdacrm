@@ -1,17 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getCompanyPresenceRepository, setEmployeeWorkModeRepository } = vi.hoisted(() => ({
+const {
+  getCompanyPresenceRepository,
+  setEmployeePresenceStatusRepository,
+  setEmployeeWorkModeRepository,
+} = vi.hoisted(() => ({
   getCompanyPresenceRepository: vi.fn(),
+  setEmployeePresenceStatusRepository: vi.fn(),
   setEmployeeWorkModeRepository: vi.fn(),
 }));
 
 vi.mock("../repositories/employeePresenceRepository.js", () => ({
   getCompanyPresenceRepository,
+  setEmployeePresenceStatusRepository,
   setEmployeeWorkModeRepository,
 }));
 
 import {
   getCompanyPresenceService,
+  setEmployeePresenceStatusService,
   setEmployeeWorkModeService,
 } from "../services/employeePresenceService.js";
 
@@ -60,5 +67,34 @@ describe("company employee presence service", () => {
     await expect(
       setEmployeeWorkModeService(12, "OFFICE", { id: 8, role: "ADMIN" })
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it.each(["HR", "ADMIN", "SUPER_ADMIN"])("lets %s set and clear a leave override", async (role) => {
+    const record = { employee_id: 12, status: "ON_LEAVE" };
+    setEmployeePresenceStatusRepository.mockResolvedValue(record);
+
+    await expect(
+      setEmployeePresenceStatusService(12, "on_leave", { id: 8, role })
+    ).resolves.toBe(record);
+    expect(setEmployeePresenceStatusRepository).toHaveBeenCalledWith(12, "ON_LEAVE", 8);
+
+    setEmployeePresenceStatusRepository.mockResolvedValue({ employee_id: 12, status: "AUTO" });
+    await expect(
+      setEmployeePresenceStatusService(12, "auto", { id: 8, role })
+    ).resolves.toEqual({ employee_id: 12, status: "AUTO" });
+  });
+
+  it("rejects employees attempting to change another employee's leave status", async () => {
+    await expect(
+      setEmployeePresenceStatusService(12, "ON_LEAVE", { id: 9, role: "EMPLOYEE" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(setEmployeePresenceStatusRepository).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsupported presence status values", async () => {
+    await expect(
+      setEmployeePresenceStatusService(12, "PRESENT", { id: 8, role: "HR" })
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(setEmployeePresenceStatusRepository).not.toHaveBeenCalled();
   });
 });

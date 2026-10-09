@@ -3,6 +3,7 @@ import { Building2, CalendarDays, RefreshCw, Search, Users } from "lucide-react"
 import toast from "react-hot-toast";
 import {
   getCompanyPresence,
+  setEmployeePresenceStatus,
   setEmployeeWorkMode,
 } from "../../services/attendanceService";
 import { useAuth } from "../../context/AuthContext";
@@ -22,7 +23,7 @@ const fetchPresence = async () => {
 const CompanyPresence = () => {
   const { user } = useAuth();
   const role = String(user?.role || "").toUpperCase();
-  const canSetWorkMode = ["HR", "ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
+  const canManagePresence = ["HR", "ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
@@ -106,6 +107,29 @@ const CompanyPresence = () => {
     } catch (error) {
       console.error("Failed to update employee work mode:", error);
       toast.error(error?.response?.data?.message || "Work mode could not be updated.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handlePresenceStatusChange = async (employee, status) => {
+    try {
+      setSavingId(employee.employee_id);
+      await setEmployeePresenceStatus(employee.employee_id, status);
+      setEmployees((current) => current.map((item) => (
+        item.employee_id === employee.employee_id
+          ? { ...item, attendance_status: status === "ON_LEAVE" ? "ON_LEAVE" : item.attendance_status }
+          : item
+      )));
+      toast.success(
+        status === "ON_LEAVE"
+          ? `${employee.full_name} marked on leave for today.`
+          : `Leave override cleared for ${employee.full_name}.`
+      );
+      await handleRefresh();
+    } catch (error) {
+      console.error("Failed to update employee leave status:", error);
+      toast.error(error?.response?.data?.message || "Leave status could not be updated.");
     } finally {
       setSavingId(null);
     }
@@ -200,7 +224,7 @@ const CompanyPresence = () => {
                   <th>Department</th>
                   <th>Attendance</th>
                   <th>Work mode</th>
-                  {canSetWorkMode && <th>HR/Admin action</th>}
+                  {canManagePresence && <th>HR action</th>}
                 </tr>
               </thead>
               <tbody>
@@ -227,17 +251,28 @@ const CompanyPresence = () => {
                       <td>{employee.department_name || "General"}</td>
                       <td><span className={`presence-badge presence-badge--${attendanceStatus.toLowerCase()}`}>{STATUS_LABELS[attendanceStatus] || "Absent"}</span></td>
                       <td><span className={`workmode-badge workmode-badge--${workMode.toLowerCase()}`}>{workMode === "WFH" ? "WFH" : "Office"}</span></td>
-                      {canSetWorkMode && (
+                      {canManagePresence && (
                         <td>
-                          <select
-                            value={workMode}
-                            onChange={(event) => handleWorkModeChange(employee, event.target.value)}
-                            disabled={savingId === employee.employee_id}
-                            aria-label={`Set work mode for ${employee.full_name}`}
-                          >
-                            <option value="OFFICE">Office</option>
-                            <option value="WFH">WFH</option>
-                          </select>
+                          <div className="company-presence__actions">
+                            <select
+                              value={workMode}
+                              onChange={(event) => handleWorkModeChange(employee, event.target.value)}
+                              disabled={savingId === employee.employee_id}
+                              aria-label={`Set work mode for ${employee.full_name}`}
+                            >
+                              <option value="OFFICE">Office</option>
+                              <option value="WFH">WFH</option>
+                            </select>
+                            <select
+                              value={employee.presence_override === "ON_LEAVE" ? "ON_LEAVE" : "AUTO"}
+                              onChange={(event) => handlePresenceStatusChange(employee, event.target.value)}
+                              disabled={savingId === employee.employee_id}
+                              aria-label={`Set leave status for ${employee.full_name}`}
+                            >
+                              <option value="AUTO">Automatic status</option>
+                              <option value="ON_LEAVE">On leave today</option>
+                            </select>
+                          </div>
                         </td>
                       )}
                     </tr>

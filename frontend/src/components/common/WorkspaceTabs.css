@@ -1,0 +1,55 @@
+.workspace-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  padding: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.workspace-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.workspace-tabs__tab:hover {
+  background: #f1f5f9;
+}
+
+.workspace-tabs__tab.is-active {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.workspace-tabs__tab:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.workspace-heading {
+  margin: 0 0 16px;
+  color: #0f172a;
+}
+
+.workspace-heading h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.workspace-heading p {
+  margin: 6px 0 0;
+  color: #64748b;
+}

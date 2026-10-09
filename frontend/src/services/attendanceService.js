@@ -80,6 +80,14 @@ export const setEmployeeWorkMode = async (employeeId, workMode) => {
   return response.data;
 };
 
+export const setEmployeePresenceStatus = async (employeeId, status) => {
+  const response = await axiosInstance.patch(
+    `/attendance/company-presence/${employeeId}/status`,
+    { status }
+  );
+  return response.data;
+};
+
 export const getHRAttendanceReports = async (params = {}) => {
   const response = await axiosInstance.get("/attendance/hr-reports", { params });
   return response.data;

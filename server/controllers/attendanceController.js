@@ -20,6 +20,7 @@ import {
 } from "../services/attendanceService.js";
 import {
   getCompanyPresenceService,
+  setEmployeePresenceStatusService,
   setEmployeeWorkModeService,
 } from "../services/employeePresenceService.js";
 
@@ -106,6 +107,15 @@ export const setEmployeeWorkMode = asyncHandler(async (req, res) => {
     req.user
   );
   return res.status(200).json(new ApiResponse(200, result, "Employee work mode updated."));
+});
+
+export const setEmployeePresenceStatus = asyncHandler(async (req, res) => {
+  const result = await setEmployeePresenceStatusService(
+    req.params.employeeId,
+    req.body?.status,
+    req.user
+  );
+  return res.status(200).json(new ApiResponse(200, result, "Employee presence status updated."));
 });
 
 export const getOfficeIPs = asyncHandler(async (req, res) => {

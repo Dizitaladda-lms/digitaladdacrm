@@ -17,6 +17,7 @@ import {
   getMyAttendanceHistory,
   getHRAttendanceReports,
   getCompanyPresence,
+  setEmployeePresenceStatus,
   setEmployeeWorkMode,
   getOfficeIPs,
   addOfficeIP,
@@ -61,6 +62,11 @@ router.patch(
   "/company-presence/:employeeId/work-mode",
   roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   setEmployeeWorkMode
+);
+router.patch(
+  "/company-presence/:employeeId/status",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  setEmployeePresenceStatus
 );
 
 // HR & Super Admin Attendance Reports
