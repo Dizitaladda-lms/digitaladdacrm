@@ -19,8 +19,8 @@ if (connectionString) {
   }
 }
 
-if (!/(^|[_-])test$/i.test(databaseName)) {
-  console.log("Skipping test database migrations: DATABASE_URL is not a dedicated *_test database.");
+if (databaseName !== "test_db" && !/(^|[_-])test$/i.test(databaseName)) {
+  console.log("Skipping test database migrations: DATABASE_URL is not a dedicated test database.");
   process.exit(0);
 }
 

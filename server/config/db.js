@@ -22,11 +22,12 @@ if (!normalizedConnectionString) {
   throw new Error("❌ DATABASE_URL is missing in environment variables.");
 }
 
-const isNeonOrCloud =
-  normalizedConnectionString.includes("neon.tech") ||
-  normalizedConnectionString.includes("pooler.supabase") ||
-  process.env.DB_SSL === "true" ||
-  process.env.NODE_ENV === "production";
+const isNeonOrCloud = process.env.NODE_ENV === "test"
+  ? false
+  : normalizedConnectionString.includes("neon.tech") ||
+    normalizedConnectionString.includes("pooler.supabase") ||
+    process.env.DB_SSL === "true" ||
+    process.env.NODE_ENV === "production";
 
 const pool = new Pool({
   connectionString: normalizedConnectionString,
@@ -48,7 +49,7 @@ if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   pool
     .connect()
     .then((client) => {
-      console.log("✅ PostgreSQL (Neon) Connected Successfully");
+      console.log("✅ PostgreSQL Connected Successfully");
       client.release();
     })
     .catch((err) => {

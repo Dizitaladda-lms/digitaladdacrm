@@ -8,7 +8,7 @@ export const isTestDatabase = () => {
   if (!connectionString) return false;
   try {
     const databaseName = new URL(connectionString).pathname.replace(/^\//, "");
-    return /(^|[_-])test$/i.test(databaseName);
+    return databaseName === "test_db" || /(^|[_-])test$/i.test(databaseName);
   } catch {
     return false;
   }
@@ -30,7 +30,7 @@ const assertTestDatabase = () => {
 
   if (!isTestDatabase()) {
     throw new Error(
-      `Refusing to run destructive tests against database "${databaseName}". Use a database name ending in _test.`
+      `Refusing to run destructive tests against database "${databaseName}". Use test_db or a database name ending in _test.`
     );
   }
 };

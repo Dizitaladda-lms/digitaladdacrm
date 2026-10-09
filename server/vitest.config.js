@@ -6,6 +6,7 @@ dotenv.config({ path: ".env.test", override: false });
 export default defineConfig({
   test: {
     include: ["tests/**/*.test.js"],
+    setupFiles: ["./tests/setup.js"],
     testTimeout: 15000,
     hookTimeout: 15000,
     fileParallelism: false,
