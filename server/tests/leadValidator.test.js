@@ -6,6 +6,7 @@ import pool from '../config/db.js';
 
 const API_AUTH = '/api/auth';
 const API_LEADS = '/api/leads';
+const TEST_DEVICE_ID = 'a3bb189e-8bf9-4f26-9e4b-9f4e7fcd8123';
 
 const adminEmail = `val.admin.${Date.now()}@example.com`;
 const ADMIN = { full_name: 'Val Admin', email: adminEmail, password: 'Admin@1234', role: 'ADMIN' };
@@ -14,7 +15,11 @@ let adminToken;
 beforeAll(async () => {
   await request(app).post(`${API_AUTH}/register`).send(ADMIN).expect(201);
   await pool.query("UPDATE users SET role = 'ADMIN' WHERE email = $1", [ADMIN.email]);
-  const a = await request(app).post(`${API_AUTH}/login`).send({ email: ADMIN.email, password: ADMIN.password }).expect(200);
+  const a = await request(app)
+    .post(`${API_AUTH}/login`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
+    .send({ email: ADMIN.email, password: ADMIN.password })
+    .expect(200);
   adminToken = a.body.data.accessToken;
 });
 
@@ -23,6 +28,7 @@ test('POST /api/leads validation: invalid mobile and platform', async () => {
 
   const res = await request(app)
     .post(API_LEADS)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${adminToken}`)
     .send(payload)
     .expect(400);

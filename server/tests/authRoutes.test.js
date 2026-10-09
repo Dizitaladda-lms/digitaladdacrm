@@ -5,6 +5,7 @@ import app from '../app.js';
 import pool from '../config/db.js';
 
 const API_PREFIX = '/api/auth';
+const TEST_DEVICE_ID = 'a3bb189e-8bf9-4f26-9e4b-9f4e7fcd8123';
 const randomEmail = `test.${Date.now()}@example.com`;
 const TEST_USER = {
   full_name: 'Test User',
@@ -33,6 +34,7 @@ beforeAll(async () => {
 test('POST /auth/login returns tokens for valid credentials', async () => {
   loginResponse = await request(app)
     .post(`${API_PREFIX}/login`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .send({
       email: TEST_USER.email,
       password: TEST_USER.password,
@@ -62,6 +64,7 @@ test('GET /auth/me returns the logged in user profile', async () => {
 
   const profileResponse = await request(app)
     .get(`${API_PREFIX}/me`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .expect(200);
 
@@ -78,6 +81,7 @@ test('POST /auth/refresh-token returns new access and refresh tokens', async () 
 
   const refreshResponse = await request(app)
     .post(`${API_PREFIX}/refresh-token`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Cookie', [`refreshToken=${refreshToken}`])
     .send({ refreshToken })
     .expect(200);
@@ -110,6 +114,7 @@ test('POST /auth/logout revokes refresh token and prevents refresh', async () =>
 
   const logoutResponse = await request(app)
     .post(`${API_PREFIX}/logout`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .set('Cookie', [`refreshToken=${refreshToken}`])
     .send({ refreshToken })
@@ -119,6 +124,7 @@ test('POST /auth/logout revokes refresh token and prevents refresh', async () =>
 
   await request(app)
     .post(`${API_PREFIX}/refresh-token`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Cookie', [`refreshToken=${refreshToken}`])
     .send({ refreshToken })
     .expect(401);
@@ -129,6 +135,7 @@ test('GET /api/dashboard/overview is protected and returns dashboard data', asyn
 
   const overviewResponse = await request(app)
     .get('/api/dashboard/overview')
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .expect(200);
 
@@ -143,6 +150,7 @@ test('GET /api/dashboard/lead-analytics is protected and returns analytics data'
 
   const analyticsResponse = await request(app)
     .get('/api/dashboard/lead-analytics')
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .expect(200);
 

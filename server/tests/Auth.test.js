@@ -11,6 +11,12 @@ import app from "../app.js";
 import { resetAuthTables, createTestUser, closeTestPool, isTestDatabase } from "./helpers/testDb.js";
 
 const describeAuth = describe.skipIf(!isTestDatabase());
+const testDeviceId = "a3bb189e-8bf9-4f26-9e4b-9f4e7fcd8123";
+const login = (credentials) =>
+  request(app)
+    .post("/api/auth/login")
+    .set("X-Device-Id", testDeviceId)
+    .send(credentials);
 
 describeAuth("Auth: login", () => {
   beforeEach(async () => {
@@ -23,7 +29,7 @@ describeAuth("Auth: login", () => {
       role: ROLES.COUNSELLOR,
     });
 
-    const res = await request(app).post("/api/auth/login").send({
+    const res = await login({
       email: testUser.email,
       password: testUser.plaintextPassword,
     });
@@ -50,7 +56,7 @@ describeAuth("Auth: login", () => {
       role: ROLES.COUNSELLOR,
     });
 
-    const res = await request(app).post("/api/auth/login").send({
+    const res = await login({
       email: testUser.email,
       password: "WrongPassword!",
     });
@@ -59,7 +65,7 @@ describeAuth("Auth: login", () => {
   });
 
   it("rejects a nonexistent email without revealing that it doesn't exist", async () => {
-    const res = await request(app).post("/api/auth/login").send({
+    const res = await login({
       email: "nobody@test.com",
       password: "whatever123",
     });
@@ -85,6 +91,7 @@ describeAuth("Auth: protected routes", () => {
   it("rejects a garbage/invalid cookie value", async () => {
     const res = await request(app)
       .get("/api/auth/me")
+      .set("X-Device-Id", testDeviceId)
       .set("Cookie", ["accessToken=not-a-real-jwt"]);
     expect(res.status).toBe(401);
   });
@@ -95,7 +102,7 @@ describeAuth("Auth: protected routes", () => {
       role: ROLES.COUNSELLOR,
     });
 
-    const loginRes = await request(app).post("/api/auth/login").send({
+    const loginRes = await login({
       email: testUser.email,
       password: testUser.plaintextPassword,
     });
@@ -120,7 +127,7 @@ describeAuth("Auth: refresh token rotation", () => {
       role: ROLES.COUNSELLOR,
     });
 
-    const loginRes = await request(app).post("/api/auth/login").send({
+    const loginRes = await login({
       email: testUser.email,
       password: testUser.plaintextPassword,
     });
@@ -129,6 +136,7 @@ describeAuth("Auth: refresh token rotation", () => {
 
     const refreshRes = await request(app)
       .post("/api/auth/refresh-token")
+      .set("X-Device-Id", testDeviceId)
       .set("Cookie", loginCookies);
 
     expect(refreshRes.status).toBe(200);
@@ -142,13 +150,16 @@ describeAuth("Auth: refresh token rotation", () => {
     // token row before issuing a new one); this test locks it in.
     const reuseRes = await request(app)
       .post("/api/auth/refresh-token")
+      .set("X-Device-Id", testDeviceId)
       .set("Cookie", loginCookies);
 
     expect(reuseRes.status).toBe(401);
   });
 
   it("rejects a refresh attempt with no refresh cookie", async () => {
-    const res = await request(app).post("/api/auth/refresh-token");
+    const res = await request(app)
+      .post("/api/auth/refresh-token")
+      .set("X-Device-Id", testDeviceId);
     expect(res.status).toBe(401);
   });
 });
@@ -164,7 +175,7 @@ describeAuth("Auth: logout", () => {
       role: ROLES.COUNSELLOR,
     });
 
-    const loginRes = await request(app).post("/api/auth/login").send({
+    const loginRes = await login({
       email: testUser.email,
       password: testUser.plaintextPassword,
     });
@@ -173,6 +184,7 @@ describeAuth("Auth: logout", () => {
 
     const logoutRes = await request(app)
       .post("/api/auth/logout")
+      .set("X-Device-Id", testDeviceId)
       .set("Cookie", loginCookies);
 
     expect(logoutRes.status).toBe(200);
@@ -181,6 +193,7 @@ describeAuth("Auth: logout", () => {
     // logoutUserService deleting the row.
     const refreshAfterLogout = await request(app)
       .post("/api/auth/refresh-token")
+      .set("X-Device-Id", testDeviceId)
       .set("Cookie", loginCookies);
 
     expect(refreshAfterLogout.status).toBe(401);
@@ -192,7 +205,7 @@ describeAuth("Auth: logout", () => {
       role: ROLES.COUNSELLOR,
     });
 
-    const loginRes = await request(app).post("/api/auth/login").send({
+    const loginRes = await login({
       email: testUser.email,
       password: testUser.plaintextPassword,
     });
@@ -200,6 +213,7 @@ describeAuth("Auth: logout", () => {
 
     const logoutAllRes = await request(app)
       .post("/api/auth/logout-all")
+      .set("X-Device-Id", testDeviceId)
       .set("Cookie", loginCookies);
 
     expect(logoutAllRes.status).toBe(200);
@@ -209,6 +223,7 @@ describeAuth("Auth: logout", () => {
 
     const refreshRes = await request(app)
       .post("/api/auth/refresh-token")
+      .set("X-Device-Id", testDeviceId)
       .set("Cookie", loginCookies);
     expect(refreshRes.status).toBe(401);
   });
@@ -225,7 +240,7 @@ describeAuth("Auth: role is reflected correctly on login", () => {
       role: ROLES.ADMIN,
     });
 
-    const res = await request(app).post("/api/auth/login").send({
+    const res = await login({
       email: admin.email,
       password: admin.plaintextPassword,
     });

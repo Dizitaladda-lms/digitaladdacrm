@@ -6,6 +6,7 @@ import pool from '../config/db.js';
 
 const API_AUTH = '/api/auth';
 const API_CAMPAIGNS = '/api/campaigns';
+const TEST_DEVICE_ID = 'a3bb189e-8bf9-4f26-9e4b-9f4e7fcd8123';
 
 const randomEmail = `campaign.test.${Date.now()}@example.com`;
 const ADMIN_USER = {
@@ -28,6 +29,7 @@ beforeAll(async () => {
   // login
   const login = await request(app)
     .post(`${API_AUTH}/login`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .send({ email: ADMIN_USER.email, password: ADMIN_USER.password })
     .expect(200);
 
@@ -45,6 +47,7 @@ test('POST /api/campaigns (ADMIN) creates a campaign', async () => {
 
   const res = await request(app)
     .post(API_CAMPAIGNS)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .send(payload)
     .expect(201);
@@ -58,6 +61,7 @@ test('POST /api/campaigns (ADMIN) creates a campaign', async () => {
 test('GET /api/campaigns returns list including created campaign', async () => {
   const res = await request(app)
     .get(API_CAMPAIGNS)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .expect(200);
 
@@ -71,6 +75,7 @@ test('GET /api/campaigns/:id returns the campaign', async () => {
 
   const res = await request(app)
     .get(`${API_CAMPAIGNS}/${campaignId}`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .expect(200);
 
@@ -82,6 +87,7 @@ test('GET /api/campaigns/:id returns the campaign', async () => {
 test('PUT /api/campaigns/:id updates the campaign (ADMIN)', async () => {
   const res = await request(app)
     .put(`${API_CAMPAIGNS}/${campaignId}`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .send({ campaign_name: 'Updated Campaign' })
     .expect(200);
@@ -94,6 +100,7 @@ test('PUT /api/campaigns/:id updates the campaign (ADMIN)', async () => {
 test('DELETE /api/campaigns/:id deletes the campaign (ADMIN)', async () => {
   const res = await request(app)
     .delete(`${API_CAMPAIGNS}/${campaignId}`)
+    .set('X-Device-Id', TEST_DEVICE_ID)
     .set('Authorization', `Bearer ${accessToken}`)
     .expect(200);
 
