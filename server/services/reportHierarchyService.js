@@ -91,6 +91,22 @@ export const canDepartmentHeadVerifyReport = ({
     && Number(reviewerUserId) !== Number(report.user_id);
 };
 
+export const canTeamLeaderVerifyReport = ({
+  reviewerUserId,
+  reviewerRole,
+  reviewerDesignation,
+  report,
+  visibleInHierarchy = false,
+} = {}) => {
+  if (getRoleLevel({ role: reviewerRole, designation: reviewerDesignation }) !== REPORT_ROLE_LEVELS.TL) {
+    return false;
+  }
+
+  return visibleInHierarchy
+    && String(report?.status || "").toUpperCase() === "SUBMITTED"
+    && Number(reviewerUserId) !== Number(report.user_id);
+};
+
 const normalizeRoleName = (value) => {
   if (!value) return "EMPLOYEE";
   const clean = String(value).trim().toUpperCase();

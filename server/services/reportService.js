@@ -4,6 +4,7 @@ import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js
 import {
   buildApprovalChain,
   canDepartmentHeadVerifyReport,
+  canTeamLeaderVerifyReport,
   getRoleLevel,
   REPORT_ROLE_LEVELS,
 } from "./reportHierarchyService.js";
@@ -381,10 +382,20 @@ export const reviewReportAsTLService = async (user, reportId, payload, visibilit
     reviewerDepartmentIds: departmentIds,
     report,
   });
+  const isCurrentTeamLeader = canTeamLeaderVerifyReport({
+    reviewerUserId: user.id,
+    reviewerRole: employeeProfile?.role || user.role,
+    reviewerDesignation: employeeProfile?.designation || user.designation,
+    report,
+    visibleInHierarchy:
+      visibility?.userIds?.includes(Number(report.user_id)) ||
+      visibility?.reportIds?.includes(Number(report.id)),
+  });
 
   if (
     Number(report.tl_id) !== Number(user.id) &&
     Number(report.user_id) !== Number(user.id) &&
+    !isCurrentTeamLeader &&
     !isDepartmentHeadOverride
   ) {
     throw new ApiError(403, "Only the assigned TL or the Department Head assigned to this report's department can verify it.");

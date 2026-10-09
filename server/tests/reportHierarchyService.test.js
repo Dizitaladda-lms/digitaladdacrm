@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import pool from "../config/db.js";
 import {
   canDepartmentHeadVerifyReport,
+  canTeamLeaderVerifyReport,
   getRoleLevel,
   assertNoReportingCycle,
   buildApprovalChain,
@@ -72,6 +73,45 @@ describe("report hierarchy service", () => {
     expect(canDepartmentHeadVerifyReport({
       ...reviewer,
       report: { user_id: 20, department_id: 7, status: "TL_REVIEWED" },
+    })).toBe(false);
+  });
+
+  it("allows a current team leader to verify a visible pending report in their hierarchy", () => {
+    expect(canTeamLeaderVerifyReport({
+      reviewerUserId: 51,
+      reviewerRole: "TL",
+      reviewerDesignation: "Team Lead",
+      report: { user_id: 20, status: "SUBMITTED" },
+      visibleInHierarchy: true,
+    })).toBe(true);
+  });
+
+  it("does not allow a team leader to verify an invisible, reviewed, or self-authored report", () => {
+    const reviewer = {
+      reviewerUserId: 51,
+      reviewerRole: "TL",
+      reviewerDesignation: "Team Lead",
+      visibleInHierarchy: true,
+    };
+
+    expect(canTeamLeaderVerifyReport({
+      ...reviewer,
+      report: { user_id: 20, status: "TL_REVIEWED" },
+    })).toBe(false);
+    expect(canTeamLeaderVerifyReport({
+      ...reviewer,
+      report: { user_id: 20, status: "SUBMITTED" },
+      visibleInHierarchy: false,
+    })).toBe(false);
+    expect(canTeamLeaderVerifyReport({
+      ...reviewer,
+      report: { user_id: 51, status: "SUBMITTED" },
+    })).toBe(false);
+    expect(canTeamLeaderVerifyReport({
+      ...reviewer,
+      reviewerRole: "EMPLOYEE",
+      reviewerDesignation: "Employee",
+      report: { user_id: 20, status: "SUBMITTED" },
     })).toBe(false);
   });
 
