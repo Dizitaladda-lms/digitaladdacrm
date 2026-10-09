@@ -19,7 +19,7 @@ const errorLogger = ({
 
     statusCode: error.statusCode || 500,
 
-    stack: process.env.NODE_ENV === "development"
+    stack: ["development", "test"].includes(process.env.NODE_ENV)
       ? error.stack
       : undefined,
 
