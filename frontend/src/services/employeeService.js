@@ -13,6 +13,11 @@ export const getEmployees = async (params = {}) => {
   return response.data;
 };
 
+export const getLeadAssignees = async () => {
+  const response = await axiosInstance.get("/employees/lead-assignees");
+  return response.data;
+};
+
 /**
  * ==========================================
  * Get Employee By ID

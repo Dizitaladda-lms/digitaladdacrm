@@ -72,14 +72,16 @@ const LeadHeader = ({
             Refresh
           </button>
 
-          <button
-            type="button"
-            className="create-btn"
-            onClick={onCreateLead}
-          >
-            <Plus size={18} />
-            Create Lead
-          </button>
+          {onCreateLead && (
+            <button
+              type="button"
+              className="create-btn"
+              onClick={onCreateLead}
+            >
+              <Plus size={18} />
+              Create Lead
+            </button>
+          )}
         </div>
       </div>
     </section>

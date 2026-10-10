@@ -53,6 +53,7 @@ import {
 
 import TIMELINE_ACTIVITY from "../constants/timelineActivity.js";
 import { sendPushToEmployeesService } from "../services/pushNotificationService.js";
+import assertSalesHeadAssignmentTarget from "../utils/assertSalesHeadAssignmentTarget.js";
 
 /**
  * =====================================================
@@ -765,7 +766,7 @@ export const getLeadStatisticsService = async (currentUser, queryParams = {}) =>
     if (employee) {
       filterParams.employeeId = employee.id;
     }
-  } else if ([ROLES.ADMIN, "ADMIN", "MANAGER"].includes(currentUser?.role) && queryParams.assigned_to) {
+  } else if ([ROLES.ADMIN, "ADMIN", "MANAGER", ROLES.SALES_HEAD].includes(currentUser?.role) && queryParams.assigned_to) {
     if (queryParams.assigned_to !== "all" && !isNaN(Number(queryParams.assigned_to))) {
       filterParams.employeeId = queryParams.assigned_to;
     }
@@ -1180,6 +1181,14 @@ export const assignBulkLeadsService = async (
       assignment_type = null,
       priority = null,
     } = payload;
+
+    if (String(currentUser.role || "").toUpperCase() === "SALES_HEAD") {
+      const targetEmployee = await findEmployeeByIdRepository(employee_id);
+      if (!targetEmployee) {
+        throw new ApiError(404, "Counsellor not found.");
+      }
+      assertSalesHeadAssignmentTarget(currentUser.role, targetEmployee);
+    }
 
     const existingLeadsResult = await client.query(
       `SELECT id, assigned_to FROM leads WHERE id = ANY($1::bigint[]) AND is_deleted = FALSE;`,

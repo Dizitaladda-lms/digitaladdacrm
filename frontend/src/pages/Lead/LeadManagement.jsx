@@ -10,7 +10,7 @@ import LeadTable from "../../components/LeadManagement/LeadTable";
 import LeadPagination from "../../components/LeadManagement/LeadPagination";
 import LeadAssignmentModal
 from "../../components/LeadManagement/LeadAssignmentModal";
-import { getEmployees } from "../../services/employeeService";
+import { getEmployees, getLeadAssignees } from "../../services/employeeService";
 import {
   getLeads,
   getLeadStats,
@@ -34,11 +34,12 @@ const LeadManagement = () => {
   const userRole = String(user?.role || "").toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isHR = userRole === "HR";
+  const isScopedSalesHead = userRole === "SALES_HEAD";
   const isSalesHead = ["MANAGER", "ADMIN", "SALES_HEAD"].includes(userRole);
 
   // Sales Department Head manages and assigns leads; Super Admin & HR have read-only tracking + delete permissions
   const canAssign = isSalesHead && !isSuperAdmin && !isHR;
-  const canDelete = isSuperAdmin || isHR || isSalesHead;
+  const canDelete = !isScopedSalesHead && (isSuperAdmin || isHR || isSalesHead);
 
   const [outreachModalOpen, setOutreachModalOpen] = useState(false);
   const [outreachChannel, setOutreachChannel] = useState("WHATSAPP");
@@ -165,7 +166,7 @@ setAssignModal(false);
         ...filters,
       }),
       getLeadStats(filters),
-      getEmployees(),
+      isScopedSalesHead ? getLeadAssignees() : getEmployees(),
     ]);
 
     setLeads(leadResponse?.data?.leads || leadResponse?.leads || []);
@@ -189,6 +190,7 @@ setAssignModal(false);
     pagination.limit,
 
     filters,
+    isScopedSalesHead,
 
   ]);
 
@@ -503,9 +505,10 @@ const openAssignModal = () => {
         loading={loading}
 
         onRefresh={loadLeads}
-        onExport={handleExportAdminLeadsCsv}
-        onImport={() => setImportModalOpen(true)}
-        onCreateLead={() => setCreateModalOpen(true)}
+        onExport={isScopedSalesHead ? null : handleExportAdminLeadsCsv}
+        onImport={isScopedSalesHead ? null : () => setImportModalOpen(true)}
+        onCreateLead={isScopedSalesHead ? null : () => setCreateModalOpen(true)}
+        onRefresh={loadLeads}
 
       />
 
@@ -531,21 +534,21 @@ const openAssignModal = () => {
         selectedLeads.length > 0 && (
           <BulkActionBar
             selectedLeads={selectedLeads}
-            onWhatsApp={() => {
+            onWhatsApp={isScopedSalesHead ? null : () => {
               setOutreachChannel("WHATSAPP");
               setOutreachModalOpen(true);
             }}
-            onEmail={() => {
+            onEmail={isScopedSalesHead ? null : () => {
               setOutreachChannel("EMAIL");
               setOutreachModalOpen(true);
             }}
-            onSMS={() => {
+            onSMS={isScopedSalesHead ? null : () => {
               setOutreachChannel("SMS");
               setOutreachModalOpen(true);
             }}
             onAssign={canAssign ? openAssignModal : null}
             canAssign={canAssign}
-            onExport={handleBulkExport}
+            onExport={isScopedSalesHead ? null : handleBulkExport}
             onDelete={handleBulkDeleteClick}
             canDelete={canDelete}
             onClear={() => setSelectedLeads([])}

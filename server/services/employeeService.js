@@ -23,6 +23,7 @@ import {
     deleteEmployeeRepository,
     restoreEmployeeRepository,
     getEmployeesRepository,
+    getActiveCounsellorsForLeadAssignmentRepository,
     getEmployeeStatisticsRepository,
     getEmployeePerformanceRepository,
     findEmployeeByUserIdRepository,
@@ -273,6 +274,13 @@ const createEmployeeApprovalRequest = async (employeeData, currentUser) => {
 export const createEmployeeService = async (employeeData, currentUser, req) => {
     const normalizedData = normalizeEmployeeData(employeeData);
 
+    if (
+        String(normalizedData.role || "").toUpperCase() === "SALES_HEAD" &&
+        String(currentUser.role || "").toUpperCase() !== "SUPER_ADMIN"
+    ) {
+        throw new ApiError(403, "Only Super Admin can grant Sales Head access.");
+    }
+
     if (String(currentUser.role || "").toUpperCase() === "HR") {
         return createEmployeeApprovalRequest(normalizedData, currentUser);
     }
@@ -478,9 +486,16 @@ export const updateEmployeeService = async (
         if (
             currentRole === "HR" &&
             requestedRole !== existingRole &&
-            ["ADMIN", "MANAGER", "SUPER_ADMIN"].includes(requestedRole)
+            ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(requestedRole)
         ) {
-            throw new ApiError(403, "HR cannot grant Manager or Super Admin access.");
+            throw new ApiError(403, "HR cannot grant Manager, Sales Head, or Super Admin access.");
+        }
+        if (
+            requestedRole === "SALES_HEAD" &&
+            requestedRole !== existingRole &&
+            currentRole !== "SUPER_ADMIN"
+        ) {
+            throw new ApiError(403, "Only Super Admin can grant Sales Head access.");
         }
 
         // Update Employee (employees table does not have a password column)
@@ -670,6 +685,9 @@ export const getAllEmployeesService = async (filters = {}) => {
     return await getEmployeesRepository(filters);
 
 };
+
+export const getActiveCounsellorsForLeadAssignmentService = async () =>
+    getActiveCounsellorsForLeadAssignmentRepository();
 
 /**
  * =====================================================

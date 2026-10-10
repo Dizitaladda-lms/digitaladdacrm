@@ -27,7 +27,8 @@ export const assignLead = asyncHandler(async (req, res) => {
     req.user.id,
     remarks,
     assignmentType,
-    priority
+    priority,
+    req.user.role
   );
 
   return res
@@ -56,7 +57,8 @@ export const reassignLead = asyncHandler(async (req, res) => {
     req.user.id,
     remarks,
     assignmentType,
-    priority
+    priority,
+    req.user.role
   );
 
   return res

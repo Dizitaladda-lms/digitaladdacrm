@@ -14,14 +14,14 @@ const router = express.Router();
 router.put(
   "/:leadId/assign",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.SALES_HEAD),
   assignLead
 );
 
 router.put(
   "/:leadId/reassign",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.SALES_HEAD),
   reassignLead
 );
 

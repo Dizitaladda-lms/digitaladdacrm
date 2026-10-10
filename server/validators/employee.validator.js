@@ -71,7 +71,7 @@ const createEmployeeSchema = Joi.object({
         }),
 
     role: Joi.string()
-        .valid("MANAGER", "ADMIN", "SUPER_ADMIN", "COUNSELLOR", "HR", "TL", "TRAINER", "EMPLOYEE", "INTERN")
+        .valid("MANAGER", "ADMIN", "SUPER_ADMIN", "SALES_HEAD", "COUNSELLOR", "HR", "TL", "TRAINER", "EMPLOYEE", "INTERN")
         .required()
         .messages({
             "any.only": "Invalid employee role.",
@@ -252,7 +252,7 @@ const updateEmployeeSchema = Joi.object({
 
     role: Joi.string()
         .valid(
-            "MANAGER", "ADMIN", "SUPER_ADMIN", "COUNSELLOR", "HR", "TL", "TRAINER", "EMPLOYEE", "INTERN",
+            "MANAGER", "ADMIN", "SUPER_ADMIN", "SALES_HEAD", "COUNSELLOR", "HR", "TL", "TRAINER", "EMPLOYEE", "INTERN",
             "COUNSELLOR"
         )
         .optional()

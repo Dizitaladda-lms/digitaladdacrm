@@ -1248,6 +1248,7 @@ const Employees = () => {
                         const newRole = event.target.value;
                         let defaultDesig = form.designation;
                         if (newRole === "HR") defaultDesig = "HR Manager";
+                        else if (newRole === "SALES_HEAD") defaultDesig = "Sales Coordinator";
                         else if (newRole === "TRAINER") defaultDesig = "Faculty Trainer";
                         else if (newRole === "TL") defaultDesig = "Team Lead";
                         else if (newRole === "INTERN") defaultDesig = "Intern";
@@ -1263,6 +1264,7 @@ const Employees = () => {
                       <option value="TL">Team Lead (TL / Supervisor)</option>
                       <option value="EMPLOYEE">Employee (Staff / Dev / Design / Marketing)</option>
                       <option value="INTERN">Intern</option>
+                      {isSuperAdmin && <option value="SALES_HEAD">Counsellor Manager (Sales leads + employee access)</option>}
                     </select>
                   </label>
 
@@ -1725,6 +1727,7 @@ const Employees = () => {
                         const newRole = e.target.value;
                         let defaultDesig = editForm.designation;
                         if (newRole === "HR") defaultDesig = "HR Manager";
+                        else if (newRole === "SALES_HEAD") defaultDesig = "Sales Coordinator";
                         else if (newRole === "TRAINER") defaultDesig = "Faculty Trainer";
                         else if (newRole === "TL") defaultDesig = "Team Lead";
                         else if (newRole === "INTERN") defaultDesig = "Intern";
@@ -1750,6 +1753,7 @@ const Employees = () => {
                       <option value="EMPLOYEE">Employee (Staff / Dev / Design / Marketing)</option>
                       <option value="INTERN">Intern</option>
                       {isSuperAdmin && <option value="MANAGER">Manager / Department Head</option>}
+                      {isSuperAdmin && <option value="SALES_HEAD">Counsellor Manager (Sales leads + employee access)</option>}
                     </select>
                   </label>
 

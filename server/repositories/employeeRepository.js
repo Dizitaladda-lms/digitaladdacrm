@@ -900,6 +900,19 @@ export const getEmployeesRepository = async (filters = {}) => {
 
 };
 
+export const getActiveCounsellorsForLeadAssignmentRepository = async () => {
+    const { rows } = await pool.query(`
+        SELECT id, full_name, role, designation, status
+        FROM employees
+        WHERE role = 'COUNSELLOR'
+          AND status = 'ACTIVE'
+          AND is_deleted = FALSE
+        ORDER BY full_name ASC;
+    `);
+
+    return rows;
+};
+
 /* ============================================================================
  * Employee Count
  * ============================================================================

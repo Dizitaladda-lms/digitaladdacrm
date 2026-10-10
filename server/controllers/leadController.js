@@ -303,7 +303,8 @@ export const assignLead = asyncHandler(async (req, res) => {
     req,
     req.body.remarks || req.body.note || null,
     req.body.assignment_type || null,
-    req.body.priority || null
+    req.body.priority || null,
+    req.user.role
   );
 
   return res.status(200).json(

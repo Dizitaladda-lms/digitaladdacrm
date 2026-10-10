@@ -2,6 +2,7 @@ const ROLES = Object.freeze({
     // The existing Admin workspace is now the operational Manager workspace.
     ADMIN: "MANAGER",
     SUPER_ADMIN: "SUPER_ADMIN",
+    SALES_HEAD: "SALES_HEAD",
     COUNSELLOR: "COUNSELLOR",
     HR: "HR",
     TL: "TL",

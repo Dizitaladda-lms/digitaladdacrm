@@ -27,6 +27,7 @@ import {
 import TIMELINE_ACTIVITY from "../constants/timelineActivity.js";
 
 import auditLogger from "../utils/auditLogger.js";
+import assertSalesHeadAssignmentTarget from "../utils/assertSalesHeadAssignmentTarget.js";
 
 /**
  * =====================================================
@@ -39,7 +40,8 @@ export const assignLeadService = async (
   assignedBy,
   remarks = null,
   assignmentType = null,
-  priority = null
+  priority = null,
+  assignedByRole = null
 ) => {
 
   const client = await pool.connect();
@@ -69,6 +71,7 @@ export const assignLeadService = async (
         "Counsellor not found."
       );
     }
+    assertSalesHeadAssignmentTarget(assignedByRole, employee);
 
     /* ================================
        Prevent Duplicate Assignment
@@ -204,7 +207,8 @@ export const reassignLeadService = async (
   assignedBy,
   remarks = null,
   assignmentType = null,
-  priority = null
+  priority = null,
+  assignedByRole = null
 ) => {
 
   // Existing assign service ko reuse karo
@@ -214,7 +218,8 @@ export const reassignLeadService = async (
     assignedBy,
     remarks,
     assignmentType,
-    priority
+    priority,
+    assignedByRole
   );
 
 };

@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   createEmployeeController,
   getAllEmployeesController,
+  getLeadAssigneesController,
   getEmployeeByIdController,
   updateEmployeeController,
   deleteEmployeeController,
@@ -51,6 +52,13 @@ router.get(
   "/my-performance",
   authenticate,
   getMyPerformanceController
+);
+
+router.get(
+  "/lead-assignees",
+  authenticate,
+  roleMiddleware("SALES_HEAD"),
+  getLeadAssigneesController
 );
 
 router.get(

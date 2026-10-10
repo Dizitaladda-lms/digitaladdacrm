@@ -78,10 +78,12 @@ const BulkActionBar = ({
           </button>
         )}
 
-        <button className="export-btn" onClick={onExport}>
-          <Download size={16} />
-          Export
-        </button>
+        {onExport && (
+          <button className="export-btn" onClick={onExport}>
+            <Download size={16} />
+            Export
+          </button>
+        )}
 
         {canDelete && <button className="delete-btn" onClick={onDelete}>
           <Trash2 size={16} />

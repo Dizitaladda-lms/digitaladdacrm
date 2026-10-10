@@ -62,13 +62,20 @@ const AppRoutes = () => {
 
       <Route element={<ProtectedRoute />}>
 
-        <Route element={<RoleProtectedRoute roles={["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"]} />}>
+        <Route element={<RoleProtectedRoute roles={["MANAGER", "SUPER_ADMIN", "ADMIN", "HR", "SALES_HEAD"]} />}>
 
           <Route element={<MainLayout />}>
 
-            <Route path="/dashboard" element={renderPage(Dashboard)} />
-
             <Route path="/leads" element={renderPage(LeadManagement)} />
+
+            <Route
+              path="/change-password"
+              element={renderPage(ChangePassword)}
+            />
+
+            <Route element={<RoleProtectedRoute roles={["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"]} />}>
+
+            <Route path="/dashboard" element={renderPage(Dashboard)} />
 
             <Route
               path="/my-leads"
@@ -272,10 +279,7 @@ const AppRoutes = () => {
 
             <Route path="/settings" element={renderPage(AdminSettings)} />
 
-            <Route
-              path="/change-password"
-              element={renderPage(ChangePassword)}
-            />
+            </Route>
 
           </Route>
 
@@ -287,7 +291,7 @@ const AppRoutes = () => {
 
       <Route element={<ProtectedRoute />}>
 
-        <Route element={<RoleProtectedRoute roles={["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "HR"]} />}>
+        <Route element={<RoleProtectedRoute roles={["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "HR", "SALES_HEAD"]} />}>
 
           <Route
             path="/employee/*"

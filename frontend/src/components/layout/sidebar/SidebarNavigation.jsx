@@ -31,6 +31,7 @@ const SidebarNavigation = ({ onClose }) => {
   const role = user?.role || "";
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isHR = role === "HR";
+  const isSalesHead = role === "SALES_HEAD";
   const isTL = role === "TL" || (user?.designation && user.designation.toLowerCase().includes("team lead"));
   const isHead = Boolean(user?.is_department_head || user?.is_head || isTL || role === "MANAGER" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
   const isOperationsDept = isHR || (user?.department_name && /operation|hr|academic|training/i.test(user.department_name));
@@ -39,7 +40,23 @@ const SidebarNavigation = ({ onClose }) => {
   // Build clean role-specific menu
   let menuItems = [];
 
-  if (isHR) {
+  if (isSalesHead) {
+    menuItems = [
+      { title: "Sales Lead Management", icon: UsersRound, path: "/leads" },
+      { title: "Employee Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Leads", icon: UserCircle, path: "/employee/leads" },
+      { title: "My Follow-ups", icon: CalendarCheck, path: "/employee/followups" },
+      { title: "My Admissions", icon: BriefcaseBusiness, path: "/employee/admissions" },
+      { title: "My Performance", icon: TrendingUp, path: "/employee/performance" },
+      { title: "Work Assigned by Admin", icon: ClipboardList, path: "/employee/assigned-work" },
+      { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
+      { title: "My Monthly Roster", icon: CalendarDays, path: "/employee/my-roster" },
+      { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
+      { title: "Team Chat", icon: MessageSquare, path: "/employee/chat" },
+      { title: "My Profile", icon: UserCircle, path: "/employee/profile" },
+      { title: "My Settings", icon: KeyRound, path: "/employee/settings" },
+    ];
+  } else if (isHR) {
     // Operations & HR Department ONLY — Dedicated Agency Leads, Sales Dept Overview & Company Attendance
     menuItems = [
       { title: "Team Chat", icon: MessageSquare, path: "/team-chat" },

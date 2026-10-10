@@ -4,6 +4,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import {
     createEmployeeService,
     getAllEmployeesService,
+    getActiveCounsellorsForLeadAssignmentService,
     getEmployeeByIdService,
     updateEmployeeService,
     deleteEmployeeService,
@@ -70,6 +71,14 @@ export const getAllEmployeesController = asyncHandler(
 
     }
 );
+
+export const getLeadAssigneesController = asyncHandler(async (_req, res) => {
+    const employees = await getActiveCounsellorsForLeadAssignmentService();
+
+    return res.status(200).json(
+        new ApiResponse(200, { employees }, "Active counsellors fetched successfully.")
+    );
+});
 
 export const getEmployeeApprovalRequestsController = asyncHandler(async (_req, res) => {
     const requests = await listPendingEmployeeApprovalRequestsService();

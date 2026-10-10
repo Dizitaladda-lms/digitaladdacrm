@@ -154,7 +154,7 @@ router.patch(
 
 router.patch(
   "/:id/assign",
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.SALES_HEAD),
   assignLeadValidator,
   validate,
   assignLead
@@ -162,7 +162,7 @@ router.patch(
 
 router.post(
   "/assign-bulk",
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.SALES_HEAD),
   assignBulkLeadValidator,
   validate,
   assignBulkLeads
