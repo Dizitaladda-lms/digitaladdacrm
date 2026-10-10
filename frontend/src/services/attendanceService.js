@@ -107,3 +107,23 @@ export const deleteOfficeIP = async (id) => {
   const response = await axiosInstance.delete(`/attendance/office-ips/${id}`);
   return response.data;
 };
+
+export const getMyLeaveRequests = async () => {
+  const response = await axiosInstance.get("/leave/my-requests");
+  return response.data;
+};
+
+export const createLeaveRequest = async (payload) => {
+  const response = await axiosInstance.post("/leave", payload);
+  return response.data;
+};
+
+export const getPendingLeaveApprovals = async () => {
+  const response = await axiosInstance.get("/leave/approvals");
+  return response.data;
+};
+
+export const decideLeaveRequest = async (id, decision, reason = "") => {
+  const response = await axiosInstance.post(`/leave/${id}/decision`, { decision, reason });
+  return response.data;
+};

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getMyAttendanceHistory } from "../../services/attendanceService";
 import MobileBiometricAttendance from "../../components/attendance/MobileBiometricAttendance";
+import LeaveRequests from "../../components/attendance/LeaveRequests";
 import { calculateLateArrival } from "../../utils/shiftTiming";
 
 const MyAttendance = () => {
@@ -54,6 +55,7 @@ const MyAttendance = () => {
     <div style={{ maxWidth: "1200px", margin: "0 auto", width: "100%", boxSizing: "border-box", overflowX: "hidden", fontFamily: "Inter, sans-serif" }}>
       {/* Mobile Attendance Check-in Widget */}
       <MobileBiometricAttendance onCheckInSuccess={fetchHistory} />
+      <LeaveRequests />
 
       {/* History Header & Read-Only Notice */}
       <div
