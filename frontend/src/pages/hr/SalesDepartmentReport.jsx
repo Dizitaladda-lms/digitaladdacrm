@@ -126,13 +126,19 @@ const SalesDepartmentReport = () => {
 
       const res = await getTeamReports(params);
 
-      if (res?.data) {
-        if (res.data.salesMetrics) setSalesMetrics(res.data.salesMetrics);
-        if (res.data.reports) setReports(res.data.reports);
+      if (!res?.data?.salesMetrics) {
+        throw new Error("Sales overview metrics were not returned by the server.");
       }
+
+      setSalesMetrics(res.data.salesMetrics);
+      setReports(Array.isArray(res.data.reports) ? res.data.reports : []);
     } catch (err) {
       console.error("Failed to fetch Sales Department overview:", err);
-      toast.error("Failed to load Sales Department real data.");
+      toast.error(
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load Sales Department real data."
+      );
     } finally {
       setLoading(false);
     }

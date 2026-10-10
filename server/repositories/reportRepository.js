@@ -725,8 +725,9 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       (
         SELECT COUNT(*) 
         FROM leads l 
-        WHERE (l.assigned_to::text = e.id::text OR l.assigned_to::text = e.user_id::text)
+        WHERE l.assigned_to = e.id
           AND (l.is_agency_lead = FALSE OR l.is_agency_lead IS NULL)
+          AND l.is_deleted = FALSE
           AND ($1::date IS NULL OR l.created_at::date >= $1::date)
           AND ($2::date IS NULL OR l.created_at::date <= $2::date)
       ) AS assigned_leads_count,
@@ -734,7 +735,8 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       (
         SELECT COUNT(*) 
         FROM lead_followups f 
-        WHERE (f.employee_id::text = e.id::text OR f.employee_id::text = e.user_id::text)
+        WHERE f.employee_id = e.id
+          AND f.followup_type = 'CALL'
           AND f.is_deleted = FALSE
           AND ($1::date IS NULL OR f.created_at::date >= $1::date)
           AND ($2::date IS NULL OR f.created_at::date <= $2::date)
@@ -743,7 +745,8 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       (
         SELECT COUNT(*) 
         FROM lead_followups f 
-        WHERE (f.employee_id::text = e.id::text OR f.employee_id::text = e.user_id::text)
+        WHERE f.employee_id = e.id
+          AND f.followup_type = 'CALL'
           AND f.is_deleted = FALSE
           AND f.status = 'COMPLETED'
           AND ($1::date IS NULL OR f.updated_at::date >= $1::date)
@@ -752,20 +755,18 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
 
       (
         SELECT COUNT(*) 
-        FROM leads l 
-        WHERE (l.assigned_to::text = e.id::text OR l.assigned_to::text = e.user_id::text)
-          AND UPPER(l.status) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED', 'CONVERTED')
-          AND ($1::date IS NULL OR l.updated_at::date >= $1::date)
-          AND ($2::date IS NULL OR l.updated_at::date <= $2::date)
+        FROM admissions a
+        WHERE a.assigned_to = e.id
+          AND ($1::date IS NULL OR a.created_at::date >= $1::date)
+          AND ($2::date IS NULL OR a.created_at::date <= $2::date)
       ) AS admissions_count,
 
       (
-        SELECT COALESCE(SUM(COALESCE(CAST(l.budget AS numeric), 0)), 0)
-        FROM leads l 
-        WHERE (l.assigned_to::text = e.id::text OR l.assigned_to::text = e.user_id::text)
-          AND UPPER(l.status) IN ('ENROLLED', 'CLOSED', 'ADMISSION', 'ADMITTED', 'CONVERTED')
-          AND ($1::date IS NULL OR l.updated_at::date >= $1::date)
-          AND ($2::date IS NULL OR l.updated_at::date <= $2::date)
+        SELECT COALESCE(SUM(a.total_fee), 0)
+        FROM admissions a
+        WHERE a.assigned_to = e.id
+          AND ($1::date IS NULL OR a.created_at::date >= $1::date)
+          AND ($2::date IS NULL OR a.created_at::date <= $2::date)
       ) AS total_revenue
 
     FROM employees e
@@ -777,15 +778,6 @@ export const getSalesTeamMetricsRepository = async ({ date, startDate, endDate }
       AND (
         UPPER(COALESCE(e.role, '')) = 'COUNSELLOR'
         OR e.designation ILIKE '%counsellor%'
-        OR (
-          e.department_id = 1 
-          AND UPPER(COALESCE(e.role, '')) NOT IN ('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'HEAD', 'HR', 'TRAINER')
-          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%manager%'
-          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%head%'
-          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%admin%'
-          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%hr%'
-          AND UPPER(COALESCE(e.designation, '')) NOT ILIKE '%trainer%'
-        )
       )
       AND UPPER(COALESCE(e.role, '')) != 'SUPER_ADMIN'
       AND UPPER(COALESCE(u.role, '')) != 'SUPER_ADMIN'
