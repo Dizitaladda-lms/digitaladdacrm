@@ -10,6 +10,15 @@ export const REPORT_ROLE_LEVELS = Object.freeze({
   SUPER_ADMIN: 6,
 });
 
+export const ROLE_LABELS_BY_LEVEL = Object.freeze({
+  1: "INTERN",
+  2: "SUB_TL",
+  3: "TL",
+  4: "DEPARTMENT_HEAD",
+  5: "HR",
+  6: "SUPER_ADMIN",
+});
+
 export const getRoleLevel = ({ role, designation, employmentType } = {}) => {
   const normalizedRole = String(role || "").toUpperCase();
   const normalizedDesignation = String(designation || "").toLowerCase();
@@ -18,6 +27,8 @@ export const getRoleLevel = ({ role, designation, employmentType } = {}) => {
   if (normalizedRole === "SUPER_ADMIN" || normalizedDesignation.includes("superadmin")) return REPORT_ROLE_LEVELS.SUPER_ADMIN;
   if (normalizedRole === "HR" || normalizedDesignation.includes("hr") || normalizedDesignation.includes("human resources")) return REPORT_ROLE_LEVELS.HR;
   if (
+    normalizedRole === "SUB_TL" ||
+    normalizedRole === "SUB-TL" ||
     normalizedDesignation.includes("sub-team lead") ||
     normalizedDesignation.includes("sub team lead") ||
     normalizedDesignation.includes("sub tl") ||
@@ -25,6 +36,7 @@ export const getRoleLevel = ({ role, designation, employmentType } = {}) => {
   ) return REPORT_ROLE_LEVELS.SUB_TL;
   if (
     normalizedRole === "MANAGER" ||
+    normalizedRole === "DEPARTMENT_HEAD" ||
     normalizedDesignation.includes("department head") ||
     normalizedDesignation.includes("manager") ||
     normalizedDesignation.includes("head of department")

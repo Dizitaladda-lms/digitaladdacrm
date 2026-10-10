@@ -116,3 +116,43 @@ export const getClassesAuditFeed = async (params = {}) => {
   const response = await axiosInstance.get("/reports/daily/classes-audit", { params });
   return response.data;
 };
+
+/**
+ * Hierarchical Approval System: Get reports pending for current user's approval
+ * @param {Object} [params] { page, limit, departmentId, date, search }
+ */
+export const getPendingForMeReports = async (params = {}) => {
+  const response = await axiosInstance.get("/reports/pending-for-me", { params });
+  return response.data;
+};
+
+/**
+ * Hierarchical Approval System: Approve a report (with Skip / Auto-Approval for lower pending levels)
+ * @param {string|number} id
+ * @param {Object} data { remarks, feedback }
+ */
+export const approveReport = async (id, data = {}) => {
+  const response = await axiosInstance.post(`/reports/${id}/approve`, data);
+  return response.data;
+};
+
+/**
+ * Hierarchical Approval System: Reject a report with remarks (returns to submitter)
+ * @param {string|number} id
+ * @param {Object} data { remarks, feedback }
+ */
+export const rejectReport = async (id, data = {}) => {
+  const response = await axiosInstance.post(`/reports/${id}/reject`, data);
+  return response.data;
+};
+
+/**
+ * Hierarchical Approval System: Edit & resubmit a rejected report
+ * @param {string|number} id
+ * @param {Object} data { work_title, tasks_summary, deliverable_links, blockers, next_day_plan, took_class, classes }
+ */
+export const resubmitReport = async (id, data = {}) => {
+  const response = await axiosInstance.put(`/reports/${id}`, data);
+  return response.data;
+};
+

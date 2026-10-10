@@ -20,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import "./ReportDetailsModal.css";
+import ApprovalTimeline from "./ApprovalTimeline";
 
 const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onReviewAsSuperAdmin, userRole }) => {
   const [showRevisionBox, setShowRevisionBox] = useState(false);
@@ -273,6 +274,16 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
               )}
             </div>
           )}
+
+          {/* Rejection Banner if Rejected */}
+          {report.rejection_reason && (report.status === "REVISION_REQUESTED" || report.current_status === "REJECTED") && (
+            <div style={{ marginTop: "14px", padding: "12px 14px", backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "10px", color: "#991B1B", fontSize: "13px" }}>
+              <strong>❌ Rejection / Revision Remarks:</strong> {report.rejection_reason}
+            </div>
+          )}
+
+          {/* Hierarchical Approval Timeline */}
+          <ApprovalTimeline report={report} />
 
           {/* Review History */}
           {(report.tl_feedback || report.hr_feedback || report.super_admin_feedback) && (

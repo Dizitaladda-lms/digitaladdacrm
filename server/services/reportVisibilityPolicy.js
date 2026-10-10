@@ -82,7 +82,7 @@ const resolveVisibilityScope = async (user) => {
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%sub-team lead%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%sub team lead%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%sub tl%' THEN 2
-                  WHEN UPPER(COALESCE(e.role, '')) = 'MANAGER'
+                  WHEN UPPER(COALESCE(e.role, '')) IN ('MANAGER', 'DEPARTMENT_HEAD')
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%department head%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%head of department%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%manager%' THEN 4
@@ -109,7 +109,7 @@ const resolveVisibilityScope = async (user) => {
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%sub-team lead%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%sub team lead%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%sub tl%' THEN 2
-                    WHEN UPPER(COALESCE(e.role, '')) = 'MANAGER'
+                    WHEN UPPER(COALESCE(e.role, '')) IN ('MANAGER', 'DEPARTMENT_HEAD')
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%department head%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%head of department%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%manager%' THEN 4

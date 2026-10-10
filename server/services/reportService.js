@@ -9,6 +9,15 @@ import {
   REPORT_ROLE_LEVELS,
 } from "./reportHierarchyService.js";
 import {
+  buildAndPersistApprovalChain,
+  attachApprovalsToReports,
+  approveReportHierarchicalService,
+  rejectReportHierarchicalService,
+  editAndResubmitReportService,
+  getPendingApprovalsForMeService,
+  getSubordinateUserIds,
+} from "./reportApprovalService.js";
+import {
   upsertDailyReportRepository,
   syncReportClassesRepository,
   findReportByIdRepository,
@@ -24,6 +33,14 @@ import {
   findClassesAuditRepository,
 } from "../repositories/reportRepository.js";
 
+export {
+  approveReportHierarchicalService,
+  rejectReportHierarchicalService,
+  editAndResubmitReportService,
+  getPendingApprovalsForMeService,
+  getSubordinateUserIds,
+};
+
 /**
  * Helper: format today's date in YYYY-MM-DD (Asia/Kolkata timezone safe)
  */
@@ -38,13 +55,16 @@ const getFormattedDate = (dateInput) => {
 };
 
 /**
- * Submit or Update Daily Work Report (with class logs and video links)
+ * Submit or Update Daily / Weekly Work Report (with class logs and video links)
  */
 export const submitDailyReportService = async (user, payload) => {
   const userId = user.id;
-  const reportDate = getFormattedDate(payload.report_date);
+  const reportDate = getFormattedDate(payload.report_date || payload.date);
+  const tasksSummary = payload.tasks_summary || payload.content || "";
+  const workTitle = payload.work_title || payload.title || null;
+  const reportType = String(payload.report_type || "DAILY").toUpperCase() === "WEEKLY" ? "WEEKLY" : "DAILY";
 
-  if (!payload.tasks_summary || !payload.tasks_summary.trim()) {
+  if (!tasksSummary || !tasksSummary.trim()) {
     throw new ApiError(400, "Today's work summary/tasks description is required.");
   }
 
@@ -62,6 +82,23 @@ export const submitDailyReportService = async (user, payload) => {
 
   if (userRole === "HR" || empRole === "HR") {
     roleType = "HR";
+  } else if (
+    userRole === "DEPARTMENT_HEAD" ||
+    empRole === "DEPARTMENT_HEAD" ||
+    userRole === "MANAGER" ||
+    empRole === "MANAGER" ||
+    designation.includes("department head") ||
+    designation.includes("head of department")
+  ) {
+    roleType = "DEPARTMENT_HEAD";
+  } else if (
+    userRole === "SUB_TL" ||
+    empRole === "SUB_TL" ||
+    designation.includes("sub-team lead") ||
+    designation.includes("sub team lead") ||
+    designation.includes("sub tl")
+  ) {
+    roleType = "SUB_TL";
   } else if (
     userRole === "TL" ||
     empRole === "TL" ||
@@ -128,7 +165,7 @@ export const submitDailyReportService = async (user, payload) => {
     departmentId: departmentId,
   });
 
-  const nextTlInChain = hierarchyChain.find((step) => step.level === 3);
+  const nextTlInChain = hierarchyChain.find((step) => step.level === 2 || step.level === 3 || step.level === 4);
   const nextHrInChain = hierarchyChain.find((step) => step.level === 5);
   const nextSuperAdminInChain = hierarchyChain.find((step) => step.level === 6);
 
@@ -148,9 +185,9 @@ export const submitDailyReportService = async (user, payload) => {
   if (submitterLevel >= 5 || user.role === "HR" || user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
     initialStatus = "HR_APPROVED";
     tlId = nextTlInChain?.userId || null;
-  } else if (submitterLevel >= 3 || roleType === "TL" || user.role === "TL" || user.role === "MANAGER") {
+  } else if (submitterLevel >= 3 || roleType === "TL" || roleType === "DEPARTMENT_HEAD" || user.role === "TL" || user.role === "MANAGER" || user.role === "DEPARTMENT_HEAD") {
     initialStatus = "TL_REVIEWED";
-    tlId = userId;
+    tlId = nextTlInChain?.userId || userId;
     tlReviewedAt = new Date();
   }
 
@@ -190,9 +227,10 @@ export const submitDailyReportService = async (user, payload) => {
     employee_id: employeeId,
     department_id: departmentId,
     report_date: reportDate,
+    report_type: reportType,
     role_type: roleType,
-    work_title: payload.work_title || null,
-    tasks_summary: payload.tasks_summary.trim(),
+    work_title: workTitle,
+    tasks_summary: tasksSummary.trim(),
     total_hours_worked: finalHoursWorked,
     work_status: payload.work_status || "COMPLETED",
     deliverable_links: payload.deliverable_links || null,
@@ -210,6 +248,13 @@ export const submitDailyReportService = async (user, payload) => {
   // Run in database transaction
   const result = await withTransaction(async (client) => {
     const savedReport = await upsertDailyReportRepository(client, reportData);
+    if (reportType && reportType !== "DAILY") {
+      try {
+        await client.query(`UPDATE daily_work_reports SET report_type = $1 WHERE id = $2;`, [reportType, savedReport.id]);
+      } catch {
+        // non-blocking
+      }
+    }
     const savedClasses = await syncReportClassesRepository(
       client,
       savedReport.id,
@@ -217,10 +262,16 @@ export const submitDailyReportService = async (user, payload) => {
       tookClass ? classesList : []
     );
     savedReport.classes = savedClasses;
+    try {
+      await buildAndPersistApprovalChain(client, savedReport, user);
+    } catch (chainErr) {
+      console.warn("Could not persist approval chain rows:", chainErr.message);
+    }
     return savedReport;
   });
 
-  return await findReportByIdRepository(result.id);
+  const hydrated = await findReportByIdRepository(result.id);
+  return await attachApprovalsToReports(hydrated);
 };
 
 /**
@@ -229,26 +280,31 @@ export const submitDailyReportService = async (user, payload) => {
 export const getMyReportByDateService = async (userId, targetDate) => {
   const dateStr = getFormattedDate(targetDate);
   const report = await findMyReportByDateRepository(userId, dateStr);
-  return report || null;
+  if (!report) return null;
+  return await attachApprovalsToReports(report);
 };
 
 /**
  * Get My Report History (Paginated)
  */
-export const getMyReportsHistoryService = async (userId, query) => {
+export const getMyReportsHistoryService = async (userId, query = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 15));
   const startDate = query.startDate ? getFormattedDate(query.startDate) : undefined;
   const endDate = query.endDate ? getFormattedDate(query.endDate) : undefined;
   const status = query.status || undefined;
 
-  return await findMyReportsHistoryRepository(userId, {
+  const data = await findMyReportsHistoryRepository(userId, {
     page,
     limit,
     startDate,
     endDate,
     status,
   });
+  if (data?.reports) {
+    await attachApprovalsToReports(data.reports);
+  }
+  return data;
 };
 
 /**
@@ -272,7 +328,7 @@ export const getReportByIdService = async (reportId, _user, visibility = {}) => 
   ) {
     throw new ApiError(403, "You are not allowed to view this report.");
   }
-  return report;
+  return await attachApprovalsToReports(report);
 };
 
 /**
@@ -325,15 +381,19 @@ export const getTeamReportsService = async (user, query, visibility = {}) => {
   const endDate = query.endDate ? getFormattedDate(query.endDate) : undefined;
   const roleType = query.roleType || undefined;
   const status = query.status || undefined;
+  const userId = query.userId || query.user_id || undefined;
+  const verifiedOnly = query.verifiedOnly === true || query.verifiedOnly === "true";
   const search = query.search?.trim();
 
-  return await findTeamReportsRepository({
+  const data = await findTeamReportsRepository({
     tlUserId: null,
     tlEmployeeId: isSuperAdminOrHR ? null : (empProfile?.id || null),
     visibleUserIds: isSuperAdminOrHR ? null : (visibility.userIds || [Number(user.id)]),
     visibleReportIds: isSuperAdminOrHR ? null : (visibility.reportIds || []),
     departmentId,
     allowedDepartmentIds,
+    userId,
+    verifiedOnly,
     date,
     startDate,
     endDate,
@@ -350,6 +410,11 @@ export const getTeamReportsService = async (user, query, visibility = {}) => {
         designation: empProfile?.designation || user.designation,
       }) === REPORT_ROLE_LEVELS.DEPARTMENT_HEAD,
   });
+
+  if (data?.reports) {
+    await attachApprovalsToReports(data.reports);
+  }
+  return data;
 };
 
 /**
@@ -435,7 +500,7 @@ export const getAllCompanyReportsService = async (query, visibility = {}) => {
   const tookClass = query.tookClass;
   const search = query.search?.trim();
 
-  return await findAllCompanyReportsRepository({
+  const data = await findAllCompanyReportsRepository({
     visibleUserIds: visibility.unrestricted ? null : visibility.userIds,
     visibleReportIds: visibility.unrestricted ? null : visibility.reportIds,
     departmentId,
@@ -450,6 +515,10 @@ export const getAllCompanyReportsService = async (query, visibility = {}) => {
     page,
     limit,
   });
+  if (data?.reports) {
+    await attachApprovalsToReports(data.reports);
+  }
+  return data;
 };
 
 /**

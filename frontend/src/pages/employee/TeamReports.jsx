@@ -10,30 +10,28 @@ import {
   Eye,
   CheckCheck,
   Search,
-  TrendingUp,
   ShieldCheck,
   Crown,
   Briefcase,
   GraduationCap,
   Building2,
-  Sparkles,
   RefreshCw,
-  ArrowRight,
-  MessageSquare,
-  Lock,
   Layers,
-  ChevronRight,
+  Zap,
+  UserCheck,
+  Inbox,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   getTeamReports,
+  getPendingForMeReports,
   getReportVisibility,
-  reviewReportAsTL,
-  reviewReportAsHR,
-  reviewReportAsSuperAdmin,
+  approveReport,
+  rejectReport,
 } from "../../services/reportService";
 import { getDepartments } from "../../services/departmentService";
 import ReportDetailsModal from "../../components/reports/ReportDetailsModal";
+import ApprovalTimeline from "../../components/reports/ApprovalTimeline";
 import { useAuth } from "../../context/AuthContext";
 import { formatWorkHours } from "../../utils/shiftTiming";
 import "./TeamReports.css";
@@ -53,19 +51,27 @@ const TeamReports = () => {
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isHR = userRole === "HR" || isSuperAdmin;
   const isDepartmentHead =
+    userRole === "DEPARTMENT_HEAD" ||
     userRole === "MANAGER" ||
     /department head|head of department/i.test(String(user?.designation || ""));
+  const isSubTL =
+    userRole === "SUB_TL" ||
+    /sub[- ]?team lead|sub[- ]?tl/i.test(String(user?.designation || ""));
   const canSeeBottleneckOwner = isHR || userRole === "ADMIN" || isDepartmentHead;
   const isTL =
     userRole === "TL" ||
+    isSubTL ||
     isDepartmentHead ||
     (user?.designation && /team lead|leader|head|manager/i.test(user.designation));
 
+  const [viewMode, setViewMode] = useState("TEAM"); // "TEAM" | "PENDING_FOR_ME"
   const [departments, setDepartments] = useState([]);
   const [reportScope, setReportScope] = useState(null);
-  const [selectedDepartment, setSelectedDepartment] = useState("ALL"); // "ALL" or department ID / name
-  const [selectedRoleLevel, setSelectedRoleLevel] = useState("ALL"); // "ALL" | "TL" | "EXECUTIVE" | "INTERN"
-  const [selectedStatus, setSelectedStatus] = useState("ALL"); // "ALL" | "SUBMITTED" | "TL_REVIEWED" | "HR_APPROVED" | "REVISION_REQUESTED"
+  const [selectedDepartment, setSelectedDepartment] = useState("ALL");
+  const [selectedRoleLevel, setSelectedRoleLevel] = useState("ALL");
+  const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [selectedUserId, setSelectedUserId] = useState("ALL");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => (
     canSeeBottleneckOwner ? "" : new Date().toISOString().split("T")[0]
   ));
@@ -173,17 +179,31 @@ const TeamReports = () => {
         deptParam = visibleDepartments[0].id;
       }
 
-      const res = await getTeamReports({
-        departmentId: deptParam,
-        roleType: selectedRoleLevel !== "ALL" ? selectedRoleLevel : undefined,
-        status: selectedStatus !== "ALL" ? selectedStatus : undefined,
-        date: selectedDate || undefined,
-        search: searchTerm || undefined,
-        page: reportPage,
-        limit: 100,
-      });
-      setReports(Array.isArray(res?.data?.reports) ? res.data.reports : []);
-      setReportPagination(res?.data?.pagination || { page: 1, totalPages: 1, total: 0 });
+      if (viewMode === "PENDING_FOR_ME") {
+        const res = await getPendingForMeReports({
+          departmentId: deptParam,
+          date: selectedDate || undefined,
+          search: searchTerm || undefined,
+          page: reportPage,
+          limit: 100,
+        });
+        setReports(Array.isArray(res?.data?.reports) ? res.data.reports : []);
+        setReportPagination(res?.data?.pagination || { page: 1, totalPages: 1, total: 0 });
+      } else {
+        const res = await getTeamReports({
+          departmentId: deptParam,
+          roleType: selectedRoleLevel !== "ALL" ? selectedRoleLevel : undefined,
+          status: selectedStatus !== "ALL" ? selectedStatus : undefined,
+          userId: selectedUserId !== "ALL" ? selectedUserId : undefined,
+          verifiedOnly: verifiedOnly ? "true" : undefined,
+          date: selectedDate || undefined,
+          search: searchTerm || undefined,
+          page: reportPage,
+          limit: 100,
+        });
+        setReports(Array.isArray(res?.data?.reports) ? res.data.reports : []);
+        setReportPagination(res?.data?.pagination || { page: 1, totalPages: 1, total: 0 });
+      }
     } catch (err) {
       console.error("Failed to fetch team reports:", err);
       toast.error(err.response?.data?.message || "Could not fetch team reports.");
@@ -194,70 +214,67 @@ const TeamReports = () => {
 
   useEffect(() => {
     fetchReports();
-  }, [selectedDepartment, selectedRoleLevel, selectedStatus, selectedDate, searchTerm, reportPage]);
+  }, [viewMode, selectedDepartment, selectedRoleLevel, selectedStatus, selectedUserId, verifiedOnly, selectedDate, searchTerm, reportPage]);
+
+  // Distinct users list for Super Admin / Manager User filter
+  const submitterUsers = useMemo(() => {
+    const map = new Map();
+    for (const r of reports) {
+      if (r.user_id && r.user_name) {
+        map.set(Number(r.user_id), { id: Number(r.user_id), name: r.user_name });
+      }
+    }
+    return Array.from(map.values());
+  }, [reports]);
 
   // Open review modal with appropriate role target
   const handleOpenReview = (report, targetRole = null) => {
     setReviewingReport(report);
-    setReviewFeedback(
-      targetRole === "HR" ? report.hr_feedback || "" : report.tl_feedback || ""
-    );
+    setReviewFeedback("");
     setReviewDecision("APPROVE");
 
     if (targetRole) {
       setReviewType(targetRole);
-    } else if (report.status === "SUBMITTED" && (isTL || isSuperAdmin || isHR)) {
-      setReviewType("TL");
-    } else if (report.status === "TL_REVIEWED" && (isHR || isSuperAdmin)) {
-      setReviewType("HR");
     } else if (isSuperAdmin) {
       setReviewType("SUPER_ADMIN");
+    } else if (isHR) {
+      setReviewType("HR");
     } else {
       setReviewType("TL");
     }
   };
 
-  // Submit review / approval
+  // Submit hierarchical review / approval (or rejection with remarks)
   const handleSaveReview = async (e) => {
     e.preventDefault();
     if (!reviewingReport) return;
 
     try {
       setSavingReview(true);
-      if (reviewType === "TL") {
-        const nextStatus =
-          reviewDecision === "REVISE" ? "REVISION_REQUESTED" : "TL_REVIEWED";
-        await reviewReportAsTL(reviewingReport.id, {
-          feedback: reviewFeedback,
-          status: nextStatus,
+      if (reviewDecision === "REVISE") {
+        if (!reviewFeedback || !reviewFeedback.trim()) {
+          setSavingReview(false);
+          return toast.error("Remarks are required when rejecting a report.");
+        }
+        await rejectReport(reviewingReport.id, {
+          remarks: reviewFeedback.trim(),
+          feedback: reviewFeedback.trim(),
+        });
+        toast.success("Report rejected and returned to submitter with remarks! ⚠️");
+      } else {
+        await approveReport(reviewingReport.id, {
+          remarks: reviewFeedback.trim(),
+          feedback: reviewFeedback.trim(),
         });
         toast.success(
-          reviewDecision === "REVISE"
-            ? "Revision requested from employee! ⚠️"
+          isSuperAdmin
+            ? "Report final-approved by Super Admin (lower pending steps auto-approved)! 🛡️"
+            : isHR
+            ? "Report approved by HR (lower pending steps auto-approved) & forwarded to Super Admin! 🎉"
             : isDepartmentHead
-            ? "Report verified by Department Head! Automatically forwarded to HR. 🚀"
-            : "Report verified by Team Leader! Automatically forwarded to HR. 🚀"
+            ? "Report approved by Department Head (lower pending steps auto-approved) & forwarded to HR! 🚀"
+            : "Report approved & forwarded to next hierarchy level! 🚀"
         );
-      } else if (reviewType === "HR") {
-        const nextStatus =
-          reviewDecision === "REVISE" ? "REVISION_REQUESTED" : "HR_APPROVED";
-        await reviewReportAsHR(reviewingReport.id, {
-          feedback: reviewFeedback,
-          status: nextStatus,
-        });
-        toast.success(
-          reviewDecision === "REVISE"
-            ? "Revision requested from employee! ⚠️"
-            : "Report verified & approved by HR! Now visible to Super Admin. 🎉"
-        );
-      } else if (reviewType === "SUPER_ADMIN") {
-        const nextStatus =
-          reviewDecision === "REVISE" ? "REVISION_REQUESTED" : "SUPER_ADMIN_APPROVED";
-        await reviewReportAsSuperAdmin(reviewingReport.id, {
-          feedback: reviewFeedback,
-          status: nextStatus,
-        });
-        toast.success("Report confirmed by Super Admin! 🛡️");
       }
 
       setReviewingReport(null);
@@ -271,12 +288,42 @@ const TeamReports = () => {
     }
   };
 
-  // Helper to determine role badge and label
+  // Helper to determine role badge and label across all 6 hierarchy levels
   const getRoleBadge = (row) => {
-    const role = String(row.role_type || "").toUpperCase();
+    const role = String(row.role_type || row.user_role || "").toUpperCase();
     const desig = String(row.designation || "").toLowerCase();
     const empType = String(row.employment_type || "").toUpperCase();
 
+    if (
+      role === "DEPARTMENT_HEAD" ||
+      role === "MANAGER" ||
+      desig.includes("department head") ||
+      desig.includes("head of department")
+    ) {
+      return {
+        label: "Department Head",
+        icon: <ShieldCheck size={12} />,
+        className: "badge-hierarchy-dept-head",
+        bg: "#f3e8ff",
+        color: "#6b21a8",
+        border: "#e9d5ff",
+      };
+    }
+    if (
+      role === "SUB_TL" ||
+      desig.includes("sub-team lead") ||
+      desig.includes("sub team lead") ||
+      desig.includes("sub tl")
+    ) {
+      return {
+        label: "Sub-TL",
+        icon: <UserCheck size={12} />,
+        className: "badge-hierarchy-subtl",
+        bg: "#e0f2fe",
+        color: "#0369a1",
+        border: "#bae6fd",
+      };
+    }
     if (
       role === "TL" ||
       desig.includes("team lead") ||
@@ -335,12 +382,12 @@ const TeamReports = () => {
       <div className="team-reports-header">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
               <span className="team-eyebrow">
                 {isSuperAdmin ? "Super Admin Executive Control" : isHR ? "HR & Company Governance" : "Department Team Workspace"}
               </span>
               <span style={{ background: "#e0f2fe", color: "#0284c7", fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px" }}>
-                3-Tier Hierarchy: Team Leader ➔ HR ➔ Super Admin
+                6-Level Hierarchy: Intern ➔ Sub-TL ➔ TL ➔ Dept Head ➔ HR ➔ Super Admin
               </span>
             </div>
             <h1 className="team-heading">
@@ -348,12 +395,72 @@ const TeamReports = () => {
             </h1>
             <p className="team-subheading">
               {isHR
-                ? "Track daily work reporting across all company departments. Interns & Executives submit to Team Leaders, TLs verify to HR, and HR approvals unlock live Super Admin visibility."
-                : "Track daily work reporting for your assigned department(s). Verify tasks submitted by your team members & interns and submit reviews directly to HR."}
+                ? "Track daily work reporting across all company departments. Upper-level approvals automatically mark lower pending levels as Approved (by Higher Authority)."
+                : "Track daily work reporting for your subordinates in the reporting tree. Verify or reject reports with remarks."}
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              onClick={() => updateReportFilter(() => setViewMode("TEAM"))}
+              style={{
+                background: viewMode === "TEAM" ? "#1e293b" : "#f1f5f9",
+                color: viewMode === "TEAM" ? "#ffffff" : "#334155",
+                border: "1px solid #cbd5e1",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontWeight: "700",
+                fontSize: "12.5px",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Users size={14} /> Subordinate Reports
+            </button>
+
+            <button
+              onClick={() => updateReportFilter(() => setViewMode("PENDING_FOR_ME"))}
+              style={{
+                background: viewMode === "PENDING_FOR_ME" ? "#d97706" : "#fffbeb",
+                color: viewMode === "PENDING_FOR_ME" ? "#ffffff" : "#b45309",
+                border: "1px solid #fde68a",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontWeight: "700",
+                fontSize: "12.5px",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Inbox size={14} /> Pending For My Approval
+            </button>
+
+            {isSuperAdmin && viewMode === "TEAM" && (
+              <button
+                onClick={() => updateReportFilter(() => setVerifiedOnly((v) => !v))}
+                style={{
+                  background: verifiedOnly ? "#16a34a" : "#f0fdf4",
+                  color: verifiedOnly ? "#ffffff" : "#15803d",
+                  border: "1px solid #bbf7d0",
+                  padding: "8px 14px",
+                  borderRadius: "8px",
+                  fontWeight: "700",
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                title="Show only reports verified by the chain or approved by an upper authority"
+              >
+                <ShieldCheck size={14} /> {verifiedOnly ? "✓ Verified Only (ON)" : "Verified Chain Filter"}
+              </button>
+            )}
+
             <button
               onClick={fetchReports}
               style={{
@@ -371,7 +478,7 @@ const TeamReports = () => {
                 boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
               }}
             >
-              <RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh Reports
+              <RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh
             </button>
           </div>
         </div>
@@ -453,10 +560,10 @@ const TeamReports = () => {
           </div>
         </div>
 
-        {/* ── 2. FILTERS BAR (Hierarchy Role, Status, Date, Search) ── */}
+        {/* ── 2. FILTERS BAR (Hierarchy Role, User, Status, Date, Search) ── */}
         <div className="team-filters-bar" style={{ marginTop: "12px", paddingTop: "12px" }}>
           {/* Search Box */}
-          <div style={{ position: "relative", minWidth: "220px", flex: 1 }}>
+          <div style={{ position: "relative", minWidth: "200px", flex: 1 }}>
             <Search
               size={15}
               style={{
@@ -484,36 +591,60 @@ const TeamReports = () => {
             />
           </div>
 
-          {/* Hierarchy Level Filter */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <Layers size={15} style={{ color: "#64748b" }} />
-            <select
-              value={selectedRoleLevel}
-              onChange={(e) => updateReportFilter(() => setSelectedRoleLevel(e.target.value))}
-              className="filter-select"
-            >
-              <option value="ALL">All Roles (TL, Exec & Interns)</option>
-              <option value="TL">👑 Team Leader Only</option>
-              <option value="EXECUTIVE">💼 Executives Only</option>
-              <option value="INTERN">🎓 Interns Only</option>
-            </select>
-          </div>
+          {viewMode === "TEAM" && (
+            <>
+              {/* User Filter */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Users size={15} style={{ color: "#64748b" }} />
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => updateReportFilter(() => setSelectedUserId(e.target.value))}
+                  className="filter-select"
+                >
+                  <option value="ALL">All Team Members</option>
+                  {submitterUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          {/* Workflow Stage Filter */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <Filter size={15} style={{ color: "#64748b" }} />
-            <select
-              value={selectedStatus}
-              onChange={(e) => updateReportFilter(() => setSelectedStatus(e.target.value))}
-              className="filter-select"
-            >
-              <option value="ALL">All Approval Stages</option>
-              <option value="SUBMITTED">⏳ 1. Pending TL / Department Head Verification ({pendingTLCount})</option>
-              <option value="TL_REVIEWED">⏳ 2. Pending HR Approval ({pendingHRCount})</option>
-              <option value="HR_APPROVED">✅ 3. Approved (Super Admin Ready) ({approvedCount})</option>
-              <option value="REVISION_REQUESTED">🔄 Revision Requested</option>
-            </select>
-          </div>
+              {/* Hierarchy Level Filter */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Layers size={15} style={{ color: "#64748b" }} />
+                <select
+                  value={selectedRoleLevel}
+                  onChange={(e) => updateReportFilter(() => setSelectedRoleLevel(e.target.value))}
+                  className="filter-select"
+                >
+                  <option value="ALL">All Hierarchy Roles</option>
+                  <option value="DEPARTMENT_HEAD">🛡️ Department Heads</option>
+                  <option value="TL">👑 Team Leaders (TL)</option>
+                  <option value="SUB_TL">⚡ Sub-TLs</option>
+                  <option value="EXECUTIVE">💼 Executives</option>
+                  <option value="INTERN">🎓 Interns</option>
+                </select>
+              </div>
+
+              {/* Workflow Stage Filter */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Filter size={15} style={{ color: "#64748b" }} />
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => updateReportFilter(() => setSelectedStatus(e.target.value))}
+                  className="filter-select"
+                >
+                  <option value="ALL">All Approval Stages</option>
+                  <option value="SUBMITTED">⏳ Pending Sub-TL / TL / Dept Head ({pendingTLCount})</option>
+                  <option value="TL_REVIEWED">⏳ Verified by TL/Head — Pending HR ({pendingHRCount})</option>
+                  <option value="HR_APPROVED">✅ Approved (Super Admin Ready) ({approvedCount})</option>
+                  <option value="SUPER_ADMIN_APPROVED">🛡️ Final Approved by Super Admin</option>
+                  <option value="REVISION_REQUESTED">❌ Rejected / Revision Requested</option>
+                </select>
+              </div>
+            </>
+          )}
 
           {/* Date Picker */}
           <div className="filter-input-wrap">
@@ -561,7 +692,7 @@ const TeamReports = () => {
             <Clock size={20} />
           </div>
           <div>
-            <span className="stat-label">Pending TL / Department Head Verification</span>
+            <span className="stat-label">Pending Sub-TL / TL / Dept Head</span>
             <strong className="stat-number" style={{ color: "#d97706" }}>
               {pendingTLCount}
             </strong>
@@ -598,7 +729,9 @@ const TeamReports = () => {
         <div className="team-table-top">
           <div>
             <h3 className="team-table-title">
-              {selectedDepartment === "ALL"
+              {viewMode === "PENDING_FOR_ME"
+                ? "Reports Awaiting My Approval (Direct & Subordinate Chain)"
+                : selectedDepartment === "ALL"
                 ? isHR
                   ? "All Department Submissions"
                   : "All Managed Department Submissions"
@@ -614,7 +747,9 @@ const TeamReports = () => {
               {selectedDate ? ` (${selectedDate})` : ""}
             </h3>
             <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: "13px" }}>
-              Review Team Leader, Executive, and Intern daily logs with video proof attachments and multi-tier approval sign-offs.
+              {viewMode === "PENDING_FOR_ME"
+                ? "Approve or reject reports waiting in your approval chain. Approving at a higher level automatically approves any pending lower steps."
+                : "Review subordinate daily logs with video proof attachments and 6-level hierarchical approval timelines."}
             </p>
           </div>
           <span className="team-count-tag">{reports.length} Records</span>
@@ -635,39 +770,34 @@ const TeamReports = () => {
             <table className="team-reports-table">
               <thead>
                 <tr>
-                  <th style={{ width: "22%" }}>Employee & Role</th>
-                  <th style={{ width: "16%" }}>Department</th>
+                  <th style={{ width: "20%" }}>Employee & Role</th>
+                  <th style={{ width: "14%" }}>Department</th>
                   <th style={{ width: "8%" }}>Hours</th>
                   <th style={{ width: "22%" }}>Work Summary</th>
-                  <th style={{ width: "18%" }}>Approval Pipeline Tracker</th>
+                  <th style={{ width: "22%" }}>Approval Pipeline Tracker</th>
                   <th style={{ width: "14%", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {reports.map((row) => {
                   const roleBadge = getRoleBadge(row);
-                  const pendingApproverName = row.pending_approver_name || row.tl_name;
-                  const pendingApproverRole = String(
-                    row.pending_approver_employee_role ||
-                    row.pending_approver_user_role ||
-                    row.tl_employee_role ||
-                    row.tl_user_role ||
-                    ""
-                  ).toUpperCase();
-                  const pendingApproverDesignation = String(
-                    row.pending_approver_designation || row.tl_designation || ""
-                  );
-                  const pendingApproverLabel =
-                    pendingApproverRole === "SUB_TL" || /sub[- ]?team lead|sub[- ]?tl/i.test(pendingApproverDesignation)
-                      ? "Sub-TL"
-                      : pendingApproverRole === "MANAGER" || /department head|head of department/i.test(pendingApproverDesignation)
-                        ? "Department Head"
-                        : pendingApproverRole === "TL" || /team lead|team leader/i.test(pendingApproverDesignation)
-                          ? "TL"
-                          : "Reviewer";
-                  const reviewerIsDepartmentHead =
-                    String(row.tl_user_role || "").toUpperCase() === "MANAGER" ||
-                    /department head|head of department/i.test(String(row.tl_designation || ""));
+                  const isOwnReport = Number(row.user_id) === Number(user?.id);
+                  const isFinalApproved =
+                    row.status === "SUPER_ADMIN_APPROVED" ||
+                    (row.current_status === "APPROVED" &&
+                      Array.isArray(row.approvals) &&
+                      row.approvals.length > 0 &&
+                      row.approvals.every((a) => a.status === "APPROVED"));
+
+                  const canActOnReport =
+                    !isOwnReport &&
+                    !isFinalApproved &&
+                    (isSuperAdmin ||
+                      isHR ||
+                      isDepartmentHead ||
+                      isTL ||
+                      isSubTL ||
+                      Number(row.current_level_user_id) === Number(user?.id));
 
                   return (
                     <tr key={row.id}>
@@ -723,7 +853,7 @@ const TeamReports = () => {
                         </div>
                         {row.mentor_name && (
                           <div style={{ fontSize: "11px", color: "#0284c7", marginTop: "2px" }}>
-                            TL: {row.mentor_name}
+                            Manager: {row.mentor_name}
                           </div>
                         )}
                       </td>
@@ -767,117 +897,9 @@ const TeamReports = () => {
                         )}
                       </td>
 
-                      {/* 3-Tier Approval Pipeline Tracker */}
+                      {/* 6-Level Hierarchical Approval Pipeline Tracker */}
                       <td>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          {row.status === "SUBMITTED" ? (
-                            <>
-                              <span
-                                style={{
-                                  fontSize: "11.5px",
-                                  fontWeight: "700",
-                                  color: "#b45309",
-                                  background: "#fef3c7",
-                                  padding: "4px 8px",
-                                  borderRadius: "6px",
-                                  border: "1px solid #fde68a",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "5px",
-                                  width: "fit-content",
-                                }}
-                              >
-                                ⏳ 1. Pending TL / Department Head Verification
-                              </span>
-                              {canSeeBottleneckOwner && (
-                                <span style={{ fontSize: "11px", color: "#92400e", paddingLeft: "3px" }}>
-                                  Waiting on: {pendingApproverName
-                                    ? `${pendingApproverLabel} — ${pendingApproverName}`
-                                    : "TL assignment / Department Head review"}
-                                </span>
-                              )}
-                            </>
-                          ) : row.status === "TL_REVIEWED" ? (
-                            <>
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: "600",
-                                  color: "#15803d",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "3px",
-                                }}
-                              >
-                                ✓ {reviewerIsDepartmentHead ? "Department Head Verified" : "TL Verified"} ({row.tl_name || (reviewerIsDepartmentHead ? "Department Head" : "Team Lead")})
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: "11.5px",
-                                  fontWeight: "700",
-                                  color: "#1d4ed8",
-                                  background: "#eff6ff",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  border: "1px solid #bfdbfe",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  width: "fit-content",
-                                }}
-                              >
-                                ⏳ 2. Pending HR Approval
-                              </span>
-                            </>
-                          ) : row.status === "HR_APPROVED" || row.status === "SUPER_ADMIN_APPROVED" ? (
-                            <>
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: "600",
-                                  color: "#15803d",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "3px",
-                                }}
-                              >
-                                ✓ HR Approved ({row.hr_name || "HR"})
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: "11.5px",
-                                  fontWeight: "700",
-                                  color: "#15803d",
-                                  background: "#dcfce7",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  border: "1px solid #bbf7d0",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  width: "fit-content",
-                                }}
-                              >
-                                👁️ Super Admin Live
-                              </span>
-                            </>
-                          ) : (
-                            <span
-                              style={{
-                                fontSize: "11.5px",
-                                fontWeight: "700",
-                                color: "#b91c1c",
-                                background: "#fee2e2",
-                                padding: "3px 8px",
-                                borderRadius: "6px",
-                                border: "1px solid #fecaca",
-                                width: "fit-content",
-                              }}
-                            >
-                              ⚠️ Revision Requested
-                            </span>
-                          )}
-                        </div>
+                        <ApprovalTimeline report={row} compact />
                       </td>
 
                       {/* Action Buttons based on User Role and Pipeline Stage */}
@@ -886,17 +908,25 @@ const TeamReports = () => {
                           <button
                             className="action-btn view-btn"
                             onClick={() => setSelectedReport(row)}
-                            title="View Report Details"
+                            title="View Report Details & Full Approval Timeline"
                           >
                             <Eye size={13} /> View
                           </button>
 
-                          {/* The Department Head can complete the same pending TL approval stage. */}
-                          {row.status === "SUBMITTED" && (isTL || isHR || isSuperAdmin) && (
+                          {canActOnReport && (
                             <button
-                              onClick={() => handleOpenReview(row, "TL")}
+                              onClick={() =>
+                                handleOpenReview(
+                                  row,
+                                  isSuperAdmin ? "SUPER_ADMIN" : isHR ? "HR" : "TL"
+                                )
+                              }
                               style={{
-                                background: "#16a34a",
+                                background: isSuperAdmin
+                                  ? "#4f46e5"
+                                  : isHR
+                                  ? "#2563eb"
+                                  : "#16a34a",
                                 color: "#fff",
                                 border: "none",
                                 padding: "6px 10px",
@@ -907,35 +937,20 @@ const TeamReports = () => {
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "4px",
-                                boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)",
+                                boxShadow: "0 2px 6px rgba(22, 163, 74, 0.2)",
                               }}
-                              title={isDepartmentHead ? "Verify as Department Head & forward to HR" : "Verify as Team Leader & forward to HR"}
+                              title="Approve or Reject Report (Auto-approves any lower pending levels)"
                             >
-                              <CheckCheck size={13} /> {isDepartmentHead ? "Verify as Dept. Head" : "Verify TL"}
-                            </button>
-                          )}
-
-                          {/* Action 2: If report is TL_REVIEWED, HR or Super Admin can approve */}
-                          {row.status === "TL_REVIEWED" && (isHR || isSuperAdmin) && (
-                            <button
-                              onClick={() => handleOpenReview(row, "HR")}
-                              style={{
-                                background: "#2563eb",
-                                color: "#fff",
-                                border: "none",
-                                padding: "6px 10px",
-                                borderRadius: "6px",
-                                fontWeight: "700",
-                                fontSize: "12px",
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                boxShadow: "0 2px 6px rgba(37, 99, 235, 0.25)",
-                              }}
-                              title="Approve as HR & unlock for Super Admin"
-                            >
-                              <ShieldCheck size={13} /> Approve HR
+                              <CheckCheck size={13} />{" "}
+                              {isSuperAdmin
+                                ? "Approve (SA)"
+                                : isHR
+                                ? "Approve (HR)"
+                                : isDepartmentHead
+                                ? "Verify (Head)"
+                                : isSubTL
+                                ? "Verify (Sub-TL)"
+                                : "Verify (TL)"}
                             </button>
                           )}
                         </div>
@@ -979,20 +994,18 @@ const TeamReports = () => {
             <div className="review-modal-header">
               <div>
                 <span className="modal-eyebrow">
-                  {reviewType === "HR"
-                    ? "Tier-2 HR Compliance Review"
-                    : reviewType === "SUPER_ADMIN"
-                    ? "Tier-3 Super Admin Final Audit"
+                  {isSuperAdmin
+                    ? "Level 6 • Super Admin Final Approval"
+                    : isHR
+                    ? "Level 5 • HR Compliance Approval"
                     : isDepartmentHead
-                    ? "Tier-1 Department Head Verification"
-                    : "Tier-1 Team Leader Verification"}
+                    ? "Level 4 • Department Head Verification"
+                    : isSubTL
+                    ? "Level 2 • Sub-TL Verification"
+                    : "Level 3 • Team Leader Verification"}
                 </span>
                 <h3>
-                  {reviewType === "HR"
-                    ? "HR Approval"
-                    : isDepartmentHead
-                    ? "Department Head Verification"
-                    : "TL Verification"}: {reviewingReport.user_name}
+                  Review Report: {reviewingReport.user_name}
                 </h3>
                 <span className="modal-date-tag">
                   {reviewingReport.report_date} • {reviewingReport.department_name} ({getRoleBadge(reviewingReport).label})
@@ -1011,12 +1024,33 @@ const TeamReports = () => {
                   {reviewingReport.tasks_summary}
                 </p>
 
-                {reviewingReport.tl_feedback && (
-                  <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0", marginTop: "6px", fontSize: "12px" }}>
-                    <strong>TL Note ({reviewingReport.tl_name}):</strong> {reviewingReport.tl_feedback}
-                  </div>
-                )}
+                <div style={{ marginTop: "8px" }}>
+                  <ApprovalTimeline report={reviewingReport} compact />
+                </div>
               </div>
+
+              {(isDepartmentHead || isHR || isSuperAdmin) && reviewDecision === "APPROVE" && (
+                <div
+                  style={{
+                    background: "#f5f3ff",
+                    border: "1px solid #ddd6fe",
+                    color: "#5b21b6",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    marginBottom: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Zap size={14} />
+                  <span>
+                    Skip / Auto-Approval Active: Approving at your level will automatically mark any pending lower levels as &quot;Approved (by Higher Authority)&quot;.
+                  </span>
+                </div>
+              )}
 
               <div className="form-group">
                 <label className="form-label">Review Decision</label>
@@ -1026,33 +1060,26 @@ const TeamReports = () => {
                   onChange={(e) => setReviewDecision(e.target.value)}
                 >
                   <option value="APPROVE">
-                    {reviewType === "HR"
-                      ? "✅ Approve & Send to Super Admin (HR Approved)"
-                      : isDepartmentHead
-                      ? "✅ Verify & Forward to HR (Department Head Verified)"
-                      : "✅ Verify & Forward to HR (TL Verified)"}
+                    ✅ Approve & Forward to Next Upper Level
                   </option>
                   <option value="REVISE">
-                    ⚠️ Request Changes / Needs Revision
+                    ❌ Reject Report & Return to Submitter (Requires Remarks)
                   </option>
                 </select>
               </div>
 
               <div className="form-group">
                 <label className="form-label">
-                  {reviewType === "HR"
-                    ? "HR Comments & Notes"
-                    : isDepartmentHead
-                    ? "Department Head Feedback"
-                    : "Team Leader Feedback"}
+                  Reviewer Remarks / Feedback {reviewDecision === "REVISE" ? "*" : "(Optional)"}
                 </label>
                 <textarea
                   className="form-textarea"
                   rows={3}
+                  required={reviewDecision === "REVISE"}
                   placeholder={
-                    reviewType === "HR"
-                      ? "Approved for payroll and compliance / Verified by HR team."
-                      : "Great progress on campaign metrics / Please attach the recorded call recording."
+                    reviewDecision === "REVISE"
+                      ? "Please specify what needs to be corrected before resubmitting..."
+                      : "Optional approval remarks or feedback..."
                   }
                   value={reviewFeedback}
                   onChange={(e) => setReviewFeedback(e.target.value)}
@@ -1075,7 +1102,9 @@ const TeamReports = () => {
                     background:
                       reviewDecision === "REVISE"
                         ? "#dc2626"
-                        : reviewType === "HR"
+                        : isSuperAdmin
+                        ? "#4f46e5"
+                        : isHR
                         ? "#2563eb"
                         : "#16a34a",
                   }}
@@ -1083,12 +1112,8 @@ const TeamReports = () => {
                   {savingReview
                     ? "Saving..."
                     : reviewDecision === "REVISE"
-                    ? "Request Revision"
-                    : reviewType === "HR"
-                    ? "Confirm HR Approval"
-                    : isDepartmentHead
-                    ? "Confirm Department Head Verification"
-                    : "Confirm TL Verification"}
+                    ? "Reject & Send Back"
+                    : "Confirm Approval"}
                 </button>
               </div>
             </form>

@@ -200,6 +200,7 @@ export const findReportByIdRepository = async (reportId, visibility = {}) => {
       r.employee_id,
       COALESCE(r.department_id, e.department_id) AS department_id,
       r.report_date,
+      COALESCE(r.report_type, 'DAILY') AS report_type,
       r.role_type,
       r.work_title,
       r.tasks_summary,
@@ -210,11 +211,17 @@ export const findReportByIdRepository = async (reportId, visibility = {}) => {
       r.next_day_plan,
       r.took_class,
       r.status,
+      COALESCE(r.current_status, 'PENDING') AS current_status,
+      r.current_level_user_id,
+      r.current_approval_level,
       r.tl_id,
+      r.tl_feedback,
       r.tl_reviewed_at,
       r.hr_id,
+      r.hr_feedback,
       r.hr_reviewed_at,
       r.super_admin_id,
+      r.super_admin_feedback,
       r.super_admin_reviewed_at,
       r.rejection_reason,
       r.created_at,
@@ -248,7 +255,9 @@ export const findReportByIdRepository = async (reportId, visibility = {}) => {
       tl_u.role AS tl_user_role,
       tl_e.designation AS tl_designation,
       hr_u.full_name AS hr_name,
-      sa_u.full_name AS super_admin_name
+      sa_u.full_name AS super_admin_name,
+      cur_u.full_name AS current_approver_name,
+      cur_u.role AS current_approver_role
     FROM daily_work_reports r
     LEFT JOIN users u ON r.user_id = u.id
     LEFT JOIN employees e ON (r.employee_id = e.id OR e.user_id = r.user_id)
@@ -257,6 +266,7 @@ export const findReportByIdRepository = async (reportId, visibility = {}) => {
     LEFT JOIN employees tl_e ON tl_e.user_id = tl_u.id AND tl_e.is_deleted = FALSE
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
     LEFT JOIN users sa_u ON r.super_admin_id = sa_u.id
+    LEFT JOIN users cur_u ON r.current_level_user_id = cur_u.id
     LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = e.id) AND da.date = r.report_date
     WHERE r.id = $1
       AND ($2::bigint[] IS NULL OR r.user_id = ANY($2::bigint[]) OR r.id = ANY($3::bigint[]))
@@ -301,6 +311,7 @@ export const findMyReportByDateRepository = async (userId, reportDate) => {
       r.employee_id,
       r.department_id,
       r.report_date,
+      COALESCE(r.report_type, 'DAILY') AS report_type,
       r.role_type,
       r.work_title,
       r.tasks_summary,
@@ -311,11 +322,17 @@ export const findMyReportByDateRepository = async (userId, reportDate) => {
       r.next_day_plan,
       r.took_class,
       r.status,
+      COALESCE(r.current_status, 'PENDING') AS current_status,
+      r.current_level_user_id,
+      r.current_approval_level,
       r.tl_id,
+      r.tl_feedback,
       r.tl_reviewed_at,
       r.hr_id,
+      r.hr_feedback,
       r.hr_reviewed_at,
       r.super_admin_id,
+      r.super_admin_feedback,
       r.super_admin_reviewed_at,
       r.rejection_reason,
       r.created_at,
@@ -340,11 +357,14 @@ export const findMyReportByDateRepository = async (userId, reportDate) => {
       ) AS total_hours_worked,
       d.department_name,
       tl_u.full_name AS tl_name,
-      hr_u.full_name AS hr_name
+      hr_u.full_name AS hr_name,
+      cur_u.full_name AS current_approver_name,
+      cur_u.role AS current_approver_role
     FROM daily_work_reports r
     LEFT JOIN departments d ON r.department_id = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
+    LEFT JOIN users cur_u ON r.current_level_user_id = cur_u.id
     LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = (SELECT id FROM employees WHERE user_id = r.user_id LIMIT 1)) AND da.date = r.report_date
     WHERE r.user_id = $1 AND r.report_date = $2
     LIMIT 1;
@@ -381,8 +401,9 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
     values.push(endDate);
   }
   if (status) {
-    whereClauses.push(`r.status = $${paramIdx++}`);
+    whereClauses.push(`(r.status = $${paramIdx} OR r.current_status = $${paramIdx})`);
     values.push(status);
+    paramIdx++;
   }
 
   const whereStr = whereClauses.join(" AND ");
@@ -398,6 +419,7 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
       r.employee_id,
       r.department_id,
       r.report_date,
+      COALESCE(r.report_type, 'DAILY') AS report_type,
       r.role_type,
       r.work_title,
       r.tasks_summary,
@@ -408,11 +430,17 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
       r.next_day_plan,
       r.took_class,
       r.status,
+      COALESCE(r.current_status, 'PENDING') AS current_status,
+      r.current_level_user_id,
+      r.current_approval_level,
       r.tl_id,
+      r.tl_feedback,
       r.tl_reviewed_at,
       r.hr_id,
+      r.hr_feedback,
       r.hr_reviewed_at,
       r.super_admin_id,
+      r.super_admin_feedback,
       r.super_admin_reviewed_at,
       r.rejection_reason,
       r.created_at,
@@ -438,6 +466,8 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
       d.department_name,
       tl_u.full_name AS tl_name,
       hr_u.full_name AS hr_name,
+      cur_u.full_name AS current_approver_name,
+      cur_u.role AS current_approver_role,
       (SELECT COUNT(*) FROM work_report_classes c WHERE c.report_id = r.id) AS classes_count,
       (SELECT JSON_AGG(c.*) FROM (
         SELECT id, batch_name, topic_covered, duration_minutes, video_recording_url 
@@ -448,6 +478,7 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
     LEFT JOIN departments d ON r.department_id = d.id
     LEFT JOIN users tl_u ON r.tl_id = tl_u.id
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
+    LEFT JOIN users cur_u ON r.current_level_user_id = cur_u.id
     LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = (SELECT id FROM employees WHERE user_id = r.user_id LIMIT 1)) AND da.date = r.report_date
     WHERE ${whereStr}
     ORDER BY r.report_date DESC, r.id DESC
@@ -478,6 +509,8 @@ export const findTeamReportsRepository = async ({
   visibleReportIds = null,
   departmentId,
   allowedDepartmentIds = null,
+  userId,
+  verifiedOnly = false,
   date,
   startDate,
   endDate,
@@ -538,6 +571,20 @@ export const findTeamReportsRepository = async ({
     }
   }
 
+  if (userId && userId !== "ALL") {
+    whereClauses.push(`r.user_id = $${paramIdx++}`);
+    values.push(Number(userId));
+  }
+  if (verifiedOnly === true || verifiedOnly === "true") {
+    whereClauses.push(`(
+      r.status IN ('TL_REVIEWED', 'HR_APPROVED', 'SUPER_ADMIN_APPROVED')
+      OR r.current_status = 'APPROVED'
+      OR EXISTS (
+        SELECT 1 FROM report_approvals ra
+        WHERE ra.report_id = r.id AND ra.status = 'APPROVED'
+      )
+    )`);
+  }
   if (date) {
     whereClauses.push(`r.report_date = $${paramIdx++}`);
     values.push(date);
@@ -555,8 +602,9 @@ export const findTeamReportsRepository = async ({
     values.push(roleType);
   }
   if (status && status !== "ALL") {
-    whereClauses.push(`r.status = $${paramIdx++}`);
+    whereClauses.push(`(r.status = $${paramIdx} OR r.current_status = $${paramIdx})`);
     values.push(status);
+    paramIdx++;
   }
   if (search && search.trim()) {
     whereClauses.push(`(
@@ -595,6 +643,7 @@ export const findTeamReportsRepository = async ({
       r.employee_id,
       r.department_id,
       r.report_date,
+      COALESCE(r.report_type, 'DAILY') AS report_type,
       r.role_type,
       r.work_title,
       r.tasks_summary,
@@ -605,11 +654,17 @@ export const findTeamReportsRepository = async ({
       r.next_day_plan,
       r.took_class,
       r.status,
+      COALESCE(r.current_status, 'PENDING') AS current_status,
+      r.current_level_user_id,
+      r.current_approval_level,
       r.tl_id,
+      r.tl_feedback,
       r.tl_reviewed_at,
       r.hr_id,
+      r.hr_feedback,
       r.hr_reviewed_at,
       r.super_admin_id,
+      r.super_admin_feedback,
       r.super_admin_reviewed_at,
       r.rejection_reason,
       r.created_at,
@@ -634,6 +689,7 @@ export const findTeamReportsRepository = async ({
       ) AS total_hours_worked,
       u.full_name AS user_name,
       u.email AS user_email,
+      u.role AS user_role,
       e.employee_code,
       e.designation,
       e.employment_type,
@@ -652,6 +708,8 @@ export const findTeamReportsRepository = async ({
       ${includePendingApprover ? "tl_e.designation" : "NULL"} AS pending_approver_designation,
       hr_u.full_name AS hr_name,
       super_u.full_name AS super_admin_name,
+      cur_u.full_name AS current_approver_name,
+      cur_u.role AS current_approver_role,
       (SELECT JSON_AGG(c.*) FROM (
         SELECT id, batch_name, topic_covered, duration_minutes, video_recording_url 
         FROM work_report_classes 
@@ -666,6 +724,7 @@ export const findTeamReportsRepository = async ({
     LEFT JOIN employees tl_e ON tl_e.user_id = r.tl_id AND tl_e.is_deleted = FALSE
     LEFT JOIN users hr_u ON r.hr_id = hr_u.id
     LEFT JOIN users super_u ON r.super_admin_id = super_u.id
+    LEFT JOIN users cur_u ON r.current_level_user_id = cur_u.id
     LEFT JOIN daily_attendance da ON (da.employee_id = r.employee_id OR da.employee_id = e.id) AND da.date = r.report_date
     ${whereStr}
     ORDER BY 

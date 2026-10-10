@@ -12,6 +12,10 @@ import {
   reviewReportAsHRService,
   reviewReportAsSuperAdminService,
   getClassesAuditFeedService,
+  approveReportHierarchicalService,
+  rejectReportHierarchicalService,
+  editAndResubmitReportService,
+  getPendingApprovalsForMeService,
 } from "../services/reportService.js";
 
 export const getReportVisibilityController = asyncHandler(async (req, res) => {
@@ -56,6 +60,16 @@ export const getMyReportsHistoryController = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get Reports Pending for Current User's Approval
+ */
+export const getPendingForMeReportsController = asyncHandler(async (req, res) => {
+  const data = await getPendingApprovalsForMeService(req.user, req.query);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Reports awaiting your approval retrieved successfully."));
+});
+
+/**
  * Get Single Report Details by ID
  */
 export const getReportByIdController = asyncHandler(async (req, res) => {
@@ -66,13 +80,43 @@ export const getReportByIdController = asyncHandler(async (req, res) => {
 });
 
 /**
- * Team Lead: Get Department / Team Member Reports
+ * Team Lead / Department Head / Sub-TL / HR / Super Admin: Get Subordinate / Team Member Reports
  */
 export const getTeamReportsController = asyncHandler(async (req, res) => {
   const data = await getTeamReportsService(req.user, req.query, req.reportVisibility);
   return res
     .status(200)
     .json(new ApiResponse(200, data, "Team member daily reports retrieved successfully."));
+});
+
+/**
+ * Hierarchical Approve Report (with Skip / Auto-Approval Logic)
+ */
+export const approveReportController = asyncHandler(async (req, res) => {
+  const report = await approveReportHierarchicalService(req.user, req.params.id, req.body);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, report, "Report approved successfully."));
+});
+
+/**
+ * Hierarchical Reject Report (Sends back to submitter for revision)
+ */
+export const rejectReportController = asyncHandler(async (req, res) => {
+  const report = await rejectReportHierarchicalService(req.user, req.params.id, req.body);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, report, "Report rejected and sent back to submitter for revision."));
+});
+
+/**
+ * Edit & Resubmit Rejected Report
+ */
+export const editAndResubmitReportController = asyncHandler(async (req, res) => {
+  const report = await editAndResubmitReportService(req.user, req.params.id, req.body);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, report, "Report updated and resubmitted for approval."));
 });
 
 /**
