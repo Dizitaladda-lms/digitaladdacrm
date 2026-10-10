@@ -162,14 +162,7 @@ export const saveMyMonthlyRosterService = async (currentUser, payload = {}) => {
     throw new ApiError(400, "Days roster data is required.");
   }
 
-  // Check existing roster status
   const existing = await findEmployeeRosterByMonthRepository(employee.id, Number(year), Number(month));
-  if (existing && existing.status === "APPROVED") {
-    throw new ApiError(
-      400,
-      "Your roster for this month is already Approved by HR and locked. If you need to make changes, please contact HR or click 'Request Edit from HR'."
-    );
-  }
 
   const counters = calculateRosterCounters(days_data);
   const targetStatus = isSubmit ? "SUBMITTED" : "DRAFT";

@@ -95,6 +95,10 @@ export const upsertEmployeeRosterRepository = async ({
       days_data = EXCLUDED.days_data,
       submission_note = COALESCE(EXCLUDED.submission_note, employee_monthly_rosters.submission_note),
       submitted_at = COALESCE(EXCLUDED.submitted_at, employee_monthly_rosters.submitted_at),
+      reviewed_by = NULL,
+      reviewed_at = NULL,
+      review_remarks = NULL,
+      change_request_note = NULL,
       updated_at = CURRENT_TIMESTAMP
     RETURNING *;
   `;

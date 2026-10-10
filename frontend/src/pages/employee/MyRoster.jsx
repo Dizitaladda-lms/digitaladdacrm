@@ -10,9 +10,6 @@ import {
   Save,
   RotateCcw,
   Sparkles,
-  Lock,
-  MessageSquare,
-  X,
   Briefcase,
   Palmtree,
   SunMedium,
@@ -22,7 +19,6 @@ import toast from "react-hot-toast";
 import {
   getMyMonthlyRoster,
   saveMyMonthlyRoster,
-  requestRosterChange,
 } from "../../services/rosterService";
 import { format12hTime } from "../../utils/shiftTiming";
 import "./MyRoster.css";
@@ -42,11 +38,6 @@ const MyRoster = () => {
   const [submissionNote, setSubmissionNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Change request modal state
-  const [changeModalOpen, setChangeModalOpen] = useState(false);
-  const [changeReason, setChangeReason] = useState("");
-  const [requestingChange, setRequestingChange] = useState(false);
 
   const fetchRoster = async () => {
     try {
@@ -93,10 +84,8 @@ const MyRoster = () => {
     setMonth(now.getMonth() + 1);
   };
 
-  // Is this roster locked from direct employee edits?
   const isApproved = rosterData?.status === "APPROVED";
   const isSubmitted = rosterData?.status === "SUBMITTED";
-  const isLocked = isApproved;
 
   // Real-time counters
   const counters = useMemo(() => {
@@ -127,10 +116,6 @@ const MyRoster = () => {
 
   // Update a single day
   const handleUpdateDay = (dayNum, updates) => {
-    if (isLocked) {
-      toast.error("Roster is approved and locked. Please click 'Request Change from HR' to adjust dates.");
-      return;
-    }
     setDays((prev) =>
       prev.map((d) => (d.day === dayNum ? { ...d, ...updates } : d))
     );
@@ -138,7 +123,6 @@ const MyRoster = () => {
 
   // Quick preset: All Sundays Off, rest Working
   const handleApplySundaysOff = () => {
-    if (isLocked) return;
     const defaultStart = rosterData?.shift_start_time || "10:00";
     const defaultEnd = rosterData?.shift_end_time || "18:00";
 
@@ -159,7 +143,6 @@ const MyRoster = () => {
 
   // Quick preset: Sat & Sun Off (5-day week)
   const handleApplyWeekendOff = () => {
-    if (isLocked) return;
     const defaultStart = rosterData?.shift_start_time || "10:00";
     const defaultEnd = rosterData?.shift_end_time || "18:00";
 
@@ -180,18 +163,15 @@ const MyRoster = () => {
 
   // Save as Draft or Submit to HR
   const handleSaveRoster = async (isSubmit = false) => {
-    if (isLocked) {
-      toast.error("Your roster for this month is already approved and locked.");
-      return;
-    }
-
     if (isSubmit) {
       const confirmSubmit = window.confirm(
         `Are you sure you want to submit your ${MONTH_NAMES[month - 1]} ${year} roster to HR?\n\n` +
         `• Working Days: ${counters.working}\n` +
         `• Week Offs: ${counters.weekOff}\n` +
         `• Leaves: ${counters.leaves}\n\n` +
-        `Once approved by HR, any changes will require HR assistance.`
+        (isApproved
+          ? "Your edited roster will be sent to HR for a fresh review."
+          : "You can edit and resubmit your roster after HR approval.")
       );
       if (!confirmSubmit) return;
     }
@@ -217,32 +197,6 @@ const MyRoster = () => {
       toast.error(err.response?.data?.message || "Failed to save monthly roster.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  // Submit Change Request to HR
-  const handleSubmitChangeRequest = async (e) => {
-    e.preventDefault();
-    if (!changeReason.trim()) {
-      return toast.error("Please explain which dates or shifts need modification.");
-    }
-
-    try {
-      setRequestingChange(true);
-      await requestRosterChange({
-        year,
-        month,
-        reason: changeReason.trim(),
-      });
-      toast.success("Change request submitted to HR. HR will review and update your roster!");
-      setChangeModalOpen(false);
-      setChangeReason("");
-      await fetchRoster();
-    } catch (err) {
-      console.error("Change request error:", err);
-      toast.error(err.response?.data?.message || "Failed to submit change request.");
-    } finally {
-      setRequestingChange(false);
     }
   };
 
@@ -300,7 +254,7 @@ const MyRoster = () => {
           <div>
             <strong>Status: {rosterData?.status?.replace("_", " ") || "DRAFT"}</strong>
             <span style={{ marginLeft: "8px" }}>
-              {isApproved && "— Your roster is approved by HR and active. Edits are locked."}
+              {isApproved && "— Approved by HR and active. You can edit this roster and submit it again for HR review."}
               {isSubmitted && "— Submitted to HR on " + (rosterData?.submitted_at ? new Date(rosterData.submitted_at).toLocaleDateString() : "recently") + ". Awaiting approval."}
               {rosterData?.status === "CHANGE_REQUESTED" && "— You requested a roster adjustment. HR is reviewing your changes."}
               {rosterData?.status === "REJECTED" && `— Rejected by HR. Remarks: ${rosterData?.review_remarks || "Please review and resubmit."}`}
@@ -309,26 +263,6 @@ const MyRoster = () => {
           </div>
         </div>
 
-        {isApproved && (
-          <button
-            onClick={() => setChangeModalOpen(true)}
-            style={{
-              padding: "6px 14px",
-              borderRadius: "8px",
-              border: "1.5px solid #059669",
-              background: "#ffffff",
-              color: "#059669",
-              fontWeight: "700",
-              fontSize: "12.5px",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <MessageSquare size={14} /> Request Change from HR
-          </button>
-        )}
       </div>
 
       {/* KPI Counters */}
@@ -374,9 +308,8 @@ const MyRoster = () => {
         </div>
       </div>
 
-      {/* Quick Presets Bar (Active if not locked) */}
-      {!isLocked && (
-        <div className="quick-fill-bar">
+      {/* Quick Presets Bar */}
+      <div className="quick-fill-bar">
           <div className="quick-fill-label">
             <Sparkles size={16} color="#4F46E5" />
             <span>Quick Schedule Presets:</span>
@@ -390,8 +323,7 @@ const MyRoster = () => {
               🏖️ Saturday & Sunday Off (5 Days)
             </button>
           </div>
-        </div>
-      )}
+      </div>
 
       {/* Days Roster Calendar Grid */}
       {loading ? (
@@ -435,7 +367,6 @@ const MyRoster = () => {
                 <div className="day-status-buttons">
                   <button
                     type="button"
-                    disabled={isLocked}
                     className={`day-btn-choice ${status === "WORKING" ? "active-working" : ""}`}
                     onClick={() =>
                       handleUpdateDay(d.day, {
@@ -451,7 +382,6 @@ const MyRoster = () => {
 
                   <button
                     type="button"
-                    disabled={isLocked}
                     className={`day-btn-choice ${status === "WEEK_OFF" ? "active-off" : ""}`}
                     onClick={() =>
                       handleUpdateDay(d.day, {
@@ -467,7 +397,6 @@ const MyRoster = () => {
 
                   <button
                     type="button"
-                    disabled={isLocked}
                     className={`day-btn-choice ${status === "LEAVE" ? "active-leave" : ""}`}
                     onClick={() =>
                       handleUpdateDay(d.day, {
@@ -488,7 +417,6 @@ const MyRoster = () => {
                     <Clock size={12} style={{ color: "#64748B", flexShrink: 0 }} />
                     <input
                       type="time"
-                      disabled={isLocked}
                       value={d.shift_start || "10:00"}
                       onChange={(e) => handleUpdateDay(d.day, { shift_start: e.target.value })}
                       className="day-time-input"
@@ -497,7 +425,6 @@ const MyRoster = () => {
                     <span>-</span>
                     <input
                       type="time"
-                      disabled={isLocked}
                       value={d.shift_end || "18:00"}
                       onChange={(e) => handleUpdateDay(d.day, { shift_end: e.target.value })}
                       className="day-time-input"
@@ -509,7 +436,6 @@ const MyRoster = () => {
                 {/* Day Notes */}
                 <input
                   type="text"
-                  disabled={isLocked}
                   placeholder={status === "WEEK_OFF" ? "Week off" : status === "LEAVE" ? "Reason for leave" : "Note (Optional)"}
                   value={d.notes || ""}
                   onChange={(e) => handleUpdateDay(d.day, { notes: e.target.value })}
@@ -527,7 +453,6 @@ const MyRoster = () => {
           <label>Submission Note for HR (Optional):</label>
           <input
             type="text"
-            disabled={isLocked}
             placeholder="e.g. Requesting 2nd Saturday off due to family occasion..."
             value={submissionNote}
             onChange={(e) => setSubmissionNote(e.target.value)}
@@ -535,98 +460,25 @@ const MyRoster = () => {
         </div>
 
         <div className="footer-actions">
-          {!isLocked ? (
-            <>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={saving}
-                onClick={() => handleSaveRoster(false)}
-              >
-                <Save size={16} /> Save Draft
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={saving}
-                onClick={() => handleSaveRoster(true)}
-              >
-                <Send size={16} /> {saving ? "Submitting..." : "Submit to HR"}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => setChangeModalOpen(true)}
-            >
-              <MessageSquare size={16} /> Request Changes from HR
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={saving}
+            onClick={() => handleSaveRoster(false)}
+          >
+            <Save size={16} /> Save Draft
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={saving}
+            onClick={() => handleSaveRoster(true)}
+          >
+            <Send size={16} /> {saving ? "Submitting..." : "Submit to HR"}
+          </button>
         </div>
       </div>
 
-      {/* Modal: Request Change from HR */}
-      {changeModalOpen && (
-        <div className="roster-modal-overlay">
-          <form className="roster-modal-content" onSubmit={handleSubmitChangeRequest}>
-            <div className="roster-modal-header">
-              <h3>Request Roster Change from HR</h3>
-              <button
-                type="button"
-                onClick={() => setChangeModalOpen(false)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748B" }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="roster-modal-body">
-              <p style={{ margin: "0 0 14px 0", fontSize: "13.5px", color: "#475569", lineHeight: "1.5" }}>
-                Since your <strong>{MONTH_NAMES[month - 1]} {year}</strong> roster has already been approved,
-                please write which dates you need changed (e.g. swap an off day, leave on a specific date, or change arrival time). HR will review and apply the adjustment for you.
-              </p>
-
-              <label style={{ display: "block", fontSize: "13px", fontWeight: "600", marginBottom: "6px" }}>
-                Details of Change Required *
-              </label>
-              <textarea
-                rows={4}
-                required
-                value={changeReason}
-                onChange={(e) => setChangeReason(e.target.value)}
-                placeholder="e.g. Please change 14th Oct from Working to Off, and I will work on 18th Oct instead..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid #CBD5E1",
-                  fontSize: "13.5px",
-                  boxSizing: "border-box",
-                  fontFamily: "inherit",
-                }}
-              />
-            </div>
-
-            <div className="roster-modal-footer">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setChangeModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={requestingChange}
-              >
-                {requestingChange ? "Submitting..." : "Send Request to HR"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 };
