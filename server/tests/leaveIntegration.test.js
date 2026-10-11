@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const mockPool = {
-  query: vi.fn(),
-  connect: vi.fn(),
-};
+const { mockPool } = vi.hoisted(() => ({
+  mockPool: {
+    query: vi.fn(),
+    connect: vi.fn(),
+  },
+}));
 
 vi.mock("../config/db.js", () => ({
   default: mockPool,
@@ -19,6 +21,8 @@ import {
 
 describe("leave integration flow", () => {
   beforeEach(() => {
+    mockPool.query = vi.fn();
+    mockPool.connect = vi.fn();
     vi.clearAllMocks();
   });
 
@@ -28,7 +32,7 @@ describe("leave integration flow", () => {
 
   it("creates a planned leave request routed to department head", async () => {
     mockPool.query.mockResolvedValueOnce({
-      rows: [{ id: 1, user_id: 100, department_id: 5 }],
+      rows: [{ id: 1, user_id: 100, department_id: 5, status: "PENDING_DEPARTMENT_HEAD" }],
     });
 
     const request = await createLeaveRequestRepository({
@@ -90,7 +94,7 @@ describe("leave integration flow", () => {
         rows: [{ id: 1, status: "PENDING_HR_APPROVAL" }],
       });
 
-    vi.mocked(mockPool).query = mockTransaction;
+    mockPool.query = mockTransaction;
 
     const result = await decideLeaveRequestRepository({
       id: 1,
@@ -105,11 +109,15 @@ describe("leave integration flow", () => {
 
   it("enforces HR-only approval for final stage", async () => {
     const mockTransaction = vi.fn();
-    mockTransaction.mockResolvedValueOnce({
-      rows: [{ id: 2, user_id: 7, department_id: 5, status: "PENDING_HR_APPROVAL" }],
-    });
+    mockTransaction
+      .mockResolvedValueOnce({
+        rows: [{ id: 2, user_id: 7, department_id: 5, status: "PENDING_HR_APPROVAL" }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 2, user_id: 7, department_id: 5, status: "APPROVED" }],
+      });
 
-    vi.mocked(mockPool).query = mockTransaction;
+    mockPool.query = mockTransaction;
 
     const result = await decideLeaveRequestRepository({
       id: 2,

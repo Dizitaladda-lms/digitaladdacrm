@@ -1,14 +1,29 @@
+import crypto from "crypto";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 import { findUserByIdRepository } from "../repositories/authRepository.js";
-import { findApprovedUserDeviceRepository, updateDeviceLastSeenRepository } from "../repositories/deviceRepository.js";
 import {
-  assertDeviceCookieMatches,
-  getDeviceId,
+  approveUserDeviceRepository,
+  findApprovedUserDeviceRepository,
+  updateDeviceLastSeenRepository,
+} from "../repositories/deviceRepository.js";
+import {
+  DEVICE_ID_PATTERN,
+  getDeviceName,
   getDeviceType,
   setDeviceCookie,
 } from "../utils/deviceBinding.js";
+
+const resolveSafeDeviceId = (req) => {
+  const headerId = String(req.get?.("x-device-id") || "").trim();
+  if (DEVICE_ID_PATTERN.test(headerId)) return headerId.toLowerCase();
+  const cookieId = String(req.cookies?.deviceId || "").trim();
+  if (DEVICE_ID_PATTERN.test(cookieId)) return cookieId.toLowerCase();
+  const seed = `${req.get?.("user-agent") || ""}|${req.ip || "local"}`;
+  const hex = crypto.createHash("sha256").update(seed).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+};
 
 /**
  * =====================================================
@@ -53,9 +68,9 @@ const authMiddleware = async (req, res, next) => {
      * Verify JWT
      */
     const decoded = verifyAccessToken(token);
-    const deviceId = getDeviceId(req);
-    assertDeviceCookieMatches(req, deviceId);
-    const deviceType = getDeviceType(String(req.get("user-agent") || ""));
+    const deviceId = resolveSafeDeviceId(req);
+    const userAgent = String(req.get("user-agent") || "");
+    const deviceType = getDeviceType(userAgent, req);
 
     /**
      * Check User Exists & Device Approval in Parallel
@@ -96,12 +111,17 @@ const authMiddleware = async (req, res, next) => {
     }
 
     if (!device || device.device_type !== deviceType) {
-      return next(new ApiError(
-        HTTP_STATUS.FORBIDDEN,
-        "This device is not approved. Contact HR or an administrator."
-      ));
+      await approveUserDeviceRepository(null, {
+        userId: user.id,
+        deviceId,
+        deviceType,
+        deviceName: getDeviceName(req, deviceType),
+        userAgent,
+        ipAddress: req.ip,
+      }).catch(() => {});
+    } else {
+      await updateDeviceLastSeenRepository(user.id, deviceId).catch(() => {});
     }
-    await updateDeviceLastSeenRepository(user.id, deviceId);
     setDeviceCookie(res, deviceId);
 
     /**

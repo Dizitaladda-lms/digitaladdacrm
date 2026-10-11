@@ -188,10 +188,14 @@ export const findUserByIdRepository = async (id) => {
       e.employment_type,
       COALESCE(e.lead_overview_read_only, FALSE) AS lead_overview_read_only
     FROM users u
-    LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE
+    LEFT JOIN employees e
+      ON (u.id = e.user_id OR (e.user_id IS NULL AND LOWER(TRIM(u.email)) = LOWER(TRIM(e.email))))
+      AND e.is_deleted = FALSE
     LEFT JOIN departments d ON e.department_id = d.id
     WHERE u.id = $1
-      AND u.is_deleted = FALSE;
+      AND u.is_deleted = FALSE
+    ORDER BY CASE WHEN e.user_id = u.id THEN 0 ELSE 1 END, e.id DESC
+    LIMIT 1;
   `;
 
   const result = await pool.query(query, [id]);

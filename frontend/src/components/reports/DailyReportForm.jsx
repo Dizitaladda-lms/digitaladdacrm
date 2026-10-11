@@ -773,9 +773,24 @@ const DailyReportForm = ({ initialDate, onSuccess }) => {
                     type="url"
                     className="form-input"
                     placeholder="https://docs.google.com/presentation/d/..."
-                    value={cls.materials_url}
+                    value={cls.materials_url || ""}
                     onChange={(e) =>
                       handleClassChange(idx, "materials_url", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginTop: "10px" }}>
+                  <label className="form-label" style={{ color: "#b45309", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <AlertCircle size={15} /> Issues / Problems Faced During Class (Class ke dauran kya dikkat aayi) <span className="optional">(Optional)</span>
+                  </label>
+                  <textarea
+                    className="form-textarea"
+                    rows={2}
+                    placeholder="e.g., Internet fluctuation, projector/audio issue, low student attendance, software installation problem..."
+                    value={cls.remarks || ""}
+                    onChange={(e) =>
+                      handleClassChange(idx, "remarks", e.target.value)
                     }
                   />
                 </div>

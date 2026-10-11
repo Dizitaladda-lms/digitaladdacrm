@@ -239,6 +239,26 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
                         </a>
                       </div>
                     )}
+
+                    {cls.remarks && (
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          padding: "8px 12px",
+                          backgroundColor: "#FFFBEB",
+                          border: "1px solid #FDE68A",
+                          borderRadius: "8px",
+                          color: "#92400E",
+                          fontSize: "12.5px",
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        <strong style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "#B45309" }}>
+                          <AlertCircle size={13} /> Issues Faced During Class:
+                        </strong>{" "}
+                        {cls.remarks}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

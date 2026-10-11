@@ -107,7 +107,7 @@ export const saveEmployeeBiometricChallengeRepository = async (
 ) => {
   const result = await pool.query(
     `INSERT INTO employee_biometric_challenges (employee_id, purpose, challenge, expires_at)
-     VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '5 minutes')
+     VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '15 minutes')
      ON CONFLICT (employee_id, purpose)
      DO UPDATE SET challenge = EXCLUDED.challenge,
                    expires_at = EXCLUDED.expires_at,
@@ -131,20 +131,18 @@ export const consumeEmployeeBiometricChallengeRepository = async (employeeId, pu
 export const updateEmployeeBiometricCounterRepository = async ({
   employee_id,
   credential_id,
-  previous_count,
   sign_count,
 }) => {
   const result = await pool.query(
     `UPDATE employee_biometrics
-     SET sign_count = $1
+     SET sign_count = GREATEST(COALESCE(sign_count, 0), $1)
      WHERE employee_id = $2
        AND credential_id = $3
-       AND sign_count = $4
        AND approval_status = 'APPROVED'
      RETURNING id;`,
-    [Number(sign_count) || 0, employee_id, credential_id, Number(previous_count) || 0]
+    [Number(sign_count) || 0, employee_id, credential_id]
   );
-  return result.rowCount === 1;
+  return result.rowCount >= 1;
 };
 
 export const deleteEmployeeBiometricRepository = async (employee_id) => {
@@ -233,8 +231,16 @@ export const rejectBiometricRepository = async (id, reason) => {
 // Daily Attendance Tracking
 // ==========================================
 
+const getTodayISTDateString = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
 export const findTodayAttendanceRepository = async (employee_id, dateStr) => {
-  const targetDate = dateStr || new Date().toISOString().split("T")[0];
+  const targetDate = dateStr || getTodayISTDateString();
   const result = await pool.query(
     `SELECT 
        a.*,
@@ -249,9 +255,18 @@ export const findTodayAttendanceRepository = async (employee_id, dateStr) => {
          2
        ) AS live_hours
      FROM daily_attendance a
-     WHERE a.employee_id = $1 AND a.date = $2 
+     WHERE a.employee_id = $1
+       AND (
+         a.date = $2::date
+         OR ($3::boolean = TRUE AND a.date = CURRENT_DATE)
+         OR ($3::boolean = TRUE AND a.check_in_time IS NOT NULL AND a.check_out_time IS NULL AND a.date >= ($2::date - INTERVAL '1 day'))
+       )
+     ORDER BY
+       CASE WHEN a.date = $2::date THEN 0 WHEN a.check_out_time IS NULL THEN 1 ELSE 2 END,
+       a.date DESC,
+       a.id DESC
      LIMIT 1;`,
-    [employee_id, targetDate]
+    [employee_id, targetDate, !dateStr]
   );
   return result.rows[0];
 };
@@ -261,23 +276,35 @@ export const createAttendanceCheckInRepository = async (client, {
   check_in_lat, check_in_lng, check_in_location
 }) => {
   const dbClient = client || pool;
-  const targetDate = date || new Date().toISOString().split("T")[0];
+  const targetDate = date || getTodayISTDateString();
   const result = await dbClient.query(
     `
       INSERT INTO daily_attendance (
         employee_id, date, check_in_time, ip_address, is_office_wifi, status,
         check_in_lat, check_in_lng, check_in_location
       )
-      VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2::date, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (employee_id, date) 
       DO UPDATE SET 
         check_in_time = COALESCE(daily_attendance.check_in_time, CURRENT_TIMESTAMP),
-        ip_address = $3,
+        status = CASE
+          WHEN daily_attendance.check_in_time IS NULL THEN EXCLUDED.status
+          ELSE daily_attendance.status
+        END,
+        ip_address = COALESCE($3, daily_attendance.ip_address),
         check_in_lat = COALESCE(EXCLUDED.check_in_lat, daily_attendance.check_in_lat),
         check_in_lng = COALESCE(EXCLUDED.check_in_lng, daily_attendance.check_in_lng),
         check_in_location = COALESCE(EXCLUDED.check_in_location, daily_attendance.check_in_location),
         updated_at = CURRENT_TIMESTAMP
-      RETURNING *;
+      RETURNING
+        *,
+        ROUND(
+          GREATEST(
+            0.00,
+            ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+          ),
+          2
+        ) AS live_hours;
     `,
     [
       employee_id,
@@ -285,8 +312,8 @@ export const createAttendanceCheckInRepository = async (client, {
       ip_address || null,
       is_office_wifi !== false,
       status || "PRESENT",
-      check_in_lat || null,
-      check_in_lng || null,
+      check_in_lat ?? null,
+      check_in_lng ?? null,
       check_in_location || null
     ]
   );
@@ -302,18 +329,35 @@ export const updateAttendanceCheckOutRepository = async (client, {
       UPDATE daily_attendance
       SET 
         check_out_time = CURRENT_TIMESTAMP,
-        total_hours = COALESCE($1, ROUND(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - check_in_time))/3600.0, 2)),
-        check_out_lat = $2,
-        check_out_lng = $3,
-        check_out_location = $4,
+        total_hours = COALESCE(
+          $1::numeric,
+          ROUND(
+            GREATEST(
+              0.00,
+              ((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+            ),
+            2
+          )
+        ),
+        check_out_lat = COALESCE($2, check_out_lat, check_in_lat),
+        check_out_lng = COALESCE($3, check_out_lng, check_in_lng),
+        check_out_location = COALESCE($4, check_out_location, check_in_location, 'Dizital Adda Office Premises'),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $5
-      RETURNING *;
+      RETURNING
+        *,
+        ROUND(
+          GREATEST(
+            0.00,
+            ((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+          ),
+          2
+        ) AS live_hours;
     `,
     [
-      total_hours || null,
-      check_out_lat || null,
-      check_out_lng || null,
+      total_hours != null ? Number(total_hours) : null,
+      check_out_lat ?? null,
+      check_out_lng ?? null,
       check_out_location || null,
       id
     ]
@@ -393,7 +437,7 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
   const values = [];
   let index = 1;
 
-  const targetDate = date_from || new Date().toISOString().split("T")[0];
+  const targetDate = date_from || getTodayISTDateString();
   const isSingleDateMode = !date_from || (date_from && date_to && date_from === date_to);
 
   if (isSingleDateMode) {
@@ -691,4 +735,3 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
 
   return result.rows[0];
 };
-

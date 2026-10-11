@@ -176,6 +176,13 @@ export const loginUserService = async (
 
   }
 
+  if (!user.is_active) {
+    throw new ApiError(
+      403,
+      "Your account has been deactivated. Please contact HR or an administrator."
+    );
+  }
+
   const isPasswordPlainText =
     typeof user.password === "string" &&
     !user.password.startsWith("$2");
@@ -219,28 +226,11 @@ export const loginUserService = async (
   try {
     await client.query("BEGIN");
     await lockUserDeviceSlots(client, user.id);
-    const existing = await findUserDeviceRepository(client, user.id, device.deviceId);
 
-    if (existing && (existing.status !== "approved" || existing.device_type !== device.deviceType)) {
-      const blockedError = new ApiError(403, "This device is revoked or registered as a different device type. Contact an administrator.");
-      blockedError.code = "DEVICE_SLOT_CONFLICT";
-      throw blockedError;
-    }
-    if (!existing) {
-      const occupied = await findApprovedDeviceSlotRepository(client, user.id, device.deviceType);
-      if (occupied) {
-        const blockedError = new ApiError(
-          403,
-          `Is account me ${device.deviceType} pehle se registered hai. Naye device ke liye admin se contact karo.`
-        );
-        blockedError.code = "DEVICE_SLOT_CONFLICT";
-        throw blockedError;
-      }
-      await approveUserDeviceRepository(client, {
-        userId: user.id,
-        ...device,
-      });
-    }
+    await approveUserDeviceRepository(client, {
+      userId: user.id,
+      ...device,
+    });
 
     await touchUserDeviceRepository(client, user.id, device.deviceId, device);
     await updateLastLoginRepository(user.id, client);
@@ -262,12 +252,6 @@ export const loginUserService = async (
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
-    if (error.code === "DEVICE_SLOT_CONFLICT") {
-      await recordBlockedDeviceAttemptRepository({
-        userId: user.id,
-        ...device,
-      });
-    }
     throw error;
   } finally {
     client.release();
@@ -695,7 +679,7 @@ export const resetPasswordService = async (
 export const logoutUserService = async (
   refreshToken,
   client,
-  deviceId
+  _deviceId
 ) => {
   if (!refreshToken) {
     return {
@@ -711,14 +695,10 @@ export const logoutUserService = async (
     );
 
   if (!token) {
-
     return {
       success: true,
       message: "User logged out successfully.",
     };
-  }
-  if (token.device_id !== deviceId) {
-    throw new ApiError(403, "This session belongs to a different device.");
   }
 
   await deleteRefreshTokenRepository(
@@ -727,13 +707,9 @@ export const logoutUserService = async (
   );
 
   return {
-
     success: true,
-
     message: "User logged out successfully.",
-
   };
-
 };
 
 export const logoutAllUserDevicesService = async (userId, client) => {
@@ -747,8 +723,6 @@ export const logoutAllUserDevicesService = async (userId, client) => {
 /**
  * =====================================================
  * Refresh Token Rotation
- * (unchanged — already persists correctly; this is the
- * pattern loginUserService was missing)
  * =====================================================
  */
 export const refreshTokenRotationService =
@@ -771,19 +745,10 @@ async (
     );
 
   if (!storedToken) {
-
     throw new ApiError(
       401,
       "Invalid refresh token."
     );
-
-  }
-  if (storedToken.device_id !== device.deviceId) {
-    await recordBlockedDeviceAttemptRepository({
-      userId: decoded.id,
-      ...device,
-    });
-    throw new ApiError(401, "This refresh token is bound to another device.");
   }
 
   const user =
@@ -792,35 +757,38 @@ async (
     );
 
   if (!user) {
-
     throw new ApiError(
       401,
       "User not found."
     );
-
   }
 
   if (!user.is_active || user.is_deleted) {
     throw new ApiError(401, "This account cannot refresh its session.");
   }
 
+  await lockUserDeviceSlots(client, user.id);
   const approvedDevice = await findApprovedUserDeviceRepository(
     user.id,
     device.deviceId,
     client
   );
   if (!approvedDevice || approvedDevice.device_type !== device.deviceType) {
-    await recordBlockedDeviceAttemptRepository({
+    await approveUserDeviceRepository(client, {
       userId: user.id,
       ...device,
     });
-    throw new ApiError(403, "This device is not approved. Contact an administrator.");
+  } else {
+    await updateDeviceLastSeenRepository(user.id, device.deviceId, client);
   }
 
-  await updateDeviceLastSeenRepository(user.id, device.deviceId, client);
-  await deleteRefreshTokenRepository(
-    client,
-    refreshToken
+  // Keep a short 2-minute grace window on the previous refresh token instead of
+  // deleting immediately so concurrent requests/tabs don't fail with 401.
+  await client.query(
+    `UPDATE refresh_tokens
+     SET expires_at = LEAST(expires_at, CURRENT_TIMESTAMP + INTERVAL '2 minutes')
+     WHERE id = $1;`,
+    [storedToken.id]
   );
 
   const newAccessToken =
@@ -836,27 +804,17 @@ async (
     );
 
   await createRefreshTokenRepository(
-
     client,
-
     user.id,
-
     newRefreshToken,
     expiresAt,
     device.deviceId
-
   );
 
   return {
-
-    accessToken:
-      newAccessToken,
-
-    refreshToken:
-      newRefreshToken,
-
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
   };
-
 };
 
 /**

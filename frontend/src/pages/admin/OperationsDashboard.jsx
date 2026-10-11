@@ -870,6 +870,23 @@ const OperationsDashboard = () => {
                       <ExternalLink size={12} /> View Slides / Materials
                     </a>
                   )}
+
+                  {cls.remarks && (
+                    <div
+                      style={{
+                        marginTop: "10px",
+                        padding: "8px 10px",
+                        backgroundColor: "#FFFBEB",
+                        border: "1px solid #FDE68A",
+                        borderRadius: "8px",
+                        color: "#92400E",
+                        fontSize: "12px",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <strong style={{ color: "#B45309" }}>⚠️ Issue Faced During Class:</strong> {cls.remarks}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

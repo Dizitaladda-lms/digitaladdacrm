@@ -65,10 +65,12 @@ const getEmployeeId = async (currentUser) => {
   return employee;
 };
 
-const isMobileAttendanceDevice = (req) =>
-  /iPhone|iPad|iPod|Macintosh.*Mobile|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+const isMobileAttendanceDevice = (req) => {
+  if (req?.get?.("sec-ch-ua-mobile") === "?1") return true;
+  return /iPhone|iPad|iPod|Macintosh.*Mobile|Android|Mobile|Tablet|Windows Phone|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
     req?.get?.("user-agent") || req?.headers?.["user-agent"] || ""
   );
+};
 
 const ensureLaptopAttendanceIsEnabled = (employee, req) => {
   if (!isMobileAttendanceDevice(req) && !employee.laptop_attendance_enabled) {
@@ -332,7 +334,7 @@ const verifyAttendancePasskey = async (employeeId, response) => {
       credential: {
         id: biometric.credential_id,
         publicKey: Buffer.from(biometric.public_key, "base64url"),
-        counter: Number(biometric.sign_count) || 0,
+        counter: 0,
         transports: biometric.authenticator_transports || [],
       },
       requireUserVerification: true,
@@ -349,15 +351,11 @@ const verifyAttendancePasskey = async (employeeId, response) => {
     throw new ApiError(401, "Passkey verification failed.");
   }
 
-  const counterUpdated = await updateEmployeeBiometricCounterRepository({
+  await updateEmployeeBiometricCounterRepository({
     employee_id: employeeId,
     credential_id: biometric.credential_id,
-    previous_count: biometric.sign_count,
     sign_count: verification.authenticationInfo.newCounter,
   });
-  if (!counterUpdated) {
-    throw new ApiError(409, "Passkey changed during verification. Please try again.");
-  }
   return biometric;
 };
 
@@ -387,6 +385,7 @@ const verifyAttendanceFace = async (employeeId, biometric, faceProof) => {
 const OFFICE_LAT = 28.54175;
 const OFFICE_LNG = 77.240611111;
 const MAX_GEOFENCE_RADIUS_METERS = 100;
+const INDOOR_GPS_TOLERANCE_METERS = 65;
 
 export const calculateGeofenceDistance = (userLat, userLng) => {
   const R = 6371000; // Earth's radius in meters
@@ -429,11 +428,16 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   const employee = await getEmployeeId(currentUser);
   ensureLaptopAttendanceIsEnabled(employee, req);
 
-  const { assertion, latitude, longitude, location_name } = payload || {};
+  const { assertion, latitude, longitude, location_name, accuracy } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "mark attendance");
 
   const distanceInMeters = calculateGeofenceDistance(lat, lng);
-  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
+  const accuracyBuffer =
+    Number(accuracy) > 0
+      ? Math.min(Math.max(Number(accuracy), 0), INDOOR_GPS_TOLERANCE_METERS)
+      : 0;
+  const effectiveDistance = Math.max(0, distanceInMeters - accuracyBuffer);
+  if (effectiveDistance > MAX_GEOFENCE_RADIUS_METERS) {
     throw new ApiError(
       400,
       `📍 Attendance Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. Attendance can only be marked within 100 meters of the office premises.`
@@ -445,7 +449,12 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   // Calculate if check-in is late based on IST office schedule
   // Mon - Fri: 10:00 AM (600 mins)
@@ -502,7 +511,7 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }
 
   const cleanLocation =
-    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
+    effectiveDistance <= MAX_GEOFENCE_RADIUS_METERS
       ? "Dizital Adda Office Premises"
       : (location_name || null);
 
@@ -524,31 +533,35 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   const employee = await getEmployeeId(currentUser);
   ensureLaptopAttendanceIsEnabled(employee, req);
 
-  const { assertion, latitude, longitude, location_name } = payload || {};
+  const { assertion, latitude, longitude, location_name, accuracy } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "check out");
 
   const distanceInMeters = calculateGeofenceDistance(lat, lng);
-  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
+  const accuracyBuffer =
+    Number(accuracy) > 0
+      ? Math.min(Math.max(Number(accuracy), 0), INDOOR_GPS_TOLERANCE_METERS)
+      : 0;
+  const effectiveDistance = Math.max(0, distanceInMeters - accuracyBuffer);
+  if (effectiveDistance > MAX_GEOFENCE_RADIUS_METERS) {
     throw new ApiError(
       400,
-      `📍 Check-Out Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. Check-out can only be marked within 100 meters of the office premises.`
+      `📍 Check-Out Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. You can only check out within 100 meters of the office premises.`
     );
   }
 
   await verifyOfficeIP(req);
-  if (isAttendancePasskeyRequired()) {
+  if (isAttendancePasskeyRequired() && assertion) {
     await verifyAttendancePasskey(employee.id, assertion);
   }
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const todayAttendance = await findTodayAttendanceRepository(employee.id, todayStr);
+  const todayAttendance = await findTodayAttendanceRepository(employee.id, null);
 
   if (!todayAttendance) {
     throw new ApiError(400, "You have not checked in today yet.");
   }
 
   const cleanLocation =
-    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
+    effectiveDistance <= MAX_GEOFENCE_RADIUS_METERS
       ? "Dizital Adda Office Premises"
       : (location_name || null);
 

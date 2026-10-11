@@ -287,11 +287,11 @@ const AppRoutes = () => {
 
       </Route>
 
-      {/* ================= COUNSELLOR / EMPLOYEE / TRAINER / INTERN / TL ================= */}
+      {/* ================= COUNSELLOR / EMPLOYEE / TRAINER / INTERN / TL / SUB_TL / DEPARTMENT_HEAD ================= */}
 
       <Route element={<ProtectedRoute />}>
 
-        <Route element={<RoleProtectedRoute roles={["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "HR", "SALES_HEAD"]} />}>
+        <Route element={<RoleProtectedRoute roles={["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "SUB_TL", "DEPARTMENT_HEAD", "HR", "SALES_HEAD"]} />}>
 
           <Route
             path="/employee/*"

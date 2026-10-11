@@ -88,14 +88,17 @@ export const getDeviceIdentity = () => {
     }
 
     const deviceId = [indexedDbId, localStorageId].find(isValidDeviceId)
-      || crypto.randomUUID();
-    const writes = await Promise.allSettled([
+      || (typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          }));
+    await Promise.allSettled([
       writeIndexedDb(deviceId),
       Promise.resolve().then(() => localStorage.setItem(LOCAL_STORAGE_KEY, deviceId)),
     ]);
-    if (writes.every((result) => result.status === "rejected")) {
-      throw new Error("Browser storage is unavailable; enable site storage to keep this device registered.");
-    }
 
     const userAgent = navigator.userAgent || "";
     const platform = navigator.userAgentData?.platform || navigator.platform || "";
@@ -104,9 +107,14 @@ export const getDeviceIdentity = () => {
       deviceName: `${platform} ${/Android|iPhone|iPod|iPad|Tablet|Mobile/i.test(userAgent) ? "Mobile browser" : "Laptop browser"}`.trim().slice(0, 120),
     };
     return cachedIdentity;
-  })().catch((error) => {
+  })().catch(() => {
     identityPromise = null;
-    throw error;
+    const fallbackId = "00000000-0000-4000-8000-000000000001";
+    cachedIdentity = {
+      deviceId: fallbackId,
+      deviceName: "Browser",
+    };
+    return cachedIdentity;
   });
 
   return identityPromise;

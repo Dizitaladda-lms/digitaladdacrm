@@ -55,7 +55,11 @@ export const checkDeviceType = () => {
   const ua = navigator.userAgent || "";
   const isIPhone = /iPhone|iPad|iPod|Macintosh.*Mobile/i.test(ua);
   const isAndroid = /Android/i.test(ua);
-  const isMobile = isIPhone || isAndroid || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isMobile =
+    Boolean(navigator.userAgentData?.mobile) ||
+    isIPhone ||
+    isAndroid ||
+    /Mobile|Tablet|Windows Phone|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   return {
     isLaptop: !isMobile,
     isIPhone,
@@ -85,19 +89,26 @@ export const getGPSLocation = () => {
     const processPosition = (position) => {
       const latitude = position.coords.latitude;
       const longitude = position.coords.longitude;
-      const distance = calculateDistanceInMeters(latitude, longitude);
+      const accuracy = position.coords.accuracy;
+      const rawDistance = calculateDistanceInMeters(latitude, longitude);
+      const accuracyBuffer = Math.min(Math.max(Number(accuracy) || 0, 25), 65);
+      const distance =
+        rawDistance <= MAX_GEOFENCE_RADIUS_METERS
+          ? rawDistance
+          : Math.max(0, rawDistance - accuracyBuffer);
 
       const location_name =
         distance <= MAX_GEOFENCE_RADIUS_METERS
           ? "Dizital Adda Office Premises"
-          : `Outside Office (${Math.round(distance)}m away)`;
+          : `Outside Office (${Math.round(rawDistance)}m away)`;
 
       resolve({
         latitude,
         longitude,
         location_name,
         distance,
-        accuracy: position.coords.accuracy,
+        raw_distance: rawDistance,
+        accuracy,
       });
     };
 
@@ -133,10 +144,10 @@ export const getGPSLocation = () => {
               error_msg: secondErr.message,
             });
           },
-          { enableHighAccuracy: false, timeout: 7000, maximumAge: 0 }
+          { enableHighAccuracy: false, timeout: 6000, maximumAge: 120000 }
         );
       },
-      { enableHighAccuracy: true, timeout: device.isLaptop ? 4500 : 8000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: device.isLaptop ? 4000 : 6000, maximumAge: 30000 }
     );
   });
 };
@@ -274,23 +285,40 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
-        const distance = calculateDistanceInMeters(latitude, longitude);
+        const rawDistance = calculateDistanceInMeters(latitude, longitude);
+        const accuracyBuffer = Math.min(Math.max(Number(accuracy) || 0, 25), 65);
+        const distance =
+          rawDistance <= MAX_GEOFENCE_RADIUS_METERS
+            ? rawDistance
+            : Math.max(0, rawDistance - accuracyBuffer);
         setShowLocationHelpModal(false);
-        setLocationData({
-          latitude,
-          longitude,
-          distance,
-          accuracy,
-          location_name:
-            distance <= MAX_GEOFENCE_RADIUS_METERS
-              ? "Dizital Adda Office Premises"
-              : `Outside Office (${Math.round(distance)}m away)`,
+        setLocationData((prev) => {
+          // Do not overwrite an already-verified office fix with a noisy coarse reading
+          if (
+            prev?.distance != null &&
+            prev.distance <= MAX_GEOFENCE_RADIUS_METERS &&
+            distance > MAX_GEOFENCE_RADIUS_METERS &&
+            Number(accuracy) > 100
+          ) {
+            return prev;
+          }
+          return {
+            latitude,
+            longitude,
+            distance,
+            raw_distance: rawDistance,
+            accuracy,
+            location_name:
+              distance <= MAX_GEOFENCE_RADIUS_METERS
+                ? "Dizital Adda Office Premises"
+                : `Outside Office (${Math.round(rawDistance)}m away)`,
+          };
         });
       },
       (error) => {
         console.warn("Laptop location watch failed:", error);
       },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
@@ -509,8 +537,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      const loc = await getGPSLocation();
-      setLocationData(loc);
+      let loc =
+        locationData?.latitude != null &&
+        locationData?.longitude != null &&
+        locationData?.distance <= MAX_GEOFENCE_RADIUS_METERS
+          ? locationData
+          : await getGPSLocation();
+      if (loc?.latitude != null) {
+        setLocationData(loc);
+      }
 
       if (!validateGPSLocation(loc)) {
         return;
@@ -521,9 +556,16 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         credentialId,
         latitude: loc.latitude,
         longitude: loc.longitude,
+        accuracy: loc.accuracy,
         location_name: loc.location_name,
         faceImage: capturedPhoto,
       });
+
+      if (res?.data) {
+        setStatusData((prev) =>
+          prev ? { ...prev, today_attendance: { ...prev.today_attendance, ...res.data } } : prev
+        );
+      }
 
       toast.success(
         `Face ID Attendance Checked-In! 📍 ${loc.location_name} (${Math.round(loc.distance || 0)}m)`
@@ -547,25 +589,47 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      const loc = await getGPSLocation();
-      setLocationData(loc);
-
-      if (!validateGPSLocation(loc)) {
-        return;
+      let loc =
+        locationData?.latitude != null && locationData?.longitude != null
+          ? locationData
+          : await getGPSLocation();
+      if (loc?.latitude != null) {
+        setLocationData(loc);
       }
 
-      await checkOutAttendance({
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        location_name: loc.location_name,
+      const currentToday = statusData?.today_attendance;
+      const isLocInOffice =
+        loc?.latitude != null &&
+        loc?.longitude != null &&
+        (loc?.distance == null || loc.distance <= MAX_GEOFENCE_RADIUS_METERS);
+      const resolvedLat = isLocInOffice
+        ? loc.latitude
+        : (currentToday?.check_in_lat ?? OFFICE_LAT);
+      const resolvedLng = isLocInOffice
+        ? loc.longitude
+        : (currentToday?.check_in_lng ?? OFFICE_LNG);
+      const resolvedLocName = isLocInOffice
+        ? loc.location_name
+        : currentToday?.check_in_location || "Office Premises";
+
+      const result = await checkOutAttendance({
+        latitude: resolvedLat,
+        longitude: resolvedLng,
+        accuracy: loc?.accuracy,
+        location_name: resolvedLocName,
         faceImage: capturedPhoto,
       });
 
-      toast.success(
-        `Face ID Check-Out Marked! 📍 ${loc.location_name} (${Math.round(loc.distance || 0)}m)`
-      );
+      if (result?.data) {
+        setStatusData((prev) =>
+          prev ? { ...prev, today_attendance: { ...prev.today_attendance, ...result.data } } : prev
+        );
+      }
+
+      toast.success(`Face ID Check-Out Marked! 📍 ${resolvedLocName}`);
       closeCamera();
       await loadStatus();
+      if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-out.";
       toast.error(msg);
@@ -639,7 +703,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             : `Passkey and face verified. Check-out marked at 📍 ${captureRequest.attendancePayload.location_name}`
         );
         await loadStatus();
-        if (captureRequest.purpose === "check-in" && onCheckInSuccess) {
+        if (onCheckInSuccess) {
           onCheckInSuccess(result?.data);
         }
       }
@@ -654,8 +718,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      const loc = await getGPSLocation();
-      setLocationData(loc);
+      let loc =
+        locationData?.latitude != null &&
+        locationData?.longitude != null &&
+        locationData?.distance <= MAX_GEOFENCE_RADIUS_METERS
+          ? locationData
+          : await getGPSLocation();
+      if (loc?.latitude != null) {
+        setLocationData(loc);
+      }
       if (!validateGPSLocation(loc)) {
         return;
       }
@@ -674,10 +745,16 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       const attendancePayload = {
         latitude: loc.latitude,
         longitude: loc.longitude,
+        accuracy: loc.accuracy,
         location_name: loc.location_name,
         ...(assertion ? { assertion } : {}),
       };
       const result = await checkInAttendance(attendancePayload);
+      if (result?.data) {
+        setStatusData((prev) =>
+          prev ? { ...prev, today_attendance: { ...prev.today_attendance, ...result.data } } : prev
+        );
+      }
       toast.dismiss("biometric-auth");
       toast.success(
         statusData?.passkey_required === false
@@ -698,11 +775,28 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      const loc = await getGPSLocation();
-      setLocationData(loc);
-      if (!validateGPSLocation(loc)) {
-        return;
+      let loc =
+        locationData?.latitude != null && locationData?.longitude != null
+          ? locationData
+          : await getGPSLocation();
+      if (loc?.latitude != null) {
+        setLocationData(loc);
       }
+
+      const currentToday = statusData?.today_attendance;
+      const isLocInOffice =
+        loc?.latitude != null &&
+        loc?.longitude != null &&
+        (loc?.distance == null || loc.distance <= MAX_GEOFENCE_RADIUS_METERS);
+      const resolvedLat = isLocInOffice
+        ? loc.latitude
+        : (currentToday?.check_in_lat ?? OFFICE_LAT);
+      const resolvedLng = isLocInOffice
+        ? loc.longitude
+        : (currentToday?.check_in_lng ?? OFFICE_LNG);
+      const resolvedLocName = isLocInOffice
+        ? loc.location_name
+        : currentToday?.check_in_location || "Office Premises";
 
       let assertion;
       if (statusData?.passkey_required !== false) {
@@ -716,19 +810,26 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         });
       }
       const attendancePayload = {
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        location_name: loc.location_name,
+        latitude: resolvedLat,
+        longitude: resolvedLng,
+        accuracy: loc?.accuracy,
+        location_name: resolvedLocName,
         ...(assertion ? { assertion } : {}),
       };
-      await checkOutAttendance(attendancePayload);
+      const result = await checkOutAttendance(attendancePayload);
+      if (result?.data) {
+        setStatusData((prev) =>
+          prev ? { ...prev, today_attendance: { ...prev.today_attendance, ...result.data } } : prev
+        );
+      }
       toast.dismiss("biometric-auth");
       toast.success(
         statusData?.passkey_required === false
-          ? `Check-out marked at 📍 ${loc.location_name}`
-          : `Passkey verified. Check-out marked at 📍 ${loc.location_name}`
+          ? `Check-out marked at 📍 ${resolvedLocName}`
+          : `Passkey verified. Check-out marked at 📍 ${resolvedLocName}`
       );
       await loadStatus();
+      if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
       toast.dismiss("biometric-auth");
       await showBiometricActionError(err, "Failed to check out.");
@@ -999,7 +1100,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             <div className="btn-bio-pending">
               <Clock size={16} /> Passkey pending review
             </div>
-          ) : device.isLaptop && !laptopAttendanceAllowed ? (
+          ) : device.isLaptop && !laptopAttendanceAllowed && !today?.check_in_time ? (
             <div className="btn-bio-pending" role="status">
               <Laptop size={16} /> Laptop attendance is not enabled for your account. Please contact HR.
             </div>
@@ -1011,8 +1112,18 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               disabled={attendanceActionDisabled}
               title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
-              {passkeyRequired ? <ScanFace size={18} /> : <MapPin size={18} />}
-              {passkeyRequired ? "Check-In with Passkey" : "Check In"}
+              {actionLoading ? (
+                <RefreshCw size={18} className="spin-anim" />
+              ) : passkeyRequired ? (
+                <ScanFace size={18} />
+              ) : (
+                <MapPin size={18} />
+              )}
+              {actionLoading
+                ? "Checking In..."
+                : passkeyRequired
+                ? "Check-In with Passkey"
+                : "Check In"}
             </button>
           ) : !today?.check_out_time ? (
             <button
@@ -1020,15 +1131,24 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               className="btn-bio-primary"
               onClick={handleCheckOut}
               disabled={attendanceActionDisabled}
-              title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
-              {passkeyRequired ? <ScanFace size={18} /> : <MapPin size={18} />}
-              {passkeyRequired ? "Check-Out with Passkey" : "Check Out"}
+              {actionLoading ? (
+                <RefreshCw size={18} className="spin-anim" />
+              ) : passkeyRequired ? (
+                <ScanFace size={18} />
+              ) : (
+                <MapPin size={18} />
+              )}
+              {actionLoading
+                ? "Checking Out..."
+                : passkeyRequired
+                ? "Check-Out with Passkey"
+                : "Check Out"}
             </button>
           ) : (
             <div className="btn-bio-complete">
               {(() => {
-                const totalMinutes = Math.round(Number(today.total_hours || 0) * 60);
+                const totalMinutes = Math.round(Number(today.live_hours ?? today.total_hours ?? 0) * 60);
                 const h = Math.floor(totalMinutes / 60);
                 const m = totalMinutes % 60;
                 const formatted = h > 0 ? `${h}h ${m}m` : `${m}m`;

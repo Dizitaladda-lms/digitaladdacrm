@@ -485,6 +485,23 @@ const AcademicOperationsPerformance = () => {
                     )}
                   </div>
 
+                  {cls.remarks && (
+                    <div
+                      style={{
+                        margin: "8px 0",
+                        padding: "8px 10px",
+                        backgroundColor: "#FFFBEB",
+                        border: "1px solid #FDE68A",
+                        borderRadius: "8px",
+                        color: "#92400E",
+                        fontSize: "12px",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <strong style={{ color: "#B45309" }}>⚠️ Issue During Class:</strong> {cls.remarks}
+                    </div>
+                  )}
+
                   <div className="class-card-actions">
                     {cls.video_recording_url ? (
                       <a

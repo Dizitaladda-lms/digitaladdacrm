@@ -18,10 +18,15 @@ export const assertDeviceCookieMatches = (req, deviceId) => {
   }
 };
 
-export const getDeviceType = (userAgent = "") =>
-  /Android|iPhone|iPod|iPad|Tablet|Mobile|Windows Phone|BlackBerry|IEMobile/i.test(userAgent)
+export const getDeviceType = (userAgent = "", req = null) => {
+  const chMobile = req?.get?.("sec-ch-ua-mobile");
+  if (chMobile === "?1") return "mobile";
+  return /Android|iPhone|iPod|iPad|Tablet|Mobile|Windows Phone|BlackBerry|IEMobile|Opera Mini|webOS/i.test(
+    userAgent
+  )
     ? "mobile"
     : "laptop";
+};
 
 export const getDeviceName = (req, deviceType) => {
   const provided = String(req.get("x-device-name") || "").trim();

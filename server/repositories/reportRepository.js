@@ -180,7 +180,7 @@ export const syncReportClassesRepository = async (clientOrPool, reportId, userId
       Number(item.students_count) || 0,
       item.video_recording_url || null,
       item.materials_url || null,
-      item.remarks || null,
+      item.remarks || item.issues_faced || null,
     ];
     const res = await executor.query(insertQuery, values);
     insertedClasses.push(res.rows[0]);
@@ -470,7 +470,7 @@ export const findMyReportsHistoryRepository = async (userId, { page = 1, limit =
       cur_u.role AS current_approver_role,
       (SELECT COUNT(*) FROM work_report_classes c WHERE c.report_id = r.id) AS classes_count,
       (SELECT JSON_AGG(c.*) FROM (
-        SELECT id, batch_name, topic_covered, duration_minutes, video_recording_url 
+        SELECT id, batch_name, course_name, topic_covered, class_time_start, class_time_end, duration_minutes, students_count, video_recording_url, materials_url, remarks
         FROM work_report_classes 
         WHERE report_id = r.id
       ) c) AS classes
@@ -711,7 +711,7 @@ export const findTeamReportsRepository = async ({
       cur_u.full_name AS current_approver_name,
       cur_u.role AS current_approver_role,
       (SELECT JSON_AGG(c.*) FROM (
-        SELECT id, batch_name, topic_covered, duration_minutes, video_recording_url 
+        SELECT id, batch_name, course_name, topic_covered, class_time_start, class_time_end, duration_minutes, students_count, video_recording_url, materials_url, remarks
         FROM work_report_classes 
         WHERE report_id = r.id
       ) c) AS classes
@@ -1139,7 +1139,7 @@ export const findAllCompanyReportsRepository = async ({
       tl_u.full_name AS tl_name,
       hr_u.full_name AS hr_name,
       (SELECT JSON_AGG(c.*) FROM (
-        SELECT id, batch_name, topic_covered, duration_minutes, video_recording_url, students_count 
+        SELECT id, batch_name, course_name, topic_covered, class_time_start, class_time_end, duration_minutes, students_count, video_recording_url, materials_url, remarks
         FROM work_report_classes 
         WHERE report_id = r.id
       ) c) AS classes

@@ -41,7 +41,7 @@ const loginAccountKey = (req) => {
 
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 25,
   keyGenerator: loginAccountKey,
   skipSuccessfulRequests: true,
   standardHeaders: true,
@@ -57,7 +57,7 @@ export const loginLimiter = rateLimit({
 
 export const loginIpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 250,
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
@@ -71,7 +71,7 @@ export const loginIpLimiter = rateLimit({
 
 export const accountRecoveryLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test",
@@ -80,7 +80,7 @@ export const accountRecoveryLimiter = rateLimit({
 
 export const refreshTokenLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 150,
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test",

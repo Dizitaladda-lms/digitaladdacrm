@@ -14,7 +14,7 @@ const RoleProtectedRoute = ({ roles }) => {
 
   if (!roles.includes(user.role)) {
 
-    if (["MANAGER", "SUPER_ADMIN"].includes(user.role)) {
+    if (["MANAGER", "SUPER_ADMIN", "ADMIN"].includes(user.role)) {
       return <Navigate to="/dashboard" replace />;
     }
 
@@ -22,7 +22,11 @@ const RoleProtectedRoute = ({ roles }) => {
       return <Navigate to="/reports" replace />;
     }
 
-    if (["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL"].includes(user.role)) {
+    if (user.role === "SALES_HEAD") {
+      return <Navigate to="/leads" replace />;
+    }
+
+    if (["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "SUB_TL", "DEPARTMENT_HEAD"].includes(user.role)) {
       return <Navigate to="/employee/dashboard" replace />;
     }
 

@@ -28,24 +28,43 @@ import {
 
 import pool from "../config/db.js";
 import ms from "ms";
+import crypto from "crypto";
 import {
-  assertDeviceCookieMatches,
-  getDeviceId,
+  DEVICE_ID_PATTERN,
   getDeviceName,
   getDeviceType,
   setDeviceCookie,
 } from "../utils/deviceBinding.js";
 
-const ACCESS_TOKEN_MAX_AGE_MS = ms(process.env.JWT_EXPIRES_IN || "15m");
-const REFRESH_TOKEN_MAX_AGE_MS = ms(process.env.JWT_REFRESH_EXPIRES_IN || "30d");
-
-const baseCookieOptions = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "none",
+const resolveSafeDeviceId = (req) => {
+  const headerId = String(req.get?.("x-device-id") || "").trim();
+  if (DEVICE_ID_PATTERN.test(headerId)) return headerId.toLowerCase();
+  const cookieId = String(req.cookies?.deviceId || "").trim();
+  if (DEVICE_ID_PATTERN.test(cookieId)) return cookieId.toLowerCase();
+  const seed = `${req.get?.("user-agent") || ""}|${req.ip || "local"}`;
+  const hex = crypto.createHash("sha256").update(seed).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 };
 
-const setAuthCookies = (res, accessToken, refreshToken) => {
+const ACCESS_TOKEN_MAX_AGE_MS = ms(process.env.JWT_EXPIRES_IN || "12h");
+const REFRESH_TOKEN_MAX_AGE_MS = ms(process.env.JWT_REFRESH_EXPIRES_IN || "30d");
+
+const getCookieOptions = (req = null) => {
+  const isSecure =
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.VERCEL) ||
+    req?.secure ||
+    req?.get?.("x-forwarded-proto") === "https";
+
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: isSecure ? "none" : "lax",
+  };
+};
+
+const setAuthCookies = (res, accessToken, refreshToken, req = null) => {
+  const baseCookieOptions = getCookieOptions(req);
   res.cookie("accessToken", accessToken, {
     ...baseCookieOptions,
     maxAge: ACCESS_TOKEN_MAX_AGE_MS,
@@ -55,13 +74,16 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
   res.cookie("refreshToken", refreshToken, {
     ...baseCookieOptions,
     maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-    path: "/api/auth",
+    path: "/",
   });
 };
 
-const clearAuthCookies = (res) => {
+const clearAuthCookies = (res, req = null) => {
+  const baseCookieOptions = getCookieOptions(req);
   res.clearCookie("accessToken", { ...baseCookieOptions, path: "/" });
+  res.clearCookie("refreshToken", { ...baseCookieOptions, path: "/" });
   res.clearCookie("refreshToken", { ...baseCookieOptions, path: "/api/auth" });
+  res.clearCookie("deviceId", { ...baseCookieOptions, path: "/" });
 };
 
 /**
@@ -76,24 +98,25 @@ export const register = asyncHandler(async (req, res) => {
 
 /**
  * Login User
- * Sets HttpOnly cookies. Tokens are never exposed to browser JavaScript.
+ * Sets HttpOnly cookies and also returns tokens in JSON payload as fallback
+ * for mobile browsers (iOS Safari ITP, WebViews, strict privacy modes).
  */
 export const login = asyncHandler(async (req, res) => {
   const identifier = req.body?.email || req.body?.phone || req.body?.identifier;
   const { password } = req.body;
   const userAgent = String(req.get("user-agent") || "");
-  const deviceId = getDeviceId(req);
-  assertDeviceCookieMatches(req, deviceId);
+  const deviceId = resolveSafeDeviceId(req);
+  const deviceType = getDeviceType(userAgent, req);
 
   const result = await loginUserService(identifier, password, {
     deviceId,
-    deviceType: getDeviceType(userAgent),
-    deviceName: getDeviceName(req, getDeviceType(userAgent)),
+    deviceType,
+    deviceName: getDeviceName(req, deviceType),
     userAgent,
     ipAddress: req.ip,
   });
 
-  setAuthCookies(res, result.accessToken, result.refreshToken);
+  setAuthCookies(res, result.accessToken, result.refreshToken, req);
   setDeviceCookie(res, deviceId);
 
   return res.status(200).json(
@@ -102,6 +125,8 @@ export const login = asyncHandler(async (req, res) => {
       {
         user: result.user,
         accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        deviceId,
       },
       "Login successful."
     )
@@ -177,6 +202,10 @@ const getRefreshToken = (req) => {
     const match = req.headers.cookie.match(/(?:^|[;,]\s*)refreshToken=([^;,]+)/);
     if (match) return decodeURIComponent(match[1]);
   }
+  const bodyToken = req.body?.refreshToken || req.get?.("x-refresh-token");
+  if (typeof bodyToken === "string" && bodyToken.trim()) {
+    return bodyToken.trim();
+  }
   return null;
 };
 
@@ -186,9 +215,8 @@ const getRefreshToken = (req) => {
 export const refreshToken = asyncHandler(async (req, res) => {
   const refreshTokenCookie = getRefreshToken(req);
   const userAgent = String(req.get("user-agent") || "");
-  const deviceId = getDeviceId(req);
-  assertDeviceCookieMatches(req, deviceId);
-  const deviceType = getDeviceType(userAgent);
+  const deviceId = resolveSafeDeviceId(req);
+  const deviceType = getDeviceType(userAgent, req);
 
   if (!refreshTokenCookie) {
     throw new ApiError(401, "No refresh token provided.");
@@ -211,7 +239,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
     );
     await client.query("COMMIT");
 
-    setAuthCookies(res, result.accessToken, result.refreshToken);
+    setAuthCookies(res, result.accessToken, result.refreshToken, req);
     setDeviceCookie(res, deviceId);
 
     return res.status(200).json(
@@ -220,6 +248,8 @@ export const refreshToken = asyncHandler(async (req, res) => {
         {
           success: true,
           accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          deviceId,
         },
         "Access token refreshed successfully."
       )
@@ -246,13 +276,14 @@ export const logout = asyncHandler(async (req, res) => {
     const result = await logoutUserService(refreshTokenCookie, client, deviceId);
     await client.query("COMMIT");
 
-    clearAuthCookies(res);
+    clearAuthCookies(res, req);
 
     return res
       .status(200)
       .json(new ApiResponse(200, result, "Logout successful."));
   } catch (error) {
     await client.query("ROLLBACK");
+    clearAuthCookies(res, req);
     throw error;
   } finally {
     client.release();

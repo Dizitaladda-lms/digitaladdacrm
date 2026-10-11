@@ -34,10 +34,10 @@ const EMPLOYEE_SELECT_COLUMNS = `
     COALESCE(da.status, 'NOT_CHECKED_IN') AS today_attendance_status,
     da.check_in_time AS today_check_in_time,
     ROUND(
-      COALESCE(
+      (COALESCE(
         da.total_hours, 
         CASE WHEN da.check_in_time IS NOT NULL THEN EXTRACT(EPOCH FROM (COALESCE(da.check_out_time, CURRENT_TIMESTAMP) - da.check_in_time))/3600.0 ELSE 0 END
-      ), 
+      ))::numeric, 
       2
     ) AS today_hours,
     COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
@@ -125,14 +125,33 @@ export const findEmployeeByUserIdRepository = async (userId) => {
 
         ${EMPLOYEE_BASE_QUERY}
 
-        AND e.user_id = $1
-
+        AND (
+            e.user_id = $1
+            OR (
+                e.user_id IS NULL
+                AND LOWER(TRIM(e.email)) = (
+                    SELECT LOWER(TRIM(u.email))
+                    FROM users u
+                    WHERE u.id = $1
+                    LIMIT 1
+                )
+            )
+        )
+        ORDER BY CASE WHEN e.user_id = $1 THEN 0 ELSE 1 END, e.id DESC
         LIMIT 1;
     `;
 
     const { rows } = await pool.query(query, [userId]);
+    const emp = rows[0] || null;
 
-    return rows[0] || null;
+    if (emp && !emp.user_id) {
+        await pool
+            .query(`UPDATE employees SET user_id = $1 WHERE id = $2 AND user_id IS NULL;`, [userId, emp.id])
+            .catch(() => {});
+        emp.user_id = userId;
+    }
+
+    return emp;
 
 };
 

@@ -14,12 +14,64 @@ const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 15000,
+  timeout: 25000,
   withCredentials: true,
 });
 
 let refreshPromise = null;
+let memoryAccessToken = null;
+let memoryRefreshToken = null;
 const REFRESH_GENERATION_KEY = "dizitaladda_auth_refresh_generation";
+const ACCESS_TOKEN_STORAGE_KEY = "dizitaladda_access_token";
+const REFRESH_TOKEN_STORAGE_KEY = "dizitaladda_refresh_token";
+
+const getStoredAccessToken = () => {
+  if (memoryAccessToken) return memoryAccessToken;
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+};
+
+const getStoredRefreshToken = () => {
+  if (memoryRefreshToken) return memoryRefreshToken;
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+};
+
+export const setStoredAuthTokens = (accessToken, refreshToken) => {
+  if (accessToken) {
+    memoryAccessToken = accessToken;
+    try {
+      localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+    } catch {
+      // Ignore storage restrictions
+    }
+  }
+  if (refreshToken) {
+    memoryRefreshToken = refreshToken;
+    try {
+      localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+    } catch {
+      // Ignore storage restrictions
+    }
+  }
+};
+
+export const clearStoredAuthTokens = () => {
+  memoryAccessToken = null;
+  memoryRefreshToken = null;
+  try {
+    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore storage restrictions
+  }
+};
 
 const getRefreshGeneration = () => {
   try {
@@ -41,10 +93,20 @@ const markRefreshGeneration = () => {
 export const BIOMETRIC_REQUEST_TIMEOUT_MS = 120_000;
 
 axiosInstance.interceptors.request.use(async (config) => {
-  const identity = await getDeviceIdentity();
-  config.headers = config.headers || {};
-  config.headers["X-Device-Id"] = identity.deviceId;
-  config.headers["X-Device-Name"] = identity.deviceName;
+  try {
+    const identity = await getDeviceIdentity();
+    config.headers = config.headers || {};
+    config.headers["X-Device-Id"] = identity.deviceId;
+    config.headers["X-Device-Name"] = identity.deviceName;
+  } catch {
+    config.headers = config.headers || {};
+  }
+
+  const token = getStoredAccessToken();
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   config._authGeneration ??= getRefreshGeneration();
   if (
     config.url &&
@@ -61,7 +123,18 @@ axiosInstance.interceptors.request.use(async (config) => {
 });
 
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const reqUrl = response.config?.url || "";
+    if (/\/auth\/(login|refresh-token)(?:[/?]|$)/i.test(reqUrl)) {
+      const payload = response.data?.data || response.data || {};
+      if (payload.accessToken || payload.refreshToken) {
+        setStoredAuthTokens(payload.accessToken, payload.refreshToken);
+      }
+    } else if (/\/auth\/(logout|logout-all)(?:[/?]|$)/i.test(reqUrl)) {
+      clearStoredAuthTokens();
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     if (error.response?.status !== 401 || !originalRequest || originalRequest._retry) {
@@ -78,11 +151,23 @@ axiosInstance.interceptors.response.use(
     try {
       const refreshAndRetry = async () => {
         if (getRefreshGeneration() !== generationAtFailure) {
+          if (originalRequest.headers) {
+            delete originalRequest.headers.Authorization;
+          }
           return axiosInstance(originalRequest);
         }
         if (!refreshPromise) {
-          refreshPromise = axiosInstance.post("/auth/refresh-token")
+          const fallbackRefreshToken = getStoredRefreshToken();
+          refreshPromise = axiosInstance
+            .post(
+              "/auth/refresh-token",
+              fallbackRefreshToken ? { refreshToken: fallbackRefreshToken } : {}
+            )
             .then((response) => {
+              const payload = response.data?.data || response.data || {};
+              if (payload.accessToken || payload.refreshToken) {
+                setStoredAuthTokens(payload.accessToken, payload.refreshToken);
+              }
               markRefreshGeneration();
               return response;
             })
@@ -91,6 +176,9 @@ axiosInstance.interceptors.response.use(
             });
         }
         await refreshPromise;
+        if (originalRequest.headers) {
+          delete originalRequest.headers.Authorization;
+        }
         return axiosInstance(originalRequest);
       };
 
@@ -100,10 +188,16 @@ axiosInstance.interceptors.response.use(
       return await refreshAndRetry();
     } catch (refreshError) {
       if (getRefreshGeneration() !== generationAtFailure) {
+        if (originalRequest.headers) {
+          delete originalRequest.headers.Authorization;
+        }
         return axiosInstance(originalRequest);
       }
-      if ([401, 403].includes(refreshError.response?.status) && window.location.pathname !== "/") {
-        window.location.href = "/";
+      if ([401, 403].includes(refreshError.response?.status)) {
+        clearStoredAuthTokens();
+        if (window.location.pathname !== "/") {
+          window.location.href = "/";
+        }
       }
       return Promise.reject(refreshError);
     }
