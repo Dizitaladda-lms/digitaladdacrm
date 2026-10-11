@@ -86,6 +86,9 @@ const AcademicOperationsPerformance = () => {
   // Filtered reports
   const filteredReports = reports.filter((r) => {
     if (statusFilter === "ALL") return true;
+    if (statusFilter === "PENDING_ALL") {
+      return r.status === "SUBMITTED" || r.status === "TL_REVIEWED" || r.status === "REVISION_REQUESTED";
+    }
     return r.status === statusFilter;
   });
 
@@ -164,7 +167,18 @@ const AcademicOperationsPerformance = () => {
 
       {/* KPI Metric Cards */}
       <div className="ops-metrics-grid">
-        <div className="ops-metric-card blue">
+        <div
+          className="ops-metric-card blue"
+          onClick={() => {
+            setActiveTab("reports");
+            setStatusFilter("ALL");
+          }}
+          style={{
+            cursor: "pointer",
+            outline: activeTab === "reports" && statusFilter === "ALL" ? "2px solid #2563eb" : undefined,
+          }}
+          title="Click to show all daily reports"
+        >
           <div className="card-top">
             <span>Total Logged Hours</span>
             <div className="icon-wrap blue">
@@ -172,10 +186,18 @@ const AcademicOperationsPerformance = () => {
             </div>
           </div>
           <div className="card-value">{totalHours.toFixed(1)} hrs</div>
-          <div className="card-sub">From {reports.length} submitted daily reports</div>
+          <div className="card-sub">From {reports.length} submitted daily reports (Click to view all)</div>
         </div>
 
-        <div className="ops-metric-card indigo">
+        <div
+          className="ops-metric-card indigo"
+          onClick={() => setActiveTab((prev) => (prev === "classes" ? "reports" : "classes"))}
+          style={{
+            cursor: "pointer",
+            outline: activeTab === "classes" ? "2px solid #4f46e5" : undefined,
+          }}
+          title="Click to view class logs & video proofs"
+        >
           <div className="card-top">
             <span>Classes & Video Proofs</span>
             <div className="icon-wrap indigo">
@@ -188,7 +210,20 @@ const AcademicOperationsPerformance = () => {
           </div>
         </div>
 
-        <div className="ops-metric-card emerald">
+        <div
+          className="ops-metric-card emerald"
+          onClick={() => {
+            setActiveTab("reports");
+            setStatusFilter((prev) =>
+              activeTab === "reports" && prev === "HR_APPROVED" ? "ALL" : "HR_APPROVED"
+            );
+          }}
+          style={{
+            cursor: "pointer",
+            outline: activeTab === "reports" && statusFilter === "HR_APPROVED" ? "2px solid #16a34a" : undefined,
+          }}
+          title="Click to filter HR Approved reports"
+        >
           <div className="card-top">
             <span>HR Approved Reports</span>
             <div className="icon-wrap emerald">
@@ -196,10 +231,27 @@ const AcademicOperationsPerformance = () => {
             </div>
           </div>
           <div className="card-value text-emerald-600">{approvedCount}</div>
-          <div className="card-sub">Verified & approved by HR</div>
+          <div className="card-sub">
+            {activeTab === "reports" && statusFilter === "HR_APPROVED"
+              ? "● Active filter (HR Approved)"
+              : "Verified & approved by HR (Click to filter)"}
+          </div>
         </div>
 
-        <div className="ops-metric-card amber">
+        <div
+          className="ops-metric-card amber"
+          onClick={() => {
+            setActiveTab("reports");
+            setStatusFilter((prev) =>
+              activeTab === "reports" && prev === "PENDING_ALL" ? "ALL" : "PENDING_ALL"
+            );
+          }}
+          style={{
+            cursor: "pointer",
+            outline: activeTab === "reports" && statusFilter === "PENDING_ALL" ? "2px solid #d97706" : undefined,
+          }}
+          title="Click to filter Pending & Revision reports"
+        >
           <div className="card-top">
             <span>Pending Review / Revisions</span>
             <div className="icon-wrap amber">
@@ -208,7 +260,9 @@ const AcademicOperationsPerformance = () => {
           </div>
           <div className="card-value text-amber-600">{pendingCount + revisionCount}</div>
           <div className="card-sub">
-            {pendingCount} in review, {revisionCount} revisions
+            {activeTab === "reports" && statusFilter === "PENDING_ALL"
+              ? "● Active filter (Pending / Revisions)"
+              : `${pendingCount} in review, ${revisionCount} revisions`}
           </div>
         </div>
       </div>

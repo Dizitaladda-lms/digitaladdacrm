@@ -215,6 +215,7 @@ export default function OrganizationTree() {
   const [selectedDeptId, setSelectedDeptId] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [hierarchyMode, setHierarchyMode] = useState("REPORTING"); // "REPORTING" | "DEPARTMENT" | "LIST"
+  const [cardFilter, setCardFilter] = useState("ALL"); // "ALL" | "MANAGERS" | "DEPARTMENTS" | "ROOTS"
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
@@ -459,7 +460,22 @@ export default function OrganizationTree() {
 
       {/* Top Stat Summary Cards */}
       <div className="org-stats-grid">
-        <div className="org-stat-card">
+        <div
+          className="org-stat-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            setCardFilter("ALL");
+            setSelectedDeptId("ALL");
+            setSearchQuery("");
+            handleExpandAll();
+          }}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "ALL" && selectedDeptId === "ALL" ? "2px solid #2563eb" : undefined,
+            boxShadow: cardFilter === "ALL" && selectedDeptId === "ALL" ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : undefined,
+          }}
+        >
           <div className="org-stat-icon" style={{ background: "#eff6ff", color: "#2563eb" }}>
             <Users size={22} />
           </div>
@@ -469,7 +485,24 @@ export default function OrganizationTree() {
           </div>
         </div>
 
-        <div className="org-stat-card">
+        <div
+          className="org-stat-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            if (cardFilter === "MANAGERS") {
+              setCardFilter("ALL");
+            } else {
+              setCardFilter("MANAGERS");
+              setHierarchyMode("LIST");
+            }
+          }}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "MANAGERS" ? "2px solid #16a34a" : undefined,
+            boxShadow: cardFilter === "MANAGERS" ? "0 0 0 3px rgba(22, 163, 74, 0.12)" : undefined,
+          }}
+        >
           <div className="org-stat-icon" style={{ background: "#f0fdf4", color: "#16a34a" }}>
             <UserCheck size={22} />
           </div>
@@ -479,7 +512,24 @@ export default function OrganizationTree() {
           </div>
         </div>
 
-        <div className="org-stat-card">
+        <div
+          className="org-stat-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            if (cardFilter === "DEPARTMENTS") {
+              setCardFilter("ALL");
+            } else {
+              setCardFilter("DEPARTMENTS");
+              setHierarchyMode("LIST");
+            }
+          }}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "DEPARTMENTS" ? "2px solid #9333ea" : undefined,
+            boxShadow: cardFilter === "DEPARTMENTS" ? "0 0 0 3px rgba(147, 51, 234, 0.12)" : undefined,
+          }}
+        >
           <div className="org-stat-icon" style={{ background: "#faf5ff", color: "#9333ea" }}>
             <Building2 size={22} />
           </div>
@@ -489,7 +539,25 @@ export default function OrganizationTree() {
           </div>
         </div>
 
-        <div className="org-stat-card">
+        <div
+          className="org-stat-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            if (cardFilter === "ROOTS") {
+              setCardFilter("ALL");
+              handleExpandAll();
+            } else {
+              setCardFilter("ROOTS");
+              handleCollapseAll();
+            }
+          }}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "ROOTS" ? "2px solid #ea580c" : undefined,
+            boxShadow: cardFilter === "ROOTS" ? "0 0 0 3px rgba(234, 88, 12, 0.12)" : undefined,
+          }}
+        >
           <div className="org-stat-icon" style={{ background: "#fff7ed", color: "#ea580c" }}>
             <FolderTree size={22} />
           </div>
@@ -680,6 +748,13 @@ export default function OrganizationTree() {
               {employees
                 .filter((emp) => {
                   if (selectedDeptId !== "ALL" && String(emp.department_id) !== String(selectedDeptId)) return false;
+                  if (cardFilter === "MANAGERS") {
+                    const hasReports = employees.some((e) => String(e.reporting_manager_id) === String(emp.id));
+                    const r = String(emp.role || "").toUpperCase();
+                    if (!hasReports && !r.includes("MANAGER") && !r.includes("TL") && !r.includes("LEAD")) return false;
+                  } else if (cardFilter === "ROOTS") {
+                    if (emp.reporting_manager_id) return false;
+                  }
                   if (searchQuery.trim()) {
                     const q = searchQuery.toLowerCase().trim();
                     const matchName = emp.full_name?.toLowerCase().includes(q);
@@ -688,6 +763,12 @@ export default function OrganizationTree() {
                     return matchName || matchCode || matchDesig;
                   }
                   return true;
+                })
+                .sort((a, b) => {
+                  if (cardFilter === "DEPARTMENTS") {
+                    return (a.department_name || "General").localeCompare(b.department_name || "General");
+                  }
+                  return 0;
                 })
                 .map((emp) => {
                   const roleTheme = getRoleTheme(emp.role);

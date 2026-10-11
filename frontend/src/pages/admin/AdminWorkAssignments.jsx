@@ -192,7 +192,17 @@ const AdminWorkAssignments = () => {
 
       {/* KPI Cards */}
       <section className="task-stats-grid">
-        <div className="task-stat-card">
+        <div
+          className="task-stat-card"
+          onClick={() => setStatusFilter("")}
+          role="button"
+          tabIndex={0}
+          title="Click to show all assigned work"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "" ? "2px solid #2563eb" : undefined,
+          }}
+        >
           <div className="stat-icon-wrapper blue">
             <ClipboardList size={22} />
           </div>
@@ -202,7 +212,17 @@ const AdminWorkAssignments = () => {
           </div>
         </div>
 
-        <div className="task-stat-card">
+        <div
+          className="task-stat-card"
+          onClick={() => setStatusFilter((prev) => (prev === "PENDING" ? "" : "PENDING"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Pending work"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "PENDING" ? "2px solid #d97706" : undefined,
+          }}
+        >
           <div className="stat-icon-wrapper amber">
             <Clock size={22} />
           </div>
@@ -212,7 +232,19 @@ const AdminWorkAssignments = () => {
           </div>
         </div>
 
-        <div className="task-stat-card">
+        <div
+          className="task-stat-card"
+          onClick={() =>
+            setStatusFilter((prev) => (prev === "REVISION_REQUESTED" ? "" : "REVISION_REQUESTED"))
+          }
+          role="button"
+          tabIndex={0}
+          title="Click to filter Revisions Requested"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "REVISION_REQUESTED" ? "2px solid #7c3aed" : undefined,
+          }}
+        >
           <div className="stat-icon-wrapper purple">
             <AlertCircle size={22} />
           </div>
@@ -222,7 +254,17 @@ const AdminWorkAssignments = () => {
           </div>
         </div>
 
-        <div className="task-stat-card">
+        <div
+          className="task-stat-card"
+          onClick={() => setStatusFilter((prev) => (prev === "COMPLETED" ? "" : "COMPLETED"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Completed Tasks"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "COMPLETED" ? "2px solid #16a34a" : undefined,
+          }}
+        >
           <div className="stat-icon-wrapper green">
             <CheckCircle2 size={22} />
           </div>

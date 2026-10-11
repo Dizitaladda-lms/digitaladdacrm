@@ -14,7 +14,7 @@ import {
   Download,
   Search,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import LeadDetailsDrawer from "../../components/common/LeadDetailsDrawer/LeadDetailsDrawer";
 import UpdateFollowupModal from "../../components/employee/followups/UpdateFollowupModal";
@@ -29,12 +29,13 @@ const formatNumber = (val) => {
 
 const MyFollowups = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   const leadsPath = isAdmin ? "/leads" : "/employee/leads";
   const [followups, setFollowups] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState("All");
+  const [activeFilter, setActiveFilter] = useState(() => searchParams.get("filter") || "All");
 
   // Drawer state
   const [selectedLead, setSelectedLead] = useState(null);
@@ -132,6 +133,10 @@ const MyFollowups = () => {
           (item.status || "").toUpperCase() === "PENDING" &&
           item.next_followup_at &&
           new Date(item.next_followup_at) > now
+      );
+    } else if (activeFilter === "Pending") {
+      list = list.filter(
+        (item) => (item.status || "").toUpperCase() === "PENDING"
       );
     } else if (activeFilter === "Completed / Closed") {
       list = list.filter(
@@ -345,12 +350,21 @@ const MyFollowups = () => {
       >
         {/* Card 1: Due Today */}
         <div
+          onClick={() => setActiveFilter((prev) => (prev === "Due Today" ? "All" : "Due Today"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Due Today follow-ups"
           style={{
             padding: "16px 20px",
             backgroundColor: "#FFFFFF",
             borderRadius: "12px",
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            border: activeFilter === "Due Today" ? "2px solid #2563EB" : "1px solid #E2E8F0",
+            boxShadow:
+              activeFilter === "Due Today"
+                ? "0 0 0 3px rgba(37, 99, 235, 0.14)"
+                : "0 1px 3px rgba(0,0,0,0.02)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -399,12 +413,21 @@ const MyFollowups = () => {
 
         {/* Card 2: Overdue Callbacks */}
         <div
+          onClick={() => setActiveFilter((prev) => (prev === "Overdue" ? "All" : "Overdue"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Overdue Callbacks"
           style={{
             padding: "16px 20px",
             backgroundColor: "#FFFFFF",
             borderRadius: "12px",
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            border: activeFilter === "Overdue" ? "2px solid #DC2626" : "1px solid #E2E8F0",
+            boxShadow:
+              activeFilter === "Overdue"
+                ? "0 0 0 3px rgba(220, 38, 38, 0.14)"
+                : "0 1px 3px rgba(0,0,0,0.02)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -453,12 +476,24 @@ const MyFollowups = () => {
 
         {/* Card 3: Completed Calls */}
         <div
+          onClick={() =>
+            setActiveFilter((prev) => (prev === "Completed / Closed" ? "All" : "Completed / Closed"))
+          }
+          role="button"
+          tabIndex={0}
+          title="Click to filter Completed Calls"
           style={{
             padding: "16px 20px",
             backgroundColor: "#FFFFFF",
             borderRadius: "12px",
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            border:
+              activeFilter === "Completed / Closed" ? "2px solid #059669" : "1px solid #E2E8F0",
+            boxShadow:
+              activeFilter === "Completed / Closed"
+                ? "0 0 0 3px rgba(5, 150, 105, 0.14)"
+                : "0 1px 3px rgba(0,0,0,0.02)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -507,12 +542,21 @@ const MyFollowups = () => {
 
         {/* Card 4: Total Pending */}
         <div
+          onClick={() => setActiveFilter((prev) => (prev === "Pending" ? "All" : "Pending"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Total Pending follow-ups"
           style={{
             padding: "16px 20px",
             backgroundColor: "#FFFFFF",
             borderRadius: "12px",
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+            border: activeFilter === "Pending" ? "2px solid #475569" : "1px solid #E2E8F0",
+            boxShadow:
+              activeFilter === "Pending"
+                ? "0 0 0 3px rgba(71, 85, 105, 0.14)"
+                : "0 1px 3px rgba(0,0,0,0.02)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>

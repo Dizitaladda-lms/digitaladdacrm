@@ -248,6 +248,14 @@ const handleView = (campaign) => {
       <CampaignStats
         loading={loading}
         stats={stats}
+        activeStatus={filters.status}
+        onCardClick={(filterKey) => {
+          if (filterKey === "LEADS") {
+            navigate("/leads");
+            return;
+          }
+          handleFilterChange("status", filters.status === filterKey ? "" : filterKey);
+        }}
       />
 
       <CampaignFilters

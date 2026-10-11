@@ -15,6 +15,7 @@ import "./leadSources.css";
 const LeadSources = () => {
   const [sources, setSources] = useState([]);
   const [query, setQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("ALL"); // "ALL" | "ACTIVE"
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
 
@@ -49,12 +50,13 @@ const LeadSources = () => {
 
   const visibleSources = useMemo(
     () =>
-      sources.filter((source) =>
-        `${source.name} ${source.description || ""}`
+      sources.filter((source) => {
+        if (sourceFilter === "ACTIVE" && !source.is_active) return false;
+        return `${source.name} ${source.description || ""}`
           .toLowerCase()
-          .includes(query.toLowerCase())
-      ),
-    [sources, query]
+          .includes(query.toLowerCase());
+      }),
+    [sources, query, sourceFilter]
   );
 
   return (
@@ -72,7 +74,16 @@ const LeadSources = () => {
 
       {/* 3 Metric Summary Cards */}
       <div className="source-summary">
-        <article className="source-summary-card">
+        <article
+          className="source-summary-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => setSourceFilter((prev) => (prev === "ACTIVE" ? "ALL" : "ACTIVE"))}
+          style={{
+            cursor: "pointer",
+            border: sourceFilter === "ACTIVE" ? "2px solid #2563EB" : undefined,
+          }}
+        >
           <div className="source-summary-icon blue">
             <Share2 size={20} />
           </div>
@@ -84,7 +95,19 @@ const LeadSources = () => {
           </div>
         </article>
 
-        <article className="source-summary-card">
+        <article
+          className="source-summary-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            setSourceFilter("ALL");
+            setQuery("");
+          }}
+          style={{
+            cursor: "pointer",
+            border: sourceFilter === "ALL" ? "2px solid #7C3AED" : undefined,
+          }}
+        >
           <div className="source-summary-icon purple">
             <Globe2 size={20} />
           </div>
@@ -96,7 +119,15 @@ const LeadSources = () => {
           </div>
         </article>
 
-        <article className="source-summary-card">
+        <article
+          className="source-summary-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => setSourceFilter((prev) => (prev === "ACTIVE" ? "ALL" : "ACTIVE"))}
+          style={{
+            cursor: "pointer",
+          }}
+        >
           <div className="source-summary-icon green">
             <Sparkles size={20} />
           </div>

@@ -372,6 +372,10 @@ export const getLeadsRepository = async (filters) => {
       whereClause += `
         AND l.assigned_to IS NULL
       `;
+    } else if (assignedStr === "assigned") {
+      whereClause += `
+        AND l.assigned_to IS NOT NULL
+      `;
     } else if (assignedStr !== "all" && !isNaN(Number(assigned_to))) {
       whereClause += `
         AND l.assigned_to = $${index}

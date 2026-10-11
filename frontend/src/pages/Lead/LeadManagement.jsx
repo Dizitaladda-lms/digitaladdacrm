@@ -107,6 +107,8 @@ const [assignModal,setAssignModal]=useState(false);
 
   });
 
+  const [activeStatFilter, setActiveStatFilter] = useState("ALL");
+
   const [drawerOpen, setDrawerOpen] = useState(false);
 
 const [selectedLead, setSelectedLead] = useState(null)
@@ -147,6 +149,11 @@ setAssignModal(false);
 
       setLoading(true);
 
+      const statsFilters =
+        activeStatFilter === "TODAY"
+          ? { ...filters, date_from: "", date_to: "" }
+          : filters;
+
      const [
 
     leadResponse,
@@ -165,7 +172,7 @@ setAssignModal(false);
 
         ...filters,
       }),
-      getLeadStats(filters),
+      getLeadStats(statsFilters),
       isScopedSalesHead ? getLeadAssignees() : getEmployees(),
     ]);
 
@@ -190,6 +197,7 @@ setAssignModal(false);
     pagination.limit,
 
     filters,
+    activeStatFilter,
     isScopedSalesHead,
 
   ]);
@@ -222,6 +230,10 @@ setAssignModal(false);
 
     }));
 
+    if (field === "date_from" || field === "date_to" || field === "assigned_to") {
+      setActiveStatFilter("ALL");
+    }
+
     setFilters((prev) => ({
 
       ...prev,
@@ -232,6 +244,42 @@ setAssignModal(false);
 
   };
 
+  const handleStatCardClick = (cardKey) => {
+    setActiveStatFilter(cardKey);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    const todayStr = new Date().toLocaleDateString("en-CA");
+
+    if (cardKey === "TODAY") {
+      setFilters((prev) => ({
+        ...prev,
+        date_from: todayStr,
+        date_to: todayStr,
+        assigned_to: "",
+      }));
+    } else if (cardKey === "ASSIGNED") {
+      setFilters((prev) => ({
+        ...prev,
+        assigned_to: "assigned",
+        date_from: "",
+        date_to: "",
+      }));
+    } else if (cardKey === "UNASSIGNED") {
+      setFilters((prev) => ({
+        ...prev,
+        assigned_to: "unassigned",
+        date_from: "",
+        date_to: "",
+      }));
+    } else {
+      setFilters((prev) => ({
+        ...prev,
+        assigned_to: "",
+        date_from: "",
+        date_to: "",
+      }));
+    }
+  };
+
   /*
   =====================================
   Reset
@@ -239,6 +287,7 @@ setAssignModal(false);
   */
 
   const handleResetFilters = () => {
+    setActiveStatFilter("ALL");
 
     setFilters({
 
@@ -513,11 +562,10 @@ const openAssignModal = () => {
       />
 
       <LeadStats
-
         loading={loading}
-
         stats={stats}
-
+        activeFilter={activeStatFilter}
+        onCardClick={handleStatCardClick}
       />
 
       <LeadFilters

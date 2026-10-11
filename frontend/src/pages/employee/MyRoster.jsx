@@ -114,6 +114,19 @@ const MyRoster = () => {
     };
   }, [days]);
 
+  const [dayFilter, setDayFilter] = useState("ALL");
+
+  const displayedDays = useMemo(() => {
+    if (dayFilter === "ALL") return days;
+    return days.filter((d) => {
+      const s = String(d.status || "WORKING").toUpperCase();
+      if (dayFilter === "WORKING") return s === "WORKING" || s === "HALF_DAY";
+      if (dayFilter === "WEEK_OFF") return s === "WEEK_OFF" || s === "OFF";
+      if (dayFilter === "LEAVE") return s === "LEAVE" || s === "PLANNED_LEAVE";
+      return true;
+    });
+  }, [days, dayFilter]);
+
   // Update a single day
   const handleUpdateDay = (dayNum, updates) => {
     setDays((prev) =>
@@ -267,7 +280,17 @@ const MyRoster = () => {
 
       {/* KPI Counters */}
       <div className="roster-summary-grid">
-        <div className="roster-summary-card">
+        <div
+          className="roster-summary-card"
+          onClick={() => setDayFilter("ALL")}
+          role="button"
+          tabIndex={0}
+          title="Click to show all days"
+          style={{
+            cursor: "pointer",
+            outline: dayFilter === "ALL" ? "2px solid #2563EB" : undefined,
+          }}
+        >
           <div className="summary-icon-box" style={{ background: "#EFF6FF", color: "#2563EB" }}>
             <CalendarDays size={20} />
           </div>
@@ -277,7 +300,17 @@ const MyRoster = () => {
           </div>
         </div>
 
-        <div className="roster-summary-card">
+        <div
+          className="roster-summary-card"
+          onClick={() => setDayFilter((prev) => (prev === "WORKING" ? "ALL" : "WORKING"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Planned Working Days"
+          style={{
+            cursor: "pointer",
+            outline: dayFilter === "WORKING" ? "2px solid #16A34A" : undefined,
+          }}
+        >
           <div className="summary-icon-box" style={{ background: "#DCFCE7", color: "#16A34A" }}>
             <Briefcase size={20} />
           </div>
@@ -287,7 +320,17 @@ const MyRoster = () => {
           </div>
         </div>
 
-        <div className="roster-summary-card">
+        <div
+          className="roster-summary-card"
+          onClick={() => setDayFilter((prev) => (prev === "WEEK_OFF" ? "ALL" : "WEEK_OFF"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Planned Week Offs"
+          style={{
+            cursor: "pointer",
+            outline: dayFilter === "WEEK_OFF" ? "2px solid #4F46E5" : undefined,
+          }}
+        >
           <div className="summary-icon-box" style={{ background: "#EEF2FF", color: "#4F46E5" }}>
             <Palmtree size={20} />
           </div>
@@ -297,7 +340,17 @@ const MyRoster = () => {
           </div>
         </div>
 
-        <div className="roster-summary-card">
+        <div
+          className="roster-summary-card"
+          onClick={() => setDayFilter((prev) => (prev === "LEAVE" ? "ALL" : "LEAVE"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Planned Leaves"
+          style={{
+            cursor: "pointer",
+            outline: dayFilter === "LEAVE" ? "2px solid #D97706" : undefined,
+          }}
+        >
           <div className="summary-icon-box" style={{ background: "#FEF3C7", color: "#D97706" }}>
             <SunMedium size={20} />
           </div>
@@ -332,7 +385,7 @@ const MyRoster = () => {
         </div>
       ) : (
         <div className="calendar-days-grid">
-          {days.map((d) => {
+          {displayedDays.map((d) => {
             const isSun = d.weekday === "Sun";
             const isSat = d.weekday === "Sat";
             const status = d.status || "WORKING";

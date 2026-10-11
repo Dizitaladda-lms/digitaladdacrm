@@ -262,8 +262,14 @@ const Employees = () => {
     if (attendanceFilter === "ABSENT") {
       return absentEmployees;
     }
+    if (attendanceFilter === "COUNSELLORS") {
+      return counsellors.filter((item) => item.status === "ACTIVE");
+    }
+    if (attendanceFilter === "MANAGERS") {
+      return employees.filter((item) => item.role === "MANAGER");
+    }
     return employees;
-  }, [employees, attendanceFilter, presentEmployees, absentEmployees]);
+  }, [employees, attendanceFilter, presentEmployees, absentEmployees, counsellors]);
 
   const cards = [
     {
@@ -300,19 +306,21 @@ const Employees = () => {
       id: "COUNSELLORS",
       title: "Active Counsellors",
       value: counsellors.filter((item) => item.status === "ACTIVE").length,
-      subtitle: "Available for leads",
+      subtitle: attendanceFilter === "COUNSELLORS" ? "● Active filter" : "Available for leads (Click to view)",
       Icon: UserCheck,
       color: "purple",
-      active: false,
+      active: attendanceFilter === "COUNSELLORS",
+      onClick: () => setAttendanceFilter((prev) => (prev === "COUNSELLORS" ? "ALL" : "COUNSELLORS")),
     },
     {
       id: "MANAGERS",
       title: "Manager Admins",
       value: employees.filter((item) => item.role === "MANAGER").length,
-      subtitle: "Operational access",
+      subtitle: attendanceFilter === "MANAGERS" ? "● Active filter" : "Operational access (Click to view)",
       Icon: UserCog,
       color: "orange",
-      active: false,
+      active: attendanceFilter === "MANAGERS",
+      onClick: () => setAttendanceFilter((prev) => (prev === "MANAGERS" ? "ALL" : "MANAGERS")),
     },
   ];
 
@@ -699,28 +707,15 @@ const Employees = () => {
       <section className="lead-stats employee-stats">
         {cards.map((card) => {
           const { id, title, value, subtitle, Icon, color, active, onClick } = card;
-          const isFilterCard = id === "PRESENT" || id === "ABSENT";
+          const isFilterCard = id !== "ALL";
           return (
             <article
               key={title}
-              className={`lead-stat-card ${color}`}
+              className={`lead-stat-card ${color} ${active ? "is-active" : ""}`}
               onClick={onClick}
               style={{
                 cursor: onClick ? "pointer" : "default",
                 transition: "all 0.18s ease",
-                border:
-                  active && isFilterCard
-                    ? id === "PRESENT"
-                      ? "2px solid #16a34a"
-                      : "2px solid #dc2626"
-                    : undefined,
-                boxShadow:
-                  active && isFilterCard
-                    ? id === "PRESENT"
-                      ? "0 0 0 3px rgba(22, 163, 74, 0.2), 0 6px 18px rgba(22, 163, 74, 0.15)"
-                      : "0 0 0 3px rgba(220, 38, 38, 0.2), 0 6px 18px rgba(220, 38, 38, 0.15)"
-                    : undefined,
-                transform: active && isFilterCard ? "translateY(-2px)" : undefined,
               }}
               title={onClick ? `Click to filter: ${title}` : undefined}
             >
@@ -735,8 +730,8 @@ const Employees = () => {
                           fontWeight: 700,
                           padding: "1px 6px",
                           borderRadius: "8px",
-                          background: id === "PRESENT" ? "#dcfce7" : "#fee2e2",
-                          color: id === "PRESENT" ? "#15803d" : "#b91c1c",
+                          background: id === "PRESENT" ? "#dcfce7" : id === "ABSENT" ? "#fee2e2" : "#eef2ff",
+                          color: id === "PRESENT" ? "#15803d" : id === "ABSENT" ? "#b91c1c" : "#4f46e5",
                         }}
                       >
                         FILTERED
@@ -771,18 +766,41 @@ const Employees = () => {
                     borderRadius: "14px",
                     fontSize: "12px",
                     fontWeight: 700,
-                    backgroundColor: attendanceFilter === "PRESENT" ? "#DCFCE7" : "#FEE2E2",
-                    color: attendanceFilter === "PRESENT" ? "#15803D" : "#B91C1C",
-                    border: attendanceFilter === "PRESENT" ? "1px solid #86EFAC" : "1px solid #FECACA",
+                    backgroundColor:
+                      attendanceFilter === "PRESENT"
+                        ? "#DCFCE7"
+                        : attendanceFilter === "ABSENT"
+                        ? "#FEE2E2"
+                        : "#EEF2FF",
+                    color:
+                      attendanceFilter === "PRESENT"
+                        ? "#15803D"
+                        : attendanceFilter === "ABSENT"
+                        ? "#B91C1C"
+                        : "#4F46E5",
+                    border:
+                      attendanceFilter === "PRESENT"
+                        ? "1px solid #86EFAC"
+                        : attendanceFilter === "ABSENT"
+                        ? "1px solid #FECACA"
+                        : "1px solid #C7D2FE",
                   }}
                 >
                   {attendanceFilter === "PRESENT" ? (
                     <>
                       <CheckCircle2 size={13} /> Showing Attendance Marked ({presentEmployees.length})
                     </>
-                  ) : (
+                  ) : attendanceFilter === "ABSENT" ? (
                     <>
                       <AlertCircle size={13} /> Showing Attendance Not Marked ({absentEmployees.length})
+                    </>
+                  ) : attendanceFilter === "COUNSELLORS" ? (
+                    <>
+                      <UserCheck size={13} /> Showing Active Counsellors ({displayedEmployees.length})
+                    </>
+                  ) : (
+                    <>
+                      <UserCog size={13} /> Showing Manager Admins ({displayedEmployees.length})
                     </>
                   )}
                   <button
@@ -810,6 +828,10 @@ const Employees = () => {
                 ? `Showing ${presentEmployees.length} employees who marked attendance today.`
                 : attendanceFilter === "ABSENT"
                 ? `Showing ${absentEmployees.length} employees who have NOT marked attendance today.`
+                : attendanceFilter === "COUNSELLORS"
+                ? `Showing ${displayedEmployees.length} active counsellors.`
+                : attendanceFilter === "MANAGERS"
+                ? `Showing ${displayedEmployees.length} manager admins.`
                 : "View counselling workload, assigned domains, and live conversion statistics."}
             </p>
           </div>

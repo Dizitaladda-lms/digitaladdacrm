@@ -89,7 +89,12 @@ const CompanyPresence = () => {
     const normalizedQuery = query.trim().toLowerCase();
     return employees.filter((employee) => {
       const status = String(employee.attendance_status || "ABSENT").toUpperCase();
-      const matchesStatus = statusFilter === "ALL" || status === statusFilter;
+      const matchesStatus =
+        statusFilter === "ALL"
+          ? true
+          : statusFilter === "WFH"
+          ? String(employee.work_mode || "").toUpperCase() === "WFH"
+          : status === statusFilter;
       const matchesDepartment =
         departmentFilter === "ALL" || employee.department_name === departmentFilter;
       const matchesQuery =
@@ -187,10 +192,62 @@ const CompanyPresence = () => {
       </header>
 
       <section className="company-presence__stats" aria-label="Attendance summary">
-        <div className="presence-stat presence-stat--present"><span>Present</span><strong>{counts.present}</strong></div>
-        <div className="presence-stat presence-stat--absent"><span>Absent</span><strong>{counts.absent}</strong></div>
-        <div className="presence-stat presence-stat--leave"><span>On leave</span><strong>{counts.leave}</strong></div>
-        <div className="presence-stat presence-stat--wfh"><span>Working from home</span><strong>{counts.wfh}</strong></div>
+        <div
+          className="presence-stat presence-stat--present"
+          onClick={() => setStatusFilter((prev) => (prev === "PRESENT" ? "ALL" : "PRESENT"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Present employees"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "PRESENT" ? "2px solid #16a34a" : undefined,
+          }}
+        >
+          <span>Present</span>
+          <strong>{counts.present}</strong>
+        </div>
+        <div
+          className="presence-stat presence-stat--absent"
+          onClick={() => setStatusFilter((prev) => (prev === "ABSENT" ? "ALL" : "ABSENT"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Absent employees"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "ABSENT" ? "2px solid #dc2626" : undefined,
+          }}
+        >
+          <span>Absent</span>
+          <strong>{counts.absent}</strong>
+        </div>
+        <div
+          className="presence-stat presence-stat--leave"
+          onClick={() => setStatusFilter((prev) => (prev === "ON_LEAVE" ? "ALL" : "ON_LEAVE"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter On Leave employees"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "ON_LEAVE" ? "2px solid #d97706" : undefined,
+          }}
+        >
+          <span>On leave</span>
+          <strong>{counts.leave}</strong>
+        </div>
+        <div
+          className="presence-stat presence-stat--wfh"
+          onClick={() => setStatusFilter((prev) => (prev === "WFH" ? "ALL" : "WFH"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Working From Home employees"
+          style={{
+            cursor: "pointer",
+            outline: statusFilter === "WFH" ? "2px solid #2563eb" : undefined,
+          }}
+        >
+          <span>Working from home</span>
+          <strong>{counts.wfh}</strong>
+        </div>
       </section>
 
       <section className="company-presence__panel">

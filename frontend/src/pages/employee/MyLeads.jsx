@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import "./MyLeads.css";
 import MyLeadsHeader from "../../components/employee/myLeads/MyLeadsHeader/MyLeadsHeader";
-import MyLeadsStats from "../../components/LeadManagement/MyLeadsStats";
+import MyLeadsStats, { matchesMyLeadsBucket } from "../../components/LeadManagement/MyLeadsStats";
 import SearchFilterBar from "../../components/employee/myLeads/SearchFilterBar/SearchFilterBar";
 import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable";
 import { getMyLeads } from "../../services/employeeLeadService";
@@ -11,6 +12,7 @@ import CreateLeadModal from "../../components/LeadManagement/CreateLeadModal";
 
 const MyLeads = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -18,11 +20,12 @@ const MyLeads = () => {
   // Live Active Filter State
   const [search, setSearch] = useState("");
   const [domain, setDomain] = useState("ALL");
-  const [status, setStatus] = useState("ALL");
+  const [status, setStatus] = useState(() => searchParams.get("status") || "ALL");
   const [priority, setPriority] = useState("ALL");
   const [source, setSource] = useState("ALL");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [cardBucket, setCardBucket] = useState(() => searchParams.get("bucket") || "ALL");
 
   const fetchMyLeads = useCallback(async () => {
     try {
@@ -50,6 +53,11 @@ const MyLeads = () => {
     fetchMyLeads();
   }, [fetchMyLeads]);
 
+  const filteredLeads = useMemo(
+    () => leads.filter((l) => matchesMyLeadsBucket(l, cardBucket)),
+    [leads, cardBucket]
+  );
+
   const handleResetFilters = () => {
     setSearch("");
     setDomain("ALL");
@@ -58,6 +66,7 @@ const MyLeads = () => {
     setSource("ALL");
     setDateFrom("");
     setDateTo("");
+    setCardBucket("ALL");
   };
 
   const handleExportCsv = () => {
@@ -76,7 +85,7 @@ const MyLeads = () => {
         { header: "Remarks", key: "remarks" },
         { header: "Created Date", key: "created_at" },
       ],
-      leads
+      filteredLeads
     );
   };
 
@@ -89,6 +98,8 @@ const MyLeads = () => {
       <MyLeadsStats
         loading={loading}
         leads={leads}
+        activeBucket={cardBucket}
+        onCardClick={setCardBucket}
       />
 
       <SearchFilterBar
@@ -97,7 +108,10 @@ const MyLeads = () => {
         domain={domain}
         onDomainChange={setDomain}
         status={status}
-        onStatusChange={setStatus}
+        onStatusChange={(val) => {
+          setStatus(val);
+          if (val !== "ALL") setCardBucket("ALL");
+        }}
         priority={priority}
         onPriorityChange={setPriority}
         source={source}
@@ -110,7 +124,7 @@ const MyLeads = () => {
       />
 
       <LeadsTable
-        leads={leads}
+        leads={filteredLeads}
         loading={loading}
         onRefresh={fetchMyLeads}
         currentUser={user || {}}

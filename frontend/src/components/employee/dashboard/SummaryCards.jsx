@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import "./SummaryCards.css";
 
 import {
@@ -10,6 +11,7 @@ import {
 import SummaryCard from "./SummaryCard";
 
 const SummaryCards = ({ summary = {} }) => {
+    const navigate = useNavigate();
 
     const cards = [
 
@@ -18,6 +20,7 @@ const SummaryCards = ({ summary = {} }) => {
             value: summary.assigned_leads ?? 0,
             icon: <Users size={28} />,
             color: "blue",
+            onClick: () => navigate("/employee/leads"),
         },
 
         {
@@ -25,6 +28,7 @@ const SummaryCards = ({ summary = {} }) => {
             value: summary.today_followups ?? 0,
             icon: <PhoneCall size={28} />,
             color: "orange",
+            onClick: () => navigate("/employee/followups?filter=Due%20Today"),
         },
 
         {
@@ -32,6 +36,7 @@ const SummaryCards = ({ summary = {} }) => {
             value: summary.interested_leads ?? 0,
             icon: <BadgeCheck size={28} />,
             color: "green",
+            onClick: () => navigate("/employee/leads?status=INTERESTED"),
         },
 
         {
@@ -39,6 +44,7 @@ const SummaryCards = ({ summary = {} }) => {
             value: summary.admissions ?? 0,
             icon: <GraduationCap size={28} />,
             color: "purple",
+            onClick: () => navigate("/employee/admissions"),
         },
 
     ];
@@ -55,6 +61,7 @@ const SummaryCards = ({ summary = {} }) => {
                     value={card.value}
                     icon={card.icon}
                     color={card.color}
+                    onClick={card.onClick}
                 />
 
             ))}

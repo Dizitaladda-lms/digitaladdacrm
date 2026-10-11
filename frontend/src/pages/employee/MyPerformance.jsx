@@ -233,7 +233,15 @@ const CounsellorPerformance = () => {
                     else if (st.includes("NOT") || st.includes("REJECT") || st.includes("LOST")) colorClass = "rose";
 
                     return (
-                      <div key={idx} className={`stage-chip-box ${colorClass}`}>
+                      <div
+                        key={idx}
+                        className={`stage-chip-box ${colorClass}`}
+                        onClick={() => navigate(`/employee/leads?status=${encodeURIComponent(sb.status)}`)}
+                        role="button"
+                        tabIndex={0}
+                        style={{ cursor: "pointer" }}
+                        title={`Click to filter ${sb.status} leads`}
+                      >
                         <div className="stage-chip-top">
                           <span className="stage-name">{sb.status}</span>
                           <span className="stage-count">{sb.count}</span>

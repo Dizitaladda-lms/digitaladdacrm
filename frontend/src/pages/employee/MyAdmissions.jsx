@@ -244,13 +244,22 @@ const MyAdmissions = () => {
       >
         <div
           className="crm-card"
+          onClick={() => setActiveTab("All")}
+          role="button"
+          tabIndex={0}
+          title="Click to show all enrolled students"
           style={{
             marginBottom: 0,
             padding: "18px 20px",
             backgroundColor: "#FFFFFF",
             borderRadius: "14px",
-            border: "1.5px solid #F1F5F9",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            border: activeTab === "All" ? "2px solid #4F46E5" : "1.5px solid #F1F5F9",
+            boxShadow:
+              activeTab === "All"
+                ? "0 0 0 3px rgba(79, 70, 229, 0.14)"
+                : "0 1px 3px rgba(0,0,0,0.03)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -292,13 +301,22 @@ const MyAdmissions = () => {
 
         <div
           className="crm-card"
+          onClick={() => setActiveTab((prev) => (prev === "Fully Paid" ? "All" : "Fully Paid"))}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Fully Paid admissions"
           style={{
             marginBottom: 0,
             padding: "18px 20px",
             backgroundColor: "#FFFFFF",
             borderRadius: "14px",
-            border: "1.5px solid #F1F5F9",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            border: activeTab === "Fully Paid" ? "2px solid #16A34A" : "1.5px solid #F1F5F9",
+            boxShadow:
+              activeTab === "Fully Paid"
+                ? "0 0 0 3px rgba(22, 163, 74, 0.14)"
+                : "0 1px 3px rgba(0,0,0,0.03)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -340,13 +358,24 @@ const MyAdmissions = () => {
 
         <div
           className="crm-card"
+          onClick={() =>
+            setActiveTab((prev) => (prev === "Pending Fee Dues" ? "All" : "Pending Fee Dues"))
+          }
+          role="button"
+          tabIndex={0}
+          title="Click to filter Pending Fee Dues"
           style={{
             marginBottom: 0,
             padding: "18px 20px",
             backgroundColor: "#FFFFFF",
             borderRadius: "14px",
-            border: "1.5px solid #F1F5F9",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            border: activeTab === "Pending Fee Dues" ? "2px solid #DC2626" : "1.5px solid #F1F5F9",
+            boxShadow:
+              activeTab === "Pending Fee Dues"
+                ? "0 0 0 3px rgba(220, 38, 38, 0.14)"
+                : "0 1px 3px rgba(0,0,0,0.03)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -388,6 +417,10 @@ const MyAdmissions = () => {
 
         <div
           className="crm-card"
+          onClick={() => setActiveTab("All")}
+          role="button"
+          tabIndex={0}
+          title="Click to show all enrollments"
           style={{
             marginBottom: 0,
             padding: "18px 20px",
@@ -395,6 +428,8 @@ const MyAdmissions = () => {
             borderRadius: "14px",
             border: "1.5px solid #F1F5F9",
             boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            cursor: "pointer",
+            transition: "all 0.18s ease",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>

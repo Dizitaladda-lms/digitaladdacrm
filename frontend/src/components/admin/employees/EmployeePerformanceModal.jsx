@@ -25,6 +25,7 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
   const [perfData, setPerfData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "weekly" | "leads"
+  const [leadCardFilter, setLeadCardFilter] = useState("ALL"); // "ALL" | "PENDING" | "ENROLLED" | status/course
 
   const fetchPerformance = useCallback(async () => {
     try {
@@ -63,6 +64,22 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
   const courseBreakdown = perfData?.course_breakdown || [];
   const weekWise = perfData?.week_wise || [];
   const leadsList = perfData?.leads || [];
+
+  const displayedLeads = leadsList.filter((lead) => {
+    if (!leadCardFilter || leadCardFilter === "ALL") return true;
+    const s = String(lead.status || "NEW").toUpperCase();
+    if (leadCardFilter === "PENDING") {
+      return ["NEW", "CONTACTED", "INTERESTED", "FOLLOW_UP"].includes(s);
+    }
+    if (leadCardFilter === "ENROLLED") {
+      return ["ENROLLED", "ADMISSION_DONE", "CONVERTED"].includes(s);
+    }
+    if (leadCardFilter.startsWith("COURSE:")) {
+      const targetCourse = leadCardFilter.slice(7);
+      return (lead.interested_course || "Program Inquiry") === targetCourse;
+    }
+    return s === String(leadCardFilter).toUpperCase();
+  });
 
   return (
     <div
@@ -300,11 +317,18 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
           }}
         >
           <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setLeadCardFilter("ALL");
+              setActiveTab("leads");
+            }}
             style={{
               padding: "16px",
               borderRadius: "12px",
               background: "#eff6ff",
-              border: "1.5px solid #bfdbfe",
+              border: activeTab === "leads" && leadCardFilter === "ALL" ? "2px solid #2563eb" : "1.5px solid #bfdbfe",
+              cursor: "pointer",
             }}
           >
             <span
@@ -332,11 +356,18 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
           </div>
 
           <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setLeadCardFilter("PENDING");
+              setActiveTab("leads");
+            }}
             style={{
               padding: "16px",
               borderRadius: "12px",
               background: "#fffbeb",
-              border: "1.5px solid #fde68a",
+              border: activeTab === "leads" && leadCardFilter === "PENDING" ? "2px solid #d97706" : "1.5px solid #fde68a",
+              cursor: "pointer",
             }}
           >
             <span
@@ -364,11 +395,18 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
           </div>
 
           <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setLeadCardFilter("ENROLLED");
+              setActiveTab("leads");
+            }}
             style={{
               padding: "16px",
               borderRadius: "12px",
               background: "#f5f3ff",
-              border: "1.5px solid #ddd6fe",
+              border: activeTab === "leads" && leadCardFilter === "ENROLLED" ? "2px solid #7c3aed" : "1.5px solid #ddd6fe",
+              cursor: "pointer",
             }}
           >
             <span
@@ -396,11 +434,18 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
           </div>
 
           <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setLeadCardFilter("ENROLLED");
+              setActiveTab("leads");
+            }}
             style={{
               padding: "16px",
               borderRadius: "12px",
               background: "#f0fdf4",
               border: "1.5px solid #bbf7d0",
+              cursor: "pointer",
             }}
           >
             <span
@@ -564,11 +609,18 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
                   {statusBreakdown.map((sb, idx) => (
                     <div
                       key={idx}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        setLeadCardFilter(sb.status);
+                        setActiveTab("leads");
+                      }}
                       style={{
                         padding: "10px 12px",
                         borderRadius: "8px",
                         background: "#ffffff",
                         border: "1px solid #e2e8f0",
+                        cursor: "pointer",
                       }}
                     >
                       <div
@@ -644,6 +696,12 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
                     return (
                       <div
                         key={idx}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          setLeadCardFilter(`COURSE:${cb.course}`);
+                          setActiveTab("leads");
+                        }}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -652,6 +710,7 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
                           borderRadius: "8px",
                           background: "#ffffff",
                           border: "1px solid #e2e8f0",
+                          cursor: "pointer",
                         }}
                       >
                         <div>
@@ -812,7 +871,42 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
               overflow: "hidden",
             }}
           >
-            {leadsList.length === 0 ? (
+            {leadCardFilter !== "ALL" && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 14px",
+                  background: "#eef2ff",
+                  borderBottom: "1px solid #e0e7ff",
+                  fontSize: "12px",
+                  color: "#3730a3",
+                  fontWeight: 600,
+                }}
+              >
+                <span>
+                  Filtered by: <strong>{leadCardFilter.replace("COURSE:", "Course: ")}</strong> ({displayedLeads.length} leads)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLeadCardFilter("ALL")}
+                  style={{
+                    background: "#4f46e5",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "4px 10px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Show All Leads
+                </button>
+              </div>
+            )}
+            {displayedLeads.length === 0 ? (
               <div
                 style={{
                   textAlign: "center",
@@ -821,7 +915,7 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
                   fontSize: "13px",
                 }}
               >
-                No leads assigned to this employee in the selected timeframe.
+                No leads match the selected filter in this timeframe.
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
@@ -853,7 +947,7 @@ const EmployeePerformanceModal = ({ employee, isOpen, onClose }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leadsList.map((lead) => {
+                    {displayedLeads.map((lead) => {
                       const cleanPhone = String(lead.mobile || "").replace(/\D/g, "").slice(-10);
                       return (
                         <tr key={lead.id} style={{ borderBottom: "1px solid #f1f5f9" }}>

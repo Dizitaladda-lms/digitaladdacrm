@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import "../../styles/Dashboard/StatsGrid.css";
 
 import {
@@ -17,6 +18,8 @@ const StatsGrid = ({
   summary = {},
   loading = false,
 }) => {
+  const navigate = useNavigate();
+
   const cards = [
     {
       title: "Total Leads",
@@ -24,6 +27,7 @@ const StatsGrid = ({
       subtitle: `${formatNumber(summary.today_leads || 0)} added today`,
       icon: Users,
       color: "blue",
+      path: "/leads",
     },
     {
       title: "Admissions",
@@ -31,6 +35,7 @@ const StatsGrid = ({
       subtitle: "Confirmed admissions",
       icon: GraduationCap,
       color: "green",
+      path: "/admissions",
     },
     {
       title: "Campaigns",
@@ -38,6 +43,7 @@ const StatsGrid = ({
       subtitle: "Active campaigns",
       icon: Megaphone,
       color: "purple",
+      path: "/lead-sources",
     },
     {
       title: "Employees",
@@ -45,6 +51,7 @@ const StatsGrid = ({
       subtitle: "CRM team members",
       icon: Briefcase,
       color: "orange",
+      path: "/employees",
     },
   ];
 
@@ -56,6 +63,17 @@ const StatsGrid = ({
           <div
             key={card.title}
             className={`stat-card ${card.color}`}
+            onClick={() => navigate(card.path)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate(card.path);
+              }
+            }}
+            style={{ cursor: "pointer" }}
+            title={`Click to view ${card.title}`}
           >
             <div className="stat-header">
               <div>

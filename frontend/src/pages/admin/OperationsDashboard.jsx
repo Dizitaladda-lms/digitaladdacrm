@@ -269,7 +269,19 @@ const OperationsDashboard = () => {
             <>
               {/* Stat Cards */}
               <div className="ops-stat-grid">
-                <div className="ops-stat-box blue">
+                <div
+                  className="ops-stat-box blue"
+                  onClick={() => {
+                    setDeptFilter("");
+                    setStatusFilter("");
+                    setTookClassFilter("");
+                    setActiveTab("all-reports");
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title="Click to view all employee reports"
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="stat-box-icon"><Users size={22} /></div>
                   <div>
                     <span className="stat-box-label">Total Staff</span>
@@ -278,7 +290,19 @@ const OperationsDashboard = () => {
                   </div>
                 </div>
 
-                <div className="ops-stat-box green">
+                <div
+                  className="ops-stat-box green"
+                  onClick={() => {
+                    setDeptFilter("");
+                    setStatusFilter("");
+                    setTookClassFilter("");
+                    setActiveTab("all-reports");
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title="Click to view submitted reports"
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="stat-box-icon"><CheckCircle2 size={22} /></div>
                   <div>
                     <span className="stat-box-label">Submitted Today</span>
@@ -287,7 +311,16 @@ const OperationsDashboard = () => {
                   </div>
                 </div>
 
-                <div className="ops-stat-box red">
+                <div
+                  className="ops-stat-box red"
+                  onClick={() => {
+                    document.querySelector(".ops-pending-card")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title="Click to view pending employees"
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="stat-box-icon"><AlertCircle size={22} /></div>
                   <div>
                     <span className="stat-box-label">Pending Submission</span>
@@ -296,7 +329,14 @@ const OperationsDashboard = () => {
                   </div>
                 </div>
 
-                <div className="ops-stat-box orange">
+                <div
+                  className="ops-stat-box orange"
+                  onClick={() => setActiveTab("classes-audit")}
+                  role="button"
+                  tabIndex={0}
+                  title="Click to audit classes conducted & video proofs"
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="stat-box-icon"><Video size={22} /></div>
                   <div>
                     <span className="stat-box-label">Classes Conducted</span>
@@ -305,7 +345,14 @@ const OperationsDashboard = () => {
                   </div>
                 </div>
 
-                <div className="ops-stat-box purple">
+                <div
+                  className="ops-stat-box purple"
+                  onClick={() => setActiveTab("all-reports")}
+                  role="button"
+                  tabIndex={0}
+                  title="Click to view logged work hours across reports"
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="stat-box-icon"><Clock size={22} /></div>
                   <div>
                     <span className="stat-box-label">Total Work Hours</span>
@@ -320,7 +367,18 @@ const OperationsDashboard = () => {
                 <h3 className="section-card-title">Department-wise Submissions ({overview.date})</h3>
                 <div className="dept-grid">
                   {overview.departments?.map((dept) => (
-                    <div key={dept.id} className="dept-item-card">
+                    <div
+                      key={dept.id}
+                      className="dept-item-card"
+                      onClick={() => {
+                        setDeptFilter(String(dept.id));
+                        setActiveTab("all-reports");
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      title={`Click to filter reports for ${dept.department_name}`}
+                      style={{ cursor: "pointer" }}
+                    >
                       <div className="dept-card-top">
                         <strong className="dept-title">{dept.department_name}</strong>
                         <span className="dept-sub-badge">

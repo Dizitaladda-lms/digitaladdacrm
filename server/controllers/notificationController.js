@@ -28,28 +28,102 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
   const notifications = [];
 
   try {
-    const reportScope = await getReportVisibilityScope(user);
+    const emptyResult = { rows: [] };
+
+    const [reportScope, empLookup] = await Promise.all([
+      isExecutive ? getReportVisibilityScope(user) : Promise.resolve({ userIds: null, reportIds: [] }),
+      !user.employee_id
+        ? pool.query(
+            "SELECT id FROM employees WHERE (user_id = $1 OR email = $2) AND is_deleted = FALSE LIMIT 1;",
+            [user.id, user.email]
+          )
+        : Promise.resolve(emptyResult),
+    ]);
+
+    const employeeId = user.employee_id || (empLookup.rows.length > 0 ? empLookup.rows[0].id : null);
+
+    const [
+      { rows: attendanceLogs },
+      { rows: reportLogs },
+      { rows: userEvents },
+      { rows: unassigned },
+      { rows: recentAdm },
+    ] = await Promise.all([
+      isExecutive
+        ? pool.query(`
+            SELECT 
+              a.id,
+              a.check_in_time,
+              a.check_out_time,
+              a.check_in_location,
+              a.check_out_location,
+              a.total_hours,
+              e.full_name AS employee_name,
+              e.employee_code,
+              d.department_name
+            FROM daily_attendance a
+            JOIN employees e ON a.employee_id = e.id
+            LEFT JOIN departments d ON e.department_id = d.id
+            WHERE a.date = CURRENT_DATE
+            ORDER BY COALESCE(a.check_out_time, a.check_in_time) DESC
+            LIMIT 15;
+          `)
+        : Promise.resolve(emptyResult),
+      isExecutive
+        ? pool.query(
+            `
+            SELECT 
+              r.id,
+              r.report_date,
+              r.tasks_summary,
+              r.took_class,
+              r.status,
+              r.created_at,
+              u.full_name AS user_name,
+              d.department_name
+            FROM daily_work_reports r
+            JOIN users u ON r.user_id = u.id
+            LEFT JOIN employees e ON e.user_id = r.user_id
+            LEFT JOIN departments d ON r.department_id = d.id
+            WHERE ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))
+              AND r.report_date = CURRENT_DATE
+            ORDER BY r.created_at DESC
+            LIMIT 10;
+          `,
+            [reportScope.userIds, reportScope.reportIds || []]
+          )
+        : Promise.resolve(emptyResult),
+      pool.query(
+        `
+        SELECT n.id, n.type, n.category, n.title, n.message, n.link, n.priority, n.created_at
+        FROM user_notifications n
+        WHERE n.user_id = $1
+        ORDER BY n.created_at DESC
+        LIMIT 20;
+      `,
+        [user.id]
+      ),
+      isSuperAdmin || isManager
+        ? pool.query(`
+            SELECT id, lead_code, full_name, mobile, interested_course, created_at
+            FROM leads
+            WHERE assigned_to IS NULL AND is_deleted = FALSE
+            ORDER BY created_at DESC
+            LIMIT 5;
+          `)
+        : Promise.resolve(emptyResult),
+      isSuperAdmin || isManager || role === "COUNSELLOR"
+        ? pool.query(`
+            SELECT a.id, a.student_name, a.course_name, a.paid_fee, a.created_at
+            FROM admissions a
+            ORDER BY a.created_at DESC
+            LIMIT 5;
+          `)
+        : Promise.resolve(emptyResult),
+    ]);
+
     // ── 1. HR & Executive Real-Time Attendance Check-In / Check-Out Notifications ──
     if (isExecutive) {
-      const { rows: attendanceLogs } = await pool.query(`
-        SELECT 
-          a.id,
-          a.check_in_time,
-          a.check_out_time,
-          a.check_in_location,
-          a.check_out_location,
-          a.total_hours,
-          e.full_name AS employee_name,
-          e.employee_code,
-          d.department_name
-        FROM daily_attendance a
-        JOIN employees e ON a.employee_id = e.id
-        LEFT JOIN departments d ON e.department_id = d.id
-        WHERE a.date = CURRENT_DATE
-        ORDER BY COALESCE(a.check_out_time, a.check_in_time) DESC
-        LIMIT 15;
-      `);
-
       attendanceLogs.forEach((att) => {
         if (att.check_in_time) {
           const checkInStr = new Date(att.check_in_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -83,26 +157,6 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
       });
 
       // ── 2. Daily Work Report Submission Alerts for HR & Department Leads ──
-      const { rows: reportLogs } = await pool.query(`
-        SELECT 
-          r.id,
-          r.report_date,
-          r.tasks_summary,
-          r.took_class,
-          r.status,
-          r.created_at,
-          u.full_name AS user_name,
-          d.department_name
-        FROM daily_work_reports r
-        JOIN users u ON r.user_id = u.id
-        LEFT JOIN employees e ON e.user_id = r.user_id
-        LEFT JOIN departments d ON r.department_id = d.id
-        WHERE ($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))
-          AND r.report_date = CURRENT_DATE
-        ORDER BY r.created_at DESC
-        LIMIT 10;
-      `, [reportScope.userIds, reportScope.reportIds || []]);
-
       reportLogs.forEach((rep) => {
         notifications.push({
           id: `report_${rep.id}_${new Date(rep.created_at).getTime()}`,
@@ -119,13 +173,6 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
     }
 
     // ── 2.5 User Notifications & Alerts for Current User (Chat mentions, DMs, security, tasks) ──
-    const { rows: userEvents } = await pool.query(`
-      SELECT n.id, n.type, n.category, n.title, n.message, n.link, n.priority, n.created_at
-      FROM user_notifications n
-      WHERE n.user_id = $1
-      ORDER BY n.created_at DESC
-      LIMIT 20;
-    `, [user.id]);
     userEvents.forEach((event) => {
       notifications.push({
         id: `un_${event.id}`,
@@ -142,15 +189,7 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
 
     // ── 3. Leads & Admissions Notifications for Sales / Admin ──
     if (isSuperAdmin || isManager || role === "COUNSELLOR") {
-      // Unassigned Leads
       if (isSuperAdmin || isManager) {
-        const { rows: unassigned } = await pool.query(`
-          SELECT id, lead_code, full_name, mobile, interested_course, created_at
-          FROM leads
-          WHERE assigned_to IS NULL AND is_deleted = FALSE
-          ORDER BY created_at DESC
-          LIMIT 5;
-        `);
         unassigned.forEach((l) => {
           notifications.push({
             id: `unassigned_${l.id}`,
@@ -166,13 +205,6 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
         });
       }
 
-      // Admissions
-      const { rows: recentAdm } = await pool.query(`
-        SELECT a.id, a.student_name, a.course_name, a.paid_fee, a.created_at
-        FROM admissions a
-        ORDER BY a.created_at DESC
-        LIMIT 5;
-      `);
       recentAdm.forEach((a) => {
         notifications.push({
           id: `adm_${a.id}`,
@@ -189,28 +221,105 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
     }
 
     // ── 4. Counsellor / Individual Employee Notifications ──
-    let employeeId = user.employee_id;
-    if (!employeeId) {
-      const { rows: empRows } = await pool.query(
-        "SELECT id FROM employees WHERE (user_id = $1 OR email = $2) AND is_deleted = FALSE LIMIT 1;",
-        [user.id, user.email]
-      );
-      if (empRows.length > 0) employeeId = empRows[0].id;
-    }
-
     if (employeeId) {
-      // Today's Pending Follow-ups
-      const { rows: todayFollowups } = await pool.query(`
-        SELECT f.id, f.lead_id, f.next_followup_at, f.followup_type, l.full_name, l.mobile, l.interested_course
-        FROM lead_followups f
-        JOIN leads l ON f.lead_id = l.id
-        WHERE f.employee_id = $1 
-          AND f.status = 'PENDING'
-          AND f.next_followup_at::date = CURRENT_DATE
-          AND f.is_deleted = FALSE
-        ORDER BY f.next_followup_at ASC
-        LIMIT 8;
-      `, [employeeId]);
+      const [
+        { rows: todayFollowups },
+        { rows: dueNow },
+        { rows: overdueFollowups },
+        { rows: newAssigned },
+        { rows: myReportStatus },
+        { rows: unreadChatLogs },
+      ] = await Promise.all([
+        pool.query(
+          `
+          SELECT f.id, f.lead_id, f.next_followup_at, f.followup_type, l.full_name, l.mobile, l.interested_course
+          FROM lead_followups f
+          JOIN leads l ON f.lead_id = l.id
+          WHERE f.employee_id = $1 
+            AND f.status = 'PENDING'
+            AND f.next_followup_at::date = CURRENT_DATE
+            AND f.is_deleted = FALSE
+          ORDER BY f.next_followup_at ASC
+          LIMIT 8;
+        `,
+          [employeeId]
+        ),
+        pool.query(
+          `
+          SELECT f.id, f.next_followup_at, l.full_name, l.mobile
+          FROM lead_followups f
+          JOIN leads l ON f.lead_id = l.id
+          WHERE f.employee_id = $1
+            AND f.status = 'PENDING'
+            AND f.is_deleted = FALSE
+            AND f.next_followup_at <= NOW()
+            AND f.next_followup_at > NOW() - INTERVAL '2 minutes'
+          ORDER BY f.next_followup_at ASC;
+        `,
+          [employeeId]
+        ),
+        pool.query(
+          `
+          SELECT f.id, f.lead_id, f.next_followup_at, l.full_name, l.mobile
+          FROM lead_followups f
+          JOIN leads l ON f.lead_id = l.id
+          WHERE f.employee_id = $1 
+            AND f.status = 'PENDING'
+            AND f.next_followup_at < NOW()
+            AND f.next_followup_at::date < CURRENT_DATE
+            AND f.is_deleted = FALSE
+          ORDER BY f.next_followup_at ASC
+          LIMIT 5;
+        `,
+          [employeeId]
+        ),
+        pool.query(
+          `
+          SELECT la.id AS assignment_id, la.assigned_at, l.id, l.lead_code, l.full_name, l.mobile, l.interested_course
+          FROM lead_assignments la
+          JOIN leads l ON l.id = la.lead_id
+          WHERE la.assigned_to = $1
+            AND l.is_deleted = FALSE
+          ORDER BY la.assigned_at DESC
+          LIMIT 5;
+        `,
+          [employeeId]
+        ),
+        pool.query(
+          `
+          SELECT r.id, r.report_date, r.status, r.tl_feedback, r.hr_feedback, r.updated_at
+          FROM daily_work_reports r
+          WHERE r.user_id = $1 AND r.status IN ('HEAD_APPROVED', 'TL_REVIEWED', 'HR_APPROVED', 'REVISION_REQUESTED')
+          ORDER BY r.updated_at DESC
+          LIMIT 5;
+        `,
+          [user.id]
+        ),
+        pool.query(
+          `
+          SELECT 
+            m.id,
+            m.group_id,
+            m.sender_id,
+            m.message_text,
+            m.mentioned_employee_ids,
+            m.created_at,
+            g.name AS group_name,
+            g.group_type,
+            sender.full_name AS sender_name
+          FROM chat_messages m
+          JOIN chat_groups g ON m.group_id = g.id
+          JOIN employees sender ON m.sender_id = sender.id
+          JOIN chat_group_members gm ON gm.group_id = g.id AND gm.employee_id = $1
+          WHERE m.id > COALESCE(gm.last_read_message_id, 0)
+            AND m.sender_id != $1
+          ORDER BY m.id DESC
+          LIMIT 15;
+        `,
+          [employeeId]
+        ),
+      ]);
+
       todayFollowups.forEach((f) => {
         notifications.push({
           id: `today_${f.id}`,
@@ -225,18 +334,6 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
         });
       });
 
-      // Follow-up due now (within 2 mins)
-      const { rows: dueNow } = await pool.query(`
-        SELECT f.id, f.next_followup_at, l.full_name, l.mobile
-        FROM lead_followups f
-        JOIN leads l ON f.lead_id = l.id
-        WHERE f.employee_id = $1
-          AND f.status = 'PENDING'
-          AND f.is_deleted = FALSE
-          AND f.next_followup_at <= NOW()
-          AND f.next_followup_at > NOW() - INTERVAL '2 minutes'
-        ORDER BY f.next_followup_at ASC;
-      `, [employeeId]);
       dueNow.forEach((f) => {
         notifications.push({
           id: `due_now_${f.id}_${new Date(f.next_followup_at).toISOString()}`,
@@ -251,19 +348,6 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
         });
       });
 
-      // Overdue Follow-ups
-      const { rows: overdueFollowups } = await pool.query(`
-        SELECT f.id, f.lead_id, f.next_followup_at, l.full_name, l.mobile
-        FROM lead_followups f
-        JOIN leads l ON f.lead_id = l.id
-        WHERE f.employee_id = $1 
-          AND f.status = 'PENDING'
-          AND f.next_followup_at < NOW()
-          AND f.next_followup_at::date < CURRENT_DATE
-          AND f.is_deleted = FALSE
-        ORDER BY f.next_followup_at ASC
-        LIMIT 5;
-      `, [employeeId]);
       overdueFollowups.forEach((f) => {
         notifications.push({
           id: `overdue_${f.id}`,
@@ -278,16 +362,6 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
         });
       });
 
-      // New Leads Assigned
-      const { rows: newAssigned } = await pool.query(`
-        SELECT la.id AS assignment_id, la.assigned_at, l.id, l.lead_code, l.full_name, l.mobile, l.interested_course
-        FROM lead_assignments la
-        JOIN leads l ON l.id = la.lead_id
-        WHERE la.assigned_to = $1
-          AND l.is_deleted = FALSE
-        ORDER BY la.assigned_at DESC
-        LIMIT 5;
-      `, [employeeId]);
       newAssigned.forEach((l) => {
         notifications.push({
           id: `assigned_${l.assignment_id}`,
@@ -302,14 +376,6 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
         });
       });
 
-      // Report Review / Approval Updates for Employee
-      const { rows: myReportStatus } = await pool.query(`
-        SELECT r.id, r.report_date, r.status, r.tl_feedback, r.hr_feedback, r.updated_at
-        FROM daily_work_reports r
-        WHERE r.user_id = $1 AND r.status IN ('HEAD_APPROVED', 'TL_REVIEWED', 'HR_APPROVED', 'REVISION_REQUESTED')
-        ORDER BY r.updated_at DESC
-        LIMIT 5;
-      `, [user.id]);
       myReportStatus.forEach((rep) => {
         const isApproved = rep.status === "HR_APPROVED" || rep.status === "HEAD_APPROVED" || rep.status === "TL_REVIEWED";
         notifications.push({
@@ -324,28 +390,8 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
           icon: "CheckCircle2",
         });
       });
-      // ── 5. Live Unread Chat Messages & Mentions ──
-      const { rows: unreadChatLogs } = await pool.query(`
-        SELECT 
-          m.id,
-          m.group_id,
-          m.sender_id,
-          m.message_text,
-          m.mentioned_employee_ids,
-          m.created_at,
-          g.name AS group_name,
-          g.group_type,
-          sender.full_name AS sender_name
-        FROM chat_messages m
-        JOIN chat_groups g ON m.group_id = g.id
-        JOIN employees sender ON m.sender_id = sender.id
-        JOIN chat_group_members gm ON gm.group_id = g.id AND gm.employee_id = $1
-        WHERE m.id > COALESCE(gm.last_read_message_id, 0)
-          AND m.sender_id != $1
-        ORDER BY m.id DESC
-        LIMIT 15;
-      `, [employeeId]);
 
+      // ── 5. Live Unread Chat Messages & Mentions ──
       unreadChatLogs.forEach((cm) => {
         const isMentioned = Array.isArray(cm.mentioned_employee_ids) && 
           cm.mentioned_employee_ids.map(Number).includes(Number(employeeId));

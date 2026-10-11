@@ -45,6 +45,7 @@ const SalesDepartmentReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [attendanceFilter, setAttendanceFilter] = useState("ALL"); // "ALL" | "PRESENT" | "NOT_CHECKED_IN"
   const [statusFilter, setStatusFilter] = useState("");
+  const [metricFilter, setMetricFilter] = useState("ALL"); // "ALL" | "LEADS" | "CONNECTED" | "ADMISSIONS" | "REVENUE"
   const [salesMetrics, setSalesMetrics] = useState({
     kpi: { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 },
     counsellors: [],
@@ -150,11 +151,17 @@ const SalesDepartmentReport = () => {
 
   const kpi = salesMetrics.kpi || { totalLeads: 0, totalCalls: 0, connectedCalls: 0, totalAdmissions: 0, totalRevenue: 0 };
   
-  // Filter counsellors list with search & attendance filter
+  // Filter counsellors list with search, attendance & KPI card filter
   const counsellors = (salesMetrics.counsellors || []).filter((c) => {
     // Attendance filter
     if (attendanceFilter === "PRESENT" && c.today_attendance_status !== "PRESENT") return false;
     if (attendanceFilter === "NOT_CHECKED_IN" && c.today_attendance_status === "PRESENT") return false;
+
+    // KPI metric card filter
+    if (metricFilter === "LEADS" && Number(c.assigned_leads_count || 0) <= 0 && Number(c.total_calls_count || 0) <= 0) return false;
+    if (metricFilter === "CONNECTED" && Number(c.connected_calls_count || 0) <= 0) return false;
+    if (metricFilter === "ADMISSIONS" && Number(c.admissions_count || 0) <= 0) return false;
+    if (metricFilter === "REVENUE" && Number(c.total_revenue || 0) <= 0) return false;
 
     // Search filter
     if (!searchTerm.trim()) return true;
@@ -309,7 +316,19 @@ const SalesDepartmentReport = () => {
       {/* TOP 4 KPI CARDS */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "18px", marginBottom: "24px" }}>
         {/* Card 1: Leads & Calls */}
-        <div style={{ background: "#ffffff", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)" }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setMetricFilter((prev) => (prev === "LEADS" ? "ALL" : "LEADS"))}
+          style={{
+            background: metricFilter === "LEADS" ? "#eff6ff" : "#ffffff",
+            borderRadius: "12px",
+            padding: "20px",
+            border: metricFilter === "LEADS" ? "2px solid #2563eb" : "1px solid #e2e8f0",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+            cursor: "pointer",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontSize: "13px", fontWeight: "600", color: "#64748b" }}>Assigned Leads & Calls</span>
             <div style={{ background: "#eff6ff", color: "#2563eb", padding: "8px", borderRadius: "10px" }}>
@@ -325,7 +344,19 @@ const SalesDepartmentReport = () => {
         </div>
 
         {/* Card 2: Connected Calls */}
-        <div style={{ background: "#ffffff", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)" }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setMetricFilter((prev) => (prev === "CONNECTED" ? "ALL" : "CONNECTED"))}
+          style={{
+            background: metricFilter === "CONNECTED" ? "#fffbeb" : "#ffffff",
+            borderRadius: "12px",
+            padding: "20px",
+            border: metricFilter === "CONNECTED" ? "2px solid #d97706" : "1px solid #e2e8f0",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+            cursor: "pointer",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontSize: "13px", fontWeight: "600", color: "#64748b" }}>Connected Calls Ratio</span>
             <div style={{ background: "#fffbeb", color: "#d97706", padding: "8px", borderRadius: "10px" }}>
@@ -341,7 +372,19 @@ const SalesDepartmentReport = () => {
         </div>
 
         {/* Card 3: Admissions Closed */}
-        <div style={{ background: "#ffffff", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)" }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setMetricFilter((prev) => (prev === "ADMISSIONS" ? "ALL" : "ADMISSIONS"))}
+          style={{
+            background: metricFilter === "ADMISSIONS" ? "#f0fdf4" : "#ffffff",
+            borderRadius: "12px",
+            padding: "20px",
+            border: metricFilter === "ADMISSIONS" ? "2px solid #16a34a" : "1px solid #e2e8f0",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+            cursor: "pointer",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontSize: "13px", fontWeight: "600", color: "#64748b" }}>Course Admissions Closed</span>
             <div style={{ background: "#f0fdf4", color: "#16a34a", padding: "8px", borderRadius: "10px" }}>
@@ -357,7 +400,19 @@ const SalesDepartmentReport = () => {
         </div>
 
         {/* Card 4: Fee Revenue */}
-        <div style={{ background: "#ffffff", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)" }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setMetricFilter((prev) => (prev === "REVENUE" ? "ALL" : "REVENUE"))}
+          style={{
+            background: metricFilter === "REVENUE" ? "#fff7ed" : "#ffffff",
+            borderRadius: "12px",
+            padding: "20px",
+            border: metricFilter === "REVENUE" ? "2px solid #ea580c" : "1px solid #e2e8f0",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+            cursor: "pointer",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontSize: "13px", fontWeight: "600", color: "#64748b" }}>Fee Revenue Collected</span>
             <div style={{ background: "#fff7ed", color: "#ea580c", padding: "8px", borderRadius: "10px" }}>

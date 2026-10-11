@@ -58,9 +58,12 @@ const authMiddleware = async (req, res, next) => {
     const deviceType = getDeviceType(String(req.get("user-agent") || ""));
 
     /**
-     * Check User Exists
+     * Check User Exists & Device Approval in Parallel
      */
-    const user = await findUserByIdRepository(decoded.id);
+    const [user, device] = await Promise.all([
+      findUserByIdRepository(decoded.id),
+      findApprovedUserDeviceRepository(decoded.id, deviceId),
+    ]);
 
     if (!user) {
       return next(
@@ -92,7 +95,6 @@ const authMiddleware = async (req, res, next) => {
       );
     }
 
-    const device = await findApprovedUserDeviceRepository(user.id, deviceId);
     if (!device || device.device_type !== deviceType) {
       return next(new ApiError(
         HTTP_STATUS.FORBIDDEN,

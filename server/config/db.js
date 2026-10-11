@@ -33,8 +33,13 @@ const pool = new Pool({
   connectionString: normalizedConnectionString,
   ssl: isNeonOrCloud ? { rejectUnauthorized: false } : undefined,
   max: process.env.VERCEL ? 6 : 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 15000,
+  idleTimeoutMillis: process.env.VERCEL ? 5000 : 30000,
+  connectionTimeoutMillis: 10000,
+  query_timeout: 12000,
+  statement_timeout: 12000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 5000,
+  allowExitOnIdle: true,
 });
 
 pool.on("error", (error) => {

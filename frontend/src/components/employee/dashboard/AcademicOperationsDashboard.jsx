@@ -28,6 +28,8 @@ const AcademicOperationsDashboard = () => {
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [history, setHistory] = useState([]);
 
+  const [cardFilter, setCardFilter] = useState("ALL");
+
   useEffect(() => {
     const loadDashboardData = async () => {
       setLoading(true);
@@ -62,6 +64,13 @@ const AcademicOperationsDashboard = () => {
   const totalClasses = history.reduce((sum, r) => sum + (r.classes?.length || (r.took_class ? 1 : 0)), 0);
   const approvedCount = history.filter((r) => r.status === "HR_APPROVED").length;
   const pendingCount = history.filter((r) => r.status === "SUBMITTED" || r.status === "TL_REVIEWED").length;
+
+  const filteredHistory = history.filter((r) => {
+    if (cardFilter === "CLASSES") return Boolean(r.took_class || (r.classes && r.classes.length > 0));
+    if (cardFilter === "APPROVED") return r.status === "HR_APPROVED";
+    if (cardFilter === "PENDING") return r.status === "SUBMITTED" || r.status === "TL_REVIEWED";
+    return true;
+  });
 
   // Strict attendance-based live hours for today
   const todayLiveHours = Number(
@@ -122,47 +131,91 @@ const AcademicOperationsDashboard = () => {
 
       {/* Summary KPI Cards */}
       <div className="ops-kpi-grid">
-        <div className="ops-kpi-card">
+        <div
+          className="ops-kpi-card"
+          onClick={() => setCardFilter("ALL")}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "ALL" ? "2px solid #2563eb" : undefined,
+            boxShadow: cardFilter === "ALL" ? "0 0 0 3px rgba(37, 99, 235, 0.14)" : undefined,
+          }}
+          title="Click to show all reports"
+        >
           <div className="ops-kpi-icon icon-hours">
             <Clock size={24} />
           </div>
           <div className="ops-kpi-info">
             <span className="ops-kpi-label">Logged Hours</span>
             <span className="ops-kpi-value">{formatWorkHours(totalHours)}</span>
-            <span className="ops-kpi-hint">Attendance verified</span>
+            <span className="ops-kpi-hint">
+              {cardFilter === "ALL" ? "Showing all reports" : "Click to show all"}
+            </span>
           </div>
         </div>
 
-        <div className="ops-kpi-card">
+        <div
+          className="ops-kpi-card"
+          onClick={() => setCardFilter((prev) => (prev === "CLASSES" ? "ALL" : "CLASSES"))}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "CLASSES" ? "2px solid #4f46e5" : undefined,
+            boxShadow: cardFilter === "CLASSES" ? "0 0 0 3px rgba(79, 70, 229, 0.15)" : undefined,
+          }}
+          title="Click to filter class reports"
+        >
           <div className="ops-kpi-icon icon-classes">
             <Video size={24} />
           </div>
           <div className="ops-kpi-info">
             <span className="ops-kpi-label">{isTrainer ? "Classes Taken" : "Tasks Delivered"}</span>
             <span className="ops-kpi-value">{totalClasses}</span>
-            <span className="ops-kpi-hint">With verified recording proof</span>
+            <span className="ops-kpi-hint">
+              {cardFilter === "CLASSES" ? "● Active filter" : "With verified recording proof"}
+            </span>
           </div>
         </div>
 
-        <div className="ops-kpi-card">
+        <div
+          className="ops-kpi-card"
+          onClick={() => setCardFilter((prev) => (prev === "APPROVED" ? "ALL" : "APPROVED"))}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "APPROVED" ? "2px solid #16a34a" : undefined,
+            boxShadow: cardFilter === "APPROVED" ? "0 0 0 3px rgba(22, 163, 74, 0.15)" : undefined,
+          }}
+          title="Click to filter approved reports"
+        >
           <div className="ops-kpi-icon icon-approved">
             <CheckCircle2 size={24} />
           </div>
           <div className="ops-kpi-info">
             <span className="ops-kpi-label">Approved Reports</span>
             <span className="ops-kpi-value">{approvedCount}</span>
-            <span className="ops-kpi-hint">Verified by HR</span>
+            <span className="ops-kpi-hint">
+              {cardFilter === "APPROVED" ? "● Active filter" : "Verified by HR"}
+            </span>
           </div>
         </div>
 
-        <div className="ops-kpi-card">
+        <div
+          className="ops-kpi-card"
+          onClick={() => setCardFilter((prev) => (prev === "PENDING" ? "ALL" : "PENDING"))}
+          style={{
+            cursor: "pointer",
+            border: cardFilter === "PENDING" ? "2px solid #d97706" : undefined,
+            boxShadow: cardFilter === "PENDING" ? "0 0 0 3px rgba(217, 119, 6, 0.15)" : undefined,
+          }}
+          title="Click to filter pending reports"
+        >
           <div className="ops-kpi-icon icon-pending">
             <AlertCircle size={24} />
           </div>
           <div className="ops-kpi-info">
             <span className="ops-kpi-label">In Review / Pending</span>
             <span className="ops-kpi-value">{pendingCount}</span>
-            <span className="ops-kpi-hint">Under TL / HR verification</span>
+            <span className="ops-kpi-hint">
+              {cardFilter === "PENDING" ? "● Active filter" : "Under TL / HR verification"}
+            </span>
           </div>
         </div>
       </div>
@@ -328,15 +381,15 @@ const AcademicOperationsDashboard = () => {
             <div className="ops-panel-body">
               {loading ? (
                 <div className="panel-loading">Loading report history...</div>
-              ) : history.length === 0 ? (
+              ) : filteredHistory.length === 0 ? (
                 <div className="panel-empty">
                   <FileText size={36} className="empty-icon" />
-                  <p>No reports submitted yet.</p>
-                  <span className="empty-hint">Submit your first daily work report above.</span>
+                  <p>No reports match the selected filter.</p>
+                  <span className="empty-hint">Click Logged Hours card to show all reports.</span>
                 </div>
               ) : (
                 <div className="reports-history-list">
-                  {history.slice(0, 5).map((rep) => (
+                  {filteredHistory.slice(0, 5).map((rep) => (
                     <div key={rep.id} className="report-history-item">
                       <div className="report-item-top">
                         <span className="report-date-badge">

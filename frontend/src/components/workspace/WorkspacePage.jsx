@@ -46,12 +46,26 @@ const WorkspacePage = ({
       </header>
 
       {stats.length > 0 && <div className="workspace-stats">
-        {stats.map((stat) => (
-          <article className="workspace-stat" key={stat.label}>
-            <div className={`workspace-stat-icon ${stat.tone || "blue"}`}>{stat.icon}</div>
-            <div><p>{stat.label}</p><strong>{stat.value}</strong><small>{stat.helper}</small></div>
-          </article>
-        ))}
+        {stats.map((stat, idx) => {
+          const targetTab = stat.filterTab || (idx === 0 ? (tabs[0] || "All") : tabs.find((t) => stat.label.toLowerCase().includes(t.toLowerCase())) || tabs[idx] || "All");
+          const isActive = activeTab === targetTab;
+          return (
+            <article
+              className="workspace-stat"
+              key={stat.label}
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab((prev) => (prev === targetTab && targetTab !== (tabs[0] || "All") ? (tabs[0] || "All") : targetTab))}
+              style={{
+                cursor: "pointer",
+                border: isActive ? "2px solid #2563eb" : undefined,
+              }}
+            >
+              <div className={`workspace-stat-icon ${stat.tone || "blue"}`}>{stat.icon}</div>
+              <div><p>{stat.label}</p><strong>{stat.value}</strong><small>{stat.helper}</small></div>
+            </article>
+          );
+        })}
       </div>}
 
       {children}

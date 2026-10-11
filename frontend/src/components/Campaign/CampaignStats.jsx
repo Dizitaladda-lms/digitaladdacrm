@@ -15,6 +15,8 @@ const formatNumber = (val) => {
 const CampaignStats = ({
   stats = {},
   loading = false,
+  activeStatus = "",
+  onCardClick,
 }) => {
   const cards = [
     {
@@ -23,6 +25,7 @@ const CampaignStats = ({
       subtitle: "All created campaigns",
       icon: Megaphone,
       theme: "blue",
+      filterStatus: "",
     },
     {
       title: "Active Campaigns",
@@ -30,6 +33,7 @@ const CampaignStats = ({
       subtitle: "Currently running",
       icon: Activity,
       theme: "green",
+      filterStatus: "ACTIVE",
     },
     {
       title: "Total Leads",
@@ -37,6 +41,7 @@ const CampaignStats = ({
       subtitle: "Acquired via campaigns",
       icon: Users,
       theme: "orange",
+      filterStatus: "LEADS",
     },
     {
       title: "Conversion Rate",
@@ -44,6 +49,7 @@ const CampaignStats = ({
       subtitle: "Lead to admission ratio",
       icon: TrendingUp,
       theme: "purple",
+      filterStatus: "COMPLETED",
     },
   ];
 
@@ -51,10 +57,27 @@ const CampaignStats = ({
     <section className="campaign-stats-grid">
       {cards.map((card) => {
         const Icon = card.icon;
+        const isActive =
+          card.filterStatus === ""
+            ? activeStatus === ""
+            : activeStatus === card.filterStatus;
         return (
           <div
             key={card.title}
-            className={`campaign-stat-card ${card.theme}`}
+            className={`campaign-stat-card ${card.theme} ${isActive ? "is-active" : ""}`}
+            role="button"
+            tabIndex={0}
+            onClick={() => onCardClick && onCardClick(card.filterStatus)}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && onCardClick) {
+                e.preventDefault();
+                onCardClick(card.filterStatus);
+              }
+            }}
+            style={{
+              cursor: "pointer",
+              outline: isActive ? "2px solid #2563eb" : undefined,
+            }}
           >
             <div className="stat-card-header">
               <span className="stat-card-title">{card.title}</span>

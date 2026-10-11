@@ -677,7 +677,20 @@ const TeamReports = () => {
 
       {/* ── 3. KPI STATS CARDS ── */}
       <div className="team-stats-grid">
-        <div className="stat-card">
+        <div
+          className="stat-card"
+          onClick={() => {
+            setSelectedStatus("ALL");
+            setReportPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          title="Click to show all submissions"
+          style={{
+            cursor: "pointer",
+            outline: selectedStatus === "ALL" ? "2px solid #2563eb" : undefined,
+          }}
+        >
           <div className="stat-icon-wrap blue">
             <Users size={20} />
           </div>
@@ -687,7 +700,21 @@ const TeamReports = () => {
           </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: "4px solid #f59e0b" }}>
+        <div
+          className="stat-card"
+          onClick={() => {
+            setSelectedStatus((prev) => (prev === "SUBMITTED" ? "ALL" : "SUBMITTED"));
+            setReportPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Pending Sub-TL / TL / Dept Head reports"
+          style={{
+            borderLeft: "4px solid #f59e0b",
+            cursor: "pointer",
+            outline: selectedStatus === "SUBMITTED" ? "2px solid #f59e0b" : undefined,
+          }}
+        >
           <div className="stat-icon-wrap amber">
             <Clock size={20} />
           </div>
@@ -699,7 +726,21 @@ const TeamReports = () => {
           </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: "4px solid #3b82f6" }}>
+        <div
+          className="stat-card"
+          onClick={() => {
+            setSelectedStatus((prev) => (prev === "TL_REVIEWED" ? "ALL" : "TL_REVIEWED"));
+            setReportPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Pending HR Approval reports"
+          style={{
+            borderLeft: "4px solid #3b82f6",
+            cursor: "pointer",
+            outline: selectedStatus === "TL_REVIEWED" ? "2px solid #3b82f6" : undefined,
+          }}
+        >
           <div className="stat-icon-wrap blue">
             <ShieldCheck size={20} />
           </div>
@@ -711,7 +752,21 @@ const TeamReports = () => {
           </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: "4px solid #10b981" }}>
+        <div
+          className="stat-card"
+          onClick={() => {
+            setSelectedStatus((prev) => (prev === "HR_APPROVED" ? "ALL" : "HR_APPROVED"));
+            setReportPage(1);
+          }}
+          role="button"
+          tabIndex={0}
+          title="Click to filter Approved reports"
+          style={{
+            borderLeft: "4px solid #10b981",
+            cursor: "pointer",
+            outline: selectedStatus === "HR_APPROVED" ? "2px solid #10b981" : undefined,
+          }}
+        >
           <div className="stat-icon-wrap green">
             <CheckCircle size={20} />
           </div>

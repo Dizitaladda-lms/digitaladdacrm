@@ -16,33 +16,39 @@ const formatNumber = (val) => {
 const LeadStats = ({
   stats = {},
   loading = false,
+  activeFilter = "ALL",
+  onCardClick,
 }) => {
   const cards = [
     {
+      id: "ALL",
       title: "Total Leads",
       value: Number(stats.total_leads || 0),
-      subtitle: "Total captured enquiries",
+      subtitle: activeFilter === "ALL" ? "Showing all captured enquiries" : "Click to view all enquiries",
       icon: Users,
       color: "blue",
     },
     {
+      id: "TODAY",
       title: "Today's Leads",
       value: Number(stats.today_leads || 0),
-      subtitle: "Captured today",
+      subtitle: activeFilter === "TODAY" ? "● Active filter (Today)" : "Captured today (Click to filter)",
       icon: UserPlus,
       color: "green",
     },
     {
+      id: "ASSIGNED",
       title: "Assigned Leads",
       value: Number(stats.assigned_leads || 0),
-      subtitle: "Assigned to counsellors",
+      subtitle: activeFilter === "ASSIGNED" ? "● Active filter (Assigned)" : "Assigned to counsellors (Click to filter)",
       icon: UserCheck,
       color: "purple",
     },
     {
+      id: "UNASSIGNED",
       title: "Unassigned Leads",
       value: Number(stats.unassigned_leads || 0),
-      subtitle: "Action required",
+      subtitle: activeFilter === "UNASSIGNED" ? "● Active filter (Unassigned)" : "Action required (Click to filter)",
       icon: UserX,
       color: "orange",
     },
@@ -52,14 +58,41 @@ const LeadStats = ({
     <section className="lead-stats">
       {cards.map((card) => {
         const Icon = card.icon;
+        const isActive = activeFilter === card.id;
         return (
           <div
             key={card.title}
-            className={`lead-stat-card ${card.color}`}
+            className={`lead-stat-card ${card.color} ${isActive ? "is-active" : ""}`}
+            onClick={() => onCardClick && onCardClick(isActive && card.id !== "ALL" ? "ALL" : card.id)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && onCardClick) {
+                e.preventDefault();
+                onCardClick(isActive && card.id !== "ALL" ? "ALL" : card.id);
+              }
+            }}
+            title={`Click to filter: ${card.title}`}
           >
             <div className="lead-stat-top">
               <div>
-                <span>{card.title}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>{card.title}</span>
+                  {isActive && card.id !== "ALL" && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "8px",
+                        background: "#eef2ff",
+                        color: "#4f46e5",
+                      }}
+                    >
+                      FILTERED
+                    </span>
+                  )}
+                </div>
                 <h2>{loading ? "--" : formatNumber(card.value)}</h2>
                 <p>{card.subtitle}</p>
               </div>

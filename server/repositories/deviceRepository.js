@@ -71,8 +71,7 @@ export const findApprovedUserDeviceRepository = async (userId, deviceId, client 
     `SELECT id, device_type, device_name, status
      FROM user_devices
      WHERE user_id = $1 AND device_id = $2 AND status = 'approved'
-     LIMIT 1
-     FOR UPDATE;`,
+     LIMIT 1;`,
     [userId, deviceId]
   );
   return rows[0] || null;

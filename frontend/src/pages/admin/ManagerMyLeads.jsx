@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import "./ManagerMyLeads.css";
-import MyLeadsStats from "../../components/LeadManagement/MyLeadsStats";
+import MyLeadsStats, { matchesMyLeadsBucket } from "../../components/LeadManagement/MyLeadsStats";
 import SearchFilterBar from "../../components/employee/myLeads/SearchFilterBar/SearchFilterBar";
 import LeadsTable from "../../components/employee/myLeads/LeadsTable/LeadsTable";
 import { getMyLeads } from "../../services/employeeLeadService";
@@ -23,6 +23,7 @@ const ManagerMyLeads = () => {
   const [source, setSource] = useState("ALL");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [cardBucket, setCardBucket] = useState("ALL");
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -52,6 +53,11 @@ const ManagerMyLeads = () => {
     fetchLeads();
   }, [fetchLeads]);
 
+  const filteredLeads = useMemo(
+    () => leads.filter((l) => matchesMyLeadsBucket(l, cardBucket)),
+    [leads, cardBucket]
+  );
+
   const handleResetFilters = () => {
     setSearch("");
     setDomain("ALL");
@@ -60,6 +66,7 @@ const ManagerMyLeads = () => {
     setSource("ALL");
     setDateFrom("");
     setDateTo("");
+    setCardBucket("ALL");
   };
 
   const handleExportCsv = () => {
@@ -78,7 +85,7 @@ const ManagerMyLeads = () => {
         { header: "Remarks", key: "remarks" },
         { header: "Created Date", key: "created_at" },
       ],
-      leads
+      filteredLeads
     );
   };
 
@@ -111,7 +118,12 @@ const ManagerMyLeads = () => {
       </div>
 
       {/* Stats */}
-      <MyLeadsStats loading={loading} leads={leads} />
+      <MyLeadsStats
+        loading={loading}
+        leads={leads}
+        activeBucket={cardBucket}
+        onCardClick={setCardBucket}
+      />
 
       {/* Filters */}
       <SearchFilterBar
@@ -120,7 +132,10 @@ const ManagerMyLeads = () => {
         domain={domain}
         onDomainChange={setDomain}
         status={status}
-        onStatusChange={setStatus}
+        onStatusChange={(val) => {
+          setStatus(val);
+          if (val !== "ALL") setCardBucket("ALL");
+        }}
         priority={priority}
         onPriorityChange={setPriority}
         source={source}
@@ -134,7 +149,7 @@ const ManagerMyLeads = () => {
 
       {/* Leads Table */}
       <LeadsTable
-        leads={leads}
+        leads={filteredLeads}
         loading={loading}
         onRefresh={fetchLeads}
         currentUser={user || {}}

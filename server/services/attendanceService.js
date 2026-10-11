@@ -2,10 +2,6 @@ import pool from "../config/db.js";
 import crypto from "node:crypto";
 import ApiError from "../utils/ApiError.js";
 import {
-  verifyAndCreateFaceTemplate,
-  verifyFaceAttendance,
-} from "../utils/faceVerification.js";
-import {
   generateAuthenticationOptions,
   generateRegistrationOptions,
   verifyAuthenticationResponse,
@@ -379,6 +375,7 @@ const verifyAttendanceFace = async (employeeId, biometric, faceProof) => {
   } catch {
     throw new ApiError(500, "Face verification challenge is invalid. Please try again.");
   }
+  const { verifyFaceAttendance } = await import("../utils/faceVerification.js");
   await verifyFaceAttendance(faceProof, expectedChallenge, {
     encrypted: biometric.face_template_encrypted,
     iv: biometric.face_template_iv,
