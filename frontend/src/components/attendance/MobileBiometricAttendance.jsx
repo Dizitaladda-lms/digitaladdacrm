@@ -104,21 +104,10 @@ export const getGPSLocation = () => {
     // Attempt 1: High Accuracy (fast for GPS, quick timeout for laptops)
     navigator.geolocation.getCurrentPosition(
       processPosition,
-      (firstErr) => {
-        // If user explicitly denied permission (code 1), do NOT retry
-        if (firstErr.code === 1) {
-          return resolve({
-            latitude: null,
-            longitude: null,
-            location_name: "Location Permission Denied",
-            distance: null,
-            error_code: 1,
-            error_msg: firstErr.message,
-          });
-        }
-
-        // On laptops/desktops without GPS chips, high-accuracy often times out (code 3)
-        // or is unavailable (code 2). Immediately fallback to Wi-Fi network positioning!
+      () => {
+        // Always attempt Attempt 2 (Wi-Fi / standard network positioning with maximumAge: 0)
+        // Even if Attempt 1 returned code 1 (e.g. approximate location only or OS high-accuracy off),
+        // fallback can still prompt or succeed!
         navigator.geolocation.getCurrentPosition(
           processPosition,
           (secondErr) => {
@@ -135,7 +124,7 @@ export const getGPSLocation = () => {
               error_msg: secondErr.message,
             });
           },
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+          { enableHighAccuracy: false, timeout: 12000, maximumAge: 0 }
         );
       },
       { enableHighAccuracy: true, timeout: device.isLaptop ? 5000 : 10000, maximumAge: 0 }
@@ -149,6 +138,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const [actionLoading, setActionLoading] = useState(false);
   const [locationData, setLocationData] = useState(null);
   const [locating, setLocating] = useState(false);
+  const [showLocationHelpModal, setShowLocationHelpModal] = useState(false);
   const [faceConsentChecked, setFaceConsentChecked] = useState(false);
   const [faceCaptureRequest, setFaceCaptureRequest] = useState(null);
 
@@ -186,22 +176,71 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     toast.error(error.response?.data?.message || error.message || fallbackMessage);
   };
 
-  const refreshLocation = async () => {
+  const refreshLocation = useCallback(async (isUserInitiated = false) => {
     try {
       setLocating(true);
+      if (isUserInitiated) {
+        setLocationData(null);
+      }
       const loc = await getGPSLocation();
       setLocationData(loc);
+
+      if (loc?.latitude != null && loc?.longitude != null) {
+        setShowLocationHelpModal(false);
+        if (isUserInitiated) {
+          toast.success(
+            loc.distance <= MAX_GEOFENCE_RADIUS_METERS
+              ? "📍 Location verified! You are within office premises."
+              : `📍 Location updated (${Math.round(loc.distance)}m from office).`
+          );
+        }
+      } else if (isUserInitiated && loc?.error_code === 1) {
+        // Browser has blocked location for this site — open the interactive re-enable modal!
+        setShowLocationHelpModal(true);
+      } else if (isUserInitiated) {
+        toast.error("📍 Could not detect GPS location. Please ensure device location is turned ON.");
+      }
+      return loc;
     } catch (err) {
       console.warn("Failed to refresh location:", err);
+      return null;
     } finally {
       setLocating(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadStatus();
-    refreshLocation();
-  }, []);
+    refreshLocation(false);
+  }, [refreshLocation]);
+
+  // Automatically re-request GPS the moment user changes browser Location permission (Block -> Allow / Ask)
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.permissions?.query) return undefined;
+    let permissionStatusObj = null;
+    let isMounted = true;
+
+    navigator.permissions
+      .query({ name: "geolocation" })
+      .then((permStatus) => {
+        if (!isMounted) return;
+        permissionStatusObj = permStatus;
+        permStatus.onchange = () => {
+          if (permStatus.state === "granted" || permStatus.state === "prompt") {
+            setShowLocationHelpModal(false);
+            refreshLocation(true);
+          }
+        };
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+      if (permissionStatusObj) {
+        permissionStatusObj.onchange = null;
+      }
+    };
+  }, [refreshLocation]);
 
   useEffect(() => {
     if (!device.isLaptop || typeof navigator === "undefined" || !navigator.geolocation) return undefined;
@@ -210,6 +249,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
         const distance = calculateDistanceInMeters(latitude, longitude);
+        setShowLocationHelpModal(false);
         setLocationData({
           latitude,
           longitude,
@@ -223,17 +263,21 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       },
       (error) => {
         console.warn("Laptop location watch failed:", error);
-        setLocationData({
-          latitude: null,
-          longitude: null,
-          location_name:
-            error.code === 1 ? "Location Permission Denied" : "GPS Location Unavailable / Timed Out",
-          distance: null,
-          error_code: error.code,
-          error_msg: error.message,
-        });
+        setLocationData((prev) =>
+          prev?.latitude != null
+            ? prev
+            : {
+                latitude: null,
+                longitude: null,
+                location_name:
+                  error.code === 1 ? "Location Permission Denied" : "GPS Location Unavailable / Timed Out",
+                distance: null,
+                error_code: error.code,
+                error_msg: error.message,
+              }
+        );
       },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
@@ -361,9 +405,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const validateGPSLocation = (loc) => {
     if (!loc || loc.latitude == null || loc.longitude == null) {
       if (loc?.error_code === 1) {
+        setShowLocationHelpModal(true);
         if (device.isLaptop) {
           toast.error(
-            "📍 Laptop Location Blocked! Click the lock/tune icon 🔒 in your browser URL bar (top left), set Location to 'Allow', and refresh. Also ensure Windows Location is turned ON in Windows Settings.",
+            "📍 Laptop Location Blocked! Click 'Allow Location' or click the lock/tune icon 🔒 in your browser URL bar, set Location to 'Allow', and click Refresh.",
             { duration: 7000 }
           );
         } else if (device.isIPhone) {
@@ -693,8 +738,9 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     : "Passkey Active & Locked";
 
   const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
+  const isLocationDenied = locationData?.error_code === 1;
   const laptopAttendanceAllowed = Boolean(statusData?.laptop_attendance_enabled);
-  const attendanceActionDisabled = actionLoading || !isWithinOffice;
+  const attendanceActionDisabled = actionLoading;
 
   return (
     <div className="biometric-card">
@@ -751,21 +797,43 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                   <AlertTriangle size={12} /> Outside Office ({Math.round(locationData.distance)}m away • 100m Req)
                 </span>
               )
+            ) : isLocationDenied ? (
+              <button
+                type="button"
+                onClick={() => refreshLocation(true)}
+                className="biometric-pill biometric-pill-geofence-outside"
+                style={{ cursor: "pointer" }}
+                title="Click to allow location access again"
+              >
+                <AlertTriangle size={12} /> Location Permission Denied (Click to Allow)
+              </button>
             ) : (
               <span className="biometric-pill biometric-pill-geofence-loading" title={locationData?.location_name}>
                 <MapPin size={12} /> {locationData?.location_name || "Detecting GPS..."}
               </span>
             )}
 
-            {/* Fast Location Refresh button */}
+            {/* Fast Location Refresh / Allow Location button */}
             <button
               type="button"
               className="btn-loc-refresh"
-              onClick={refreshLocation}
+              onClick={() => refreshLocation(true)}
               disabled={locating}
-              title="Re-verify GPS location distance"
+              title="Re-verify or re-request GPS location permission"
+              style={
+                isLocationDenied
+                  ? {
+                      background: "#2563eb",
+                      color: "#ffffff",
+                      border: "1px solid #60a5fa",
+                      fontWeight: 700,
+                      padding: "4px 10px",
+                    }
+                  : undefined
+              }
             >
-              <RefreshCw size={11} className={locating ? "spin-anim" : ""} /> Refresh
+              <RefreshCw size={11} className={locating ? "spin-anim" : ""} />{" "}
+              {isLocationDenied ? "Allow Location / Refresh" : "Refresh"}
             </button>
           </div>
 
@@ -1120,6 +1188,110 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Permission Re-Enable Modal (When user denied location & clicks Refresh / Check-In) */}
+      {showLocationHelpModal && (
+        <div
+          className="bio-camera-modal-overlay"
+          onClick={() => setShowLocationHelpModal(false)}
+        >
+          <div
+            className="bio-camera-modal"
+            style={{ maxWidth: "460px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bio-camera-modal-header">
+              <div className="bio-camera-modal-title">
+                <MapPin size={20} style={{ color: "#3b82f6" }} />
+                <h3>Enable Location Access</h3>
+              </div>
+              <button
+                type="button"
+                className="bio-camera-close-btn"
+                onClick={() => setShowLocationHelpModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="bio-camera-desc" style={{ fontSize: "13.5px", color: "#e2e8f0" }}>
+              Aapke browser me is site ke liye <strong>Location Access Denied / Blocked</strong> hai. Dobara location allow karne ke liye:
+            </p>
+
+            <div
+              style={{
+                background: "rgba(37, 99, 235, 0.14)",
+                border: "1px solid rgba(96, 165, 250, 0.35)",
+                borderRadius: "12px",
+                padding: "14px 16px",
+                marginBottom: "18px",
+                fontSize: "13px",
+                color: "#dbeafe",
+                lineHeight: 1.55,
+              }}
+            >
+              {device.isLaptop ? (
+                <ol style={{ margin: 0, paddingLeft: "18px" }}>
+                  <li style={{ marginBottom: "6px" }}>
+                    Browser ke upar URL bar ke left side me <strong>🔒 Lock / Tune icon</strong> par click karein.
+                  </li>
+                  <li style={{ marginBottom: "6px" }}>
+                    <strong>Location</strong> ke samne <strong>Allow</strong> select karein (ya Reset permission karein).
+                  </li>
+                  <li>
+                    Neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> button dabayein.
+                  </li>
+                </ol>
+              ) : device.isIPhone ? (
+                <ol style={{ margin: 0, paddingLeft: "18px" }}>
+                  <li style={{ marginBottom: "6px" }}>
+                    Safari address bar me <strong>aA</strong> yaSite Settings icon par tap karein &rarr; <strong>Website Settings</strong> &rarr; <strong>Location: Ask / Allow</strong> karein.
+                  </li>
+                  <li style={{ marginBottom: "6px" }}>
+                    Ya <strong>iPhone Settings &rarr; Privacy &amp; Security &rarr; Location Services &rarr; Safari Websites &rarr; While Using the App</strong> select karein.
+                  </li>
+                  <li>
+                    Neeche <strong>&ldquo;Retry Location Now&rdquo;</strong> ya <strong>&ldquo;Reload &amp; Ask Again&rdquo;</strong> par tap karein.
+                  </li>
+                </ol>
+              ) : (
+                <ol style={{ margin: 0, paddingLeft: "18px" }}>
+                  <li style={{ marginBottom: "6px" }}>
+                    Browser address bar ke left me <strong>🔒 Lock / Tune icon</strong> &rarr; <strong>Permissions</strong> &rarr; <strong>Location: Allow</strong> on karein.
+                  </li>
+                  <li style={{ marginBottom: "6px" }}>
+                    Apne phone ka <strong>GPS / Location</strong> notification bar se ON rakhein.
+                  </li>
+                  <li>
+                    Neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> par tap karein.
+                  </li>
+                </ol>
+              )}
+            </div>
+
+            <div className="bio-camera-modal-footer" style={{ flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn-bio-secondary"
+                onClick={() => window.location.reload()}
+                style={{ flex: 1 }}
+              >
+                <RefreshCw size={15} /> Reload &amp; Ask Again
+              </button>
+              <button
+                type="button"
+                className="btn-bio-primary"
+                disabled={locating}
+                onClick={() => refreshLocation(true)}
+                style={{ flex: 1.4 }}
+              >
+                <MapPin size={16} />
+                {locating ? "Checking..." : "Location Allow Kar Diya — Retry Now"}
+              </button>
             </div>
           </div>
         </div>
