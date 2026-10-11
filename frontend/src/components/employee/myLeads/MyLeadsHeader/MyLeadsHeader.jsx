@@ -3,7 +3,7 @@ import "./MyLeadsHeader.css";
 import { Calendar, GraduationCap, Award, Download, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const MyLeadsHeader = ({ onExport = () => {}, onCreateLead = () => {} }) => {
+const MyLeadsHeader = ({ onExport = null, onCreateLead = () => {} }) => {
   const navigate = useNavigate();
 
   return (
@@ -27,16 +27,18 @@ const MyLeadsHeader = ({ onExport = () => {}, onCreateLead = () => {} }) => {
           <span>Add Manual Lead</span>
         </button>
 
-        <button
-          type="button"
-          className="export-btn"
-          onClick={onExport}
-          title="Export My Leads to CSV/Excel"
-          style={{ backgroundColor: "#F1F5F9", color: "#334155" }}
-        >
-          <Download size={18} />
-          <span>Export CSV</span>
-        </button>
+        {typeof onExport === "function" && (
+          <button
+            type="button"
+            className="export-btn"
+            onClick={onExport}
+            title="Export My Leads to CSV/Excel"
+            style={{ backgroundColor: "#F1F5F9", color: "#334155" }}
+          >
+            <Download size={18} />
+            <span>Export CSV</span>
+          </button>
+        )}
 
         <button
           type="button"

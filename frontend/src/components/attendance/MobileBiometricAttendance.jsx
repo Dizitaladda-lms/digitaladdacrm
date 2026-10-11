@@ -104,10 +104,19 @@ export const getGPSLocation = () => {
     // Attempt 1: High Accuracy (fast for GPS, quick timeout for laptops)
     navigator.geolocation.getCurrentPosition(
       processPosition,
-      () => {
-        // Always attempt Attempt 2 (Wi-Fi / standard network positioning with maximumAge: 0)
-        // Even if Attempt 1 returned code 1 (e.g. approximate location only or OS high-accuracy off),
-        // fallback can still prompt or succeed!
+      (firstErr) => {
+        if (firstErr?.code === 1) {
+          return resolve({
+            latitude: null,
+            longitude: null,
+            location_name: "Location Permission Denied",
+            distance: null,
+            error_code: 1,
+            error_msg: firstErr.message,
+          });
+        }
+
+        // Attempt 2: Standard network / Wi-Fi positioning fallback when GPS times out
         navigator.geolocation.getCurrentPosition(
           processPosition,
           (secondErr) => {
@@ -124,10 +133,10 @@ export const getGPSLocation = () => {
               error_msg: secondErr.message,
             });
           },
-          { enableHighAccuracy: false, timeout: 12000, maximumAge: 0 }
+          { enableHighAccuracy: false, timeout: 7000, maximumAge: 0 }
         );
       },
-      { enableHighAccuracy: true, timeout: device.isLaptop ? 5000 : 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: device.isLaptop ? 4500 : 8000, maximumAge: 0 }
     );
   });
 };
@@ -178,11 +187,13 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const refreshLocation = useCallback(async (isUserInitiated = false) => {
     try {
+      // Trigger getGPSLocation synchronously before state updates to preserve browser user-gesture context
+      const gpsPromise = getGPSLocation();
       setLocating(true);
       if (isUserInitiated) {
         setLocationData(null);
       }
-      const loc = await getGPSLocation();
+      const loc = await gpsPromise;
       setLocationData(loc);
 
       if (loc?.latitude != null && loc?.longitude != null) {
@@ -194,9 +205,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               : `📍 Location updated (${Math.round(loc.distance)}m from office).`
           );
         }
-      } else if (isUserInitiated && loc?.error_code === 1) {
-        // Browser has blocked location for this site — open the interactive re-enable modal!
+      } else if (loc?.error_code === 1) {
+        // Show the re-allow location modal both on page refresh and when clicking Refresh Location!
         setShowLocationHelpModal(true);
+        if (isUserInitiated) {
+          toast.error(
+            "📍 Location Blocked! URL bar ke 🔒 Lock/Tune icon par click karke Location ko 'Allow' karein.",
+            { duration: 6000 }
+          );
+        }
       } else if (isUserInitiated) {
         toast.error("📍 Could not detect GPS location. Please ensure device location is turned ON.");
       }
@@ -225,10 +242,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       .then((permStatus) => {
         if (!isMounted) return;
         permissionStatusObj = permStatus;
+        if (permStatus.state === "denied") {
+          setShowLocationHelpModal(true);
+        }
         permStatus.onchange = () => {
           if (permStatus.state === "granted" || permStatus.state === "prompt") {
             setShowLocationHelpModal(false);
             refreshLocation(true);
+          } else if (permStatus.state === "denied") {
+            setShowLocationHelpModal(true);
           }
         };
       })
@@ -242,8 +264,12 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     };
   }, [refreshLocation]);
 
+  const hasValidCoordinates = locationData?.latitude != null && locationData?.longitude != null;
+
   useEffect(() => {
-    if (!device.isLaptop || typeof navigator === "undefined" || !navigator.geolocation) return undefined;
+    if (!device.isLaptop || !hasValidCoordinates || typeof navigator === "undefined" || !navigator.geolocation) {
+      return undefined;
+    }
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -263,25 +289,12 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       },
       (error) => {
         console.warn("Laptop location watch failed:", error);
-        setLocationData((prev) =>
-          prev?.latitude != null
-            ? prev
-            : {
-                latitude: null,
-                longitude: null,
-                location_name:
-                  error.code === 1 ? "Location Permission Denied" : "GPS Location Unavailable / Timed Out",
-                distance: null,
-                error_code: error.code,
-                error_msg: error.message,
-              }
-        );
       },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [device.isLaptop]);
+  }, [device.isLaptop, hasValidCoordinates]);
 
   // Ensure stream is properly attached to <video> ref when modal opens
   useEffect(() => {
@@ -852,6 +865,90 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ? `Your Assigned Shift: ${format12hTime(statusData.shift_start_time || "10:00")} - ${format12hTime(statusData.shift_end_time || "18:00")} (Custom Schedule)`
               : "Office Timings: Mon-Fri (10:00 AM - 6:00 PM), Sat (9:30 AM - 5:30 PM), Sun (9:30 AM - 2:00 PM)"}
           </p>
+
+          {!locating && (!locationData || locationData.latitude == null) && (
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px 14px",
+                borderRadius: "12px",
+                background: isLocationDenied
+                  ? "rgba(239, 68, 68, 0.16)"
+                  : "rgba(37, 99, 235, 0.16)",
+                border: isLocationDenied
+                  ? "1px solid rgba(248, 113, 113, 0.45)"
+                  : "1px solid rgba(96, 165, 250, 0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", flex: "1 1 240px" }}>
+                <AlertTriangle
+                  size={18}
+                  style={{
+                    color: isLocationDenied ? "#f87171" : "#60a5fa",
+                    marginTop: "2px",
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ fontSize: "12.5px", color: "#f1f5f9", lineHeight: 1.45 }}>
+                  <strong style={{ display: "block", marginBottom: "2px", color: "#ffffff" }}>
+                    {isLocationDenied
+                      ? "Location Access Denied / Blocked"
+                      : "GPS Location Not Detected Yet"}
+                  </strong>
+                  {isLocationDenied
+                    ? "Browser URL bar ke left me 🔒 Lock / Tune icon par click karke Location ko 'Allow' karein, phir neeche button dabayein."
+                    : "Apne device ki Location / GPS ON rakhein aur Location Refresh par click karein."}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => refreshLocation(true)}
+                  disabled={locating}
+                  style={{
+                    background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                    color: "#ffffff",
+                    border: "1px solid #60a5fa",
+                    borderRadius: "8px",
+                    padding: "7px 13px",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <RefreshCw size={13} className={locating ? "spin-anim" : ""} />
+                  Allow / Refresh Location
+                </button>
+                {isLocationDenied && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationHelpModal(true)}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.12)",
+                      color: "#e2e8f0",
+                      border: "1px solid rgba(255, 255, 255, 0.25)",
+                      borderRadius: "8px",
+                      padding: "7px 11px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    How to Unblock?
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {!loading && needsPasskeyRegistration && (
             <div className="biometric-registration-notice" role="status">

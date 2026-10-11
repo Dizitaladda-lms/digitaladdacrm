@@ -307,6 +307,21 @@ export async function initDatabaseSchema() {
     await pool.query(`
       ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS reports_to BIGINT REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS department_id BIGINT REFERENCES departments(id) ON DELETE SET NULL;
+      ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_role_check;
+      ALTER TABLE IF EXISTS users ADD CONSTRAINT users_role_check CHECK (
+        UPPER(role) IN (
+          'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'SALES_HEAD', 'DEPARTMENT_HEAD',
+          'HR', 'TL', 'SUB_TL', 'COUNSELLOR', 'EMPLOYEE', 'TRAINER', 'INTERN'
+        )
+      );
+      ALTER TABLE IF EXISTS employees DROP CONSTRAINT IF EXISTS employees_role_check;
+      ALTER TABLE IF EXISTS employees ADD CONSTRAINT employees_role_check CHECK (
+        UPPER(role) IN (
+          'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'SALES_HEAD', 'DEPARTMENT_HEAD',
+          'HR', 'TL', 'SUB_TL', 'COUNSELLOR', 'EMPLOYEE', 'TRAINER', 'INTERN'
+        )
+      );
+      ALTER TABLE IF EXISTS daily_work_reports DROP CONSTRAINT IF EXISTS chk_report_status;
       ALTER TABLE IF EXISTS daily_work_reports
       ADD COLUMN IF NOT EXISTS interns_work_summary TEXT,
       ADD COLUMN IF NOT EXISTS report_type VARCHAR(20) NOT NULL DEFAULT 'DAILY',

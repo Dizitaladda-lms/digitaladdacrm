@@ -281,28 +281,30 @@ const MyFollowups = () => {
               flexWrap: "wrap",
             }}
           >
-            <button
-              type="button"
-              onClick={handleExportFollowupsCsv}
-              style={{
-                height: "40px",
-                padding: "0 16px",
-                fontSize: "13px",
-                fontWeight: 600,
-                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.18)",
-                color: "#ffffff",
-                borderRadius: "8px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <Download size={15} />
-              <span>Export CSV</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleExportFollowupsCsv}
+                style={{
+                  height: "40px",
+                  padding: "0 16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid rgba(255, 255, 255, 0.18)",
+                  color: "#ffffff",
+                  borderRadius: "8px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <Download size={15} />
+                <span>Export CSV</span>
+              </button>
+            )}
 
             <button
               type="button"

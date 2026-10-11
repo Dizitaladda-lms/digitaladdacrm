@@ -83,7 +83,6 @@ const MyLeads = () => {
   return (
     <div className="my-leads-page">
       <MyLeadsHeader
-        onExport={handleExportCsv}
         onCreateLead={() => setCreateModalOpen(true)}
       />
 

@@ -183,27 +183,29 @@ const MyAdmissions = () => {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={handleExportAdmissionsCsv}
-              style={{
-                height: "42px",
-                padding: "0 18px",
-                fontSize: "13.5px",
-                fontWeight: 600,
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                color: "#ffffff",
-                borderRadius: "10px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                cursor: "pointer",
-              }}
-            >
-              <Download size={16} />
-              <span>Export CSV</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleExportAdmissionsCsv}
+                style={{
+                  height: "42px",
+                  padding: "0 18px",
+                  fontSize: "13.5px",
+                  fontWeight: 600,
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  color: "#ffffff",
+                  borderRadius: "10px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                <Download size={16} />
+                <span>Export CSV</span>
+              </button>
+            )}
 
             <button
               type="button"
