@@ -79,12 +79,13 @@ export const register = asyncHandler(async (req, res) => {
  * Sets HttpOnly cookies. Tokens are never exposed to browser JavaScript.
  */
 export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const identifier = req.body?.email || req.body?.phone || req.body?.identifier;
+  const { password } = req.body;
   const userAgent = String(req.get("user-agent") || "");
   const deviceId = getDeviceId(req);
   assertDeviceCookieMatches(req, deviceId);
 
-  const result = await loginUserService(email, password, {
+  const result = await loginUserService(identifier, password, {
     deviceId,
     deviceType: getDeviceType(userAgent),
     deviceName: getDeviceName(req, getDeviceType(userAgent)),

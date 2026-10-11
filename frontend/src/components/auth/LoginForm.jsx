@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Mail,
+  Phone,
   Lock,
   Eye,
   EyeOff,
@@ -26,15 +27,27 @@ const LoginForm = () => {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     mode: "onTouched",
   });
 
+  const identifierValue = watch("email", "");
+  const isPhoneInput =
+    Boolean(identifierValue) &&
+    !String(identifierValue).includes("@") &&
+    /^[\d+\s()-]+$/.test(String(identifierValue).trim());
+
   const onSubmit = async (formData) => {
     try {
       setLoading(true);
-      const response = await login(formData);
+      const trimmedIdentifier = String(formData.email || "").trim();
+      const response = await login({
+        ...formData,
+        email: trimmedIdentifier,
+        identifier: trimmedIdentifier,
+      });
 
       if (response.success) {
         toast.success("Welcome Back 👋");
@@ -65,6 +78,8 @@ const LoginForm = () => {
             navigate("/leads", { replace: true });
             break;
 
+          case "DEPARTMENT_HEAD":
+          case "SUB_TL":
           case "COUNSELLOR":
           case "EMPLOYEE":
           case "TRAINER":
@@ -90,13 +105,32 @@ const LoginForm = () => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
       <div className="auth-input-wrap">
-        <Mail size={18} className="auth-input-icon" />
+        {isPhoneInput ? (
+          <Phone size={18} className="auth-input-icon" />
+        ) : (
+          <Mail size={18} className="auth-input-icon" />
+        )}
         <input
           type="text"
-          placeholder="Work email address"
+          placeholder="Work email or 10-digit phone number"
           autoComplete="username"
           {...register("email", {
-            required: "Email address is required",
+            required: "Email or phone number is required",
+            validate: (val) => {
+              const v = String(val || "").trim();
+              if (!v) return "Email or phone number is required";
+              if (v.includes("@")) {
+                return (
+                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ||
+                  "Enter a valid email address"
+                );
+              }
+              const digits = v.replace(/\D/g, "");
+              if (digits.length >= 10 && digits.length <= 15) {
+                return true;
+              }
+              return "Enter a valid work email or 10-digit phone number";
+            },
           })}
         />
         {errors.email && <p className="auth-error">{errors.email.message}</p>}

@@ -31,11 +31,12 @@ export const globalLimiter = rateLimit({
  */
 
 const loginAccountKey = (req) => {
-  const email = typeof req.body?.email === "string"
-    ? req.body.email.trim().toLowerCase().slice(0, 320)
+  const raw = req.body?.email || req.body?.phone || req.body?.identifier;
+  const identifier = typeof raw === "string"
+    ? raw.trim().toLowerCase().slice(0, 320)
     : "";
 
-  return email ? `account:${email}` : `ip:${ipKeyGenerator(req.ip)}`;
+  return identifier ? `account:${identifier}` : `ip:${ipKeyGenerator(req.ip)}`;
 };
 
 export const loginLimiter = rateLimit({

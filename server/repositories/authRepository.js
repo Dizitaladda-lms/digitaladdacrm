@@ -96,14 +96,25 @@ async (email) => {
 
 };
 
+export const normalizeLoginPhone = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw || raw.includes("@")) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 10 || digits.length > 15) return null;
+  return digits.slice(-10);
+};
+
 /**
  * =====================================================
- * Find User By Email
+ * Find User By Email Or Phone Number
  * (With Password)
  * Used For Login
  * =====================================================
  */
-export const findUserByEmailWithPasswordRepository = async (email) => {
+export const findUserByEmailWithPasswordRepository = async (identifier) => {
+  const rawIdentifier = String(identifier || "").trim();
+  const normalizedPhone = normalizeLoginPhone(rawIdentifier);
+
   const query = `
     SELECT 
       u.id,
@@ -127,13 +138,25 @@ export const findUserByEmailWithPasswordRepository = async (email) => {
       e.employment_type,
       COALESCE(e.lead_overview_read_only, FALSE) AS lead_overview_read_only
     FROM users u
-    LEFT JOIN employees e ON u.id = e.user_id AND e.is_deleted = FALSE
+    LEFT JOIN employees e
+      ON (u.id = e.user_id OR (e.user_id IS NULL AND LOWER(TRIM(u.email)) = LOWER(TRIM(e.email))))
+      AND e.is_deleted = FALSE
     LEFT JOIN departments d ON e.department_id = d.id
-    WHERE LOWER(TRIM(u.email)) = LOWER(TRIM($1))
-      AND u.is_deleted = FALSE;
+    WHERE (
+      LOWER(TRIM(u.email)) = LOWER(TRIM($1))
+      OR (
+        $2::text IS NOT NULL
+        AND e.mobile IS NOT NULL
+        AND LENGTH(REGEXP_REPLACE(e.mobile, '\\D', '', 'g')) >= 10
+        AND RIGHT(REGEXP_REPLACE(e.mobile, '\\D', '', 'g'), 10) = $2
+      )
+    )
+      AND u.is_deleted = FALSE
+    ORDER BY u.is_active DESC, u.id DESC
+    LIMIT 1;
   `;
 
-  const result = await pool.query(query, [email]);
+  const result = await pool.query(query, [rawIdentifier, normalizedPhone]);
   return result.rows[0];
 };
 

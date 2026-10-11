@@ -70,9 +70,15 @@ export const registerValidator = [
 export const loginValidator = [
 
   body("email")
-    .trim()
-    .notEmpty()
-    .withMessage("Email address is required."),
+    .custom((value, { req }) => {
+      const identifier = String(
+        value ?? req.body?.phone ?? req.body?.identifier ?? ""
+      ).trim();
+      if (!identifier) {
+        throw new Error("Email or phone number is required.");
+      }
+      return true;
+    }),
 
   body("password")
     .notEmpty()
