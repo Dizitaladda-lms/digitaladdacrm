@@ -105,24 +105,11 @@ const ensureEmployeeCanBeCreated = async (employeeData, isApproval = false, empl
 };
 
 let roleCheckConstraintsSynced = false;
-const ensureRoleCheckConstraints = async (client) => {
+const ensureRoleCheckConstraints = async () => {
     if (roleCheckConstraintsSynced) return;
-    await client.query(`
-        ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_role_check;
-        ALTER TABLE IF EXISTS users ADD CONSTRAINT users_role_check CHECK (
-            UPPER(role) IN (
-                'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'SALES_HEAD', 'DEPARTMENT_HEAD',
-                'HR', 'TL', 'SUB_TL', 'COUNSELLOR', 'EMPLOYEE', 'TRAINER', 'INTERN'
-            )
-        );
-        ALTER TABLE IF EXISTS employees DROP CONSTRAINT IF EXISTS employees_role_check;
-        ALTER TABLE IF EXISTS employees ADD CONSTRAINT employees_role_check CHECK (
-            UPPER(role) IN (
-                'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'SALES_HEAD', 'DEPARTMENT_HEAD',
-                'HR', 'TL', 'SUB_TL', 'COUNSELLOR', 'EMPLOYEE', 'TRAINER', 'INTERN'
-            )
-        );
-    `);
+    try {
+        await findUserByEmailRepository("__noop__"); // ensure pool is warm
+    } catch {}
     roleCheckConstraintsSynced = true;
 };
 
@@ -134,8 +121,7 @@ const createEmployeeWithinTransaction = async (
     passwordHash
 ) => {
     try {
-        await ensureRoleCheckConstraints(client);
-        let user = await findUserByEmailRepository(employeeData.email);
+        let user = await findUserByEmailRepository(employeeData.email, client);
         if (!user) {
             user = await createUserRepository(client, {
                 full_name: employeeData.full_name,
@@ -398,7 +384,6 @@ export const updateEmployeeService = async (
 
     try {
         return await withTransaction(async (client) => {
-        await ensureRoleCheckConstraints(client);
 
         // Employee Exists
         const employee =
@@ -438,7 +423,8 @@ export const updateEmployeeService = async (
 
             const existingUser =
                 await findUserByEmailRepository(
-                    employeeData.email
+                    employeeData.email,
+                    client
                 );
 
             if (

@@ -46,7 +46,8 @@ export const createUserRepository = async (
 =========================== */
 
 export const findUserByEmailRepository = async (
-    email
+    email,
+    db = pool
 ) => {
 
     const query = `
@@ -63,7 +64,7 @@ export const findUserByEmailRepository = async (
     `;
 
     const result =
-    await pool.query(query,[email]);
+    await db.query(query,[email]);
 
     return result.rows[0];
 
@@ -74,7 +75,8 @@ export const findUserByEmailRepository = async (
 =========================== */
 
 export const findUserByIdRepository = async (
-    id
+    id,
+    db = pool
 ) => {
 
     const query = `
@@ -91,7 +93,7 @@ export const findUserByIdRepository = async (
     `;
 
     const result =
-    await pool.query(query,[id]);
+    await db.query(query,[id]);
 
     return result.rows[0];
 

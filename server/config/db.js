@@ -32,9 +32,9 @@ const isNeonOrCloud = process.env.NODE_ENV === "test"
 const pool = new Pool({
   connectionString: normalizedConnectionString,
   ssl: isNeonOrCloud ? { rejectUnauthorized: false } : undefined,
-  max: process.env.VERCEL ? 3 : 10,
+  max: process.env.VERCEL ? 6 : 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 20000,
+  connectionTimeoutMillis: 15000,
 });
 
 pool.on("error", (error) => {
