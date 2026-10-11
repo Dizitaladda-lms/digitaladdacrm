@@ -17,6 +17,7 @@ import {
   getOfficeIPsService,
   addOfficeIPService,
   deleteOfficeIPService,
+  upsertEmployeeAttendanceByHRService,
 } from "../services/attendanceService.js";
 import {
   getCompanyPresenceService,
@@ -132,3 +133,15 @@ export const deleteOfficeIP = asyncHandler(async (req, res) => {
   const result = await deleteOfficeIPService(req.params.id);
   return res.status(200).json(new ApiResponse(200, result, "Office Wi-Fi IP deleted successfully."));
 });
+
+export const upsertEmployeeAttendanceByHR = asyncHandler(async (req, res) => {
+  const payload = {
+    ...req.body,
+    employee_id: req.params.employeeId || req.body?.employee_id,
+  };
+  const result = await upsertEmployeeAttendanceByHRService(payload, req.user, req);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Employee attendance saved & updated successfully."));
+});
+

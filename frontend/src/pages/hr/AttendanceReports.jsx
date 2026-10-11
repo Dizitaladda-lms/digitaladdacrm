@@ -17,6 +17,8 @@ import {
   Camera,
   ScanFace,
   Smartphone,
+  Edit3,
+  PlusCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -27,6 +29,7 @@ import {
   approveBiometricRegistration,
   rejectBiometricRegistration,
 } from "../../services/attendanceService";
+import HRAttendanceEditModal from "../../components/attendance/HRAttendanceEditModal";
 import { calculateLateArrival } from "../../utils/shiftTiming";
 
 const AttendanceReports = () => {
@@ -46,6 +49,8 @@ const AttendanceReports = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalRecords: 0 });
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const fetchPendingApprovals = async () => {
     try {
@@ -228,8 +233,32 @@ const AttendanceReports = () => {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: "12px" }}>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
+              type="button"
+              onClick={() => {
+                setEditingRecord(null);
+                setShowEditModal(true);
+              }}
+              style={{
+                background: "#10b981",
+                color: "#fff",
+                border: "none",
+                padding: "10px 18px",
+                borderRadius: "10px",
+                fontWeight: "700",
+                fontSize: "13.5px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+              }}
+            >
+              <PlusCircle size={16} /> Mark / Edit Attendance
+            </button>
+            <button
+              type="button"
               onClick={() => { fetchReports(); fetchPendingApprovals(); }}
               style={{
                 background: "#2563eb",
@@ -1169,28 +1198,62 @@ const AttendanceReports = () => {
                           );
                         })()}
                       </td>
-                      <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                        <button
-                          onClick={() => handleResetBiometric(row.employee_id, row.employee_name)}
-                          disabled={resettingId === row.employee_id}
-                          title="Reset Biometric Lock for Employee"
-                          style={{
-                            background: "#fff1f2",
-                            color: "#e11d48",
-                            border: "1px solid #fecdd3",
-                            padding: "6px 12px",
-                            borderRadius: "8px",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                          }}
-                        >
-                          <RotateCcw size={13} className={resettingId === row.employee_id ? "spin" : ""} />
-                          Reset Biometric
-                        </button>
+                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingRecord(row);
+                              setShowEditModal(true);
+                            }}
+                            title={row.check_in_time ? "Edit Check-In / Check-Out Time & Status" : "Mark Attendance for Employee"}
+                            style={{
+                              background: row.check_in_time ? "#eff6ff" : "#2563eb",
+                              color: row.check_in_time ? "#1d4ed8" : "#ffffff",
+                              border: row.check_in_time ? "1px solid #bfdbfe" : "1px solid #2563eb",
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            {row.check_in_time ? (
+                              <>
+                                <Edit3 size={13} /> Edit Time
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck size={13} /> Mark Attendance
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleResetBiometric(row.employee_id, row.employee_name)}
+                            disabled={resettingId === row.employee_id}
+                            title="Reset Biometric Lock for Employee"
+                            style={{
+                              background: "#fff1f2",
+                              color: "#e11d48",
+                              border: "1px solid #fecdd3",
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            <RotateCcw size={13} className={resettingId === row.employee_id ? "spin" : ""} />
+                            Reset Biometric
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1202,6 +1265,18 @@ const AttendanceReports = () => {
       </div>
     </>
       )}
+
+      {/* HR Mark / Edit Attendance Modal */}
+      <HRAttendanceEditModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingRecord(null);
+        }}
+        onSaved={fetchReports}
+        initialRecord={editingRecord}
+        employeesList={reports}
+      />
     </div>
   );
 };

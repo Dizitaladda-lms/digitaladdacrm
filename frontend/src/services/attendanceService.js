@@ -93,6 +93,11 @@ export const getHRAttendanceReports = async (params = {}) => {
   return response.data;
 };
 
+export const upsertEmployeeAttendanceByHR = async (payload = {}) => {
+  const response = await axiosInstance.post("/attendance/hr-manage", payload);
+  return response.data;
+};
+
 export const getOfficeIPs = async () => {
   const response = await axiosInstance.get("/attendance/office-ips");
   return response.data;

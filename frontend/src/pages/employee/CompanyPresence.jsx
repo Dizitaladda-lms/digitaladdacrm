@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Building2, CalendarDays, RefreshCw, Search, Users } from "lucide-react";
+import { Building2, CalendarDays, Clock, Edit3, RefreshCw, Search, UserCheck, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   getCompanyPresence,
   setEmployeePresenceStatus,
   setEmployeeWorkMode,
 } from "../../services/attendanceService";
+import HRAttendanceEditModal from "../../components/attendance/HRAttendanceEditModal";
 import { useAuth } from "../../context/AuthContext";
 import "./CompanyPresence.css";
 
@@ -24,12 +25,15 @@ const CompanyPresence = () => {
   const { user } = useAuth();
   const role = String(user?.role || "").toUpperCase();
   const canManagePresence = ["HR", "ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
+  const canEditAttendanceTime = ["HR", "ADMIN", "SUPER_ADMIN"].includes(role);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -145,14 +149,40 @@ const CompanyPresence = () => {
             Aaj ka present, absent aur leave status, saath mein office/WFH mode.
           </p>
         </div>
-        <div className="company-presence__today">
-          <CalendarDays size={16} />
-          {new Date().toLocaleDateString("en-IN", {
-            weekday: "short",
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          {canEditAttendanceTime && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingEmployee(null);
+                setShowEditModal(true);
+              }}
+              style={{
+                background: "#2563eb",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "10px",
+                padding: "9px 14px",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <UserCheck size={15} /> Mark / Edit Attendance
+            </button>
+          )}
+          <div className="company-presence__today">
+            <CalendarDays size={16} />
+            {new Date().toLocaleDateString("en-IN", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </div>
         </div>
       </header>
 
@@ -223,6 +253,7 @@ const CompanyPresence = () => {
                   <th>Employee</th>
                   <th>Department</th>
                   <th>Attendance</th>
+                  <th>Check-In / Out</th>
                   <th>Work mode</th>
                   {canManagePresence && <th>HR action</th>}
                 </tr>
@@ -235,6 +266,12 @@ const CompanyPresence = () => {
                     String(employee.employment_type || "").toUpperCase() === "INTERN" ||
                     String(employee.role || "").toUpperCase() === "INTERN" ||
                     /intern/i.test(String(employee.designation || ""));
+                  const checkInFormatted = employee.check_in_time
+                    ? new Date(employee.check_in_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+                    : "--";
+                  const checkOutFormatted = employee.check_out_time
+                    ? new Date(employee.check_out_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+                    : "--";
                   return (
                     <tr key={employee.employee_id}>
                       <td>
@@ -250,10 +287,50 @@ const CompanyPresence = () => {
                       </td>
                       <td>{employee.department_name || "General"}</td>
                       <td><span className={`presence-badge presence-badge--${attendanceStatus.toLowerCase()}`}>{STATUS_LABELS[attendanceStatus] || "Absent"}</span></td>
+                      <td>
+                        <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Clock size={13} style={{ color: "#64748b" }} />
+                          <span style={{ color: employee.check_in_time ? "#166534" : "#94a3b8" }}>{checkInFormatted}</span>
+                          <span style={{ color: "#cbd5e1" }}>→</span>
+                          <span style={{ color: employee.check_out_time ? "#9a3412" : "#94a3b8" }}>{checkOutFormatted}</span>
+                        </div>
+                      </td>
                       <td><span className={`workmode-badge workmode-badge--${workMode.toLowerCase()}`}>{workMode === "WFH" ? "WFH" : "Office"}</span></td>
                       {canManagePresence && (
                         <td>
-                          <div className="company-presence__actions">
+                          <div className="company-presence__actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            {canEditAttendanceTime && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingEmployee(employee);
+                                  setShowEditModal(true);
+                                }}
+                                style={{
+                                  background: employee.check_in_time ? "#eff6ff" : "#2563eb",
+                                  color: employee.check_in_time ? "#1d4ed8" : "#ffffff",
+                                  border: employee.check_in_time ? "1px solid #bfdbfe" : "1px solid #2563eb",
+                                  padding: "6px 10px",
+                                  borderRadius: "8px",
+                                  fontSize: "12px",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                {employee.check_in_time ? (
+                                  <>
+                                    <Edit3 size={12} /> Edit Time
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck size={12} /> Mark Present
+                                  </>
+                                )}
+                              </button>
+                            )}
                             <select
                               value={workMode}
                               onChange={(event) => handleWorkModeChange(employee, event.target.value)}
@@ -283,6 +360,17 @@ const CompanyPresence = () => {
           </div>
         )}
       </section>
+
+      <HRAttendanceEditModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingEmployee(null);
+        }}
+        onSaved={handleRefresh}
+        initialRecord={editingEmployee}
+        employeesList={employees}
+      />
     </main>
   );
 };

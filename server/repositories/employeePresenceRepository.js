@@ -10,10 +10,18 @@ export const getCompanyPresenceRepository = async () => {
        e.designation,
        e.employment_type,
        d.department_name,
+       a.id AS attendance_id,
+       a.check_in_time,
+       a.check_out_time,
+       a.status AS raw_attendance_status,
+       COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
+       COALESCE(e.shift_start_time, '10:00') AS shift_start_time,
+       COALESCE(e.shift_end_time, '18:00') AS shift_end_time,
        presence_override.status AS presence_override,
        CASE
          WHEN presence_override.status = 'ON_LEAVE' THEN 'ON_LEAVE'
-         WHEN a.check_in_time IS NOT NULL THEN 'PRESENT'
+         WHEN a.check_in_time IS NOT NULL AND UPPER(COALESCE(a.status, '')) <> 'ABSENT' THEN 'PRESENT'
+         WHEN UPPER(COALESCE(a.status, '')) IN ('PRESENT', 'LATE', 'HALF_DAY') THEN 'PRESENT'
          WHEN UPPER(COALESCE(a.status, '')) = 'ON_LEAVE'
            OR e.status = 'ON_LEAVE'
            OR UPPER(COALESCE(roster_day.status, '')) IN ('LEAVE', 'PLANNED_LEAVE')

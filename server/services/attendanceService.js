@@ -31,6 +31,8 @@ import {
   updateAttendanceCheckOutRepository,
   getMyAttendanceHistoryRepository,
   getHRAttendanceReportsRepository,
+  findEmployeeByIdForAttendanceRepository,
+  upsertEmployeeAttendanceByHRRepository,
 } from "../repositories/attendanceRepository.js";
 
 /**
@@ -656,3 +658,174 @@ export const rejectBiometricService = async (biometricId, reason, currentUser) =
   if (!rejected) throw new ApiError(404, "Biometric record not found.");
   return rejected;
 };
+
+/**
+ * Helper to convert a date string (YYYY-MM-DD) and time input ("HH:mm" or ISO string)
+ * into a valid ISO-8601 timestamp in Asia/Kolkata (+05:30).
+ */
+const parseDateAndTimeToISO = (dateStr, timeValue) => {
+  if (timeValue === null || timeValue === undefined || String(timeValue).trim() === "") {
+    return null;
+  }
+  const trimmed = String(timeValue).trim();
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+    const timeWithSec = trimmed.length === 5 ? `${trimmed}:00` : trimmed;
+    const parsed = new Date(`${dateStr}T${timeWithSec}+05:30`);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new ApiError(400, `Invalid time value: ${trimmed}`);
+    }
+    return parsed.toISOString();
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new ApiError(400, `Invalid timestamp value: ${trimmed}`);
+  }
+  return parsed.toISOString();
+};
+
+/**
+ * Calculate whether a given check-in timestamp is LATE or PRESENT based on employee shift
+ */
+const computeShiftStatusForTimestamp = (checkInIso, employee) => {
+  if (!checkInIso) return "PRESENT";
+  try {
+    const dt = new Date(checkInIso);
+    const istFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Kolkata",
+      weekday: "short",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    });
+    const parts = istFormatter.formatToParts(dt);
+    const getPart = (type) => parts.find((p) => p.type === type)?.value;
+    const weekday = getPart("weekday");
+    let hour = parseInt(getPart("hour"), 10);
+    if (hour === 24) hour = 0;
+    const minute = parseInt(getPart("minute"), 10);
+    const checkInMins = hour * 60 + minute;
+
+    let expectedMins = 10 * 60; // Mon-Fri 10:00 AM
+    if (weekday === "Sat" || weekday === "Sun") {
+      expectedMins = 9 * 60 + 30; // Sat & Sun 9:30 AM
+    }
+
+    if (employee?.shift_timing_type === "CUSTOM") {
+      let customStart = employee.shift_start_time || "10:00";
+      const customTimings =
+        typeof employee.custom_shift_timings === "string"
+          ? (() => {
+              try {
+                return JSON.parse(employee.custom_shift_timings);
+              } catch {
+                return null;
+              }
+            })()
+          : employee.custom_shift_timings;
+
+      if (weekday === "Sat" && customTimings?.sat_start) {
+        customStart = customTimings.sat_start;
+      } else if (weekday === "Sun" && customTimings?.sun_start) {
+        customStart = customTimings.sun_start;
+      } else if (customTimings?.mon_fri_start) {
+        customStart = customTimings.mon_fri_start;
+      }
+
+      const [customHour, customMinute] = String(customStart).split(":").map(Number);
+      if (!Number.isNaN(customHour) && !Number.isNaN(customMinute)) {
+        expectedMins = customHour * 60 + customMinute;
+      }
+    }
+
+    return checkInMins > expectedMins ? "LATE" : "PRESENT";
+  } catch {
+    return "PRESENT";
+  }
+};
+
+/**
+ * Allows HR, Admin, and Super Admin to manually mark an employee's attendance
+ * or edit their check-in / check-out times and status.
+ */
+export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentUser, req) => {
+  const actorRole = String(currentUser?.role || "").toUpperCase();
+  if (!["HR", "ADMIN", "SUPER_ADMIN"].includes(actorRole)) {
+    throw new ApiError(403, "Only HR or an administrator can mark or edit employee attendance.");
+  }
+
+  const employeeId = Number(payload.employee_id || payload.employeeId);
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    throw new ApiError(400, "A valid employee ID is required.");
+  }
+
+  const employee = await findEmployeeByIdForAttendanceRepository(employeeId);
+  if (!employee) {
+    throw new ApiError(404, "Employee not found.");
+  }
+
+  const todayIst = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  const targetDate = String(payload.date || todayIst).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+    throw new ApiError(400, "Date must be in YYYY-MM-DD format.");
+  }
+
+  const requestedStatus = String(payload.status || "AUTO").trim().toUpperCase();
+  const allowedStatuses = new Set(["AUTO", "PRESENT", "LATE", "HALF_DAY", "ABSENT", "ON_LEAVE"]);
+  if (!allowedStatuses.has(requestedStatus)) {
+    throw new ApiError(400, "Invalid attendance status.");
+  }
+
+  let checkInIso = parseDateAndTimeToISO(targetDate, payload.check_in_time);
+  let checkOutIso = parseDateAndTimeToISO(targetDate, payload.check_out_time);
+
+  if (requestedStatus === "ABSENT" || requestedStatus === "ON_LEAVE") {
+    if (!payload.keep_times) {
+      checkInIso = null;
+      checkOutIso = null;
+    }
+  } else if (!checkInIso) {
+    // If HR marks PRESENT / LATE / HALF_DAY / AUTO without typing a time, default to shift start time (or 10:00)
+    const defaultShiftStart = employee.shift_start_time || "10:00";
+    checkInIso = parseDateAndTimeToISO(targetDate, defaultShiftStart);
+  }
+
+  if (checkOutIso && !checkInIso) {
+    throw new ApiError(400, "Check-in time is required when setting a check-out time.");
+  }
+
+  let totalHours = 0;
+  if (checkInIso && checkOutIso) {
+    const inMs = new Date(checkInIso).getTime();
+    const outMs = new Date(checkOutIso).getTime();
+    if (outMs <= inMs) {
+      throw new ApiError(400, "Check-out time must be later than check-in time.");
+    }
+    totalHours = Number(((outMs - inMs) / 3600000).toFixed(2));
+  }
+
+  const finalStatus =
+    requestedStatus === "AUTO"
+      ? computeShiftStatusForTimestamp(checkInIso, employee)
+      : requestedStatus;
+
+  const actorName = currentUser?.full_name || currentUser?.email || actorRole;
+  const locationLabel = `Marked / Edited by ${actorRole} (${actorName})`;
+
+  return await upsertEmployeeAttendanceByHRRepository({
+    employee_id: employeeId,
+    date: targetDate,
+    check_in_time: checkInIso,
+    check_out_time: checkOutIso,
+    status: finalStatus,
+    total_hours: totalHours,
+    ip_address: getClientIp(req || { headers: {} }),
+    location_label: locationLabel,
+  });
+};
+

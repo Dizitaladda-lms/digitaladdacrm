@@ -597,3 +597,98 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
     };
   }
 };
+
+export const findEmployeeByIdForAttendanceRepository = async (employeeId) => {
+  const result = await pool.query(
+    `SELECT * FROM employees WHERE id = $1 AND is_deleted = FALSE LIMIT 1;`,
+    [employeeId]
+  );
+  return result.rows[0] || null;
+};
+
+export const upsertEmployeeAttendanceByHRRepository = async ({
+  employee_id,
+  date,
+  check_in_time,
+  check_out_time,
+  status,
+  total_hours,
+  ip_address,
+  location_label,
+}) => {
+  const result = await pool.query(
+    `
+      INSERT INTO daily_attendance (
+        employee_id,
+        date,
+        check_in_time,
+        check_out_time,
+        total_hours,
+        ip_address,
+        is_office_wifi,
+        status,
+        check_in_location,
+        check_out_location,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2::date,
+        $3::timestamptz,
+        $4::timestamptz,
+        $5,
+        $6,
+        TRUE,
+        $7,
+        CASE WHEN $3::timestamptz IS NOT NULL THEN $8 ELSE NULL END,
+        CASE WHEN $4::timestamptz IS NOT NULL THEN $8 ELSE NULL END,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (employee_id, date)
+      DO UPDATE SET
+        check_in_time = $3::timestamptz,
+        check_out_time = $4::timestamptz,
+        total_hours = $5,
+        status = $7,
+        check_in_location = CASE
+          WHEN $3::timestamptz IS NOT NULL THEN COALESCE(daily_attendance.check_in_location, $8)
+          ELSE NULL
+        END,
+        check_out_location = CASE
+          WHEN $4::timestamptz IS NOT NULL THEN COALESCE(daily_attendance.check_out_location, $8)
+          ELSE NULL
+        END,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *;
+    `,
+    [
+      employee_id,
+      date,
+      check_in_time || null,
+      check_out_time || null,
+      total_hours ?? 0,
+      ip_address || null,
+      status || "PRESENT",
+      location_label || "Marked / Edited by HR",
+    ]
+  );
+
+  if (status === "ON_LEAVE") {
+    await pool.query(
+      `INSERT INTO daily_employee_presence_overrides (employee_id, presence_date, status)
+       VALUES ($1, $2::date, 'ON_LEAVE')
+       ON CONFLICT (employee_id, presence_date)
+       DO UPDATE SET status = 'ON_LEAVE', updated_at = CURRENT_TIMESTAMP;`,
+      [employee_id, date]
+    ).catch(() => {});
+  } else {
+    await pool.query(
+      `DELETE FROM daily_employee_presence_overrides
+       WHERE employee_id = $1 AND presence_date = $2::date;`,
+      [employee_id, date]
+    ).catch(() => {});
+  }
+
+  return result.rows[0];
+};
+

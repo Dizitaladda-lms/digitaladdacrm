@@ -841,23 +841,23 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           ) : !today?.check_in_time ? (
             <button
               type="button"
-              className="btn-bio-secondary"
+              className="btn-bio-primary"
               onClick={handleCheckIn}
               disabled={attendanceActionDisabled}
               title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
-              {passkeyRequired ? <ScanFace size={16} /> : <MapPin size={16} />}
+              {passkeyRequired ? <ScanFace size={18} /> : <MapPin size={18} />}
               {passkeyRequired ? "Check-In with Passkey" : "Check In"}
             </button>
           ) : !today?.check_out_time ? (
             <button
               type="button"
-              className="btn-bio-secondary"
+              className="btn-bio-primary"
               onClick={handleCheckOut}
               disabled={attendanceActionDisabled}
               title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
             >
-              {passkeyRequired ? <ScanFace size={16} /> : <MapPin size={16} />}
+              {passkeyRequired ? <ScanFace size={18} /> : <MapPin size={18} />}
               {passkeyRequired ? "Check-Out with Passkey" : "Check Out"}
             </button>
           ) : (

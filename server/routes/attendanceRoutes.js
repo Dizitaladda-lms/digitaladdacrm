@@ -22,6 +22,7 @@ import {
   getOfficeIPs,
   addOfficeIP,
   deleteOfficeIP,
+  upsertEmployeeAttendanceByHR,
 } from "../controllers/attendanceController.js";
 
 const router = express.Router();
@@ -69,11 +70,21 @@ router.patch(
   setEmployeePresenceStatus
 );
 
-// HR & Super Admin Attendance Reports
+// HR & Super Admin Attendance Reports & Manual Mark / Time Edit
 router.get(
   "/hr-reports",
   roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   getHRAttendanceReports
+);
+router.post(
+  "/hr-manage",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  upsertEmployeeAttendanceByHR
+);
+router.put(
+  "/hr-manage/:employeeId",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  upsertEmployeeAttendanceByHR
 );
 
 // Office Wi-Fi Whitelist Management (Super Admin)
