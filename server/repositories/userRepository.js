@@ -57,9 +57,11 @@ export const findUserByEmailRepository = async (
 
         FROM users
 
-        WHERE email = $1
+        WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
 
-        AND is_deleted = FALSE;
+        AND is_deleted = FALSE
+        ORDER BY is_active DESC, id DESC
+        LIMIT 1;
 
     `;
 
@@ -124,6 +126,14 @@ export const updateUserRepository = async (
         fields.push(`role = $${idx++}`);
         values.push(user.role);
     }
+    if (user.is_active !== undefined) {
+        fields.push(`is_active = $${idx++}`);
+        values.push(Boolean(user.is_active));
+    }
+    if (user.is_deleted !== undefined) {
+        fields.push(`is_deleted = $${idx++}`);
+        values.push(Boolean(user.is_deleted));
+    }
 
     fields.push(`updated_at = CURRENT_TIMESTAMP`);
     values.push(id);
@@ -132,7 +142,6 @@ export const updateUserRepository = async (
         UPDATE users
         SET ${fields.join(", ")}
         WHERE id = $${idx}
-        AND is_deleted = FALSE
         RETURNING id, full_name, email, role, is_active, is_deleted,
                   email_verified, last_login, created_at, updated_at;
     `;

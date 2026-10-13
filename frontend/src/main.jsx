@@ -10,16 +10,34 @@ import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
-// Automatically activate new service worker and refresh page on deployment
+// Automatically activate new service worker and purge stale precaches on deployment
 const updateSW = registerSW({
+  immediate: true,
   onNeedRefresh() {
-    console.log("⚡ New application version detected. Updating automatically...");
     updateSW(true);
   },
+  onRegisteredSW(_swUrl, registration) {
+    if (registration) {
+      registration.update().catch(() => {});
+    }
+  },
   onOfflineReady() {
-    console.log("PWA ready for offline use.");
+    console.log("PWA ready.");
   },
 });
+
+if (typeof window !== "undefined" && "caches" in window) {
+  caches
+    .keys()
+    .then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key.includes("precache"))
+          .map((key) => caches.delete(key))
+      )
+    )
+    .catch(() => {});
+}
 
 // Automatic reload handler when dynamic imports change on new deployment
 window.addEventListener("error", (event) => {

@@ -529,7 +529,8 @@ export const updateEmployeeService = async (
             );
         invalidateReportVisibilityCache();
 
-        // Update User (Full Name, Role, Email, and Password)
+        // Update User (Full Name, Role, Email, Status, and Password)
+        const targetStatus = String(employeeData.status ?? employee.status ?? "ACTIVE").toUpperCase();
         const userUpdatePayload = {
             full_name:
                 employeeData.full_name ??
@@ -538,6 +539,8 @@ export const updateEmployeeService = async (
             role:
                 employeeData.role ??
                 employee.role,
+            is_active: targetStatus !== "INACTIVE",
+            is_deleted: false,
         };
 
         if (employeeData.email) {
@@ -548,11 +551,39 @@ export const updateEmployeeService = async (
             userUpdatePayload.password = hashedPassword;
         }
 
-        await updateUserRepository(
-            client,
-            employee.user_id,
-            userUpdatePayload
-        );
+        let targetUserId = employee.user_id;
+        if (!targetUserId) {
+            const targetEmail = employeeData.email || employee.email;
+            const existingByEmail = await client.query(
+                `SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) ORDER BY id DESC LIMIT 1;`,
+                [targetEmail]
+            );
+            if (existingByEmail.rows[0]?.id) {
+                targetUserId = existingByEmail.rows[0].id;
+            } else if (hashedPassword) {
+                const createdUser = await createUserRepository(client, {
+                    full_name: userUpdatePayload.full_name,
+                    email: targetEmail,
+                    password: hashedPassword,
+                    role: userUpdatePayload.role,
+                });
+                targetUserId = createdUser?.id || null;
+            }
+            if (targetUserId) {
+                await client.query(
+                    `UPDATE employees SET user_id = $1 WHERE id = $2;`,
+                    [targetUserId, Number(id)]
+                );
+            }
+        }
+
+        if (targetUserId) {
+            await updateUserRepository(
+                client,
+                targetUserId,
+                userUpdatePayload
+            );
+        }
 
         safeAuditLog({
             action: "EMPLOYEE_UPDATED",

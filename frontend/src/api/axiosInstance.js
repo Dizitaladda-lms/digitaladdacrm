@@ -2,8 +2,14 @@ import axios from "axios";
 import { getDeviceIdentity } from "../utils/deviceIdentity";
 
 const envApiUrl = (import.meta.env.VITE_API_URL || "").trim();
+const isSameOriginHosted =
+  typeof window !== "undefined" &&
+  (/\.(dizitaladda\.com|vercel\.app)$/i.test(window.location.hostname) ||
+    window.location.hostname === "dizitaladda.com");
 
-const normalizedBaseURL = envApiUrl
+const normalizedBaseURL = isSameOriginHosted
+  ? ""
+  : envApiUrl && !envApiUrl.includes("onrender.com")
   ? envApiUrl.replace(/\/api\/?$/, "").replace(/\/$/, "")
   : import.meta.env.DEV
   ? "http://localhost:5000"
@@ -102,8 +108,12 @@ axiosInstance.interceptors.request.use(async (config) => {
     config.headers = config.headers || {};
   }
 
+  const reqUrl = config.url || "";
+  const isLoginOrRefresh = /\/auth\/(login|refresh-token|register|forgot-password|reset-password)(?:[/?]|$)/i.test(
+    reqUrl
+  );
   const token = getStoredAccessToken();
-  if (token && !config.headers.Authorization) {
+  if (token && !isLoginOrRefresh && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
@@ -182,9 +192,6 @@ axiosInstance.interceptors.response.use(
         return axiosInstance(originalRequest);
       };
 
-      if (typeof navigator !== "undefined" && navigator.locks?.request) {
-        return await navigator.locks.request("dizitaladda-auth-refresh", refreshAndRetry);
-      }
       return await refreshAndRetry();
     } catch (refreshError) {
       if (getRefreshGeneration() !== generationAtFailure) {

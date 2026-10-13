@@ -56,10 +56,25 @@ const getCookieOptions = (req = null) => {
     req?.secure ||
     req?.get?.("x-forwarded-proto") === "https";
 
+  const origin = String(req?.get?.("origin") || "").trim();
+  const host = String(req?.get?.("x-forwarded-host") || req?.get?.("host") || "").trim();
+  let isCrossSite = false;
+  if (origin && host) {
+    try {
+      const originHost = new URL(origin).host.toLowerCase();
+      const targetHost = host.toLowerCase();
+      if (originHost !== targetHost && !originHost.endsWith(".dizitaladda.com")) {
+        isCrossSite = true;
+      }
+    } catch {
+      isCrossSite = false;
+    }
+  }
+
   return {
     httpOnly: true,
     secure: isSecure,
-    sameSite: isSecure ? "none" : "lax",
+    sameSite: isSecure && isCrossSite ? "none" : "lax",
   };
 };
 

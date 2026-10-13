@@ -46,7 +46,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
-const allowedMainWebsitesRegex = /^(https?:\/\/)?([a-z0-9-]+\.)*(nidads\.com|nipage\.com|nigape\.com|iidad\.com|dizitaladda\.com)(:\d+)?$/i;
+const allowedMainWebsitesRegex = /^(https?:\/\/)?([a-z0-9-]+\.)*(nidads\.com|nipage\.com|nigape\.com|iidad\.com|dizitaladda\.com|vercel\.app)(:\d+)?$/i;
 const explicitOrigins = [process.env.CLIENT_URL || "", process.env.ALLOWED_ORIGINS || ""]
   .join(",")
   .split(",")
@@ -86,6 +86,7 @@ app.use(cors((req, callback) => {
         "Accept",
         "X-Device-Id",
         "X-Device-Name",
+        "X-Refresh-Token",
       ],
     });
   }
@@ -117,7 +118,8 @@ app.use((req, res, next) => {
   }
   const unsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(req.method);
   const hasAuthCookie = Boolean(req.cookies?.accessToken || req.cookies?.refreshToken);
-  if (unsafeMethod && hasAuthCookie && !isOriginAllowed(req.get("Origin"))) {
+  const origin = req.get("Origin");
+  if (unsafeMethod && hasAuthCookie && origin && origin !== "null" && !isOriginAllowed(origin)) {
     return res.status(403).json({ success: false, message: "Untrusted request origin." });
   }
   next();

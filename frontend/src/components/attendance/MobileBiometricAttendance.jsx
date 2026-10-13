@@ -68,9 +68,77 @@ export const checkDeviceType = () => {
   };
 };
 
+const LAST_KNOWN_GPS_STORAGE_KEY = "dizitaladda_last_valid_gps";
+const LAST_KNOWN_GPS_TTL_MS = 15 * 60 * 1000; // 15 minutes
+let memoryLastKnownGps = null;
+
+const saveLastKnownGps = (fix) => {
+  if (!fix || fix.latitude == null || fix.longitude == null) return;
+  const payload = { ...fix, saved_at: Date.now() };
+  memoryLastKnownGps = payload;
+  try {
+    sessionStorage.setItem(LAST_KNOWN_GPS_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage restrictions
+  }
+};
+
+const loadLastKnownGps = () => {
+  const now = Date.now();
+  if (memoryLastKnownGps && now - (memoryLastKnownGps.saved_at || 0) <= LAST_KNOWN_GPS_TTL_MS) {
+    return memoryLastKnownGps;
+  }
+  try {
+    const raw = sessionStorage.getItem(LAST_KNOWN_GPS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      parsed.latitude != null &&
+      parsed.longitude != null &&
+      now - (parsed.saved_at || 0) <= LAST_KNOWN_GPS_TTL_MS
+    ) {
+      memoryLastKnownGps = parsed;
+      return parsed;
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return null;
+};
+
+const buildLocationFix = (position) => {
+  const latitude = position.coords.latitude;
+  const longitude = position.coords.longitude;
+  const accuracy = position.coords.accuracy;
+  const rawDistance = calculateDistanceInMeters(latitude, longitude);
+  const accuracyBuffer = Math.min(Math.max(Number(accuracy) || 0, 25), 65);
+  const distance =
+    rawDistance <= MAX_GEOFENCE_RADIUS_METERS
+      ? rawDistance
+      : Math.max(0, rawDistance - accuracyBuffer);
+
+  const location_name =
+    distance <= MAX_GEOFENCE_RADIUS_METERS
+      ? "Dizital Adda Office Premises"
+      : `Outside Office (${Math.round(rawDistance)}m away)`;
+
+  const fix = {
+    latitude,
+    longitude,
+    location_name,
+    distance,
+    raw_distance: rawDistance,
+    accuracy,
+  };
+  saveLastKnownGps(fix);
+  return fix;
+};
+
 /**
- * Multi-tier Geolocation fetcher:
- * Supports laptops (Windows/Mac Wi-Fi positioning) and mobile phones (GPS)
+ * Multi-tier Parallel Geolocation fetcher:
+ * Simultaneously queries Network/Wi-Fi positioning (fast indoors), High-Accuracy GPS,
+ * and watchPosition so indoor office phones and laptops resolve reliably without timing out.
  */
 export const getGPSLocation = () => {
   return new Promise((resolve) => {
@@ -84,71 +152,123 @@ export const getGPSLocation = () => {
       });
     }
 
-    const device = checkDeviceType();
+    let settled = false;
+    let pendingCount = 3;
+    let bestCandidate = null;
+    let lastError = null;
+    let watchId = null;
+    let settleTimer = null;
 
-    const processPosition = (position) => {
-      const latitude = position.coords.latitude;
-      const longitude = position.coords.longitude;
-      const accuracy = position.coords.accuracy;
-      const rawDistance = calculateDistanceInMeters(latitude, longitude);
-      const accuracyBuffer = Math.min(Math.max(Number(accuracy) || 0, 25), 65);
-      const distance =
-        rawDistance <= MAX_GEOFENCE_RADIUS_METERS
-          ? rawDistance
-          : Math.max(0, rawDistance - accuracyBuffer);
-
-      const location_name =
-        distance <= MAX_GEOFENCE_RADIUS_METERS
-          ? "Dizital Adda Office Premises"
-          : `Outside Office (${Math.round(rawDistance)}m away)`;
-
-      resolve({
-        latitude,
-        longitude,
-        location_name,
-        distance,
-        raw_distance: rawDistance,
-        accuracy,
-      });
+    const cleanup = () => {
+      if (watchId != null) {
+        try {
+          navigator.geolocation.clearWatch(watchId);
+        } catch {
+          // Ignore clearWatch errors
+        }
+        watchId = null;
+      }
+      if (settleTimer) {
+        clearTimeout(settleTimer);
+        settleTimer = null;
+      }
     };
 
-    // Attempt 1: High Accuracy (fast for GPS, quick timeout for laptops)
-    navigator.geolocation.getCurrentPosition(
-      processPosition,
-      (firstErr) => {
-        if (firstErr?.code === 1) {
-          return resolve({
-            latitude: null,
-            longitude: null,
-            location_name: "Location Permission Denied",
-            distance: null,
-            error_code: 1,
-            error_msg: firstErr.message,
-          });
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(result);
+    };
+
+    const handleSuccess = (position) => {
+      if (settled) return;
+      const fix = buildLocationFix(position);
+
+      // If within the 100m office geofence, resolve immediately!
+      if (fix.distance <= MAX_GEOFENCE_RADIUS_METERS) {
+        return finish(fix);
+      }
+
+      if (!bestCandidate || fix.distance < bestCandidate.distance) {
+        bestCandidate = fix;
+      }
+
+      pendingCount -= 1;
+      if (pendingCount <= 0) {
+        return finish(bestCandidate);
+      }
+
+      // Give the high-accuracy provider up to 2.5s to refine if the first fix was coarse
+      if (!settleTimer) {
+        settleTimer = setTimeout(() => {
+          if (!settled && bestCandidate) {
+            finish(bestCandidate);
+          }
+        }, 2500);
+      }
+    };
+
+    const handleError = (err) => {
+      if (settled) return;
+      lastError = err;
+      pendingCount -= 1;
+
+      if (pendingCount <= 0) {
+        if (bestCandidate) {
+          return finish(bestCandidate);
+        }
+        const cached = loadLastKnownGps();
+        if (cached) {
+          return finish(cached);
         }
 
-        // Attempt 2: Standard network / Wi-Fi positioning fallback when GPS times out
+        // Final instant fallback accepting any cached OS position (maximumAge: Infinity)
         navigator.geolocation.getCurrentPosition(
-          processPosition,
-          (secondErr) => {
-            console.warn("Geolocation fallback failed:", secondErr);
-            resolve({
+          (pos) => finish(buildLocationFix(pos)),
+          (finalErr) => {
+            const errToReport = finalErr || lastError || {};
+            finish({
               latitude: null,
               longitude: null,
               location_name:
-                secondErr.code === 1
+                errToReport.code === 1
                   ? "Location Permission Denied"
-                  : "GPS Location Unavailable / Timed Out",
+                  : "GPS Location Unavailable / Turn ON Phone Location",
               distance: null,
-              error_code: secondErr.code,
-              error_msg: secondErr.message,
+              error_code: errToReport.code ?? 2,
+              error_msg: errToReport.message || "Could not detect location",
             });
           },
-          { enableHighAccuracy: false, timeout: 6000, maximumAge: 120000 }
+          { enableHighAccuracy: false, timeout: 3000, maximumAge: Infinity }
         );
-      },
-      { enableHighAccuracy: true, timeout: device.isLaptop ? 4000 : 6000, maximumAge: 30000 }
+      }
+    };
+
+    // 1. Fast Network / Wi-Fi / Cell tower location (works indoors in <1s)
+    navigator.geolocation.getCurrentPosition(
+      handleSuccess,
+      handleError,
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 600000 }
     );
+
+    // 2. High-Accuracy GPS satellite / fused location
+    navigator.geolocation.getCurrentPosition(
+      handleSuccess,
+      handleError,
+      { enableHighAccuracy: true, timeout: 9000, maximumAge: 120000 }
+    );
+
+    // 3. Active watchPosition wake-up (wakes up Android FusedLocationProvider)
+    try {
+      watchId = navigator.geolocation.watchPosition(
+        handleSuccess,
+        handleError,
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 900000 }
+      );
+    } catch {
+      pendingCount -= 1;
+    }
   });
 };
 
@@ -156,7 +276,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [locationData, setLocationData] = useState(null);
+  const [locationData, setLocationData] = useState(() => loadLastKnownGps());
   const [locating, setLocating] = useState(false);
   const [showLocationHelpModal, setShowLocationHelpModal] = useState(false);
   const [faceConsentChecked, setFaceConsentChecked] = useState(false);
@@ -201,9 +321,6 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       // Trigger getGPSLocation synchronously before state updates to preserve browser user-gesture context
       const gpsPromise = getGPSLocation();
       setLocating(true);
-      if (isUserInitiated) {
-        setLocationData(null);
-      }
       const loc = await gpsPromise;
       setLocationData(loc);
 
@@ -217,16 +334,19 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           );
         }
       } else if (loc?.error_code === 1) {
-        // Show the re-allow location modal both on page refresh and when clicking Refresh Location!
         setShowLocationHelpModal(true);
         if (isUserInitiated) {
           toast.error(
-            "📍 Location Blocked! URL bar ke 🔒 Lock/Tune icon par click karke Location ko 'Allow' karein.",
+            "📍 Location Permission Blocked! URL bar ke 🔒 Lock/Tune icon ya Phone Settings -> Apps -> Chrome -> Permissions me Location 'Allow' karein.",
             { duration: 6000 }
           );
         }
       } else if (isUserInitiated) {
-        toast.error("📍 Could not detect GPS location. Please ensure device location is turned ON.");
+        setShowLocationHelpModal(true);
+        toast.error(
+          "📍 Phone ka GPS / Location OFF hai! Apne phone ke upar Notification bar se Location (GPS) ON karein aur Retry dabayein.",
+          { duration: 6000 }
+        );
       }
       return loc;
     } catch (err) {
@@ -243,86 +363,79 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   }, [refreshLocation]);
 
   // Automatically re-request GPS the moment user changes browser Location permission (Block -> Allow / Ask)
+  // or returns to the app after turning ON phone GPS in notification shade / settings
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.permissions?.query) return undefined;
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        refreshLocation(false);
+      }
+    };
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
     let permissionStatusObj = null;
     let isMounted = true;
 
-    navigator.permissions
-      .query({ name: "geolocation" })
-      .then((permStatus) => {
-        if (!isMounted) return;
-        permissionStatusObj = permStatus;
-        if (permStatus.state === "denied") {
-          setShowLocationHelpModal(true);
-        }
-        permStatus.onchange = () => {
-          if (permStatus.state === "granted" || permStatus.state === "prompt") {
-            setShowLocationHelpModal(false);
-            refreshLocation(true);
-          } else if (permStatus.state === "denied") {
+    if (typeof navigator !== "undefined" && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((permStatus) => {
+          if (!isMounted) return;
+          permissionStatusObj = permStatus;
+          if (permStatus.state === "denied") {
             setShowLocationHelpModal(true);
           }
-        };
-      })
-      .catch(() => {});
+          permStatus.onchange = () => {
+            if (permStatus.state === "granted" || permStatus.state === "prompt") {
+              setShowLocationHelpModal(false);
+              refreshLocation(true);
+            } else if (permStatus.state === "denied") {
+              setShowLocationHelpModal(true);
+            }
+          };
+        })
+        .catch(() => {});
+    }
 
     return () => {
       isMounted = false;
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
       if (permissionStatusObj) {
         permissionStatusObj.onchange = null;
       }
     };
   }, [refreshLocation]);
 
-  const hasValidCoordinates = locationData?.latitude != null && locationData?.longitude != null;
-
+  // Continuous background watchPosition on BOTH Mobile & Laptop so turning ON GPS immediately updates status
   useEffect(() => {
-    if (!device.isLaptop || !hasValidCoordinates || typeof navigator === "undefined" || !navigator.geolocation) {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
       return undefined;
     }
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        const rawDistance = calculateDistanceInMeters(latitude, longitude);
-        const accuracyBuffer = Math.min(Math.max(Number(accuracy) || 0, 25), 65);
-        const distance =
-          rawDistance <= MAX_GEOFENCE_RADIUS_METERS
-            ? rawDistance
-            : Math.max(0, rawDistance - accuracyBuffer);
+        const fix = buildLocationFix(position);
         setShowLocationHelpModal(false);
         setLocationData((prev) => {
           // Do not overwrite an already-verified office fix with a noisy coarse reading
           if (
             prev?.distance != null &&
             prev.distance <= MAX_GEOFENCE_RADIUS_METERS &&
-            distance > MAX_GEOFENCE_RADIUS_METERS &&
-            Number(accuracy) > 100
+            fix.distance > MAX_GEOFENCE_RADIUS_METERS &&
+            Number(fix.accuracy) > 100
           ) {
             return prev;
           }
-          return {
-            latitude,
-            longitude,
-            distance,
-            raw_distance: rawDistance,
-            accuracy,
-            location_name:
-              distance <= MAX_GEOFENCE_RADIUS_METERS
-                ? "Dizital Adda Office Premises"
-                : `Outside Office (${Math.round(rawDistance)}m away)`,
-          };
+          return fix;
         });
       },
-      (error) => {
-        console.warn("Laptop location watch failed:", error);
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+      () => {},
+      { enableHighAccuracy: !device.isLaptop, timeout: 15000, maximumAge: 60000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [device.isLaptop, hasValidCoordinates]);
+  }, [device.isLaptop]);
 
   // Ensure stream is properly attached to <video> ref when modal opens
   useEffect(() => {
@@ -445,8 +558,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const validateGPSLocation = (loc) => {
     if (!loc || loc.latitude == null || loc.longitude == null) {
+      setShowLocationHelpModal(true);
       if (loc?.error_code === 1) {
-        setShowLocationHelpModal(true);
         if (device.isLaptop) {
           toast.error(
             "📍 Laptop Location Blocked! Click 'Allow Location' or click the lock/tune icon 🔒 in your browser URL bar, set Location to 'Allow', and click Refresh.",
@@ -467,8 +580,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         toast.error(
           device.isLaptop
             ? "📍 Laptop Location Unavailable! Please make sure your laptop is connected to Wi-Fi and Windows Location is ON."
-            : "📍 GPS Location Unavailable! Please turn ON high accuracy GPS on your phone.",
-          { duration: 6000 }
+            : "📍 Phone GPS is OFF or Unavailable! Upar notification bar se Phone Location (GPS) ON karein aur Chrome App ko Location permission dein.",
+          { duration: 7000 }
         );
       }
       return false;
@@ -1003,7 +1116,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                   </strong>
                   {isLocationDenied
                     ? "Browser URL bar ke left me 🔒 Lock / Tune icon par click karke Location ko 'Allow' karein, phir neeche button dabayein."
-                    : "Apne device ki Location / GPS ON rakhein aur Location Refresh par click karein."}
+                    : "Upar Notification bar se Phone ka GPS / Location ON karein (aur Chrome App me Location Allow rakhein), phir Refresh dabayein."}
                 </div>
               </div>
 
@@ -1029,24 +1142,22 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                   <RefreshCw size={13} className={locating ? "spin-anim" : ""} />
                   Allow / Refresh Location
                 </button>
-                {isLocationDenied && (
-                  <button
-                    type="button"
-                    onClick={() => setShowLocationHelpModal(true)}
-                    style={{
-                      background: "rgba(255, 255, 255, 0.12)",
-                      color: "#e2e8f0",
-                      border: "1px solid rgba(255, 255, 255, 0.25)",
-                      borderRadius: "8px",
-                      padding: "7px 11px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    How to Unblock?
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowLocationHelpModal(true)}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.12)",
+                    color: "#e2e8f0",
+                    border: "1px solid rgba(255, 255, 255, 0.25)",
+                    borderRadius: "8px",
+                    padding: "7px 11px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {isLocationDenied ? "How to Unblock?" : "How to Fix?"}
+                </button>
               </div>
             </div>
           )}
@@ -1436,7 +1547,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
 
             <p className="bio-camera-desc" style={{ fontSize: "13.5px", color: "#e2e8f0" }}>
-              Aapke browser me is site ke liye <strong>Location Access Denied / Blocked</strong> hai. Dobara location allow karne ke liye:
+              {isLocationDenied ? (
+                <>
+                  Aapke browser me is site ke liye <strong>Location Access Denied / Blocked</strong> hai. Dobara location allow karne ke liye:
+                </>
+              ) : (
+                <>
+                  Aapke phone ya browser se <strong>GPS Location Signal</strong> nahi mil raha hai. Niche diye 3 points check karein:
+                </>
+              )}
             </p>
 
             <div
@@ -1457,7 +1576,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                     Browser ke upar URL bar ke left side me <strong>🔒 Lock / Tune icon</strong> par click karein.
                   </li>
                   <li style={{ marginBottom: "6px" }}>
-                    <strong>Location</strong> ke samne <strong>Allow</strong> select karein (ya Reset permission karein).
+                    <strong>Location</strong> ke samne <strong>Allow</strong> select karein (aur Windows Settings &rarr; Privacy &rarr; Location ON rakhein).
                   </li>
                   <li>
                     Neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> button dabayein.
@@ -1466,25 +1585,28 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ) : device.isIPhone ? (
                 <ol style={{ margin: 0, paddingLeft: "18px" }}>
                   <li style={{ marginBottom: "6px" }}>
-                    Safari address bar me <strong>aA</strong> yaSite Settings icon par tap karein &rarr; <strong>Website Settings</strong> &rarr; <strong>Location: Ask / Allow</strong> karein.
+                    <strong>iPhone Settings &rarr; Privacy &amp; Security &rarr; Location Services</strong> ko <strong>ON</strong> karein, aur <strong>Safari Websites &rarr; While Using the App</strong> (+ Precise Location ON) select karein.
                   </li>
                   <li style={{ marginBottom: "6px" }}>
-                    Ya <strong>iPhone Settings &rarr; Privacy &amp; Security &rarr; Location Services &rarr; Safari Websites &rarr; While Using the App</strong> select karein.
+                    Safari address bar me <strong>aA</strong> ya Site Settings icon par tap karein &rarr; <strong>Website Settings</strong> &rarr; <strong>Location: Allow</strong> karein.
                   </li>
                   <li>
-                    Neeche <strong>&ldquo;Retry Location Now&rdquo;</strong> ya <strong>&ldquo;Reload &amp; Ask Again&rdquo;</strong> par tap karein.
+                    Neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> par tap karein.
                   </li>
                 </ol>
               ) : (
                 <ol style={{ margin: 0, paddingLeft: "18px" }}>
                   <li style={{ marginBottom: "6px" }}>
-                    Browser address bar ke left me <strong>🔒 Lock / Tune icon</strong> &rarr; <strong>Permissions</strong> &rarr; <strong>Location: Allow</strong> on karein.
+                    <strong>Step 1 (Sabse Zaroori):</strong> Phone ke upar से <strong>Notification Bar (Quick Settings)</strong> niche swipe karein aur <strong>Location / GPS (📍)</strong> button ko <strong>ON</strong> karein.
                   </li>
                   <li style={{ marginBottom: "6px" }}>
-                    Apne phone ka <strong>GPS / Location</strong> notification bar se ON rakhein.
+                    <strong>Step 2 (Chrome App Permission):</strong> Phone <strong>Settings &rarr; Apps &rarr; Chrome &rarr; Permissions &rarr; Location</strong> me jakar <strong>&ldquo;Allow only while using the app&rdquo;</strong> aur <strong>&ldquo;Use precise location&rdquo;</strong> ON karein.
+                  </li>
+                  <li style={{ marginBottom: "6px" }}>
+                    <strong>Step 3 (Website Permission):</strong> Browser URL bar ke left me <strong>🔒 Lock / Tune icon &rarr; Permissions &rarr; Location: Allow</strong> rakhein.
                   </li>
                   <li>
-                    Neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> par tap karein.
+                    Ab neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> par tap karein.
                   </li>
                 </ol>
               )}

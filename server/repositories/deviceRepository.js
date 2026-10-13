@@ -40,32 +40,57 @@ export const approveUserDeviceRepository = async (client, device) => {
     [device.userId, device.deviceType, device.deviceId]
   );
 
-  const { rows } = await dbClient.query(
-    `INSERT INTO user_devices (
-       user_id, device_id, device_type, device_name, user_agent, ip_address, status
-     )
-     VALUES ($1, $2, $3, $4, $5, $6, 'approved')
-     ON CONFLICT (user_id, device_id)
-     DO UPDATE SET
-       device_type = EXCLUDED.device_type,
-       device_name = COALESCE(NULLIF(EXCLUDED.device_name, ''), user_devices.device_name),
-       user_agent = EXCLUDED.user_agent,
-       ip_address = EXCLUDED.ip_address,
-       status = 'approved',
-       revoked_at = NULL,
-       revoked_by = NULL,
-       last_seen = CURRENT_TIMESTAMP
-     RETURNING id, user_id, device_id, device_type, device_name, status;`,
-    [
-      device.userId,
-      device.deviceId,
-      device.deviceType,
-      device.deviceName || "Browser",
-      device.userAgent || "",
-      device.ipAddress || null,
-    ]
-  );
-  return rows[0];
+  try {
+    const { rows } = await dbClient.query(
+      `INSERT INTO user_devices (
+         user_id, device_id, device_type, device_name, user_agent, ip_address, status
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, 'approved')
+       ON CONFLICT (user_id, device_id)
+       DO UPDATE SET
+         device_type = EXCLUDED.device_type,
+         device_name = COALESCE(NULLIF(EXCLUDED.device_name, ''), user_devices.device_name),
+         user_agent = EXCLUDED.user_agent,
+         ip_address = EXCLUDED.ip_address,
+         status = 'approved',
+         revoked_at = NULL,
+         revoked_by = NULL,
+         last_seen = CURRENT_TIMESTAMP
+       RETURNING id, user_id, device_id, device_type, device_name, status;`,
+      [
+        device.userId,
+        device.deviceId,
+        device.deviceType,
+        device.deviceName || "Browser",
+        device.userAgent || "",
+        device.ipAddress || null,
+      ]
+    );
+    return rows[0];
+  } catch (err) {
+    if (err?.code === "23505" && !client) {
+      const { rows } = await pool.query(
+        `UPDATE user_devices
+         SET device_id = $2,
+             device_name = COALESCE(NULLIF($4, ''), device_name),
+             user_agent = $5,
+             ip_address = $6,
+             last_seen = CURRENT_TIMESTAMP
+         WHERE user_id = $1 AND device_type = $3 AND status = 'approved'
+         RETURNING id, user_id, device_id, device_type, device_name, status;`,
+        [
+          device.userId,
+          device.deviceId,
+          device.deviceType,
+          device.deviceName || "Browser",
+          device.userAgent || "",
+          device.ipAddress || null,
+        ]
+      );
+      return rows[0] || null;
+    }
+    throw err;
+  }
 };
 
 export const touchUserDeviceRepository = async (client, userId, deviceId, device) => {

@@ -1,17 +1,28 @@
-import axiosInstance from "../api/axiosInstance";
+import axiosInstance, { clearStoredAuthTokens, setStoredAuthTokens } from "../api/axiosInstance";
 
 export const loginUser = async (credentials) => {
+  clearStoredAuthTokens();
 
-  const response = await axiosInstance.post(
-
-    "/auth/login",
-
-    credentials
-
-  );
-
-  return response.data;
-
+  let lastError;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await axiosInstance.post("/auth/login", credentials);
+      const payload = response.data?.data || response.data || {};
+      if (payload.accessToken || payload.refreshToken) {
+        setStoredAuthTokens(payload.accessToken, payload.refreshToken);
+      }
+      return response.data;
+    } catch (error) {
+      lastError = error;
+      const status = error?.response?.status;
+      const isTransient = !error?.response || [502, 503, 504].includes(status);
+      if (!isTransient || attempt === 1) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+  }
+  throw lastError;
 };
 
 export const getProfile = async () => {

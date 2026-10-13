@@ -97,7 +97,9 @@ async (email) => {
 };
 
 export const normalizeLoginPhone = (value) => {
-  const raw = String(value || "").trim();
+  const raw = String(value || "")
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, " ")
+    .trim();
   if (!raw || raw.includes("@")) return null;
   const digits = raw.replace(/\D/g, "");
   if (digits.length < 10 || digits.length > 15) return null;
@@ -106,13 +108,18 @@ export const normalizeLoginPhone = (value) => {
 
 /**
  * =====================================================
- * Find User By Email Or Phone Number
+ * Find Candidate Users By Email, Phone Number, Or Employee Code
  * (With Password)
  * Used For Login
  * =====================================================
  */
-export const findUserByEmailWithPasswordRepository = async (identifier) => {
-  const rawIdentifier = String(identifier || "").trim();
+export const findUsersByIdentifierWithPasswordRepository = async (identifier) => {
+  const cleanedRaw = String(identifier || "")
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, " ")
+    .trim();
+  const rawIdentifier = cleanedRaw.includes("@")
+    ? cleanedRaw.replace(/\s+/g, "")
+    : cleanedRaw;
   const normalizedPhone = normalizeLoginPhone(rawIdentifier);
 
   const query = `
@@ -129,7 +136,11 @@ export const findUserByEmailWithPasswordRepository = async (identifier) => {
       u.created_at,
       u.updated_at,
       e.id AS employee_id,
+      e.user_id AS employee_user_id,
       e.employee_code,
+      e.role AS employee_role,
+      e.status AS employee_status,
+      e.is_deleted AS employee_is_deleted,
       COALESCE(e.designation, u.role) AS designation,
       e.mobile,
       e.department_id,
@@ -144,6 +155,8 @@ export const findUserByEmailWithPasswordRepository = async (identifier) => {
     LEFT JOIN departments d ON e.department_id = d.id
     WHERE (
       LOWER(TRIM(u.email)) = LOWER(TRIM($1))
+      OR LOWER(TRIM(e.email)) = LOWER(TRIM($1))
+      OR UPPER(TRIM(e.employee_code)) = UPPER(TRIM($1))
       OR (
         $2::text IS NOT NULL
         AND e.mobile IS NOT NULL
@@ -151,13 +164,22 @@ export const findUserByEmailWithPasswordRepository = async (identifier) => {
         AND RIGHT(REGEXP_REPLACE(e.mobile, '\\D', '', 'g'), 10) = $2
       )
     )
-      AND u.is_deleted = FALSE
-    ORDER BY u.is_active DESC, u.id DESC
-    LIMIT 1;
+      AND (u.is_deleted = FALSE OR (e.id IS NOT NULL AND e.is_deleted = FALSE))
+    ORDER BY
+      CASE WHEN e.id IS NOT NULL AND UPPER(COALESCE(e.status, 'ACTIVE')) = 'ACTIVE' THEN 0 ELSE 1 END,
+      u.is_active DESC,
+      CASE WHEN e.user_id = u.id THEN 0 ELSE 1 END,
+      u.id DESC
+    LIMIT 5;
   `;
 
   const result = await pool.query(query, [rawIdentifier, normalizedPhone]);
-  return result.rows[0];
+  return result.rows;
+};
+
+export const findUserByEmailWithPasswordRepository = async (identifier) => {
+  const rows = await findUsersByIdentifierWithPasswordRepository(identifier);
+  return rows[0];
 };
 
 /**
@@ -179,7 +201,9 @@ export const findUserByIdRepository = async (id) => {
       u.created_at,
       u.updated_at,
       e.id AS employee_id,
+      e.user_id AS employee_user_id,
       e.employee_code,
+      e.status AS employee_status,
       COALESCE(e.designation, u.role) AS designation,
       e.mobile,
       e.department_id,
@@ -193,13 +217,26 @@ export const findUserByIdRepository = async (id) => {
       AND e.is_deleted = FALSE
     LEFT JOIN departments d ON e.department_id = d.id
     WHERE u.id = $1
-      AND u.is_deleted = FALSE
+      AND (u.is_deleted = FALSE OR (e.id IS NOT NULL AND e.is_deleted = FALSE))
     ORDER BY CASE WHEN e.user_id = u.id THEN 0 ELSE 1 END, e.id DESC
     LIMIT 1;
   `;
 
   const result = await pool.query(query, [id]);
-  return result.rows[0];
+  const user = result.rows[0];
+  if (
+    user &&
+    user.employee_id &&
+    String(user.employee_status || "ACTIVE").toUpperCase() === "ACTIVE" &&
+    (!user.is_active || user.is_deleted)
+  ) {
+    user.is_active = true;
+    user.is_deleted = false;
+    await pool
+      .query(`UPDATE users SET is_active = TRUE, is_deleted = FALSE WHERE id = $1;`, [user.id])
+      .catch(() => {});
+  }
+  return user;
 };
 
 export const findUserProfileImageRepository = async (userId) => {

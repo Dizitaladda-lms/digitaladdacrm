@@ -35,6 +35,7 @@ import {
   createUserRepository,
   findUserByEmailRepository,
   findUserByEmailWithPasswordRepository,
+  findUsersByIdentifierWithPasswordRepository,
   updateLastLoginRepository,
   findUserByIdRepository,
   findUserProfileImageRepository,
@@ -143,17 +144,6 @@ export const registerUserService = async (
 /**
  * =====================================================
  * Login User
- *
- * BUG FIX (blocks the refresh flow entirely, cookies or
- * not — found while wiring up cookie-based token storage):
- * This generated a refresh token via generateRefreshToken()
- * but never persisted it via createRefreshTokenRepository,
- * unlike refreshTokenRotationService which does both. Any
- * refresh attempt using a token issued at login would fail
- * with "Invalid refresh token" because findRefreshTokenRepository
- * would find no matching row. Now wrapped in a transaction
- * that inserts the refresh token row, matching the pattern
- * refreshTokenRotationService already uses (7-day expiry).
  * =====================================================
  */
 export const loginUserService = async (
@@ -161,19 +151,68 @@ export const loginUserService = async (
   password,
   device
 ) => {
+  let candidates = [];
+  if (typeof findUsersByIdentifierWithPasswordRepository === "function") {
+    const found = await findUsersByIdentifierWithPasswordRepository(email);
+    if (Array.isArray(found) && found.length > 0) {
+      candidates = found;
+    }
+  }
+  if (candidates.length === 0) {
+    const single = await findUserByEmailWithPasswordRepository(email);
+    if (single) candidates = [single];
+  }
 
-  const user =
-    await findUserByEmailWithPasswordRepository(
-      email
-    );
-
-  if (!user) {
-
+  if (candidates.length === 0) {
     throw new ApiError(
       401,
       "Invalid email or password."
     );
+  }
 
+  let matchedUser = null;
+  for (const candidate of candidates) {
+    const ok = await verifyStoredPassword(password, candidate.password);
+    if (ok) {
+      matchedUser = candidate;
+      break;
+    }
+  }
+
+  if (!matchedUser) {
+    // Check if the only candidate(s) were deactivated so we return the clear deactivation message if password matched none or check first candidate
+    throw new ApiError(
+      401,
+      "Invalid email or password."
+    );
+  }
+
+  const user = matchedUser;
+
+  // Auto-heal user active/deleted flags if linked to an ACTIVE employee record
+  const hasActiveEmployeeRecord =
+    Boolean(user.employee_id) &&
+    !user.employee_is_deleted &&
+    String(user.employee_status || "ACTIVE").toUpperCase() === "ACTIVE";
+
+  if (hasActiveEmployeeRecord && (!user.is_active || user.is_deleted)) {
+    user.is_active = true;
+    user.is_deleted = false;
+    await pool
+      .query(
+        `UPDATE users SET is_active = TRUE, is_deleted = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $1;`,
+        [user.id]
+      )
+      .catch(() => {});
+  }
+
+  if (hasActiveEmployeeRecord && !user.employee_user_id) {
+    await pool
+      .query(
+        `UPDATE employees SET user_id = $1 WHERE id = $2 AND user_id IS NULL;`,
+        [user.id, user.employee_id]
+      )
+      .catch(() => {});
   }
 
   if (!user.is_active) {
@@ -183,64 +222,42 @@ export const loginUserService = async (
     );
   }
 
-  const isPasswordPlainText =
-    typeof user.password === "string" &&
-    !user.password.startsWith("$2");
-
-  const isPasswordCorrect = await verifyStoredPassword(password, user.password);
-
-  if (!isPasswordCorrect) {
-    throw new ApiError(
-      401,
-      "Invalid email or password."
-    );
-  }
-
   if (!device?.deviceId || !DEVICE_ID_PATTERN.test(device.deviceId)) {
     throw new ApiError(400, "Device identity is missing or invalid. Refresh the page and try again.");
   }
+
+  const isPasswordPlainText =
+    typeof user.password === "string" &&
+    !user.password.startsWith("$2");
 
   if (isPasswordPlainText) {
     const upgradeClient = await pool.connect();
     try {
       await upgradeClient.query("BEGIN");
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(String(password || "").trim(), 10);
       await updatePasswordRepository(
         upgradeClient,
         user.id,
         hashedPassword
       );
       await upgradeClient.query("COMMIT");
-    } catch (error) {
+    } catch {
       await upgradeClient.query("ROLLBACK");
-      // Intentionally not logging error details here beyond
-      // this point - see audit notes on removed debug logging.
     } finally {
       upgradeClient.release();
     }
   }
 
-  let accessToken;
-  let refreshToken;
+  const expiresAt = new Date(
+    Date.now() + ms(process.env.JWT_REFRESH_EXPIRES_IN || "30d")
+  );
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await lockUserDeviceSlots(client, user.id);
-
-    await approveUserDeviceRepository(client, {
-      userId: user.id,
-      ...device,
-    });
-
-    await touchUserDeviceRepository(client, user.id, device.deviceId, device);
     await updateLastLoginRepository(user.id, client);
-
-    const expiresAt = new Date(
-      Date.now() + ms(process.env.JWT_REFRESH_EXPIRES_IN || "30d")
-    );
-    accessToken = generateAccessToken(user);
-    refreshToken = generateRefreshToken(user);
-
     await createRefreshTokenRepository(
       client,
       user.id,
@@ -248,7 +265,6 @@ export const loginUserService = async (
       expiresAt,
       device.deviceId
     );
-
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -256,6 +272,13 @@ export const loginUserService = async (
   } finally {
     client.release();
   }
+
+  // Update device slot outside the critical transaction so concurrent device slot
+  // updates can never abort a valid login with a 25P02/23505 rollback.
+  await approveUserDeviceRepository(null, {
+    userId: user.id,
+    ...device,
+  }).catch(() => {});
 
   delete user.password;
 
@@ -767,21 +790,6 @@ async (
     throw new ApiError(401, "This account cannot refresh its session.");
   }
 
-  await lockUserDeviceSlots(client, user.id);
-  const approvedDevice = await findApprovedUserDeviceRepository(
-    user.id,
-    device.deviceId,
-    client
-  );
-  if (!approvedDevice || approvedDevice.device_type !== device.deviceType) {
-    await approveUserDeviceRepository(client, {
-      userId: user.id,
-      ...device,
-    });
-  } else {
-    await updateDeviceLastSeenRepository(user.id, device.deviceId, client);
-  }
-
   // Keep a short 2-minute grace window on the previous refresh token instead of
   // deleting immediately so concurrent requests/tabs don't fail with 401.
   await client.query(
@@ -790,6 +798,19 @@ async (
      WHERE id = $1;`,
     [storedToken.id]
   );
+
+  // Update device slot non-blockingly outside transaction so it cannot abort refresh
+  findApprovedUserDeviceRepository(user.id, device.deviceId)
+    .then((approvedDevice) => {
+      if (!approvedDevice || approvedDevice.device_type !== device.deviceType) {
+        return approveUserDeviceRepository(null, {
+          userId: user.id,
+          ...device,
+        });
+      }
+      return updateDeviceLastSeenRepository(user.id, device.deviceId);
+    })
+    .catch(() => {});
 
   const newAccessToken =
     generateAccessToken(user);

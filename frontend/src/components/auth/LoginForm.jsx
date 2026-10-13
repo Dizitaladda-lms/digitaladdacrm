@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Mail,
   Phone,
@@ -15,10 +15,45 @@ import { useAuth } from "../../context/AuthContext";
 import { IS_MAINTENANCE_MODE } from "../../config/maintenanceConfig";
 import "./auth.css";
 
+const sanitizeCredentialText = (value) =>
+  String(value || "")
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, " ")
+    .trim();
+
+const getTargetRouteForRole = (rawRole) => {
+  const role = String(rawRole || "").trim().toUpperCase();
+  if (IS_MAINTENANCE_MODE) {
+    return ["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"].includes(role)
+      ? "/my-attendance"
+      : "/employee/my-attendance";
+  }
+
+  switch (role) {
+    case "MANAGER":
+    case "SUPER_ADMIN":
+    case "ADMIN":
+      return "/dashboard";
+    case "HR":
+      return "/reports";
+    case "SALES_HEAD":
+      return "/leads";
+    case "DEPARTMENT_HEAD":
+    case "SUB_TL":
+    case "COUNSELLOR":
+    case "EMPLOYEE":
+    case "TRAINER":
+    case "INTERN":
+    case "TL":
+      return "/employee/dashboard";
+    default:
+      return null;
+  }
+};
+
 const LoginForm = () => {
   const navigate = useNavigate();
 
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
 
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +68,15 @@ const LoginForm = () => {
     mode: "onTouched",
   });
 
+  useEffect(() => {
+    if (!authLoading && user?.role) {
+      const targetRoute = getTargetRouteForRole(user.role);
+      if (targetRoute) {
+        navigate(targetRoute, { replace: true });
+      }
+    }
+  }, [authLoading, user, navigate]);
+
   const identifierValue = watch("email", "");
   const isPhoneInput =
     Boolean(identifierValue) &&
@@ -42,61 +86,46 @@ const LoginForm = () => {
   const onSubmit = async (formData) => {
     try {
       setLoading(true);
-      const trimmedIdentifier = String(formData.email || "").trim();
+      const rawIdentifier = sanitizeCredentialText(formData.email);
+      const trimmedIdentifier = rawIdentifier.includes("@")
+        ? rawIdentifier.replace(/\s+/g, "").toLowerCase()
+        : rawIdentifier;
+      const cleanedPassword = sanitizeCredentialText(formData.password);
+
       const response = await login({
         ...formData,
         email: trimmedIdentifier,
         identifier: trimmedIdentifier,
+        password: cleanedPassword,
       });
 
-      if (response.success) {
+      if (response?.success) {
         toast.success("Welcome Back 👋");
 
         const role = response?.data?.user?.role || response?.user?.role;
+        const targetRoute = getTargetRouteForRole(role);
 
-        if (IS_MAINTENANCE_MODE) {
-          if (["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"].includes(role)) {
-            navigate("/my-attendance", { replace: true });
-          } else {
-            navigate("/employee/my-attendance", { replace: true });
-          }
-          return;
-        }
-
-        switch (role) {
-          case "MANAGER":
-          case "SUPER_ADMIN":
-          case "ADMIN":
-            navigate("/dashboard", { replace: true });
-            break;
-
-          case "HR":
-            navigate("/reports", { replace: true });
-            break;
-
-          case "SALES_HEAD":
-            navigate("/leads", { replace: true });
-            break;
-
-          case "DEPARTMENT_HEAD":
-          case "SUB_TL":
-          case "COUNSELLOR":
-          case "EMPLOYEE":
-          case "TRAINER":
-          case "INTERN":
-          case "TL":
-            navigate("/employee/dashboard", { replace: true });
-            break;
-
-          default:
-            toast.error("Unauthorized Role");
-            navigate("/", { replace: true });
+        if (targetRoute) {
+          navigate(targetRoute, { replace: true });
+        } else {
+          toast.error("Unauthorized Role");
+          navigate("/", { replace: true });
         }
       }
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Login Failed"
-      );
+      const serverMessage =
+        typeof error?.response?.data?.message === "string"
+          ? error.response.data.message
+          : typeof error?.response?.data?.error === "string"
+          ? error.response.data.error
+          : null;
+      const fallbackMessage =
+        typeof navigator !== "undefined" && navigator.onLine === false
+          ? "No internet connection. Please check your network and try again."
+          : error?.code === "ECONNABORTED"
+          ? "Connection timed out. Please try again."
+          : "Login failed. Please check your credentials or network and try again.";
+      toast.error(serverMessage || fallbackMessage);
     } finally {
       setLoading(false);
     }
@@ -112,21 +141,28 @@ const LoginForm = () => {
         )}
         <input
           type="text"
-          placeholder="Work email or 10-digit phone number"
+          placeholder="Work email, phone number, or Employee ID"
           autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           {...register("email", {
             required: "Email or phone number is required",
             validate: (val) => {
-              const v = String(val || "").trim();
+              const v = sanitizeCredentialText(val);
               if (!v) return "Email or phone number is required";
               if (v.includes("@")) {
+                const cleanEmail = v.replace(/\s+/g, "");
                 return (
-                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ||
+                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) ||
                   "Enter a valid email address"
                 );
               }
               const digits = v.replace(/\D/g, "");
               if (digits.length >= 10 && digits.length <= 15) {
+                return true;
+              }
+              if (/^[A-Za-z0-9_-]{3,24}$/.test(v)) {
                 return true;
               }
               return "Enter a valid work email or 10-digit phone number";
