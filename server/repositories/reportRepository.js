@@ -523,23 +523,33 @@ export const findTeamReportsRepository = async ({
   limit = 25,
 }) => {
   const offset = (page - 1) * limit;
-  const whereClauses = ["($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))"];
+  let baseVisibilityClause = "($1::bigint[] IS NULL OR r.user_id = ANY($1::bigint[]) OR r.id = ANY($2::bigint[]))";
   const values = [visibleUserIds, visibleReportIds || []];
   let paramIdx = 3;
+
+  if (!isSuperAdminOrHR && Array.isArray(allowedDepartmentIds) && allowedDepartmentIds.length > 0) {
+    baseVisibilityClause = `(
+      $1::bigint[] IS NULL OR
+      r.user_id = ANY($1::bigint[]) OR
+      r.id = ANY($2::bigint[]) OR
+      r.department_id = ANY($${paramIdx}::bigint[]) OR
+      e.department_id = ANY($${paramIdx}::bigint[])
+    )`;
+    values.push(allowedDepartmentIds);
+    paramIdx++;
+  }
+  const whereClauses = [baseVisibilityClause];
 
   // Department filter (support specific department ID, multiple allowed departments for TL, or all for SuperAdmin/HR)
   if (departmentId && departmentId !== "ALL") {
     if (!isSuperAdminOrHR && tlEmployeeId) {
-      whereClauses.push(`(
-        r.department_id = $${paramIdx} OR
-        e.department_id = $${paramIdx} OR
-        e.reporting_manager_id = $${paramIdx + 1}
-      )`);
+      whereClauses.push(`((r.department_id = $${paramIdx} OR e.department_id = $${paramIdx}) OR e.reporting_manager_id = $${paramIdx + 1})`);
       values.push(departmentId, tlEmployeeId);
       paramIdx += 2;
     } else {
-      whereClauses.push(`(r.department_id = $${paramIdx++} OR e.department_id = $${paramIdx - 1})`);
+      whereClauses.push(`(r.department_id = $${paramIdx} OR e.department_id = $${paramIdx})`);
       values.push(departmentId);
+      paramIdx++;
     }
   } else if (!isSuperAdminOrHR) {
     if (Array.isArray(allowedDepartmentIds) && allowedDepartmentIds.length > 0) {
@@ -559,15 +569,12 @@ export const findTeamReportsRepository = async ({
         values.push(allowedDepartmentIds);
       }
     } else if (tlEmployeeId) {
-      // Fallback if no specific allowed departments configured
       whereClauses.push(`(
         e.reporting_manager_id = $${paramIdx++} OR 
         r.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1}) OR 
         e.department_id = (SELECT department_id FROM employees WHERE id = $${paramIdx - 1})
       )`);
       values.push(tlEmployeeId);
-    } else {
-      whereClauses.push(`1 = 0`);
     }
   }
 

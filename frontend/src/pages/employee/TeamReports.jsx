@@ -20,6 +20,7 @@ import {
   Zap,
   UserCheck,
   Inbox,
+  RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -63,6 +64,15 @@ const TeamReports = () => {
     isSubTL ||
     isDepartmentHead ||
     (user?.designation && /team lead|leader|head|manager/i.test(user.designation));
+
+  const myHierarchyLevel = useMemo(() => {
+    if (isSuperAdmin) return 6;
+    if (userRole === "HR") return 5;
+    if (isDepartmentHead) return 4;
+    if (userRole === "TL" || (user?.designation && /team lead|leader/i.test(user.designation))) return 3;
+    if (isSubTL) return 2;
+    return 1;
+  }, [userRole, isSuperAdmin, isDepartmentHead, isSubTL, user?.designation]);
 
   const [viewMode, setViewMode] = useState("TEAM"); // "TEAM" | "PENDING_FOR_ME"
   const [departments, setDepartments] = useState([]);
@@ -239,6 +249,10 @@ const TeamReports = () => {
       setReviewType("SUPER_ADMIN");
     } else if (isHR) {
       setReviewType("HR");
+    } else if (isDepartmentHead) {
+      setReviewType("DEPARTMENT_HEAD");
+    } else if (isSubTL) {
+      setReviewType("SUB_TL");
     } else {
       setReviewType("TL");
     }
@@ -844,15 +858,45 @@ const TeamReports = () => {
                       row.approvals.length > 0 &&
                       row.approvals.every((a) => a.status === "APPROVED"));
 
-                  const canActOnReport =
-                    !isOwnReport &&
-                    !isFinalApproved &&
-                    (isSuperAdmin ||
-                      isHR ||
-                      isDepartmentHead ||
-                      isTL ||
-                      isSubTL ||
-                      Number(row.current_level_user_id) === Number(user?.id));
+                  const isRejected =
+                    row.status === "REVISION_REQUESTED" ||
+                    row.current_status === "REJECTED" ||
+                    (Array.isArray(row.approvals) && row.approvals.some((a) => a.status === "REJECTED"));
+
+                  const pendingApprovals = Array.isArray(row.approvals)
+                    ? row.approvals.filter((a) => a.status === "PENDING").sort((a, b) => a.level - b.level)
+                    : [];
+                  const nextPendingStep = pendingApprovals[0] || null;
+
+                  // Has current user already acted on this report?
+                  const alreadyActedByMe = Array.isArray(row.approvals)
+                    ? row.approvals.some((a) => Number(a.acted_by_id) === Number(user?.id) && a.status !== "PENDING")
+                    : false;
+
+                  // Has current user's level already been approved?
+                  const myLevelStep = Array.isArray(row.approvals)
+                    ? row.approvals.find((a) => a.level === myHierarchyLevel)
+                    : null;
+                  const isMyLevelApproved = myLevelStep && myLevelStep.status === "APPROVED";
+
+                  // Check if current user is allowed to act on this report right now
+                  let canActOnReport = false;
+                  if (!isOwnReport && !isFinalApproved && !isRejected && !alreadyActedByMe && !isMyLevelApproved) {
+                    if (isSuperAdmin) {
+                      canActOnReport = true;
+                    } else if (isHR) {
+                      canActOnReport = true;
+                    } else if (isDepartmentHead) {
+                      // Department Head can approve any report in their department at or below level 4
+                      canActOnReport = !nextPendingStep || nextPendingStep.level <= 4;
+                    } else if (myHierarchyLevel === 3) {
+                      // TL can approve if report is at Sub-TL or TL stage
+                      canActOnReport = !nextPendingStep || nextPendingStep.level <= 3 || Number(row.current_level_user_id) === Number(user?.id);
+                    } else if (myHierarchyLevel === 2) {
+                      // Sub-TL can approve if report is at Sub-TL stage
+                      canActOnReport = !nextPendingStep || nextPendingStep.level === 2 || Number(row.current_level_user_id) === Number(user?.id);
+                    }
+                  }
 
                   return (
                     <tr key={row.id}>
@@ -959,7 +1003,7 @@ const TeamReports = () => {
 
                       {/* Action Buttons based on User Role and Pipeline Stage */}
                       <td style={{ textAlign: "right" }}>
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                           <button
                             className="action-btn view-btn"
                             onClick={() => setSelectedReport(row)}
@@ -968,12 +1012,92 @@ const TeamReports = () => {
                             <Eye size={13} /> View
                           </button>
 
-                          {canActOnReport && (
+                          {isFinalApproved ? (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                padding: "3px 8px",
+                                borderRadius: "6px",
+                                background: "#ecfdf5",
+                                color: "#059669",
+                                border: "1px solid #a7f3d0",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                              title="Final Approved by Super Admin"
+                            >
+                              <CheckCircle size={12} /> Final Approved
+                            </span>
+                          ) : isRejected ? (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                padding: "3px 8px",
+                                borderRadius: "6px",
+                                background: "#fef2f2",
+                                color: "#dc2626",
+                                border: "1px solid #fecaca",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                              title="Report was rejected and returned for revision"
+                            >
+                              <RotateCcw size={12} /> Needs Revision
+                            </span>
+                          ) : (alreadyActedByMe || isMyLevelApproved) ? (
+                            <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: "2px" }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  background: myLevelStep?.is_auto_approved ? "#f5f3ff" : "#f0fdf4",
+                                  color: myLevelStep?.is_auto_approved ? "#7c3aed" : "#15803d",
+                                  border: `1px solid ${myLevelStep?.is_auto_approved ? "#ddd6fe" : "#bbf7d0"}`,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                                title={
+                                  myLevelStep?.is_auto_approved
+                                    ? "Auto-approved when upper authority verified"
+                                    : alreadyActedByMe
+                                    ? "Verified by you"
+                                    : "Verified at your level"
+                                }
+                              >
+                                <CheckCircle size={12} />
+                                {myLevelStep?.is_auto_approved
+                                  ? "Auto-Approved"
+                                  : alreadyActedByMe
+                                  ? "Verified by You"
+                                  : "Verified"}
+                              </span>
+                              {nextPendingStep && (
+                                <span style={{ fontSize: "10px", color: "#64748b", fontWeight: "500" }}>
+                                  Waiting for {nextPendingStep.role_label === "DEPARTMENT_HEAD" ? "Dept Head" : nextPendingStep.role_label}
+                                </span>
+                              )}
+                            </div>
+                          ) : canActOnReport ? (
                             <button
                               onClick={() =>
                                 handleOpenReview(
                                   row,
-                                  isSuperAdmin ? "SUPER_ADMIN" : isHR ? "HR" : "TL"
+                                  isSuperAdmin
+                                    ? "SUPER_ADMIN"
+                                    : isHR
+                                    ? "HR"
+                                    : isDepartmentHead
+                                    ? "DEPARTMENT_HEAD"
+                                    : isSubTL
+                                    ? "SUB_TL"
+                                    : "TL"
                                 )
                               }
                               style={{
@@ -981,6 +1105,10 @@ const TeamReports = () => {
                                   ? "#4f46e5"
                                   : isHR
                                   ? "#2563eb"
+                                  : isDepartmentHead
+                                  ? "#7c3aed"
+                                  : isSubTL
+                                  ? "#0891b2"
                                   : "#16a34a",
                                 color: "#fff",
                                 border: "none",
@@ -992,7 +1120,7 @@ const TeamReports = () => {
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "4px",
-                                boxShadow: "0 2px 6px rgba(22, 163, 74, 0.2)",
+                                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.12)",
                               }}
                               title="Approve or Reject Report (Auto-approves any lower pending levels)"
                             >
@@ -1007,7 +1135,7 @@ const TeamReports = () => {
                                 ? "Verify (Sub-TL)"
                                 : "Verify (TL)"}
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -1181,8 +1309,15 @@ const TeamReports = () => {
         <ReportDetailsModal
           report={selectedReport}
           userRole={userRole}
+          currentUser={user}
           onClose={() => setSelectedReport(null)}
-          onReviewAsTL={(rep) => handleOpenReview(rep, "TL")}
+          onReviewAsTL={(rep) =>
+            handleOpenReview(
+              rep,
+              isDepartmentHead ? "DEPARTMENT_HEAD" : isSubTL ? "SUB_TL" : "TL"
+            )
+          }
+          onReviewAsDeptHead={(rep) => handleOpenReview(rep, "DEPARTMENT_HEAD")}
           onReviewAsHR={(rep) => handleOpenReview(rep, "HR")}
           onReviewAsSuperAdmin={(rep) => handleOpenReview(rep, "SUPER_ADMIN")}
         />

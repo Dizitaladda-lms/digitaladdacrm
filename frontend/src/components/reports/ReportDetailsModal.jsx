@@ -19,13 +19,24 @@ import {
   LoaderCircle,
   Users,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 import "./ReportDetailsModal.css";
 import ApprovalTimeline from "./ApprovalTimeline";
 
-const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onReviewAsSuperAdmin, userRole }) => {
+const ReportDetailsModal = ({
+  report,
+  onClose,
+  onReviewAsTL,
+  onReviewAsDeptHead,
+  onReviewAsHR,
+  onReviewAsSuperAdmin,
+  userRole,
+  currentUser: propUser,
+}) => {
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionFeedback, setRevisionFeedback] = useState("");
   const [requestingRevision, setRequestingRevision] = useState(false);
+  const [compactDensity, setCompactDensity] = useState(true);
 
   if (!report) return null;
 
@@ -60,14 +71,105 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
     });
   };
 
-  const isSuperAdmin = userRole === "SUPER_ADMIN";
-  const isHR = userRole === "HR" || isSuperAdmin;
-  const tlApprovalLabel =
-    String(report.tl_user_role || "").toUpperCase() === "MANAGER" ||
-    /department head|head of department/i.test(String(report.tl_designation || ""))
-      ? "Department Head Approval"
-      : "TL Verification";
-  const isTL = userRole === "TL" || userRole === "MANAGER" || isHR;
+  const { user: authUser } = useAuth();
+  const currentUser = propUser || authUser;
+
+  const effectiveRole = String(currentUser?.role || userRole || "").toUpperCase();
+  const isSuperAdmin = effectiveRole === "SUPER_ADMIN";
+  const isHR = effectiveRole === "HR" || isSuperAdmin;
+  const isDepartmentHead =
+    effectiveRole === "DEPARTMENT_HEAD" ||
+    effectiveRole === "MANAGER" ||
+    /department head|head of department/i.test(String(currentUser?.designation || ""));
+  const isSubTL =
+    effectiveRole === "SUB_TL" ||
+    /sub[- ]?team lead|sub[- ]?tl/i.test(String(currentUser?.designation || ""));
+  const isTL =
+    effectiveRole === "TL" ||
+    (!isDepartmentHead && !isSuperAdmin && !isHR && (currentUser?.designation && /team lead|leader/i.test(currentUser.designation)));
+
+  const myHierarchyLevel = isSuperAdmin
+    ? 6
+    : effectiveRole === "HR"
+    ? 5
+    : isDepartmentHead
+    ? 4
+    : isTL
+    ? 3
+    : isSubTL
+    ? 2
+    : 1;
+
+  const currentUserId = Number(currentUser?.id);
+  const isOwnReport = Number(report.user_id) === currentUserId;
+  const isFinalApproved =
+    report.status === "SUPER_ADMIN_APPROVED" ||
+    (report.current_status === "APPROVED" &&
+      Array.isArray(report.approvals) &&
+      report.approvals.length > 0 &&
+      report.approvals.every((a) => a.status === "APPROVED"));
+
+  const isRejected =
+    report.status === "REVISION_REQUESTED" ||
+    report.current_status === "REJECTED" ||
+    (Array.isArray(report.approvals) && report.approvals.some((a) => a.status === "REJECTED"));
+
+  const alreadyActedByMe =
+    Array.isArray(report.approvals) &&
+    report.approvals.some((a) => Number(a.acted_by_id) === currentUserId && a.status !== "PENDING");
+
+  const myLevelStep = Array.isArray(report.approvals)
+    ? report.approvals.find((a) => a.level === myHierarchyLevel)
+    : null;
+  const isMyLevelApproved = myLevelStep && myLevelStep.status === "APPROVED";
+
+  const pendingApprovals = Array.isArray(report.approvals)
+    ? report.approvals.filter((a) => a.status === "PENDING").sort((a, b) => a.level - b.level)
+    : [];
+  const nextPendingStep = pendingApprovals[0] || null;
+
+  const canApprove = !isOwnReport && !isFinalApproved && !isRejected && !alreadyActedByMe && !isMyLevelApproved;
+
+  // Header quick primary approval button for laptops (no scrolling down needed)
+  const primaryApprovalAction = (() => {
+    if (!canApprove) return null;
+    if (isSuperAdmin && onReviewAsSuperAdmin) {
+      return {
+        label: "Final Approve (Super Admin)",
+        style: { backgroundColor: "#4F46E5", borderColor: "#4338CA", color: "#FFFFFF" },
+        onClick: () => onReviewAsSuperAdmin(report),
+      };
+    }
+    if (isHR && onReviewAsHR) {
+      return {
+        label: "Approve (HR)",
+        style: { backgroundColor: "#10B981", borderColor: "#059669", color: "#FFFFFF" },
+        onClick: () => onReviewAsHR(report),
+      };
+    }
+    if (isDepartmentHead && (onReviewAsDeptHead || onReviewAsTL) && (!nextPendingStep || nextPendingStep.level <= 4)) {
+      return {
+        label: "Approve (Dept Head)",
+        style: { backgroundColor: "#7C3AED", borderColor: "#6D28D9", color: "#FFFFFF" },
+        onClick: () => (onReviewAsDeptHead ? onReviewAsDeptHead(report) : onReviewAsTL(report)),
+      };
+    }
+    if (isTL && onReviewAsTL && (!nextPendingStep || nextPendingStep.level <= 3)) {
+      return {
+        label: "Verify (Team Lead)",
+        style: { backgroundColor: "#16A34A", borderColor: "#15803D", color: "#FFFFFF" },
+        onClick: () => onReviewAsTL(report),
+      };
+    }
+    if (isSubTL && onReviewAsTL && (!nextPendingStep || nextPendingStep.level === 2)) {
+      return {
+        label: "Verify (Sub-TL)",
+        style: { backgroundColor: "#0891B2", borderColor: "#0E7490", color: "#FFFFFF" },
+        onClick: () => onReviewAsTL(report),
+      };
+    }
+    return null;
+  })();
 
   const handleSendRevision = async (e) => {
     e.preventDefault();
@@ -120,263 +222,295 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
             </div>
           </div>
 
-          <button className="modal-close-btn" onClick={onClose}>
-            <X size={18} />
-          </button>
+          <div className="modal-header-actions">
+            {primaryApprovalAction && (
+              <button
+                type="button"
+                className="modal-header-approve-btn"
+                style={primaryApprovalAction.style}
+                onClick={primaryApprovalAction.onClick}
+                title="Quick Approve without scrolling to footer"
+              >
+                <CheckCircle size={14} />
+                <span>{primaryApprovalAction.label}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="modal-density-btn"
+              onClick={() => setCompactDensity((c) => !c)}
+              title={compactDensity ? "Switch to Expanded View" : "Switch to Laptop Compact View"}
+            >
+              {compactDensity ? "Fit: Compact" : "Fit: Standard"}
+            </button>
+
+            <button className="modal-close-btn" onClick={onClose} title="Close Modal">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
-        <div className="report-modal-body">
-          {/* Work Title */}
-          {report.work_title && (
-            <div className="modal-section highlight-box">
-              <h4 className="section-label">Primary Daily Focus</h4>
-              <p className="focus-text">{report.work_title}</p>
-            </div>
-          )}
+        <div className={`report-modal-body ${compactDensity ? "compact-density" : ""}`}>
+          <div className="report-modal-grid-layout">
+            {/* Left Column: Focus, Tasks, Deliverables, Classes */}
+            <div className="report-modal-col report-modal-col-left">
+              {/* Work Title */}
+              {report.work_title && (
+                <div className="modal-section highlight-box">
+                  <h4 className="section-label">Primary Daily Focus</h4>
+                  <p className="focus-text">{report.work_title}</p>
+                </div>
+              )}
 
-          {/* Tasks Completed */}
-          <div className="modal-section">
-            <h4 className="section-label">Tasks & Work Completed</h4>
-            <div className="tasks-box">
-              {report.tasks_summary?.split("\n").map((line, i) => (
-                <p key={i} className="task-line">{line}</p>
-              ))}
+              {/* Tasks Completed */}
+              <div className="modal-section">
+                <h4 className="section-label">Tasks & Work Completed</h4>
+                <div className="tasks-box">
+                  {report.tasks_summary?.split("\n").map((line, i) => (
+                    <p key={i} className="task-line">{line}</p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Deliverable Links */}
+              {report.deliverable_links && (
+                <div className="modal-section">
+                  <h4 className="section-label">Deliverable Links & Proofs</h4>
+                  <div className="links-pill-container">
+                    {report.deliverable_links.split(",").map((link, idx) => {
+                      const trimmed = link.trim();
+                      if (!trimmed) return null;
+                      return (
+                        <a
+                          key={idx}
+                          href={trimmed.startsWith("http") ? trimmed : `https://${trimmed}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="deliverable-link-pill"
+                        >
+                          <ExternalLink size={13} /> {trimmed}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Class / Lecture Sessions with Video Proof Links */}
+              {report.took_class && report.classes && report.classes.length > 0 && (
+                <div className="modal-section">
+                  <div className="classes-section-badge">
+                    <Sparkles size={16} />
+                    <span>Class Sessions & Video Recordings Proof ({report.classes.length})</span>
+                  </div>
+
+                  <div className="classes-list-grid">
+                    {report.classes.map((cls, idx) => (
+                      <div key={cls.id || idx} className="class-detail-card">
+                        <div className="class-card-top">
+                          <span className="batch-pill">{cls.batch_name}</span>
+                          <span className="duration-pill">
+                            <Clock size={12} /> {cls.duration_minutes || 60} mins
+                          </span>
+                          {cls.students_count > 0 && (
+                            <span className="students-pill">
+                              <User size={12} /> {cls.students_count} Students
+                            </span>
+                          )}
+                        </div>
+
+                        <h4 className="class-topic-title">
+                          {cls.topic_covered}
+                        </h4>
+
+                        {cls.course_name && (
+                          <p className="class-course-name">
+                            <Building size={13} /> {cls.course_name}
+                          </p>
+                        )}
+
+                        {/* Direct Video Link Box */}
+                        <div className="video-proof-box">
+                          <div className="video-proof-left">
+                            <Video size={18} className="video-icon" />
+                            <div>
+                              <strong>Class Recording Link</strong>
+                              <span className="video-url-truncate">
+                                {cls.video_recording_url || "Not added yet"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {cls.video_recording_url && (
+                            <a
+                              href={cls.video_recording_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="play-video-btn"
+                              title="Open Video Recording in New Tab"
+                            >
+                              <ExternalLink size={14} /> Open Recording
+                            </a>
+                          )}
+                        </div>
+
+                        {cls.materials_url && (
+                          <div className="materials-box">
+                            <a
+                              href={cls.materials_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="materials-link"
+                            >
+                              <ExternalLink size={12} /> Class Materials / Slides
+                            </a>
+                          </div>
+                        )}
+
+                        {cls.remarks && (
+                          <div
+                            style={{
+                              marginTop: "10px",
+                              padding: "8px 12px",
+                              backgroundColor: "#FFFBEB",
+                              border: "1px solid #FDE68A",
+                              borderRadius: "8px",
+                              color: "#92400E",
+                              fontSize: "12.5px",
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            <strong style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "#B45309" }}>
+                              <AlertCircle size={13} /> Issues Faced During Class:
+                            </strong>{" "}
+                            {cls.remarks}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Interns, Blockers, Plan, Rejections, Timeline, Reviews */}
+            <div className="report-modal-col report-modal-col-right">
+              {/* Blockers & Plan */}
+              {(blockersText || internsWorkSummary || report.next_day_plan) && (
+                <div className="modal-meta-grid">
+                  {internsWorkSummary && (
+                    <div className="meta-card interns-summary-card">
+                      <h4 className="meta-card-label">
+                        <Users size={14} /> Interns Work Summary &amp; Team Progress
+                      </h4>
+                      <p className="report-rich-text">{renderFormattedSummary(internsWorkSummary)}</p>
+                    </div>
+                  )}
+                  {blockersText && (
+                    <div className="meta-card blocker-card">
+                      <h4 className="meta-card-label">
+                        <AlertCircle size={14} /> Blockers / Dependencies
+                      </h4>
+                      <p>{blockersText}</p>
+                    </div>
+                  )}
+                  {report.next_day_plan && (
+                    <div className="meta-card plan-card">
+                      <h4 className="meta-card-label">
+                        <CheckCircle size={14} /> Plan for Tomorrow
+                      </h4>
+                      <p>{report.next_day_plan}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Rejection Banner if Rejected */}
+              {report.rejection_reason && (report.status === "REVISION_REQUESTED" || report.current_status === "REJECTED") && (
+                <div style={{ padding: "12px 14px", backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "10px", color: "#991B1B", fontSize: "13px" }}>
+                  <strong>❌ Rejection / Revision Remarks:</strong> {report.rejection_reason}
+                </div>
+              )}
+
+              {/* Hierarchical Approval Timeline */}
+              <ApprovalTimeline report={report} />
+
+              {/* Review History */}
+              {(report.tl_feedback || report.hr_feedback || report.super_admin_feedback) && (
+                <div className="reviews-section">
+                  <h4 className="section-label">
+                    <MessageSquare size={15} /> Reviews & Approval Log
+                  </h4>
+
+                  {report.tl_feedback && (
+                    <div className="review-comment-card tl-review">
+                      <div className="review-author">
+                        <strong>{tlApprovalLabel}: {report.tl_name || (tlApprovalLabel === "Department Head Approval" ? "Dept Head" : "Team Lead")}</strong>
+                        <span>{report.tl_reviewed_at ? new Date(report.tl_reviewed_at).toLocaleDateString() : ""}</span>
+                      </div>
+                      <p>{report.tl_feedback}</p>
+                    </div>
+                  )}
+
+                  {report.hr_feedback && (
+                    <div className="review-comment-card hr-review">
+                      <div className="review-author">
+                        <strong>HR Approval: {report.hr_name || "HR Team"}</strong>
+                        <span>{report.hr_reviewed_at ? new Date(report.hr_reviewed_at).toLocaleDateString() : ""}</span>
+                      </div>
+                      <p>{report.hr_feedback}</p>
+                    </div>
+                  )}
+
+                  {report.super_admin_feedback && (
+                    <div className="review-comment-card hr-review" style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }}>
+                      <div className="review-author">
+                        <strong style={{ color: "#1D4ED8" }}>Super Admin Final Approval: {report.super_admin_name || "Super Admin"}</strong>
+                        <span>{report.super_admin_reviewed_at ? new Date(report.super_admin_reviewed_at).toLocaleDateString() : ""}</span>
+                      </div>
+                      <p style={{ color: "#1E3A8A" }}>{report.super_admin_feedback}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Request Revision Form (Inline) */}
+              {showRevisionBox && (
+                <form onSubmit={handleSendRevision} style={{ marginTop: "12px", padding: "14px", backgroundColor: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: "10px" }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: "13.5px", color: "#BE123C", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <RotateCcw size={14} /> Request Changes & Re-assign Work:
+                  </h4>
+                  <textarea
+                    style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid #FDA4AF", outline: "none", fontSize: "12.5px", minHeight: "65px" }}
+                    placeholder="Describe project changes or work required from employee / department head..."
+                    value={revisionFeedback}
+                    onChange={(e) => setRevisionFeedback(e.target.value)}
+                    required
+                  />
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setShowRevisionBox(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      style={{ backgroundColor: "#E11D48", borderColor: "#E11D48", color: "#FFFFFF" }}
+                      disabled={requestingRevision}
+                    >
+                      {requestingRevision ? <LoaderCircle className="spin" size={14} /> : <Send size={14} />}
+                      {requestingRevision ? "Sending..." : "Send Revision Request"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
-
-          {/* Deliverable Links */}
-          {report.deliverable_links && (
-            <div className="modal-section">
-              <h4 className="section-label">Deliverable Links & Proofs</h4>
-              <div className="links-pill-container">
-                {report.deliverable_links.split(",").map((link, idx) => {
-                  const trimmed = link.trim();
-                  if (!trimmed) return null;
-                  return (
-                    <a
-                      key={idx}
-                      href={trimmed.startsWith("http") ? trimmed : `https://${trimmed}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="deliverable-link-pill"
-                    >
-                      <ExternalLink size={13} /> {trimmed}
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Class / Lecture Sessions with Video Proof Links */}
-          {report.took_class && report.classes && report.classes.length > 0 && (
-            <div className="modal-section">
-              <div className="classes-section-badge">
-                <Sparkles size={16} />
-                <span>Class Sessions & Video Recordings Proof ({report.classes.length})</span>
-              </div>
-
-              <div className="classes-list-grid">
-                {report.classes.map((cls, idx) => (
-                  <div key={cls.id || idx} className="class-detail-card">
-                    <div className="class-card-top">
-                      <span className="batch-pill">{cls.batch_name}</span>
-                      <span className="duration-pill">
-                        <Clock size={12} /> {cls.duration_minutes || 60} mins
-                      </span>
-                      {cls.students_count > 0 && (
-                        <span className="students-pill">
-                          <User size={12} /> {cls.students_count} Students
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="class-topic-title">
-                      {cls.topic_covered}
-                    </h4>
-
-                    {cls.course_name && (
-                      <p className="class-course-name">
-                        <Building size={13} /> {cls.course_name}
-                      </p>
-                    )}
-
-                    {/* Direct Video Link Box */}
-                    <div className="video-proof-box">
-                      <div className="video-proof-left">
-                        <Video size={18} className="video-icon" />
-                        <div>
-                          <strong>Class Recording Link</strong>
-                          <span className="video-url-truncate">
-                            {cls.video_recording_url || "Not added yet"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {cls.video_recording_url && (
-                        <a
-                          href={cls.video_recording_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="play-video-btn"
-                          title="Open Video Recording in New Tab"
-                        >
-                          <ExternalLink size={14} /> Open Recording
-                        </a>
-                      )}
-                    </div>
-
-                    {cls.materials_url && (
-                      <div className="materials-box">
-                        <a
-                          href={cls.materials_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="materials-link"
-                        >
-                          <ExternalLink size={12} /> Class Materials / Slides
-                        </a>
-                      </div>
-                    )}
-
-                    {cls.remarks && (
-                      <div
-                        style={{
-                          marginTop: "10px",
-                          padding: "8px 12px",
-                          backgroundColor: "#FFFBEB",
-                          border: "1px solid #FDE68A",
-                          borderRadius: "8px",
-                          color: "#92400E",
-                          fontSize: "12.5px",
-                          lineHeight: 1.45,
-                        }}
-                      >
-                        <strong style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "#B45309" }}>
-                          <AlertCircle size={13} /> Issues Faced During Class:
-                        </strong>{" "}
-                        {cls.remarks}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Blockers & Plan */}
-          {(blockersText || internsWorkSummary || report.next_day_plan) && (
-            <div className="modal-meta-grid">
-              {internsWorkSummary && (
-                <div className="meta-card interns-summary-card">
-                  <h4 className="meta-card-label">
-                    <Users size={14} /> Interns Work Summary &amp; Team Progress
-                  </h4>
-                  <p className="report-rich-text">{renderFormattedSummary(internsWorkSummary)}</p>
-                </div>
-              )}
-              {blockersText && (
-                <div className="meta-card blocker-card">
-                  <h4 className="meta-card-label">
-                    <AlertCircle size={14} /> Blockers / Dependencies
-                  </h4>
-                  <p>{blockersText}</p>
-                </div>
-              )}
-              {report.next_day_plan && (
-                <div className="meta-card plan-card">
-                  <h4 className="meta-card-label">
-                    <CheckCircle size={14} /> Plan for Tomorrow
-                  </h4>
-                  <p>{report.next_day_plan}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Rejection Banner if Rejected */}
-          {report.rejection_reason && (report.status === "REVISION_REQUESTED" || report.current_status === "REJECTED") && (
-            <div style={{ marginTop: "14px", padding: "12px 14px", backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "10px", color: "#991B1B", fontSize: "13px" }}>
-              <strong>❌ Rejection / Revision Remarks:</strong> {report.rejection_reason}
-            </div>
-          )}
-
-          {/* Hierarchical Approval Timeline */}
-          <ApprovalTimeline report={report} />
-
-          {/* Review History */}
-          {(report.tl_feedback || report.hr_feedback || report.super_admin_feedback) && (
-            <div className="reviews-section">
-              <h4 className="section-label">
-                <MessageSquare size={15} /> Reviews & Approval Log
-              </h4>
-
-              {report.tl_feedback && (
-                <div className="review-comment-card tl-review">
-                  <div className="review-author">
-                    <strong>{tlApprovalLabel}: {report.tl_name || (tlApprovalLabel === "Department Head Approval" ? "Dept Head" : "Team Lead")}</strong>
-                    <span>{report.tl_reviewed_at ? new Date(report.tl_reviewed_at).toLocaleDateString() : ""}</span>
-                  </div>
-                  <p>{report.tl_feedback}</p>
-                </div>
-              )}
-
-              {report.hr_feedback && (
-                <div className="review-comment-card hr-review">
-                  <div className="review-author">
-                    <strong>HR Approval: {report.hr_name || "HR Team"}</strong>
-                    <span>{report.hr_reviewed_at ? new Date(report.hr_reviewed_at).toLocaleDateString() : ""}</span>
-                  </div>
-                  <p>{report.hr_feedback}</p>
-                </div>
-              )}
-
-              {report.super_admin_feedback && (
-                <div className="review-comment-card hr-review" style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }}>
-                  <div className="review-author">
-                    <strong style={{ color: "#1D4ED8" }}>Super Admin Final Approval: {report.super_admin_name || "Super Admin"}</strong>
-                    <span>{report.super_admin_reviewed_at ? new Date(report.super_admin_reviewed_at).toLocaleDateString() : ""}</span>
-                  </div>
-                  <p style={{ color: "#1E3A8A" }}>{report.super_admin_feedback}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Request Revision Form (Inline) */}
-          {showRevisionBox && (
-            <form onSubmit={handleSendRevision} style={{ marginTop: "16px", padding: "16px", backgroundColor: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: "10px" }}>
-              <h4 style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#BE123C", display: "flex", alignItems: "center", gap: "6px" }}>
-                <RotateCcw size={15} /> Request Changes & Re-assign Work:
-              </h4>
-              <textarea
-                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #FDA4AF", outline: "none", fontSize: "13px", minHeight: "70px" }}
-                placeholder="Describe project changes or work required from employee / department head..."
-                value={revisionFeedback}
-                onChange={(e) => setRevisionFeedback(e.target.value)}
-                required
-              />
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setShowRevisionBox(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ backgroundColor: "#E11D48", borderColor: "#E11D48", color: "#FFFFFF" }}
-                  disabled={requestingRevision}
-                >
-                  {requestingRevision ? <LoaderCircle className="spin" size={14} /> : <Send size={14} />}
-                  {requestingRevision ? "Sending..." : "Send Revision Request"}
-                </button>
-              </div>
-            </form>
-          )}
         </div>
 
         {/* Footer / Review Actions */}
@@ -385,7 +519,7 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
             Close
           </button>
 
-          {isTL && !showRevisionBox && (
+          {!isOwnReport && !isFinalApproved && !showRevisionBox && myHierarchyLevel > 1 && !alreadyActedByMe && !isMyLevelApproved && (
             <button
               type="button"
               className="btn-secondary"
@@ -396,28 +530,60 @@ const ReportDetailsModal = ({ report, onClose, onReviewAsTL, onReviewAsHR, onRev
             </button>
           )}
 
-          {isTL && onReviewAsTL && report.status === "SUBMITTED" && (
+          {(alreadyActedByMe || isMyLevelApproved) && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", color: "#15803d", fontSize: "12.5px", fontWeight: 600 }}>
+              <CheckCircle size={15} />
+              <span>
+                {myLevelStep?.is_auto_approved ? "Auto-Approved by Higher Authority" : "Verified by You"}
+                {nextPendingStep ? ` (Waiting for ${nextPendingStep.role_label === "DEPARTMENT_HEAD" ? "Dept Head" : nextPendingStep.role_label})` : ""}
+              </span>
+            </div>
+          )}
+
+          {canApprove && isSubTL && onReviewAsTL && (!nextPendingStep || nextPendingStep.level === 2) && (
             <button
               className="btn-primary"
+              style={{ backgroundColor: "#0891B2", borderColor: "#0E7490", color: "#FFFFFF" }}
               onClick={() => onReviewAsTL(report)}
             >
-              Approve as Department Head
+              Verify as Sub-TL
             </button>
           )}
 
-          {isHR && onReviewAsHR && (report.status === "HEAD_APPROVED" || report.status === "TL_REVIEWED" || report.status === "SUBMITTED") && report.status !== "HR_APPROVED" && report.status !== "SUPER_ADMIN_APPROVED" && (
+          {canApprove && isTL && onReviewAsTL && (!nextPendingStep || nextPendingStep.level <= 3) && (
+            <button
+              className="btn-primary"
+              style={{ backgroundColor: "#16A34A", borderColor: "#15803D", color: "#FFFFFF" }}
+              onClick={() => onReviewAsTL(report)}
+            >
+              Verify as Team Lead
+            </button>
+          )}
+
+          {canApprove && isDepartmentHead && (onReviewAsDeptHead || onReviewAsTL) && (!nextPendingStep || nextPendingStep.level <= 4) && (
+            <button
+              className="btn-primary"
+              style={{ backgroundColor: "#7C3AED", borderColor: "#6D28D9", color: "#FFFFFF" }}
+              onClick={() => (onReviewAsDeptHead ? onReviewAsDeptHead(report) : onReviewAsTL(report))}
+            >
+              Approve as Department Head (Auto-approves Lower Levels)
+            </button>
+          )}
+
+          {canApprove && isHR && onReviewAsHR && (
             <button
               className="btn-success"
+              style={{ backgroundColor: "#2563EB", borderColor: "#1D4ED8", color: "#FFFFFF" }}
               onClick={() => onReviewAsHR(report)}
             >
               Approve as HR
             </button>
           )}
 
-          {isSuperAdmin && onReviewAsSuperAdmin && report.status !== "SUPER_ADMIN_APPROVED" && (
+          {canApprove && isSuperAdmin && onReviewAsSuperAdmin && (
             <button
               className="btn-primary"
-              style={{ backgroundColor: "#4F46E5", borderColor: "#4F46E5", color: "#FFFFFF" }}
+              style={{ backgroundColor: "#4F46E5", borderColor: "#4338CA", color: "#FFFFFF" }}
               onClick={() => onReviewAsSuperAdmin(report)}
             >
               Final Approval as Super Admin

@@ -600,7 +600,54 @@ export const approveReportHierarchicalService = async (user, reportId, payload =
       ]
     );
 
-    // 3. Find the next pending level above actorLevel
+    // 3. Ensure HR (Level 5) and Super Admin (Level 6) steps exist if actorLevel < HR or actorLevel < SUPER_ADMIN
+    if (actorLevel < REPORT_ROLE_LEVELS.HR) {
+      const hrStepRes = await client.query(
+        `SELECT id FROM report_approvals WHERE report_id = $1 AND level = $2;`,
+        [cleanReportId, REPORT_ROLE_LEVELS.HR]
+      );
+      if (hrStepRes.rows.length === 0) {
+        const hrRes = await client.query(
+          `SELECT u.id AS user_id FROM users u
+           LEFT JOIN employees e ON e.user_id = u.id AND e.is_deleted = FALSE
+           WHERE u.is_deleted = FALSE AND u.is_active = TRUE
+             AND (UPPER(u.role) = 'HR' OR UPPER(COALESCE(e.role, '')) = 'HR')
+           ORDER BY u.id ASC LIMIT 1;`
+        );
+        if (hrRes.rows[0]) {
+          await client.query(
+            `INSERT INTO report_approvals (report_id, approver_id, level, role_label, status, is_auto_approved)
+             VALUES ($1, $2, $3, 'HR', 'PENDING', FALSE)
+             ON CONFLICT (report_id, level) DO NOTHING;`,
+            [cleanReportId, hrRes.rows[0].user_id, REPORT_ROLE_LEVELS.HR]
+          );
+        }
+      }
+    }
+
+    if (actorLevel < REPORT_ROLE_LEVELS.SUPER_ADMIN) {
+      const saStepRes = await client.query(
+        `SELECT id FROM report_approvals WHERE report_id = $1 AND level = $2;`,
+        [cleanReportId, REPORT_ROLE_LEVELS.SUPER_ADMIN]
+      );
+      if (saStepRes.rows.length === 0) {
+        const saRes = await client.query(
+          `SELECT u.id AS user_id FROM users u
+           WHERE u.is_deleted = FALSE AND u.is_active = TRUE AND UPPER(u.role) = 'SUPER_ADMIN'
+           ORDER BY u.id ASC LIMIT 1;`
+        );
+        if (saRes.rows[0]) {
+          await client.query(
+            `INSERT INTO report_approvals (report_id, approver_id, level, role_label, status, is_auto_approved)
+             VALUES ($1, $2, $3, 'SUPER_ADMIN', 'PENDING', FALSE)
+             ON CONFLICT (report_id, level) DO NOTHING;`,
+            [cleanReportId, saRes.rows[0].user_id, REPORT_ROLE_LEVELS.SUPER_ADMIN]
+          );
+        }
+      }
+    }
+
+    // 4. Find the next pending level above actorLevel
     const nextRes = await client.query(
       `SELECT * FROM report_approvals
        WHERE report_id = $1 AND level > $2 AND status = 'PENDING'
@@ -872,12 +919,28 @@ export const getPendingApprovalsForMeService = async (user, query = {}) => {
   const whereClauses = [
     `r.user_id <> $1`,
     `r.status NOT IN ('SUPER_ADMIN_APPROVED', 'REVISION_REQUESTED')`,
-    `COALESCE(r.current_status, 'PENDING') <> 'REJECTED'`,
+    `COALESCE(r.current_status, 'PENDING') NOT IN ('REJECTED', 'APPROVED')`,
+    `NOT EXISTS (
+      SELECT 1 FROM report_approvals ra
+      WHERE ra.report_id = r.id
+        AND (ra.acted_by_id = $1 OR ra.level = $2)
+        AND ra.status = 'APPROVED'
+    )`,
   ];
 
   if (includeHigherAuthoritySkip) {
     // Show reports directly at actor's level OR pending at a lower level within actor's subordinate visibility
     values.push(subordinateUserIds);
+    const subIdx = paramIdx++;
+    let deptClause = "";
+    if (
+      actorProfile.level === REPORT_ROLE_LEVELS.DEPARTMENT_HEAD &&
+      actorProfile.allowedDepartmentIds.length > 0
+    ) {
+      values.push(actorProfile.allowedDepartmentIds);
+      const deptIdx = paramIdx++;
+      deptClause = ` OR (COALESCE(r.department_id, e.department_id) = ANY($${deptIdx}::bigint[]) AND COALESCE(r.current_approval_level, 2) <= $2)`;
+    }
     whereClauses.push(`(
       r.current_level_user_id = $1
       OR EXISTS (
@@ -887,9 +950,9 @@ export const getPendingApprovalsForMeService = async (user, query = {}) => {
           AND ra.status = 'PENDING'
       )
       OR (
-        r.user_id = ANY($${paramIdx++}::bigint[])
+        r.user_id = ANY($${subIdx}::bigint[])
         AND COALESCE(r.current_approval_level, 2) <= $2
-      )
+      )${deptClause}
     )`);
   } else {
     whereClauses.push(`(

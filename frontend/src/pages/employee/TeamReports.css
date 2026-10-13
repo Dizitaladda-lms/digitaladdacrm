@@ -391,35 +391,41 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .review-modal-box {
   background: #ffffff;
   border-radius: 14px;
   width: min(560px, 95vw);
+  max-height: min(88vh, calc(100dvh - 32px));
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
   border: 1px solid #e8eaf0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .review-modal-header {
-  padding: 18px 22px;
+  padding: 14px 20px;
   background: #fafafa;
   border-bottom: 1px solid #f1f5f9;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .review-modal-header h3 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
-  margin: 3px 0;
+  margin: 2px 0;
 }
 
 .modal-date-tag {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #64748b;
   font-weight: 600;
 }
@@ -433,27 +439,35 @@
 }
 
 .review-form {
-  padding: 20px 22px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .report-snippet-box {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 12px 14px;
-  font-size: 13px;
+  padding: 10px 12px;
+  font-size: 12.5px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .report-snippet-box p {
   margin: 0;
   color: #334155;
-  font-size: 12.5px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .snippet-classes {
@@ -489,8 +503,15 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 14px;
+  padding: 12px 20px;
   border-top: 1px solid #f1f5f9;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  flex-shrink: 0;
+  margin-top: auto;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
 }
 
 /* Hierarchy Badges */

@@ -41,35 +41,65 @@ const resolveVisibilityScope = async (user) => {
   if (cached) visibleUserCache.delete(userId);
 
   const employeeResult = await pool.query(
-    `SELECT id, department_id, role, designation, employment_type
-     FROM employees
-     WHERE user_id = $1 AND is_deleted = FALSE
+    `SELECT e.id, e.department_id, e.managed_department_ids, e.role, e.designation, e.employment_type,
+            u.department_id AS user_dept_id, u.role AS user_role
+     FROM users u
+     LEFT JOIN employees e ON e.user_id = u.id AND e.is_deleted = FALSE
+     WHERE u.id = $1 AND u.is_deleted = FALSE
      LIMIT 1;`,
     [userId]
   );
   const employee = employeeResult.rows[0];
-  const isDepartmentHead = getRoleLevel({
-    role: employee?.role || userRole,
-    designation: employee?.designation || user.designation,
-    employmentType: employee?.employment_type,
-  }) === REPORT_ROLE_LEVELS.DEPARTMENT_HEAD;
-  const roleLevel = getRoleLevel({
-    role: employee?.role || userRole,
-    designation: employee?.designation || user.designation,
-    employmentType: employee?.employment_type,
-  });
+  const effectiveRole = employee?.role || employee?.user_role || userRole;
+  const effectiveDesignation = employee?.designation || user.designation || "";
+  const effectiveEmploymentType = employee?.employment_type || user?.employment_type || "";
 
-  let visibleUserIds;
-  if (isDepartmentHead && employee?.department_id) {
-    const departmentResult = await pool.query(
-      `SELECT DISTINCT u.id
-       FROM employees e
-       JOIN users u ON u.id = e.user_id
-       WHERE e.department_id = $1
-         AND e.is_deleted = FALSE
-         AND u.is_deleted = FALSE;`,
-      [employee.department_id]
-    );
+  const roleLevel = getRoleLevel({
+    role: effectiveRole,
+    designation: effectiveDesignation,
+    employmentType: effectiveEmploymentType,
+  });
+  const isDepartmentHead = roleLevel === REPORT_ROLE_LEVELS.DEPARTMENT_HEAD;
+
+  let headDeptIds = [];
+  if (employee?.department_id) headDeptIds.push(Number(employee.department_id));
+  if (employee?.user_dept_id) headDeptIds.push(Number(employee.user_dept_id));
+  if (Array.isArray(employee?.managed_department_ids)) {
+    headDeptIds.push(...employee.managed_department_ids.map(Number));
+  } else if (typeof employee?.managed_department_ids === "string") {
+    try {
+      const parsed = JSON.parse(employee.managed_department_ids);
+      if (Array.isArray(parsed)) headDeptIds.push(...parsed.map(Number));
+    } catch {}
+  }
+  headDeptIds = Array.from(new Set(headDeptIds.filter((id) => Number.isInteger(id) && id > 0)));
+
+  let visibleUserIds = [];
+  let visibleReportIds = [];
+
+  if (isDepartmentHead && headDeptIds.length > 0) {
+    let departmentResult;
+    if (headDeptIds.length === 1) {
+      departmentResult = await pool.query(
+        `SELECT DISTINCT u.id
+         FROM employees e
+         JOIN users u ON u.id = e.user_id
+         WHERE e.department_id = $1
+           AND e.is_deleted = FALSE
+           AND u.is_deleted = FALSE;`,
+        [headDeptIds[0]]
+      );
+    } else {
+      departmentResult = await pool.query(
+        `SELECT DISTINCT u.id
+         FROM employees e
+         JOIN users u ON u.id = e.user_id
+         WHERE e.department_id = ANY($1::bigint[])
+           AND e.is_deleted = FALSE
+           AND u.is_deleted = FALSE;`,
+        [headDeptIds]
+      );
+    }
     visibleUserIds = departmentResult.rows.map((row) => Number(row.id));
   } else if (roleLevel === REPORT_ROLE_LEVELS.TL || roleLevel === REPORT_ROLE_LEVELS.SUB_TL) {
     const treeResult = await pool.query(
@@ -141,7 +171,7 @@ const resolveVisibilityScope = async (user) => {
   }
 
   if (!visibleUserIds.includes(userId)) visibleUserIds.push(userId);
-  let visibleReportIds = [];
+
   if (getHistoryVisibilityMode() === "submission") {
     const reportResult = await pool.query(
       `SELECT report_id
@@ -149,8 +179,12 @@ const resolveVisibilityScope = async (user) => {
        WHERE viewer_user_id = $1;`,
       [userId]
     );
-    visibleReportIds = reportResult.rows.map((row) => Number(row.report_id));
+    for (const row of reportResult.rows) {
+      const rid = Number(row.report_id);
+      if (!visibleReportIds.includes(rid)) visibleReportIds.push(rid);
+    }
   }
+
   const departmentResult = await pool.query(
     `SELECT department_id
      FROM employees
@@ -165,11 +199,19 @@ const resolveVisibilityScope = async (user) => {
        AND COALESCE(r.department_id, e.department_id) IS NOT NULL;`,
     [visibleUserIds, visibleReportIds]
   );
+
+  const finalDeptIds = Array.from(
+    new Set([
+      ...((departmentResult?.rows || []).map((row) => Number(row.department_id)).filter((id) => Number.isInteger(id) && id > 0)),
+      ...headDeptIds,
+    ])
+  );
+
   const ttl = Math.max(1_000, Number(process.env.REPORT_VISIBILITY_CACHE_TTL_MS) || DEFAULT_CACHE_TTL_MS);
   const scope = {
     userIds: visibleUserIds,
     reportIds: visibleReportIds,
-    departmentIds: departmentResult.rows.map((row) => Number(row.department_id)),
+    departmentIds: finalDeptIds,
     unrestricted: false,
   };
   visibleUserCache.set(userId, { scope, expiresAt: now + ttl });
