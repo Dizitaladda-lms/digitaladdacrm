@@ -29,6 +29,7 @@ const SidebarNavigation = ({ onClose }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const role = user?.role || "";
+  const isHR = role === "HR";
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isSalesHead =
     role === "SALES_HEAD" ||
