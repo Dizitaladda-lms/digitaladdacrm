@@ -24,7 +24,11 @@ const fetchPresence = async () => {
 const CompanyPresence = () => {
   const { user } = useAuth();
   const role = String(user?.role || "").toUpperCase();
-  const canManagePresence = ["HR", "ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
+  const canManagePresence =
+    ["HR", "ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(role) ||
+    Boolean(user?.is_department_head) ||
+    Boolean(user?.is_head) ||
+    Boolean(user?.is_sales_head);
   const canEditAttendanceTime = ["HR", "ADMIN", "SUPER_ADMIN"].includes(role);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);

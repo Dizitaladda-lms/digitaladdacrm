@@ -54,7 +54,11 @@ const TeamReports = () => {
   const isDepartmentHead =
     userRole === "DEPARTMENT_HEAD" ||
     userRole === "MANAGER" ||
-    /department head|head of department/i.test(String(user?.designation || ""));
+    userRole === "SALES_HEAD" ||
+    Boolean(user?.is_department_head) ||
+    Boolean(user?.is_head) ||
+    Boolean(user?.is_sales_head) ||
+    /department head|head of department|sales coordinator|sales head|manager/i.test(String(user?.designation || ""));
   const isSubTL =
     userRole === "SUB_TL" ||
     /sub[- ]?team lead|sub[- ]?tl/i.test(String(user?.designation || ""));
@@ -311,8 +315,13 @@ const TeamReports = () => {
     if (
       role === "DEPARTMENT_HEAD" ||
       role === "MANAGER" ||
+      role === "SALES_HEAD" ||
+      row.is_department_head ||
+      row.is_sales_head ||
       desig.includes("department head") ||
-      desig.includes("head of department")
+      desig.includes("head of department") ||
+      desig.includes("sales coordinator") ||
+      desig.includes("sales head")
     ) {
       return {
         label: "Department Head",

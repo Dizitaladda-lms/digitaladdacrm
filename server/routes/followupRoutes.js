@@ -46,7 +46,7 @@ const router = Router();
 router.post(
   "/",
   authMiddleware,
-  roleMiddleware("ADMIN", "COUNSELLOR"),
+  roleMiddleware("ADMIN", "COUNSELLOR", "SALES_HEAD", "MANAGER"),
   createFollowup
 );
 
@@ -77,28 +77,28 @@ router.get(
 router.patch(
   "/bulk/complete",
   authMiddleware,
-  roleMiddleware("ADMIN", "COUNSELLOR"),
+  roleMiddleware("ADMIN", "COUNSELLOR", "SALES_HEAD", "MANAGER"),
   bulkCompleteFollowups
 );
 
 router.patch(
   "/bulk/restore",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware("ADMIN", "SALES_HEAD", "MANAGER"),
   bulkRestoreFollowups
 );
 
 router.patch(
   "/bulk/assign",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware("ADMIN", "SALES_HEAD", "MANAGER"),
   bulkAssignFollowups
 );
 
 router.delete(
   "/bulk",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware("ADMIN", "SALES_HEAD", "MANAGER"),
   bulkDeleteFollowups
 );
 
@@ -117,35 +117,35 @@ router.get(
 router.put(
   "/:id",
   authMiddleware,
-  roleMiddleware("ADMIN", "COUNSELLOR"),
+  roleMiddleware("ADMIN", "COUNSELLOR", "SALES_HEAD", "MANAGER"),
   updateFollowup
 );
 
 router.patch(
   "/:id/complete",
   authMiddleware,
-  roleMiddleware("ADMIN", "COUNSELLOR"),
+  roleMiddleware("ADMIN", "COUNSELLOR", "SALES_HEAD", "MANAGER"),
   completeFollowup
 );
 
 router.patch(
   "/:id/reschedule",
   authMiddleware,
-  roleMiddleware("ADMIN", "COUNSELLOR"),
+  roleMiddleware("ADMIN", "COUNSELLOR", "SALES_HEAD", "MANAGER"),
   rescheduleFollowup
 );
 
 router.delete(
   "/:id",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware("ADMIN", "SALES_HEAD", "MANAGER"),
   deleteFollowup
 );
 
 router.patch(
   "/:id/restore",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware("ADMIN", "SALES_HEAD", "MANAGER"),
   restoreFollowup
 );
 

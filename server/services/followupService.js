@@ -121,8 +121,12 @@ async function verifyOwnership(followupId, currentUser, client = null) {
     throw new ApiError(401, "Authentication required.");
   }
 
-  // Admin bypass
-  if (currentUser.role === USER_ROLE.ADMIN) {
+  // Admin / Manager / Sales Head bypass
+  if (
+    currentUser.role === USER_ROLE.ADMIN ||
+    ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(currentUser.role) ||
+    Boolean(currentUser.is_sales_head)
+  ) {
     return true;
   }
 
@@ -326,10 +330,16 @@ export async function createFollowupService(
       client
     );
 
-    validateLeadAssignment(
-      lead,
-      payload.employee_id
-    );
+    const isSalesHeadOrAdmin =
+      ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(currentUser.role) ||
+      Boolean(currentUser.is_sales_head);
+
+    if (!isSalesHeadOrAdmin) {
+      validateLeadAssignment(
+        lead,
+        payload.employee_id
+      );
+    }
 
     await validatePendingFollowup(
       payload.lead_id,

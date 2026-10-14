@@ -27,11 +27,12 @@ const LeadDetailsDrawer = ({
   onStatusUpdated,
   role = "counsellor",
 }) => {
-  const isSuperAdminOrHR = ["SUPER_ADMIN", "HR"].includes(String(role).toUpperCase());
-  const isCounsellor = role === "counsellor" || role === "employee";
+  const normalizedRole = String(role || "").toUpperCase();
+  const isSuperAdminOrHR = ["SUPER_ADMIN", "HR"].includes(normalizedRole);
+  const isCounsellor = ["COUNSELLOR", "EMPLOYEE", "SALES_HEAD", "MANAGER", "ADMIN"].includes(normalizedRole);
   const isEditable = isCounsellor && !isSuperAdminOrHR;
   // Call recordings are confidential and available in the admin drawer only.
-  const canAccessCallRecordings = String(role).toUpperCase() === "SUPER_ADMIN";
+  const canAccessCallRecordings = normalizedRole === "SUPER_ADMIN";
 
   const [loading, setLoading] = useState(false);
   const [leadDetails, setLeadDetails] = useState(null);

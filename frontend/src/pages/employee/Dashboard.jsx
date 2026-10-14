@@ -30,9 +30,14 @@ const CounsellorSalesDashboard = () => {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const isCounsellor = user?.role === "COUNSELLOR";
+  const isSales =
+    user?.role === "COUNSELLOR" ||
+    user?.role === "SALES_HEAD" ||
+    Boolean(user?.is_sales_head) ||
+    /sales|counsellor|admission/i.test(user?.designation || "") ||
+    /sales|admission/i.test(user?.department_name || "");
 
-  if (!isCounsellor) {
+  if (!isSales) {
     return <AcademicOperationsDashboard />;
   }
 

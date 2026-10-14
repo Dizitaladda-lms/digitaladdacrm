@@ -14,7 +14,10 @@ const assertAdmissionOwnership = async (admission, currentUser) => {
   if (
     currentUser.role === "SUPER_ADMIN" ||
     currentUser.role === "ADMIN" ||
-    currentUser.role === "HR"
+    currentUser.role === "HR" ||
+    currentUser.role === "MANAGER" ||
+    currentUser.role === "SALES_HEAD" ||
+    Boolean(currentUser.is_sales_head)
   ) {
     return;
   }

@@ -30,9 +30,11 @@ const formatNumber = (val) => {
 const MyFollowups = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
-  const leadsPath = isAdmin ? "/leads" : "/employee/leads";
+  const isSalesHeadOrAdmin =
+    ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(user?.role) ||
+    Boolean(user?.is_sales_head) ||
+    /sales coordinator|counsellor manager|sales manager|sales head/i.test(user?.designation || "");
+  const leadsPath = isSalesHeadOrAdmin ? "/employee/lead-management" : "/employee/leads";
   const [followups, setFollowups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState(() => searchParams.get("filter") || "All");

@@ -13,11 +13,11 @@ import {
 
 const router = express.Router();
 
-router.get("/", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR), getAdmissions);
-router.post("/", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.COUNSELLOR), createAdmission);
-router.get("/receipt/:paymentId", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR), getPaymentReceipt);
-router.get("/lead/:leadId", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR), getAdmissionByLead);
-router.get("/:id", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR), getAdmissionById);
-router.patch("/:id/fee", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.COUNSELLOR), collectFee);
+router.get("/", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR, ROLES.SALES_HEAD), getAdmissions);
+router.post("/", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.COUNSELLOR, ROLES.SALES_HEAD), createAdmission);
+router.get("/receipt/:paymentId", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR, ROLES.SALES_HEAD), getPaymentReceipt);
+router.get("/lead/:leadId", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR, ROLES.SALES_HEAD), getAdmissionByLead);
+router.get("/:id", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.HR, ROLES.COUNSELLOR, ROLES.SALES_HEAD), getAdmissionById);
+router.patch("/:id/fee", authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.COUNSELLOR, ROLES.SALES_HEAD), collectFee);
 
 export default router;

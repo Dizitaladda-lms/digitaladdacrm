@@ -25,10 +25,12 @@ import { useAuth } from "../../context/AuthContext";
 
 const MyAdmissions = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
-  const leadsPath = isAdmin ? "/leads" : "/employee/leads";
-  const followupsPath = isAdmin ? "/followups" : "/employee/followups";
+  const isSalesHeadOrAdmin =
+    ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(user?.role) ||
+    Boolean(user?.is_sales_head) ||
+    /sales coordinator|counsellor manager|sales manager|sales head/i.test(user?.designation || "");
+  const leadsPath = isSalesHeadOrAdmin ? "/employee/lead-management" : "/employee/leads";
+  const followupsPath = "/employee/followups";
   const [admissions, setAdmissions] = useState([]);
   const [summary, setSummary] = useState({
     total_admissions: 0,
