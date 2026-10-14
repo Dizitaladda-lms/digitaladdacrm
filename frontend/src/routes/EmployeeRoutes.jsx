@@ -17,9 +17,11 @@ const MyAttendance = lazy(() => import("../pages/employee/MyAttendance"));
 const CompanyPresence = lazy(() => import("../pages/employee/CompanyPresence"));
 const SalesDepartmentReport = lazy(() => import("../pages/hr/SalesDepartmentReport"));
 const MyAssignedWork = lazy(() => import("../pages/employee/MyAssignedWork"));
+const DepartmentHeadTasks = lazy(() => import("../pages/employee/DepartmentHeadTasks"));
 const MyRoster = lazy(() => import("../pages/employee/MyRoster"));
 const TeamChat = lazy(() => import("../pages/chat/TeamChat"));
 const ReadOnlyLeadOverview = lazy(() => import("../pages/employee/ReadOnlyLeadOverview"));
+const LeadManagement = lazy(() => import("../pages/Lead/LeadManagement"));
 
 import UnderMaintenance from "../pages/UnderMaintenance";
 import { IS_MAINTENANCE_MODE } from "../config/maintenanceConfig";
@@ -58,6 +60,7 @@ const EmployeeRoutes = () => {
 
           <Route path="daily-report" element={renderEmpPage(MyDailyReport)} />
           <Route path="assigned-work" element={renderEmpPage(MyAssignedWork)} />
+          <Route path="department-tasks" element={renderEmpPage(DepartmentHeadTasks)} />
           <Route path="performance" element={renderEmpPage(MyPerformance)} />
           <Route path="team-reports" element={renderEmpPage(TeamReports)} />
           <Route path="team-chat" element={renderEmpPage(TeamChat)} />
@@ -88,6 +91,10 @@ const EmployeeRoutes = () => {
                 : <Navigate to="/employee/dashboard" replace />
             }
           />
+
+          {/* Sales Lead Management (All Leads, Assignment, Filters for Sales Head / Manager) */}
+          <Route path="lead-management" element={renderEmpPage(LeadManagement)} />
+          <Route path="leads-management" element={renderEmpPage(LeadManagement)} />
 
           {/* Sales Only Routes */}
           <Route

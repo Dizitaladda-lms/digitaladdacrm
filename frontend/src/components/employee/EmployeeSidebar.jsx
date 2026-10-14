@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Fingerprint,
   ClipboardList,
+  CheckSquare,
   MessageSquare,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -27,17 +28,40 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
   const isCounsellor = role === "COUNSELLOR";
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isHR = role === "HR";
-  const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || (user?.designation && /head|manager|team lead/i.test(user.designation)));
+  const isSalesHead =
+    role === "SALES_HEAD" ||
+    Boolean(user?.is_sales_head) ||
+    (user?.designation && /sales coordinator|counsellor manager|sales manager|sales head/i.test(user.designation));
+  const isHead = Boolean(user?.is_department_head || user?.is_head || role === "MANAGER" || role === "TL" || isSalesHead || (user?.designation && /head|manager|team lead/i.test(user.designation)));
   const canSeeSalesReport = isSuperAdmin || isHR;
 
   let menuItems = [];
 
-  if (isCounsellor && !canSeeSalesReport) {
+  if (isSalesHead) {
+    // Sales Coordinator / Counsellor Manager / Sales Head: Lead management, own counselling workflow & team tasks
+    menuItems = [
+      { title: "Sales Lead Management", icon: UsersRound, path: "/employee/lead-management" },
+      { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
+      { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
+      { title: "My Leads", icon: Users, path: "/employee/leads" },
+      { title: "My Follow-ups", icon: PhoneCall, path: "/employee/followups" },
+      { title: "My Admissions", icon: GraduationCap, path: "/employee/admissions" },
+      { title: "Assign Team Tasks", icon: CheckSquare, path: "/employee/department-tasks" },
+      { title: "Tasks Assigned by Head", icon: ClipboardList, path: "/employee/assigned-work" },
+      { title: "TL Team & Intern Reports", icon: UsersRound, path: "/employee/team-reports" },
+      { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
+      { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
+      { title: "Employee Presence", icon: UsersRound, path: "/employee/company-presence" },
+      { title: "Monthly Roster", icon: CalendarDays, path: "/employee/roster" },
+      { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "Settings", icon: Settings, path: "/employee/settings" },
+    ];
+  } else if (isCounsellor && !canSeeSalesReport) {
     // Sales Department Counsellor (Sales Overview & Daily Form hidden from individual counsellors)
     menuItems = [
       { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
-      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
+      { title: "Tasks Assigned by Head", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
       { title: "Employee Presence", icon: UsersRound, path: "/employee/company-presence" },
       { title: "Monthly Roster", icon: CalendarDays, path: "/employee/roster" },
@@ -52,7 +76,8 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     menuItems = [
       { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
-      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
+      { title: "Assign Team Tasks", icon: CheckSquare, path: "/employee/department-tasks" },
+      { title: "Tasks Assigned by Head", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "Sales Dept Overview", icon: TrendingUp, path: "/employee/sales-report" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
       { title: "TL Team & Intern Reports", icon: UsersRound, path: "/employee/team-reports" },
@@ -67,7 +92,8 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     menuItems = [
       { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
-      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
+      { title: "Assign Team Tasks", icon: CheckSquare, path: "/employee/department-tasks" },
+      { title: "Tasks Assigned by Head", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/employee/daily-report" },
       { title: "TL Team & Intern Reports", icon: UsersRound, path: "/employee/team-reports" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
@@ -81,7 +107,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
     menuItems = [
       { title: "Team Chat", icon: MessageSquare, path: "/employee/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/employee/dashboard" },
-      { title: "My Assigned Work", icon: ClipboardList, path: "/employee/assigned-work" },
+      { title: "Tasks Assigned by Head", icon: ClipboardList, path: "/employee/assigned-work" },
       { title: "My Attendance", icon: Fingerprint, path: "/employee/my-attendance" },
       { title: "Employee Presence", icon: UsersRound, path: "/employee/company-presence" },
       { title: "Monthly Roster", icon: CalendarDays, path: "/employee/roster" },

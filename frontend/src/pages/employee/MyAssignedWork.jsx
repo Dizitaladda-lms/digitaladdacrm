@@ -77,10 +77,10 @@ const MyAssignedWork = () => {
       {/* Header Banner */}
       <div className="assigned-work-banner">
         <div className="banner-text-content">
-          <span className="banner-pill">My Work Assignments</span>
-          <h1 className="banner-heading">Work Assigned by Admin & Dept Heads</h1>
+          <span className="banner-pill">Delegated Work & Tasks</span>
+          <h1 className="banner-heading">Tasks Assigned by Department Head</h1>
           <p className="banner-subtext">
-            View project assignments, instructions from Super Admin/Dept Head, and requested report changes.
+            View project assignments, instructions, and tasks delegated specifically to you by your Department Head or Team Lead.
           </p>
         </div>
 
@@ -139,7 +139,16 @@ const MyAssignedWork = () => {
             <div className="task-card-footer">
               <div className="assigned-by-info">
                 <UserCheck size={14} />
-                <span>Assigned by <strong>{task.assigned_by_name || "Admin"}</strong> ({task.department_name || "General"})</span>
+                <span>
+                  Assigned by <strong>{task.assigned_by_name || "Department Head"}</strong>{" "}
+                  {task.assigned_by_designation
+                    ? `(${task.assigned_by_designation})`
+                    : task.assigned_by_role
+                    ? `(${task.assigned_by_role})`
+                    : task.department_name
+                    ? `(${task.department_name})`
+                    : ""}
+                </span>
               </div>
 
               <div className="task-card-actions">

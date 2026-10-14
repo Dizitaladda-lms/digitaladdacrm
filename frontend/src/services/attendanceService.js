@@ -132,3 +132,9 @@ export const decideLeaveRequest = async (id, decision, reason = "") => {
   const response = await axiosInstance.post(`/leave/${id}/decision`, { decision, reason });
   return response.data;
 };
+
+export const syncOfflineAttendance = async (payload) => {
+  const response = await axiosInstance.post("/attendance/offline-sync", payload);
+  return response.data;
+};
+

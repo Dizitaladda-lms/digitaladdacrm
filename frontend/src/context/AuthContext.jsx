@@ -16,10 +16,49 @@ import {
 
 const AuthContext = createContext();
 
+const OFFLINE_USER_KEY = "dizitaladda_offline_user";
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem(OFFLINE_USER_KEY);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const authActionSeq = useRef(0);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      getProfile()
+        .then((response) => {
+          const profileUser = response?.data || response?.user || null;
+          if (profileUser) {
+            setUser(profileUser);
+            try {
+              localStorage.setItem(OFFLINE_USER_KEY, JSON.stringify(profileUser));
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     const seqAtStart = authActionSeq.current;
@@ -29,9 +68,48 @@ export const AuthProvider = ({ children }) => {
         if (authActionSeq.current !== seqAtStart) return;
         const profileUser = response?.data || response?.user || null;
         setUser(profileUser);
-      } catch {
+        if (profileUser) {
+          try {
+            localStorage.setItem(OFFLINE_USER_KEY, JSON.stringify(profileUser));
+          } catch {}
+        }
+      } catch (err) {
         if (authActionSeq.current !== seqAtStart) return;
-        setUser(null);
+        const isNetworkErr =
+          !navigator.onLine ||
+          err?.code === "ERR_NETWORK" ||
+          !err?.response ||
+          [502, 503, 504].includes(err?.response?.status);
+
+        if (isNetworkErr) {
+          setIsOffline(true);
+          try {
+            const cached = localStorage.getItem(OFFLINE_USER_KEY);
+            if (cached) {
+              const cachedUser = JSON.parse(cached);
+              if (cachedUser && cachedUser.id) {
+                setUser(cachedUser);
+                return;
+              }
+            }
+          } catch {}
+        }
+
+        if (err?.response?.status === 401) {
+          try {
+            localStorage.removeItem(OFFLINE_USER_KEY);
+          } catch {}
+          setUser(null);
+        } else {
+          try {
+            const cached = localStorage.getItem(OFFLINE_USER_KEY);
+            if (cached) {
+              setUser(JSON.parse(cached));
+              return;
+            }
+          } catch {}
+          setUser(null);
+        }
       } finally {
         if (authActionSeq.current === seqAtStart) {
           setLoading(false);
@@ -51,6 +129,9 @@ export const AuthProvider = ({ children }) => {
       const userData = payload.user || response.user || null;
       if (userData) {
         setUser(userData);
+        try {
+          localStorage.setItem(OFFLINE_USER_KEY, JSON.stringify(userData));
+        } catch {}
       }
       setLoading(false);
     }
@@ -60,6 +141,9 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     authActionSeq.current += 1;
+    try {
+      localStorage.removeItem(OFFLINE_USER_KEY);
+    } catch {}
     try {
       await logoutUser();
     } catch {
@@ -71,6 +155,9 @@ export const AuthProvider = ({ children }) => {
 
   const logoutAllDevices = async () => {
     authActionSeq.current += 1;
+    try {
+      localStorage.removeItem(OFFLINE_USER_KEY);
+    } catch {}
     await logoutAllDevicesRequest();
     setUser(null);
   };
@@ -82,6 +169,9 @@ export const AuthProvider = ({ children }) => {
 
     if (updatedUser) {
       setUser(updatedUser);
+      try {
+        localStorage.setItem(OFFLINE_USER_KEY, JSON.stringify(updatedUser));
+      } catch {}
     }
 
     return response;
@@ -92,6 +182,7 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         loading,
+        isOffline,
         login,
         logout,
         logoutAllDevices,

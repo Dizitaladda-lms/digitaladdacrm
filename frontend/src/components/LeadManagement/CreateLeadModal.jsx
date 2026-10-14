@@ -450,7 +450,7 @@ const CreateLeadModal = ({
             </div>
 
             {/* Assign Counsellor */}
-            {["ADMIN", "MANAGER", "SUPER_ADMIN"].includes(String(currentUserRole).toUpperCase()) ? (
+            {["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(String(currentUserRole).toUpperCase()) ? (
               <div className="create-lead-field">
                 <label className="create-lead-label">
                   Assign Counsellor

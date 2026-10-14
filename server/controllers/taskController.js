@@ -6,7 +6,18 @@ import {
   updateTaskStatusService,
   deleteTaskService,
   requestReportRevisionService,
+  getAssignableTeamMembersService,
 } from "../services/taskService.js";
+
+/**
+ * Get Assignable Team Members for caller
+ */
+export const getAssignableMembersController = asyncHandler(async (req, res) => {
+  const members = await getAssignableTeamMembersService(req.user);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, members, "Assignable team members retrieved successfully."));
+});
 
 /**
  * Super Admin & Managers: Assign Work / Create Task

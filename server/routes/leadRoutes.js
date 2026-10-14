@@ -59,13 +59,13 @@ router.use((req, _res, next) => {
 
 router.post(
   "/bulk-whatsapp",
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR, ROLES.SALES_HEAD),
   handleBulkWhatsAppBroadcast
 );
 
 router.post(
   "/bulk-broadcast",
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR, ROLES.SALES_HEAD),
   handleBulkBroadcast
 );
 
@@ -77,7 +77,7 @@ router.post(
 
 router.post(
   "/",
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR, ROLES.SALES_HEAD),
   createLeadValidator,
   validate,
   createLead
@@ -117,7 +117,7 @@ router.post(
 
 router.post(
   "/import",
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.SALES_HEAD),
   importLeads
 );
 
@@ -128,7 +128,7 @@ router.get(
 
 router.put(
   "/:id",
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.SALES_HEAD),
   updateLeadValidator,
   validate,
   updateLead
@@ -142,7 +142,7 @@ router.delete(
 
 router.patch(
   "/:id/restore",
-  roleMiddleware(ROLES.ADMIN),
+  roleMiddleware(ROLES.ADMIN, ROLES.SALES_HEAD),
   restoreLead
 );
 

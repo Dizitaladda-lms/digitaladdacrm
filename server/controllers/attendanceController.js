@@ -12,6 +12,7 @@ import {
   rejectBiometricService,
   checkInAttendanceService,
   checkOutAttendanceService,
+  syncOfflineAttendanceService,
   getMyAttendanceHistoryService,
   getHRAttendanceReportsService,
   getOfficeIPsService,
@@ -144,4 +145,12 @@ export const upsertEmployeeAttendanceByHR = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, result, "Employee attendance saved & updated successfully."));
 });
+
+export const syncOfflineAttendance = asyncHandler(async (req, res) => {
+  const result = await syncOfflineAttendanceService(req.body, req.user, req);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Offline attendance synchronized successfully."));
+});
+
 

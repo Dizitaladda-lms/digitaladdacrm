@@ -52,3 +52,12 @@ export const requestReportRevision = async (reportId, data) => {
   const response = await axiosInstance.post(`/tasks/report-revision/${reportId}`, data);
   return response.data;
 };
+
+/**
+ * Fetch team members available to be assigned work by current user
+ */
+export const getAssignableMembers = async () => {
+  const response = await axiosInstance.get("/tasks/assignable-members");
+  return response.data;
+};
+

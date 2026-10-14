@@ -34,8 +34,11 @@ const LeadManagement = () => {
   const userRole = String(user?.role || "").toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isHR = userRole === "HR";
-  const isScopedSalesHead = userRole === "SALES_HEAD";
-  const isSalesHead = ["MANAGER", "ADMIN", "SALES_HEAD"].includes(userRole);
+  const isScopedSalesHead =
+    userRole === "SALES_HEAD" ||
+    Boolean(user?.is_sales_head) ||
+    /sales coordinator|counsellor manager|sales head/i.test(user?.designation || "");
+  const isSalesHead = ["MANAGER", "ADMIN", "SALES_HEAD"].includes(userRole) || isScopedSalesHead;
 
   // Sales Department Head manages and assigns leads; Super Admin & HR have read-only tracking + delete permissions
   const canAssign = isSalesHead && !isSuperAdmin && !isHR;

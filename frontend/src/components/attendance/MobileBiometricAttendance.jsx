@@ -12,6 +12,8 @@ import {
   RefreshCw,
   ShieldCheck,
   UserCheck,
+  WifiOff,
+  Radio,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
@@ -23,6 +25,11 @@ import {
   checkInAttendance,
   checkOutAttendance,
 } from "../../services/attendanceService";
+import {
+  enqueueOfflinePunch,
+  flushOfflineAttendanceQueue,
+  getOfflineQueue,
+} from "../../utils/offlineAttendanceQueue";
 import AttendanceFaceCapture from "./AttendanceFaceCapture";
 import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
 import "./MobileBiometricAttendance.css";
@@ -281,6 +288,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const [showLocationHelpModal, setShowLocationHelpModal] = useState(false);
   const [faceConsentChecked, setFaceConsentChecked] = useState(false);
   const [faceCaptureRequest, setFaceCaptureRequest] = useState(null);
+  const [offlinePunchesCount, setOfflinePunchesCount] = useState(() => getOfflineQueue().length);
 
   // Camera Selfie State for Face ID (Laptop Webcam & Mobile Camera)
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -360,6 +368,27 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   useEffect(() => {
     loadStatus();
     refreshLocation(false);
+    flushOfflineAttendanceQueue(() => {
+      loadStatus();
+      setOfflinePunchesCount(getOfflineQueue().length);
+    });
+
+    const handleNetworkChange = () => {
+      setOfflinePunchesCount(getOfflineQueue().length);
+      if (navigator.onLine) {
+        flushOfflineAttendanceQueue(() => {
+          loadStatus();
+          setOfflinePunchesCount(getOfflineQueue().length);
+        });
+      }
+    };
+
+    window.addEventListener("online", handleNetworkChange);
+    window.addEventListener("offline", handleNetworkChange);
+    return () => {
+      window.removeEventListener("online", handleNetworkChange);
+      window.removeEventListener("offline", handleNetworkChange);
+    };
   }, [refreshLocation]);
 
   // Automatically re-request GPS the moment user changes browser Location permission (Block -> Allow / Ask)
@@ -664,6 +693,35 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         return;
       }
 
+      if (!navigator.onLine) {
+        const nowIso = new Date().toISOString();
+        enqueueOfflinePunch({
+          type: "check-in",
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          accuracy: loc.accuracy,
+          location_name: loc.location_name,
+          punchTime: nowIso,
+          faceImage: capturedPhoto,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_in_time: nowIso,
+            status: "PRESENT",
+            check_in_location: loc.location_name,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Offline Face ID Check-in saved! 📍 ${loc.location_name} (${Math.round(loc.distance || 0)}m). Internet aate hi auto-sync hoga.`
+        );
+        closeCamera();
+        return;
+      }
+
       const credentialId = "FACE_ID_CHECKIN_" + Date.now();
       const res = await checkInAttendance({
         credentialId,
@@ -687,6 +745,40 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(res?.data);
     } catch (err) {
+      const isNetError =
+        !navigator.onLine ||
+        err?.code === "ERR_NETWORK" ||
+        !err?.response ||
+        [502, 503, 504].includes(err?.response?.status);
+      let loc = locationData;
+      if (isNetError && loc?.latitude != null && (loc?.distance == null || loc?.distance <= MAX_GEOFENCE_RADIUS_METERS)) {
+        const nowIso = new Date().toISOString();
+        enqueueOfflinePunch({
+          type: "check-in",
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          accuracy: loc.accuracy,
+          location_name: loc.location_name,
+          punchTime: nowIso,
+          faceImage: capturedPhoto,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_in_time: nowIso,
+            status: "PRESENT",
+            check_in_location: loc.location_name,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Server unreachable! Offline Check-in saved at 📍 ${loc.location_name}. Will sync automatically.`
+        );
+        closeCamera();
+        return;
+      }
       const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-in.";
       toast.error(msg);
     } finally {
@@ -725,6 +817,34 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         ? loc.location_name
         : currentToday?.check_in_location || "Office Premises";
 
+      if (!navigator.onLine) {
+        const nowIso = new Date().toISOString();
+        enqueueOfflinePunch({
+          type: "check-out",
+          latitude: resolvedLat,
+          longitude: resolvedLng,
+          accuracy: loc?.accuracy,
+          location_name: resolvedLocName,
+          punchTime: nowIso,
+          faceImage: capturedPhoto,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_out_time: nowIso,
+            check_out_location: resolvedLocName,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Offline Face ID Check-out saved! 📍 ${resolvedLocName}. Internet aate hi auto-sync hoga.`
+        );
+        closeCamera();
+        return;
+      }
+
       const result = await checkOutAttendance({
         latitude: resolvedLat,
         longitude: resolvedLng,
@@ -744,6 +864,42 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
+      const isNetError =
+        !navigator.onLine ||
+        err?.code === "ERR_NETWORK" ||
+        !err?.response ||
+        [502, 503, 504].includes(err?.response?.status);
+      if (isNetError) {
+        const nowIso = new Date().toISOString();
+        const currentToday = statusData?.today_attendance;
+        const resolvedLat = currentToday?.check_in_lat ?? OFFICE_LAT;
+        const resolvedLng = currentToday?.check_in_lng ?? OFFICE_LNG;
+        const resolvedLocName = currentToday?.check_in_location || "Office Premises";
+        enqueueOfflinePunch({
+          type: "check-out",
+          latitude: resolvedLat,
+          longitude: resolvedLng,
+          accuracy: 0,
+          location_name: resolvedLocName,
+          punchTime: nowIso,
+          faceImage: capturedPhoto,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_out_time: nowIso,
+            check_out_location: resolvedLocName,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Server unreachable! Offline Check-out saved at 📍 ${resolvedLocName}. Will sync automatically.`
+        );
+        closeCamera();
+        return;
+      }
       const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-out.";
       toast.error(msg);
     } finally {
@@ -844,6 +1000,33 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         return;
       }
 
+      if (!navigator.onLine) {
+        const nowIso = new Date().toISOString();
+        enqueueOfflinePunch({
+          type: "check-in",
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          accuracy: loc.accuracy,
+          location_name: loc.location_name,
+          punchTime: nowIso,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_in_time: nowIso,
+            status: "PRESENT",
+            check_in_location: loc.location_name,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Offline Check-in marked! 📍 ${loc.location_name} (${Math.round(loc.distance || 0)}m). Will sync automatically.`
+        );
+        return;
+      }
+
       let assertion;
       if (statusData?.passkey_required !== false) {
         if (!window.isSecureContext || !window.PublicKeyCredential) {
@@ -878,6 +1061,38 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
       toast.dismiss("biometric-auth");
+      const isNetError =
+        !navigator.onLine ||
+        err?.code === "ERR_NETWORK" ||
+        !err?.response ||
+        [502, 503, 504].includes(err?.response?.status);
+      let loc = locationData;
+      if (isNetError && loc?.latitude != null && (loc?.distance == null || loc?.distance <= MAX_GEOFENCE_RADIUS_METERS)) {
+        const nowIso = new Date().toISOString();
+        enqueueOfflinePunch({
+          type: "check-in",
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          accuracy: loc.accuracy,
+          location_name: loc.location_name,
+          punchTime: nowIso,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_in_time: nowIso,
+            status: "PRESENT",
+            check_in_location: loc.location_name,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Network issue! Offline Check-in saved at 📍 ${loc.location_name}. Will sync automatically.`
+        );
+        return;
+      }
       await showBiometricActionError(err, "Failed to mark check-in.");
     } finally {
       setActionLoading(false);
@@ -910,6 +1125,32 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       const resolvedLocName = isLocInOffice
         ? loc.location_name
         : currentToday?.check_in_location || "Office Premises";
+
+      if (!navigator.onLine) {
+        const nowIso = new Date().toISOString();
+        enqueueOfflinePunch({
+          type: "check-out",
+          latitude: resolvedLat,
+          longitude: resolvedLng,
+          accuracy: loc?.accuracy,
+          location_name: resolvedLocName,
+          punchTime: nowIso,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_out_time: nowIso,
+            check_out_location: resolvedLocName,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Offline Check-out marked! 📍 ${resolvedLocName}. Will sync automatically.`
+        );
+        return;
+      }
 
       let assertion;
       if (statusData?.passkey_required !== false) {
@@ -945,6 +1186,40 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
       toast.dismiss("biometric-auth");
+      const isNetError =
+        !navigator.onLine ||
+        err?.code === "ERR_NETWORK" ||
+        !err?.response ||
+        [502, 503, 504].includes(err?.response?.status);
+      if (isNetError) {
+        const nowIso = new Date().toISOString();
+        const currentToday = statusData?.today_attendance;
+        const resolvedLat = currentToday?.check_in_lat ?? OFFICE_LAT;
+        const resolvedLng = currentToday?.check_in_lng ?? OFFICE_LNG;
+        const resolvedLocName = currentToday?.check_in_location || "Office Premises";
+        enqueueOfflinePunch({
+          type: "check-out",
+          latitude: resolvedLat,
+          longitude: resolvedLng,
+          accuracy: 0,
+          location_name: resolvedLocName,
+          punchTime: nowIso,
+        });
+        setOfflinePunchesCount(getOfflineQueue().length);
+        setStatusData((prev) => ({
+          ...prev,
+          today_attendance: {
+            ...(prev?.today_attendance || {}),
+            check_out_time: nowIso,
+            check_out_location: resolvedLocName,
+            is_offline: true,
+          },
+        }));
+        toast.success(
+          `📡 Network issue! Offline Check-out saved at 📍 ${resolvedLocName}. Will sync automatically.`
+        );
+        return;
+      }
       await showBiometricActionError(err, "Failed to check out.");
     } finally {
       setActionLoading(false);
@@ -1062,6 +1337,47 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               <RefreshCw size={11} className={locating ? "spin-anim" : ""} />{" "}
               {isLocationDenied ? "Allow Location / Refresh" : "Refresh"}
             </button>
+
+            {/* Offline Mode / Pending Queue Sync Pill */}
+            {(!navigator.onLine || offlinePunchesCount > 0) && (
+              <span
+                className="biometric-pill"
+                style={{
+                  background: "#FFFBEB",
+                  color: "#B45309",
+                  border: "1px solid #FCD34D",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                }}
+              >
+                <WifiOff size={13} />
+                {!navigator.onLine
+                  ? "Offline Mode (GPS Active)"
+                  : `${offlinePunchesCount} Offline Punch Pending Sync`}
+                {navigator.onLine && offlinePunchesCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => flushOfflineAttendanceQueue(() => loadStatus())}
+                    style={{
+                      background: "#F59E0B",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      marginLeft: "4px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Sync Now
+                  </button>
+                )}
+              </span>
+            )}
           </div>
 
           <h2 className="biometric-title">

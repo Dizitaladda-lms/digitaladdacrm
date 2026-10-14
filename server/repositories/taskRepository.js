@@ -54,7 +54,10 @@ export const findTaskByIdRepository = async (taskId) => {
       to_u.full_name AS assigned_to_name,
       to_u.email AS assigned_to_email,
       to_e.designation AS assigned_to_designation,
+      to_e.employee_code AS assigned_to_code,
       by_u.full_name AS assigned_by_name,
+      by_u.role AS assigned_by_role,
+      by_e.designation AS assigned_by_designation,
       d.department_name,
       r.work_title AS report_work_title,
       r.tasks_summary AS report_tasks_summary,
@@ -63,6 +66,7 @@ export const findTaskByIdRepository = async (taskId) => {
     LEFT JOIN users to_u ON t.assigned_to_id = to_u.id
     LEFT JOIN employees to_e ON to_u.id = to_e.user_id
     LEFT JOIN users by_u ON t.assigned_by_id = by_u.id
+    LEFT JOIN employees by_e ON by_u.id = by_e.user_id
     LEFT JOIN departments d ON t.department_id = d.id
     LEFT JOIN daily_work_reports r ON t.report_id = r.id
     WHERE t.id = $1;
@@ -138,7 +142,10 @@ export const findTasksRepository = async ({
       to_u.full_name AS assigned_to_name,
       to_u.email AS assigned_to_email,
       to_e.designation AS assigned_to_designation,
+      to_e.employee_code AS assigned_to_code,
       by_u.full_name AS assigned_by_name,
+      by_u.role AS assigned_by_role,
+      by_e.designation AS assigned_by_designation,
       d.department_name,
       r.work_title AS report_work_title,
       r.tasks_summary AS report_tasks_summary,
@@ -147,6 +154,7 @@ export const findTasksRepository = async ({
     LEFT JOIN users to_u ON t.assigned_to_id = to_u.id
     LEFT JOIN employees to_e ON to_u.id = to_e.user_id
     LEFT JOIN users by_u ON t.assigned_by_id = by_u.id
+    LEFT JOIN employees by_e ON by_u.id = by_e.user_id
     LEFT JOIN departments d ON t.department_id = d.id
     LEFT JOIN daily_work_reports r ON t.report_id = r.id
     ${whereStr}

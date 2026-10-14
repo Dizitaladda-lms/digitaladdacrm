@@ -273,7 +273,7 @@ export const findTodayAttendanceRepository = async (employee_id, dateStr) => {
 
 export const createAttendanceCheckInRepository = async (client, {
   employee_id, date, ip_address, is_office_wifi, status,
-  check_in_lat, check_in_lng, check_in_location
+  check_in_lat, check_in_lng, check_in_location, check_in_time
 }) => {
   const dbClient = client || pool;
   const targetDate = date || getTodayISTDateString();
@@ -283,10 +283,10 @@ export const createAttendanceCheckInRepository = async (client, {
         employee_id, date, check_in_time, ip_address, is_office_wifi, status,
         check_in_lat, check_in_lng, check_in_location
       )
-      VALUES ($1, $2::date, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2::date, COALESCE($9::timestamptz, CURRENT_TIMESTAMP), $3, $4, $5, $6, $7, $8)
       ON CONFLICT (employee_id, date) 
       DO UPDATE SET 
-        check_in_time = COALESCE(daily_attendance.check_in_time, CURRENT_TIMESTAMP),
+        check_in_time = COALESCE(daily_attendance.check_in_time, EXCLUDED.check_in_time, CURRENT_TIMESTAMP),
         status = CASE
           WHEN daily_attendance.check_in_time IS NULL THEN EXCLUDED.status
           ELSE daily_attendance.status
@@ -314,27 +314,28 @@ export const createAttendanceCheckInRepository = async (client, {
       status || "PRESENT",
       check_in_lat ?? null,
       check_in_lng ?? null,
-      check_in_location || null
+      check_in_location || null,
+      check_in_time || null
     ]
   );
   return result.rows[0];
 };
 
 export const updateAttendanceCheckOutRepository = async (client, {
-  id, total_hours, check_out_lat, check_out_lng, check_out_location
+  id, total_hours, check_out_lat, check_out_lng, check_out_location, check_out_time
 }) => {
   const dbClient = client || pool;
   const result = await dbClient.query(
     `
       UPDATE daily_attendance
       SET 
-        check_out_time = CURRENT_TIMESTAMP,
+        check_out_time = COALESCE($6::timestamptz, CURRENT_TIMESTAMP),
         total_hours = COALESCE(
           $1::numeric,
           ROUND(
             GREATEST(
               0.00,
-              ((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+              ((EXTRACT(EPOCH FROM (COALESCE($6::timestamptz, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
             ),
             2
           )
@@ -349,7 +350,7 @@ export const updateAttendanceCheckOutRepository = async (client, {
         ROUND(
           GREATEST(
             0.00,
-            ((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+            ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
           ),
           2
         ) AS live_hours;
@@ -359,7 +360,8 @@ export const updateAttendanceCheckOutRepository = async (client, {
       check_out_lat ?? null,
       check_out_lng ?? null,
       check_out_location || null,
-      id
+      id,
+      check_out_time || null
     ]
   );
   return result.rows[0];

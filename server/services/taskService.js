@@ -7,6 +7,7 @@ import {
   deleteTaskRepository,
 } from "../repositories/taskRepository.js";
 import { findReportByIdRepository } from "../repositories/reportRepository.js";
+import { getRoleLevel, REPORT_ROLE_LEVELS } from "./reportHierarchyService.js";
 import pool from "../config/db.js";
 
 /**
@@ -39,21 +40,49 @@ export const createTaskService = async (user, payload) => {
 
 /**
  * Get assigned tasks list (for Admin, Dept Head or Employee)
+ * Strict Scoping:
+ * - Regular employee: ONLY see tasks assigned to them (assignedToId = user.id)
+ * - Dept Head / TL with scope=assigned_by_me: tasks assigned by them
+ * - Privileged Admin: full view
  */
 export const getTasksService = async (user, query = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 30));
-
-  // Access control scoping
-  let assignedToId = query.assignedToId ? Number(query.assignedToId) : undefined;
-  let assignedById = query.assignedById ? Number(query.assignedById) : undefined;
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 50));
   const userRole = String(user.role || "").toUpperCase();
 
-  // Non-admins see tasks assigned to them or assigned by them
-  if (!["SUPER_ADMIN", "ADMIN", "HR"].includes(userRole)) {
-    if (!assignedToId && !assignedById) {
+  let assignedToId = undefined;
+  let assignedById = undefined;
+
+  const isPrivilegedRole = ["SUPER_ADMIN", "ADMIN", "HR"].includes(userRole);
+
+  let isHeadOrLead = false;
+  if (!isPrivilegedRole) {
+    const empRes = await pool.query(
+      `SELECT role, designation FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1;`,
+      [user.id]
+    );
+    const emp = empRes.rows[0];
+    const level = getRoleLevel({
+      role: emp?.role || userRole,
+      designation: emp?.designation || user.designation,
+    });
+    isHeadOrLead = level >= REPORT_ROLE_LEVELS.TL;
+  }
+
+  if (isPrivilegedRole) {
+    assignedToId = query.assignedToId ? Number(query.assignedToId) : undefined;
+    assignedById = query.assignedById ? Number(query.assignedById) : undefined;
+  } else if (isHeadOrLead) {
+    if (query.scope === "assigned_by_me") {
+      assignedById = user.id;
+      assignedToId = query.assignedToId ? Number(query.assignedToId) : undefined;
+    } else {
       assignedToId = user.id;
     }
+  } else {
+    // STRICT PRIVACY: regular employees can ONLY see tasks assigned to them!
+    assignedToId = user.id;
+    assignedById = undefined;
   }
 
   return await findTasksRepository({
@@ -66,6 +95,128 @@ export const getTasksService = async (user, query = {}) => {
     page,
     limit,
   });
+};
+
+/**
+ * Fetch eligible team members that caller can assign tasks to
+ */
+export const getAssignableTeamMembersService = async (user) => {
+  const userId = Number(user.id);
+  const userRole = String(user.role || "").toUpperCase();
+
+  // If Admin / Super Admin / HR: can assign to any employee
+  if (["SUPER_ADMIN", "ADMIN", "HR"].includes(userRole)) {
+    const res = await pool.query(
+      `SELECT DISTINCT
+         u.id,
+         u.full_name,
+         u.email,
+         e.employee_code,
+         e.designation,
+         e.department_id,
+         d.department_name
+       FROM users u
+       JOIN employees e ON e.user_id = u.id AND e.is_deleted = FALSE
+       LEFT JOIN departments d ON d.id = e.department_id
+       WHERE u.is_deleted = FALSE AND u.id != $1
+       ORDER BY u.full_name ASC;`,
+      [userId]
+    );
+    return res.rows;
+  }
+
+  // Get caller's employee profile
+  const empRes = await pool.query(
+    `SELECT e.id, e.department_id, e.managed_department_ids, e.role, e.designation
+     FROM employees e
+     WHERE e.user_id = $1 AND e.is_deleted = FALSE
+     LIMIT 1;`,
+    [userId]
+  );
+  const employee = empRes.rows[0];
+  const effectiveRole = employee?.role || userRole;
+  const effectiveDesignation = employee?.designation || user.designation || "";
+  const roleLevel = getRoleLevel({
+    role: effectiveRole,
+    designation: effectiveDesignation,
+  });
+
+  let deptIds = [];
+  if (employee?.department_id) deptIds.push(Number(employee.department_id));
+  if (Array.isArray(employee?.managed_department_ids)) {
+    deptIds.push(...employee.managed_department_ids.map(Number));
+  } else if (typeof employee?.managed_department_ids === "string") {
+    try {
+      const parsed = JSON.parse(employee.managed_department_ids);
+      if (Array.isArray(parsed)) deptIds.push(...parsed.map(Number));
+    } catch {}
+  }
+  deptIds = Array.from(new Set(deptIds.filter((id) => Number.isInteger(id) && id > 0)));
+
+  // If Department Head or Manager:
+  if (roleLevel >= REPORT_ROLE_LEVELS.DEPARTMENT_HEAD) {
+    const res = await pool.query(
+      `WITH RECURSIVE subordinates AS (
+         SELECT id, user_id, reporting_manager_id
+         FROM employees
+         WHERE reporting_manager_id = $1
+           AND is_deleted = FALSE
+         UNION
+         SELECT e.id, e.user_id, e.reporting_manager_id
+         FROM employees e
+         JOIN subordinates s ON e.reporting_manager_id = s.id
+         WHERE e.is_deleted = FALSE
+       )
+       SELECT DISTINCT
+         u.id,
+         u.full_name,
+         u.email,
+         e.employee_code,
+         e.designation,
+         e.department_id,
+         d.department_name
+       FROM users u
+       JOIN employees e ON e.user_id = u.id AND e.is_deleted = FALSE
+       LEFT JOIN departments d ON d.id = e.department_id
+       WHERE u.is_deleted = FALSE
+         AND u.id != $2
+         AND (
+           ($3::bigint[] IS NOT NULL AND e.department_id = ANY($3::bigint[]))
+           OR e.id IN (SELECT id FROM subordinates)
+         )
+       ORDER BY u.full_name ASC;`,
+      [employee?.id || 0, userId, deptIds.length > 0 ? deptIds : null]
+    );
+    return res.rows;
+  }
+
+  // If TL:
+  if (roleLevel >= REPORT_ROLE_LEVELS.TL) {
+    const res = await pool.query(
+      `SELECT DISTINCT
+         u.id,
+         u.full_name,
+         u.email,
+         e.employee_code,
+         e.designation,
+         e.department_id,
+         d.department_name
+       FROM users u
+       JOIN employees e ON e.user_id = u.id AND e.is_deleted = FALSE
+       LEFT JOIN departments d ON d.id = e.department_id
+       WHERE u.is_deleted = FALSE
+         AND u.id != $1
+         AND (
+           e.reporting_manager_id = $2
+           OR ($3::bigint IS NOT NULL AND e.department_id = $3::bigint)
+         )
+       ORDER BY u.full_name ASC;`,
+      [userId, employee?.id || 0, employee?.department_id || null]
+    );
+    return res.rows;
+  }
+
+  throw new ApiError(403, "You do not have permission to assign tasks.");
 };
 
 /**

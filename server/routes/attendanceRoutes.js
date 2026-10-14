@@ -14,6 +14,7 @@ import {
   rejectBiometric,
   checkInAttendance,
   checkOutAttendance,
+  syncOfflineAttendance,
   getMyAttendanceHistory,
   getHRAttendanceReports,
   getCompanyPresence,
@@ -57,6 +58,7 @@ router.post(
 
 router.post("/check-in", checkInAttendance);
 router.post("/check-out", checkOutAttendance);
+router.post("/offline-sync", syncOfflineAttendance);
 router.get("/my-history", getMyAttendanceHistory);
 router.get("/company-presence", getCompanyPresence);
 router.patch(

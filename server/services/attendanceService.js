@@ -573,6 +573,165 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   });
 };
 
+export const syncOfflineAttendanceService = async (payload = {}, currentUser, req) => {
+  const employee = await getEmployeeId(currentUser);
+  ensureLaptopAttendanceIsEnabled(employee, req);
+
+  const punches = Array.isArray(payload.punches)
+    ? payload.punches
+    : payload.punch
+    ? [payload.punch]
+    : [];
+
+  if (punches.length === 0) {
+    throw new ApiError(400, "No offline attendance punches provided for synchronization.");
+  }
+
+  // Sort chronologically by punch time
+  punches.sort((a, b) => {
+    const timeA = new Date(a.punchTime || a.punch_time || 0).getTime();
+    const timeB = new Date(b.punchTime || b.punch_time || 0).getTime();
+    return timeA - timeB;
+  });
+
+  const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
+  const results = [];
+
+  for (const punch of punches) {
+    const rawAction = String(punch.type || punch.action || "check-in").toLowerCase();
+    const isCheckIn = rawAction.includes("in");
+    const punchTimeStr = punch.punchTime || punch.punch_time || new Date().toISOString();
+    const punchDate = new Date(punchTimeStr);
+
+    const { lat, lng } = getValidatedCoordinates(
+      punch.latitude,
+      punch.longitude,
+      punch.location_name,
+      isCheckIn ? "sync offline check-in" : "sync offline check-out"
+    );
+
+    const distanceInMeters = calculateGeofenceDistance(lat, lng);
+    const accuracyBuffer =
+      Number(punch.accuracy) > 0
+        ? Math.min(Math.max(Number(punch.accuracy), 0), INDOOR_GPS_TOLERANCE_METERS)
+        : 0;
+    const effectiveDistance = Math.max(0, distanceInMeters - accuracyBuffer);
+
+    if (effectiveDistance > MAX_GEOFENCE_RADIUS_METERS) {
+      throw new ApiError(
+        400,
+        `📍 Offline attendance punch rejected! Coordinates (${Math.round(distanceInMeters)}m) are outside the 100m office geofence.`
+      );
+    }
+
+    const cleanLocation =
+      effectiveDistance <= MAX_GEOFENCE_RADIUS_METERS
+        ? "Dizital Adda Office Premises"
+        : (punch.location_name || null);
+
+    const targetDateStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(punchDate);
+
+    if (isCheckIn) {
+      let status = "PRESENT";
+      try {
+        const istFormatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "Asia/Kolkata",
+          weekday: "short",
+          hour: "numeric",
+          minute: "numeric",
+          hour12: false,
+        });
+        const parts = istFormatter.formatToParts(punchDate);
+        const getPart = (type) => parts.find((p) => p.type === type)?.value;
+        const weekday = getPart("weekday");
+        let hour = parseInt(getPart("hour"), 10);
+        if (hour === 24) hour = 0;
+        const minute = parseInt(getPart("minute"), 10);
+        const currentMins = hour * 60 + minute;
+
+        let expectedMins = 10 * 60; // Mon-Fri 10:00 AM
+        if (weekday === "Sat" || weekday === "Sun") {
+          expectedMins = 9 * 60 + 30; // Sat & Sun 9:30 AM
+        }
+
+        if (employee.shift_timing_type === "CUSTOM") {
+          let customStart = employee.shift_start_time || "10:00";
+          const customTimings = typeof employee.custom_shift_timings === "string"
+            ? (() => { try { return JSON.parse(employee.custom_shift_timings); } catch (e) { return null; } })()
+            : employee.custom_shift_timings;
+
+          if (weekday === "Sat" && customTimings?.sat_start) {
+            customStart = customTimings.sat_start;
+          } else if (weekday === "Sun" && customTimings?.sun_start) {
+            customStart = customTimings.sun_start;
+          } else if (customTimings?.mon_fri_start) {
+            customStart = customTimings.mon_fri_start;
+          }
+
+          const [customHour, customMinute] = String(customStart).split(":").map(Number);
+          if (!isNaN(customHour) && !isNaN(customMinute)) {
+            expectedMins = customHour * 60 + customMinute;
+          }
+        }
+
+        if (currentMins > expectedMins) {
+          status = "LATE";
+        }
+      } catch (err) {
+        console.error("Error calculating late check-in for offline punch:", err);
+      }
+
+      const attendance = await createAttendanceCheckInRepository(null, {
+        employee_id: employee.id,
+        date: targetDateStr,
+        ip_address: clientIp,
+        is_office_wifi: isOfficeWifi,
+        status,
+        check_in_lat: lat,
+        check_in_lng: lng,
+        check_in_location: cleanLocation,
+        check_in_time: punchDate.toISOString(),
+      });
+      results.push({ action: "check-in", attendance });
+    } else {
+      let todayAttendance = await findTodayAttendanceRepository(employee.id, targetDateStr);
+      if (!todayAttendance) {
+        todayAttendance = await createAttendanceCheckInRepository(null, {
+          employee_id: employee.id,
+          date: targetDateStr,
+          ip_address: clientIp,
+          is_office_wifi: isOfficeWifi,
+          status: "PRESENT",
+          check_in_lat: lat,
+          check_in_lng: lng,
+          check_in_location: cleanLocation,
+          check_in_time: punchDate.toISOString(),
+        });
+      }
+
+      const updated = await updateAttendanceCheckOutRepository(null, {
+        id: todayAttendance.id,
+        check_out_lat: lat,
+        check_out_lng: lng,
+        check_out_location: cleanLocation,
+        check_out_time: punchDate.toISOString(),
+      });
+      results.push({ action: "check-out", attendance: updated });
+    }
+  }
+
+  return {
+    success: true,
+    processed_count: results.length,
+    results,
+  };
+};
+
 export const getMyAttendanceHistoryService = async (filters, currentUser) => {
   const employee = await getEmployeeId(currentUser);
   return await getMyAttendanceHistoryRepository({

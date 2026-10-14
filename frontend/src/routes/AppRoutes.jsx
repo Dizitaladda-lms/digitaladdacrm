@@ -1,17 +1,18 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 import Login from "../pages/auth/Login";
 import ChangePassword from "../pages/auth/ChangePassword/ChangePassword";
 
 import Dashboard from "../pages/dashboard/Dashboard";
-import LeadManagement from "../pages/Lead/LeadManagement";
 import LeadSources from "../pages/leadSources/LeadSources";
 import AdminWorkspace from "../pages/admin/AdminWorkspace";
 import AdminSettings from "../pages/admin/Settings";
 import EmployeeWorkspace from "../pages/hr/EmployeeWorkspace";
 
 // Lazy-loaded routes
+const LeadManagement = lazy(() => import("../pages/Lead/LeadManagement"));
 const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
 const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
 const TelephonySettings = lazy(() => import("../pages/admin/TelephonySettings"));
@@ -50,6 +51,12 @@ const renderPage = (Component) => {
 };
 
 const AppRoutes = () => {
+  const { user } = useAuth();
+  const isSalesCoordinatorOrHead =
+    user?.role === "SALES_HEAD" ||
+    Boolean(user?.is_sales_head) ||
+    (user?.designation && /sales coordinator|counsellor manager|sales manager|sales head/i.test(user.designation));
+
   return (
     <Routes>
 
@@ -66,7 +73,16 @@ const AppRoutes = () => {
 
           <Route element={<MainLayout />}>
 
-            <Route path="/leads" element={renderPage(LeadManagement)} />
+            <Route
+              path="/leads"
+              element={
+                isSalesCoordinatorOrHead ? (
+                  <Navigate to="/employee/lead-management" replace />
+                ) : (
+                  renderPage(LeadManagement)
+                )
+              }
+            />
 
             <Route
               path="/change-password"
@@ -291,7 +307,7 @@ const AppRoutes = () => {
 
       <Route element={<ProtectedRoute />}>
 
-        <Route element={<RoleProtectedRoute roles={["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "SUB_TL", "DEPARTMENT_HEAD", "HR", "SALES_HEAD"]} />}>
+        <Route element={<RoleProtectedRoute roles={["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "SUB_TL", "DEPARTMENT_HEAD", "HR", "SALES_HEAD", "MANAGER", "ADMIN", "SUPER_ADMIN"]} />}>
 
           <Route
             path="/employee/*"

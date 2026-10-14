@@ -22,8 +22,8 @@ const RoleProtectedRoute = ({ roles }) => {
       return <Navigate to="/reports" replace />;
     }
 
-    if (user.role === "SALES_HEAD") {
-      return <Navigate to="/leads" replace />;
+    if (user.role === "SALES_HEAD" || (user?.designation && /sales coordinator|counsellor manager|sales manager|sales head/i.test(user.designation))) {
+      return <Navigate to="/employee/lead-management" replace />;
     }
 
     if (["COUNSELLOR", "EMPLOYEE", "TRAINER", "INTERN", "TL", "SUB_TL", "DEPARTMENT_HEAD"].includes(user.role)) {

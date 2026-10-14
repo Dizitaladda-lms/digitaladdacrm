@@ -20,12 +20,22 @@ const sanitizeCredentialText = (value) =>
     .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, " ")
     .trim();
 
-const getTargetRouteForRole = (rawRole) => {
-  const role = String(rawRole || "").trim().toUpperCase();
+const getTargetRouteForRole = (userOrRole) => {
+  const role = String(typeof userOrRole === "string" ? userOrRole : userOrRole?.role || "").trim().toUpperCase();
+  const designation = typeof userOrRole === "object" ? userOrRole?.designation || "" : "";
+  const isSalesCoordinator =
+    role === "SALES_HEAD" ||
+    Boolean(userOrRole?.is_sales_head) ||
+    /sales coordinator|counsellor manager|sales manager|sales head/i.test(designation);
+
   if (IS_MAINTENANCE_MODE) {
-    return ["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"].includes(role)
+    return ["MANAGER", "SUPER_ADMIN", "ADMIN", "HR"].includes(role) && !isSalesCoordinator
       ? "/my-attendance"
       : "/employee/my-attendance";
+  }
+
+  if (isSalesCoordinator) {
+    return "/employee/lead-management";
   }
 
   switch (role) {
@@ -35,8 +45,6 @@ const getTargetRouteForRole = (rawRole) => {
       return "/dashboard";
     case "HR":
       return "/reports";
-    case "SALES_HEAD":
-      return "/leads";
     case "DEPARTMENT_HEAD":
     case "SUB_TL":
     case "COUNSELLOR":
@@ -102,8 +110,8 @@ const LoginForm = () => {
       if (response?.success) {
         toast.success("Welcome Back 👋");
 
-        const role = response?.data?.user?.role || response?.user?.role;
-        const targetRoute = getTargetRouteForRole(role);
+        const loggedInUser = response?.data?.user || response?.user;
+        const targetRoute = getTargetRouteForRole(loggedInUser || response?.data?.user?.role || response?.user?.role);
 
         if (targetRoute) {
           navigate(targetRoute, { replace: true });
