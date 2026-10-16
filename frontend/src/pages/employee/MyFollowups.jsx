@@ -28,6 +28,7 @@ const formatNumber = (val) => {
 };
 
 const MyFollowups = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSalesHeadOrAdmin =

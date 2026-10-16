@@ -24,6 +24,7 @@ import { exportToCsv } from "../../utils/exportCsv";
 import { useAuth } from "../../context/AuthContext";
 
 const MyAdmissions = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const isSalesHeadOrAdmin =
     ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(user?.role) ||
