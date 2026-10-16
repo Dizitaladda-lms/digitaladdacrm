@@ -39,19 +39,23 @@ if (typeof window !== "undefined" && "caches" in window) {
     .catch(() => {});
 }
 
-// Automatic reload handler when dynamic imports change on new deployment
+// Automatic reload handler when dynamic imports change or stale chunk runs
 window.addEventListener("error", (event) => {
   const isChunkError =
     event?.message?.includes("Failed to fetch dynamically imported module") ||
     event?.message?.includes("Importing a module script failed") ||
-    event?.message?.includes("Loading chunk");
+    event?.message?.includes("Loading chunk") ||
+    event?.message?.includes("isHR is not defined");
 
   if (isChunkError) {
+    if ("caches" in window) {
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+    }
     const lastReload = sessionStorage.getItem("app_chunk_reload");
     const now = Date.now();
-    if (!lastReload || now - Number(lastReload) > 5000) {
+    if (!lastReload || now - Number(lastReload) > 3000) {
       sessionStorage.setItem("app_chunk_reload", String(now));
-      console.log("⚡ New code deployment detected. Reloading page...");
+      console.log("⚡ New code deployment or stale cache detected. Purging cache and reloading...");
       window.location.reload();
     }
   }
