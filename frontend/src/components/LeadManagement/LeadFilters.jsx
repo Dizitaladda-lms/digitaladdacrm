@@ -11,7 +11,14 @@ const LeadFilters = ({
   filters,
   onChange,
   onReset,
+  employees = [],
+  currentUser = null,
 }) => {
+  const myEmployee = employees.find((emp) =>
+    (currentUser?.employee_id && String(emp.id) === String(currentUser.employee_id)) ||
+    (currentUser?.id && String(emp.user_id) === String(currentUser.id)) ||
+    (currentUser?.full_name && emp.full_name && emp.full_name.trim().toLowerCase() === currentUser.full_name.trim().toLowerCase())
+  );
 
   return (
 
@@ -385,26 +392,25 @@ const LeadFilters = ({
 
         </div>
 
-        {/* Counsellor */}
-
+        {/* Counsellor / Assignee */}
         <div className="filter-group">
-
-          <label>
-
-            Counsellor
-
-          </label>
-
-          <select>
-
-            <option>
-
-              All Counsellors
-
-            </option>
-
+          <label>Counsellor / Assignee</label>
+          <select
+            value={filters.assigned_to || ""}
+            onChange={(e) => onChange("assigned_to", e.target.value)}
+          >
+            <option value="">All Counsellors & Managers</option>
+            <option value="unassigned">Unassigned Leads</option>
+            <option value="assigned">All Assigned Leads</option>
+            {employees.map((emp) => {
+              const isSelf = myEmployee && String(emp.id) === String(myEmployee.id);
+              return (
+                <option key={emp.id} value={emp.id}>
+                  {emp.full_name} {isSelf ? "⭐ (Myself / Manager)" : emp.designation ? `(${emp.designation})` : `(${emp.role})`}
+                </option>
+              );
+            })}
           </select>
-
         </div>
 
       </div>

@@ -983,8 +983,7 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
       ? computeShiftStatusForTimestamp(checkInIso, employee)
       : requestedStatus;
 
-  const actorName = currentUser?.full_name || currentUser?.email || actorRole;
-  const locationLabel = `Marked / Edited by ${actorRole} (${actorName})`;
+  const locationLabel = "Dizital Adda Office Premises";
 
   return await upsertEmployeeAttendanceByHRRepository({
     employee_id: employeeId,

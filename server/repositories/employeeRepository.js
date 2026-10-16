@@ -921,12 +921,19 @@ export const getEmployeesRepository = async (filters = {}) => {
 
 export const getActiveCounsellorsForLeadAssignmentRepository = async () => {
     const { rows } = await pool.query(`
-        SELECT id, full_name, role, designation, status
+        SELECT id, full_name, role, designation, status, department_id
         FROM employees
-        WHERE role = 'COUNSELLOR'
+        WHERE (
+            role IN ('COUNSELLOR', 'SALES_HEAD')
+            OR (role = 'MANAGER' AND (department_id = 1 OR designation ILIKE '%sales%' OR designation ILIKE '%counsel%' OR designation ILIKE '%manager%'))
+            OR designation ILIKE '%counsel%'
+            OR designation ILIKE '%sales%'
+        )
           AND status = 'ACTIVE'
           AND is_deleted = FALSE
-        ORDER BY full_name ASC;
+        ORDER BY 
+          CASE WHEN role IN ('SALES_HEAD', 'MANAGER') THEN 0 ELSE 1 END,
+          full_name ASC;
     `);
 
     return rows;

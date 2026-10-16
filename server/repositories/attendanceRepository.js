@@ -715,7 +715,7 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
       total_hours ?? 0,
       ip_address || null,
       status || "PRESENT",
-      location_label || "Marked / Edited by HR",
+      location_label || "Dizital Adda Office Premises",
     ]
   );
 

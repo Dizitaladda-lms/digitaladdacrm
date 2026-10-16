@@ -33,11 +33,15 @@ const LeadManagement = () => {
   const { user } = useAuth();
   const userRole = String(user?.role || "").toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
-  const isHR = userRole === "HR";
+  const isSalesDepartment =
+    user?.department_id === 1 ||
+    user?.department_id === "1" ||
+    /sales/i.test(String(user?.department_name || ""));
   const isScopedSalesHead =
     userRole === "SALES_HEAD" ||
     Boolean(user?.is_sales_head) ||
-    /sales coordinator|counsellor manager|sales head/i.test(user?.designation || "");
+    (isSalesDepartment && ["MANAGER", "ADMIN"].includes(userRole)) ||
+    /sales coordinator|counsellor manager|sales manager|sales head/i.test(user?.designation || "");
   const isSalesHead = ["MANAGER", "ADMIN", "SALES_HEAD"].includes(userRole) || isScopedSalesHead;
 
   // Sales Department Head manages and assigns leads; Super Admin & HR have read-only tracking + delete permissions
@@ -176,7 +180,7 @@ setAssignModal(false);
         ...filters,
       }),
       getLeadStats(statsFilters),
-      isScopedSalesHead ? getLeadAssignees() : getEmployees(),
+      canAssign ? getLeadAssignees() : getEmployees(),
     ]);
 
     setLeads(leadResponse?.data?.leads || leadResponse?.leads || []);
@@ -572,13 +576,11 @@ const openAssignModal = () => {
       />
 
       <LeadFilters
-
         filters={filters}
-
         onChange={handleFilterChange}
-
         onReset={handleResetFilters}
-
+        employees={employees}
+        currentUser={user}
       />
 
       {
@@ -634,6 +636,7 @@ const openAssignModal = () => {
   lead={selectedLead}
   selectedLeads={selectedLeads}
   employees={employees}
+  currentUser={user}
   onClose={closeAssignModal}
   onAssign={handleAssign}
 />

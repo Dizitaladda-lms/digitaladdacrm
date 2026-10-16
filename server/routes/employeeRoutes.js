@@ -57,7 +57,7 @@ router.get(
 router.get(
   "/lead-assignees",
   authenticate,
-  roleMiddleware("SALES_HEAD"),
+  roleMiddleware("SALES_HEAD", "MANAGER", "ADMIN"),
   getLeadAssigneesController
 );
 

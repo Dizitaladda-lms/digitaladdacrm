@@ -725,7 +725,7 @@ const LeadTable = ({
               </button>
             )}
 
-            {canAssign && !lead.assigned_employee && (
+            {canAssign && (
               <button
                 onClick={() => onAssign?.(lead)}
                 title="Assign Lead"

@@ -104,7 +104,7 @@ const resolveVisibilityScope = async (user) => {
   } else if (roleLevel === REPORT_ROLE_LEVELS.TL || roleLevel === REPORT_ROLE_LEVELS.SUB_TL) {
     const treeResult = await pool.query(
       `WITH RECURSIVE report_tree AS (
-         SELECT e.id, e.user_id, e.reporting_manager_id,
+         SELECT e.id AS emp_id, u.id AS user_id, e.reporting_manager_id, u.reports_to,
                 CASE
                   WHEN UPPER(COALESCE(e.role, '')) = 'SUPER_ADMIN' OR LOWER(COALESCE(e.designation, '')) LIKE '%superadmin%' THEN 6
                   WHEN UPPER(COALESCE(e.role, '')) = 'HR' OR LOWER(COALESCE(e.designation, '')) LIKE '%human resources%' THEN 5
@@ -125,13 +125,14 @@ const resolveVisibilityScope = async (user) => {
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%intern%' THEN 1
                   ELSE 0
                 END AS role_level,
-                ARRAY[e.id]::bigint[] AS path
-         FROM employees e
-         WHERE e.user_id = $1 AND e.is_deleted = FALSE
+                ARRAY[u.id]::bigint[] AS path
+         FROM users u
+         LEFT JOIN employees e ON e.user_id = u.id AND e.is_deleted = FALSE
+         WHERE u.id = $1 AND u.is_deleted = FALSE
          UNION ALL
-         SELECT child.id, child.user_id, child.reporting_manager_id, child.role_level, parent.path || child.id
+         SELECT child.emp_id, child.user_id, child.reporting_manager_id, child.reports_to, child.role_level, parent.path || child.user_id
          FROM (
-           SELECT e.*,
+           SELECT e.id AS emp_id, u.id AS user_id, e.reporting_manager_id, u.reports_to,
                   CASE
                     WHEN UPPER(COALESCE(e.role, '')) = 'SUPER_ADMIN' OR LOWER(COALESCE(e.designation, '')) LIKE '%superadmin%' THEN 6
                     WHEN UPPER(COALESCE(e.role, '')) = 'HR' OR LOWER(COALESCE(e.designation, '')) LIKE '%human resources%' THEN 5
@@ -152,20 +153,23 @@ const resolveVisibilityScope = async (user) => {
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%intern%' THEN 1
                     ELSE 0
                   END AS role_level
-           FROM employees e
-           WHERE e.is_deleted = FALSE
+           FROM users u
+           LEFT JOIN employees e ON e.user_id = u.id AND e.is_deleted = FALSE
+           WHERE u.is_deleted = FALSE
          ) child
-         JOIN report_tree parent ON child.reporting_manager_id = parent.id
+         JOIN report_tree parent ON (
+           (child.reporting_manager_id IS NOT NULL AND (child.reporting_manager_id = parent.emp_id OR child.reporting_manager_id = parent.user_id))
+           OR (child.reports_to IS NOT NULL AND (child.reports_to = parent.user_id OR child.reports_to = parent.emp_id))
+         )
          WHERE child.role_level < parent.role_level
-           AND NOT child.id = ANY(parent.path)
+           AND NOT child.user_id = ANY(parent.path)
        )
-       SELECT DISTINCT u.id
+       SELECT DISTINCT user_id
        FROM report_tree t
-       JOIN users u ON u.id = t.user_id
-       WHERE u.is_deleted = FALSE;`,
+       WHERE user_id IS NOT NULL;`,
       [userId]
     );
-    visibleUserIds = treeResult.rows.map((row) => Number(row.id));
+    visibleUserIds = treeResult.rows.map((row) => Number(row.user_id || row.id));
   } else {
     visibleUserIds = [userId];
   }
