@@ -266,7 +266,13 @@ export const getCurrentApproverForReport = async (report) => {
   if (!report) return null;
 
   const status = String(report.status || "").toUpperCase();
-  if (status === "FULLY_VERIFIED") return null;
+  if (status === "FULLY_VERIFIED" || status === "SUPER_ADMIN_APPROVED") return null;
+
+  if (report.current_level_user_id) {
+    const level = Number(report.current_approval_level);
+    const label = ROLE_LABELS_BY_LEVEL[level] || "APPROVER";
+    return { id: Number(report.current_level_user_id), label };
+  }
 
   const tlId = report.tl_id ? Number(report.tl_id) : null;
   const hrId = report.hr_id ? Number(report.hr_id) : null;

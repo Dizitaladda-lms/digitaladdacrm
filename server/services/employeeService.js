@@ -3,6 +3,7 @@ import ApiError from "../utils/ApiError.js";
 import auditLogger from "../utils/auditLogger.js";
 import { isValidRole } from "../constants/roles.js";
 import bcrypt from "bcryptjs";
+import { hashSecurePassword } from "../utils/passwordUtils.js";
 
 import {
     createUserRepository,
@@ -40,6 +41,10 @@ import {
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
 import { invalidateReportVisibilityCache } from "./reportVisibilityPolicy.js";
 import { assertNoReportingCycle } from "./reportHierarchyService.js";
+import {
+    validateManagerAssignment,
+    reassignDirectReportsAndReroutePending,
+} from "./hierarchyService.js";
 
 const generateEmployeeCode = (sequence) => {
     const prefix = process.env.EMPLOYEE_CODE_PREFIX || "EMP";
@@ -254,7 +259,7 @@ const getEmployeePasswordHash = async (employeeData) => {
         throw new ApiError(400, "A temporary password is required when creating an employee.");
     }
 
-    return bcrypt.hash(temporaryPassword, 10);
+    return hashSecurePassword(temporaryPassword);
 };
 
 const createEmployeeApprovalRequest = async (employeeData, currentUser) => {
@@ -288,6 +293,17 @@ export const createEmployeeService = async (employeeData, currentUser, req) => {
         String(currentUser.role || "").toUpperCase() !== "SUPER_ADMIN"
     ) {
         throw new ApiError(403, "Only Super Admin can grant Sales Head access.");
+    }
+
+    if (normalizedData.reporting_manager_id) {
+        await validateManagerAssignment({
+            employeeId: null,
+            managerId: Number(normalizedData.reporting_manager_id),
+            role: normalizedData.role,
+            designation: normalizedData.designation,
+            employmentType: normalizedData.employment_type,
+            clientOrPool: pool,
+        });
     }
 
     if (String(currentUser.role || "").toUpperCase() === "HR") {
@@ -401,7 +417,14 @@ export const updateEmployeeService = async (
             if (!Number.isInteger(managerId) || managerId <= 0) {
                 throw new ApiError(400, "Reporting manager must be a valid employee.");
             }
-            await assertNoReportingCycle(client, Number(id), managerId);
+            await validateManagerAssignment({
+                employeeId: Number(id),
+                managerId,
+                role: employeeData.role || employee.role,
+                designation: employeeData.designation || employee.designation,
+                employmentType: employeeData.employment_type || employee.employment_type,
+                clientOrPool: client,
+            });
         }
 
         // Duplicate Email Check
@@ -445,7 +468,7 @@ export const updateEmployeeService = async (
             if (trimmedPassword.length < 6) {
                 throw new ApiError(400, "Password must be at least 6 characters.");
             }
-            hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+            hashedPassword = await hashSecurePassword(trimmedPassword);
         }
 
         // Duplicate Mobile Check
@@ -531,6 +554,12 @@ export const updateEmployeeService = async (
 
         // Update User (Full Name, Role, Email, Status, and Password)
         const targetStatus = String(employeeData.status ?? employee.status ?? "ACTIVE").toUpperCase();
+        if (targetStatus === "INACTIVE" && employee.status !== "INACTIVE") {
+            await reassignDirectReportsAndReroutePending({
+                oldManagerId: Number(id),
+                client,
+            });
+        }
         const userUpdatePayload = {
             full_name:
                 employeeData.full_name ??
@@ -636,6 +665,12 @@ export const deleteEmployeeService = async (
             );
 
         }
+
+        // Reassign direct reports and reroute pending reports before deletion
+        await reassignDirectReportsAndReroutePending({
+            oldManagerId: Number(id),
+            client,
+        });
 
         const deletedEmployee =
             await deleteEmployeeRepository(

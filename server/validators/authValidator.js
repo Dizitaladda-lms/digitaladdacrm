@@ -1,4 +1,5 @@
 import { body } from "express-validator";
+import { validatePasswordPolicy } from "../utils/passwordPolicy.js";
 
 /**
  * =====================================================
@@ -44,26 +45,15 @@ export const registerValidator = [
   body("password")
     .notEmpty()
     .withMessage("Password is required.")
-    .isLength({ min: 8 })
-    .withMessage(
-      "Password must be at least 8 characters."
-    )
-    .matches(/[A-Z]/)
-    .withMessage(
-      "Password must contain at least one uppercase letter."
-    )
-    .matches(/[a-z]/)
-    .withMessage(
-      "Password must contain at least one lowercase letter."
-    )
-    .matches(/[0-9]/)
-    .withMessage(
-      "Password must contain at least one number."
-    )
-    .matches(/[!@#$%^&*]/)
-    .withMessage(
-      "Password must contain at least one special character."
-    ),
+    .isLength({ min: 12, max: 128 })
+    .withMessage("Password must be between 12 and 128 characters.")
+    .custom(async (value) => {
+      const policy = await validatePasswordPolicy(value);
+      if (!policy.valid) {
+        throw new Error(policy.message);
+      }
+      return true;
+    }),
 
 ];
 
@@ -95,10 +85,15 @@ export const changePasswordValidator = [
   body("newPassword")
     .notEmpty()
     .withMessage("New password is required.")
-    .isLength({ min: 8 })
-    .withMessage(
-      "Password must be at least 8 characters."
-    )
+    .isLength({ min: 12, max: 128 })
+    .withMessage("Password must be between 12 and 128 characters.")
+    .custom(async (value) => {
+      const policy = await validatePasswordPolicy(value);
+      if (!policy.valid) {
+        throw new Error(policy.message);
+      }
+      return true;
+    }),
 
 ];
 
@@ -144,9 +139,14 @@ export const resetPasswordValidator = [
   body("newPassword")
     .notEmpty()
     .withMessage("New password is required.")
-    .isLength({ min: 8 })
-    .withMessage(
-      "Password must be at least 8 characters."
-    )
+    .isLength({ min: 12, max: 128 })
+    .withMessage("Password must be between 12 and 128 characters.")
+    .custom(async (value) => {
+      const policy = await validatePasswordPolicy(value);
+      if (!policy.valid) {
+        throw new Error(policy.message);
+      }
+      return true;
+    }),
 
 ];

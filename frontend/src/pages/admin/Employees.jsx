@@ -1085,12 +1085,29 @@ const Employees = () => {
                   </td>
                   <td>
                     <div>
-                      <strong>{employee.department_name || "Admissions"}</strong>
-                      {employee.reporting_manager_name && (
+                      {employee.reporting_manager_name ? (
                         <div style={{ fontSize: "11px", color: "#0F766E", marginTop: "2px", fontWeight: 500 }}>
                           Dept Head / Mentor: {employee.reporting_manager_name}
                         </div>
-                      )}
+                      ) : employee.role !== "SUPER_ADMIN" ? (
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3px",
+                            fontSize: "10.5px",
+                            color: "#b45309",
+                            backgroundColor: "#fef3c7",
+                            border: "1px solid #fde68a",
+                            borderRadius: "4px",
+                            padding: "2px 6px",
+                            marginTop: "3px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          <AlertCircle size={10} /> No manager assigned
+                        </div>
+                      ) : null}
                     </div>
                   </td>
                   <td style={{ textAlign: "right" }}>
@@ -1308,8 +1325,27 @@ const Employees = () => {
                       )}
                     </select>
                     <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
-                      Daily work reports submitted by this employee will first route to this Department Head for Tier-1 approval.
+                      Daily work reports submitted by this employee will route upward starting from this manager.
                     </small>
+                    {!form.reporting_manager_id && form.role !== "SUPER_ADMIN" && (
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontSize: "11px",
+                          color: "#b45309",
+                          backgroundColor: "#fef3c7",
+                          border: "1px solid #fde68a",
+                          borderRadius: "4px",
+                          padding: "3px 8px",
+                          marginTop: "5px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        <AlertCircle size={12} /> No manager assigned: Reports will route directly to Department Head / HR.
+                      </div>
+                    )}
                   </label>
 
                   {/* Managed Departments for TL / Manager */}
@@ -1835,6 +1871,25 @@ const Employees = () => {
                     <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
                       Set the next person in this employee&apos;s approval chain. Leave blank only when this person reports directly to HR.
                     </small>
+                    {!editForm.reporting_manager_id && editForm.role !== "SUPER_ADMIN" && (
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontSize: "11px",
+                          color: "#b45309",
+                          backgroundColor: "#fef3c7",
+                          border: "1px solid #fde68a",
+                          borderRadius: "4px",
+                          padding: "3px 8px",
+                          marginTop: "5px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        <AlertCircle size={12} /> No manager assigned: Reports will route directly to Department Head / HR.
+                      </div>
+                    )}
                   </label>
 
                   <label style={{ gridColumn: "1 / -1" }}>

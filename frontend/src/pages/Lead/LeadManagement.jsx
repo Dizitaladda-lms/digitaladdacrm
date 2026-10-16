@@ -33,6 +33,7 @@ const LeadManagement = () => {
   const { user } = useAuth();
   const userRole = String(user?.role || "").toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isHR = userRole === "HR";
   const isSalesDepartment =
     user?.department_id === 1 ||
     user?.department_id === "1" ||

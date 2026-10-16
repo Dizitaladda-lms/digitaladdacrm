@@ -110,6 +110,19 @@ app.use(
 app.use(helmet());
 app.use(compression());
 app.use(hpp());
+
+// Strict HTTPS and HSTS Enforcement (Production)
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === "production") {
+    const isHttps = req.secure || req.headers["x-forwarded-proto"] === "https";
+    if (!isHttps) {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+  }
+  res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  next();
+});
+
 app.use(globalLimiter);
 
 app.use((req, res, next) => {

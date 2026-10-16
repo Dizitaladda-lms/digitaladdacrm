@@ -45,7 +45,13 @@ import {
 } from "../repositories/authRepository.js";
 
 import auditLogger from "../utils/auditLogger.js";
-import { verifyStoredPassword } from "../utils/passwordUtils.js";
+import {
+  verifyStoredPassword,
+  verifyPasswordWithRehashCheck,
+  hashSecurePassword,
+  runDummyPasswordWork,
+} from "../utils/passwordUtils.js";
+import { validatePasswordPolicy } from "../utils/passwordPolicy.js";
 import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
 import { createAttendanceCheckInRepository } from "../repositories/attendanceRepository.js";
 import { prepareProfileImageDataUrl } from "../utils/profileImage.js";
@@ -98,11 +104,12 @@ export const registerUserService = async (
 
     }
 
-    const hashedPassword =
-      await bcrypt.hash(
-        userData.password,
-        10
-      );
+    const policy = await validatePasswordPolicy(userData.password);
+    if (!policy.valid) {
+      throw new ApiError(400, policy.message);
+    }
+
+    const hashedPassword = await hashSecurePassword(userData.password);
 
     const user =
       await createUserRepository(
@@ -164,23 +171,46 @@ export const loginUserService = async (
   }
 
   if (candidates.length === 0) {
+    await runDummyPasswordWork();
     throw new ApiError(
       401,
       "Invalid email or password."
     );
   }
 
-  let matchedUser = null;
+  // Check account lockout
   for (const candidate of candidates) {
-    const ok = await verifyStoredPassword(password, candidate.password);
-    if (ok) {
+    if (candidate.lockout_until && new Date(candidate.lockout_until) > new Date()) {
+      const waitSeconds = Math.max(1, Math.ceil((new Date(candidate.lockout_until) - new Date()) / 1000));
+      throw new ApiError(
+        429,
+        `Account is temporarily locked due to repeated failed login attempts. Try again in ${waitSeconds} seconds.`
+      );
+    }
+  }
+
+  let matchedUser = null;
+  let matchedNeedsRehash = false;
+  for (const candidate of candidates) {
+    const { isValid, needsRehash } = await verifyPasswordWithRehashCheck(password, candidate.password);
+    if (isValid) {
       matchedUser = candidate;
+      matchedNeedsRehash = needsRehash;
       break;
     }
   }
 
   if (!matchedUser) {
-    // Check if the only candidate(s) were deactivated so we return the clear deactivation message if password matched none or check first candidate
+    for (const candidate of candidates) {
+      if (candidate.id) {
+        const nextAttempts = (Number(candidate.failed_login_attempts) || 0) + 1;
+        const lockoutTime = nextAttempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+        await pool.query(
+          `UPDATE users SET failed_login_attempts = $1, lockout_until = $2 WHERE id = $3;`,
+          [nextAttempts, lockoutTime, candidate.id]
+        ).catch(() => {});
+      }
+    }
     throw new ApiError(
       401,
       "Invalid email or password."
@@ -188,6 +218,12 @@ export const loginUserService = async (
   }
 
   const user = matchedUser;
+
+  // Clear failed login attempts & lockout on valid password match
+  await pool.query(
+    `UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = $1;`,
+    [user.id]
+  ).catch(() => {});
 
   // Auto-heal user active/deleted flags if linked to an ACTIVE employee record
   const hasActiveEmployeeRecord =
@@ -226,19 +262,16 @@ export const loginUserService = async (
     throw new ApiError(400, "Device identity is missing or invalid. Refresh the page and try again.");
   }
 
-  const isPasswordPlainText =
-    typeof user.password === "string" &&
-    !user.password.startsWith("$2");
-
-  if (isPasswordPlainText) {
+  // Automatic Rehash / Upgrade to Modern Argon2id / Peppered Bcrypt
+  if (matchedNeedsRehash) {
     const upgradeClient = await pool.connect();
     try {
       await upgradeClient.query("BEGIN");
-      const hashedPassword = await bcrypt.hash(String(password || "").trim(), 10);
+      const secureHash = await hashSecurePassword(password);
       await updatePasswordRepository(
         upgradeClient,
         user.id,
-        hashedPassword
+        secureHash
       );
       await upgradeClient.query("COMMIT");
     } catch {
@@ -408,11 +441,12 @@ export const changePasswordService = async (
 
     }
 
-    const hashedPassword =
-      await bcrypt.hash(
-        newPassword,
-        10
-      );
+    const policy = await validatePasswordPolicy(newPassword);
+    if (!policy.valid) {
+      throw new ApiError(400, policy.message);
+    }
+
+    const hashedPassword = await hashSecurePassword(newPassword);
 
     const updatedUser =
       await updatePasswordRepository(
@@ -626,11 +660,12 @@ export const resetPasswordService = async (
 
     }
 
-    const hashedPassword =
-      await bcrypt.hash(
-        newPassword,
-        10
-      );
+    const policy = await validatePasswordPolicy(newPassword);
+    if (!policy.valid) {
+      throw new ApiError(400, policy.message);
+    }
+
+    const hashedPassword = await hashSecurePassword(newPassword);
 
     await updatePasswordRepository(
 
@@ -641,6 +676,11 @@ export const resetPasswordService = async (
       hashedPassword
 
     );
+
+    await client.query(
+      `UPDATE users SET failed_login_attempts = 0, lockout_until = NULL, password_changed_at = CURRENT_TIMESTAMP WHERE id = $1;`,
+      [reset.user_id]
+    ).catch(() => {});
 
     await markPasswordResetUsedRepository(
 

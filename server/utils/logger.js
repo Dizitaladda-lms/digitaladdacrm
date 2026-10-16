@@ -3,9 +3,46 @@ import winston from "winston";
 const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const isProduction = process.env.NODE_ENV === "production";
 
+const SENSITIVE_KEYS = new Set([
+  "password",
+  "newpassword",
+  "currentpassword",
+  "oldpassword",
+  "temporarypassword",
+  "token",
+  "resettoken",
+  "totp",
+  "totpsecret",
+  "secret",
+  "authorization",
+  "cookie"
+]);
+
+const sanitizeLogObject = (obj, depth = 0) => {
+  if (depth > 5 || !obj || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map((item) => sanitizeLogObject(item, depth + 1));
+  const clean = {};
+  for (const [key, val] of Object.entries(obj)) {
+    const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (SENSITIVE_KEYS.has(normalizedKey)) {
+      clean[key] = "[REDACTED]";
+    } else if (typeof val === "object" && val !== null) {
+      clean[key] = sanitizeLogObject(val, depth + 1);
+    } else {
+      clean[key] = val;
+    }
+  }
+  return clean;
+};
+
+const maskSensitiveDataFormat = winston.format((info) => {
+  return sanitizeLogObject(info);
+});
+
 const transports = [
   new winston.transports.Console({
     format: winston.format.combine(
+      maskSensitiveDataFormat(),
       winston.format.timestamp(),
       isProduction
         ? winston.format.json()
@@ -41,6 +78,7 @@ if (!isServerless && !isProduction) {
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || "info",
   format: winston.format.combine(
+    maskSensitiveDataFormat(),
     winston.format.timestamp(),
     winston.format.errors({
       stack: true,
