@@ -46,7 +46,7 @@ router.get("/pending-for-me", getPendingForMeReportsController);
 // 4. Get subordinates' reports (tree visibility) (GET /api/reports/team)
 router.get(
   "/team",
-  roleMiddleware("SUB_TL", "TL", "DEPARTMENT_HEAD", "MANAGER", "ADMIN", "SUPER_ADMIN", "HR", "EMPLOYEE"),
+  roleMiddleware("SUB_TL", "TL", "DEPARTMENT_HEAD", "SALES_HEAD", "MANAGER", "ADMIN", "SUPER_ADMIN", "HR", "EMPLOYEE", "COUNSELLOR", "TRAINER", "INTERN"),
   getTeamReportsController
 );
 
@@ -69,7 +69,7 @@ router.get("/daily/pending-for-me", getPendingForMeReportsController);
 // Get department / subordinate team reports
 router.get(
   "/daily/team",
-  roleMiddleware("SUB_TL", "TL", "DEPARTMENT_HEAD", "MANAGER", "ADMIN", "SUPER_ADMIN", "HR", "EMPLOYEE"),
+  roleMiddleware("SUB_TL", "TL", "DEPARTMENT_HEAD", "SALES_HEAD", "MANAGER", "ADMIN", "SUPER_ADMIN", "HR", "EMPLOYEE", "COUNSELLOR", "TRAINER", "INTERN"),
   getTeamReportsController
 );
 
@@ -81,7 +81,7 @@ router.put("/daily/:id", editAndResubmitReportController);
 // Review / verify a team member's report (legacy endpoint)
 router.post(
   "/daily/:id/tl-review",
-  roleMiddleware("SUB_TL", "TL", "DEPARTMENT_HEAD", "MANAGER", "ADMIN", "SUPER_ADMIN", "HR", "EMPLOYEE"),
+  roleMiddleware("SUB_TL", "TL", "DEPARTMENT_HEAD", "SALES_HEAD", "MANAGER", "ADMIN", "SUPER_ADMIN", "HR", "EMPLOYEE", "COUNSELLOR", "TRAINER", "INTERN"),
   reviewReportAsTLController
 );
 
@@ -90,14 +90,14 @@ router.post(
 // HR compliance overview, stats, and pending submission list
 router.get(
   "/daily/hr/overview",
-  roleMiddleware("HR", "SUPER_ADMIN", "ADMIN", "MANAGER", "DEPARTMENT_HEAD"),
+  roleMiddleware("HR", "SUPER_ADMIN", "ADMIN", "MANAGER", "DEPARTMENT_HEAD", "SALES_HEAD"),
   getHROverviewController
 );
 
 // Company-wide all reports list with filters
 router.get(
   "/daily/hr/all",
-  roleMiddleware("HR", "SUPER_ADMIN", "ADMIN", "MANAGER", "DEPARTMENT_HEAD"),
+  roleMiddleware("HR", "SUPER_ADMIN", "ADMIN", "MANAGER", "DEPARTMENT_HEAD", "SALES_HEAD"),
   getAllCompanyReportsController
 );
 
@@ -120,7 +120,7 @@ router.post(
 // Dedicated class lecture video audit feed for Super Admin & HR
 router.get(
   "/daily/classes-audit",
-  roleMiddleware("SUPER_ADMIN", "HR", "ADMIN", "MANAGER", "DEPARTMENT_HEAD"),
+  roleMiddleware("SUPER_ADMIN", "HR", "ADMIN", "MANAGER", "DEPARTMENT_HEAD", "SALES_HEAD"),
   getClassesAuditFeedController
 );
 

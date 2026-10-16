@@ -14,21 +14,60 @@ const router = express.Router();
 router.get(
   "/dashboard",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(
+    ROLES.ADMIN,
+    ROLES.COUNSELLOR,
+    ROLES.SALES_HEAD,
+    ROLES.TL,
+    ROLES.SUB_TL,
+    ROLES.DEPARTMENT_HEAD,
+    ROLES.MANAGER,
+    ROLES.EMPLOYEE,
+    ROLES.TRAINER,
+    ROLES.INTERN,
+    ROLES.HR,
+    ROLES.SUPER_ADMIN
+  ),
   getEmployeeDashboard
 );
 
 router.get(
   "/my-leads",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(
+    ROLES.ADMIN,
+    ROLES.COUNSELLOR,
+    ROLES.SALES_HEAD,
+    ROLES.TL,
+    ROLES.SUB_TL,
+    ROLES.DEPARTMENT_HEAD,
+    ROLES.MANAGER,
+    ROLES.EMPLOYEE,
+    ROLES.TRAINER,
+    ROLES.INTERN,
+    ROLES.HR,
+    ROLES.SUPER_ADMIN
+  ),
   getMyLeadsController
 );
 
 router.get(
   "/my-performance",
   authMiddleware,
-  roleMiddleware(ROLES.ADMIN, ROLES.COUNSELLOR),
+  roleMiddleware(
+    ROLES.ADMIN,
+    ROLES.COUNSELLOR,
+    ROLES.SALES_HEAD,
+    ROLES.TL,
+    ROLES.SUB_TL,
+    ROLES.DEPARTMENT_HEAD,
+    ROLES.MANAGER,
+    ROLES.EMPLOYEE,
+    ROLES.TRAINER,
+    ROLES.INTERN,
+    ROLES.HR,
+    ROLES.SUPER_ADMIN
+  ),
   getMyPerformanceController
 );
 

@@ -46,7 +46,8 @@ window.addEventListener("error", (event) => {
     event?.message?.includes("Importing a module script failed") ||
     event?.message?.includes("Loading chunk") ||
     event?.message?.includes("isHR is not defined") ||
-    event?.message?.includes("user is not defined");
+    event?.message?.includes("user is not defined") ||
+    event?.message?.includes("isAdmin is not defined");
 
   if (isChunkError) {
     if ("caches" in window) {

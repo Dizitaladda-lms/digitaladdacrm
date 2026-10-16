@@ -20,20 +20,23 @@ router.use(authMiddleware);
 const canAssignWorkMiddleware = async (req, res, next) => {
   if (!req.user) return next(new ApiError(401, "Unauthorized"));
   const role = String(req.user.role || "").toUpperCase();
-  if (["SUPER_ADMIN", "ADMIN", "HR", "DEPARTMENT_HEAD", "MANAGER", "TL"].includes(role)) {
+  if (["SUPER_ADMIN", "ADMIN", "HR", "DEPARTMENT_HEAD", "SALES_HEAD", "MANAGER", "TL", "SUB_TL"].includes(role)) {
     return next();
   }
   try {
     const empResult = await pool.query(
-      `SELECT role, designation FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1;`,
+      `SELECT role, designation, is_sales_head, is_department_head, is_head FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1;`,
       [req.user.id]
     );
     const emp = empResult.rows[0];
+    if (emp?.is_sales_head || emp?.is_department_head || emp?.is_head) {
+      return next();
+    }
     const level = getRoleLevel({
       role: emp?.role || req.user.role,
       designation: emp?.designation || req.user.designation,
     });
-    if (level >= REPORT_ROLE_LEVELS.TL) {
+    if (level >= REPORT_ROLE_LEVELS.SUB_TL) {
       return next();
     }
   } catch (err) {

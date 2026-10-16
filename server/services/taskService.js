@@ -55,18 +55,22 @@ export const getTasksService = async (user, query = {}) => {
 
   const isPrivilegedRole = ["SUPER_ADMIN", "ADMIN", "HR"].includes(userRole);
 
-  let isHeadOrLead = false;
-  if (!isPrivilegedRole) {
+  let isHeadOrLead = ["SALES_HEAD", "DEPARTMENT_HEAD", "MANAGER", "TL", "SUB_TL"].includes(userRole);
+  if (!isPrivilegedRole && !isHeadOrLead) {
     const empRes = await pool.query(
-      `SELECT role, designation FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1;`,
+      `SELECT role, designation, is_sales_head, is_department_head, is_head FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1;`,
       [user.id]
     );
     const emp = empRes.rows[0];
-    const level = getRoleLevel({
-      role: emp?.role || userRole,
-      designation: emp?.designation || user.designation,
-    });
-    isHeadOrLead = level >= REPORT_ROLE_LEVELS.TL;
+    if (emp?.is_sales_head || emp?.is_department_head || emp?.is_head) {
+      isHeadOrLead = true;
+    } else {
+      const level = getRoleLevel({
+        role: emp?.role || userRole,
+        designation: emp?.designation || user.designation,
+      });
+      isHeadOrLead = level >= REPORT_ROLE_LEVELS.SUB_TL;
+    }
   }
 
   if (isPrivilegedRole) {
@@ -127,7 +131,7 @@ export const getAssignableTeamMembersService = async (user) => {
 
   // Get caller's employee profile
   const empRes = await pool.query(
-    `SELECT e.id, e.department_id, e.managed_department_ids, e.role, e.designation
+    `SELECT e.id, e.department_id, e.managed_department_ids, e.role, e.designation, e.is_sales_head, e.is_department_head, e.is_head
      FROM employees e
      WHERE e.user_id = $1 AND e.is_deleted = FALSE
      LIMIT 1;`,
@@ -136,10 +140,13 @@ export const getAssignableTeamMembersService = async (user) => {
   const employee = empRes.rows[0];
   const effectiveRole = employee?.role || userRole;
   const effectiveDesignation = employee?.designation || user.designation || "";
-  const roleLevel = getRoleLevel({
+  let roleLevel = getRoleLevel({
     role: effectiveRole,
     designation: effectiveDesignation,
   });
+  if (employee?.is_sales_head || employee?.is_department_head || employee?.is_head) {
+    roleLevel = Math.max(roleLevel, REPORT_ROLE_LEVELS.DEPARTMENT_HEAD);
+  }
 
   let deptIds = [];
   if (employee?.department_id) deptIds.push(Number(employee.department_id));
@@ -190,8 +197,8 @@ export const getAssignableTeamMembersService = async (user) => {
     return res.rows;
   }
 
-  // If TL:
-  if (roleLevel >= REPORT_ROLE_LEVELS.TL) {
+  // If TL or Sub-TL:
+  if (roleLevel >= REPORT_ROLE_LEVELS.SUB_TL) {
     const res = await pool.query(
       `SELECT DISTINCT
          u.id,

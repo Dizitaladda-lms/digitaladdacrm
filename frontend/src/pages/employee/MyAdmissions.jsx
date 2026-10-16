@@ -30,6 +30,7 @@ const MyAdmissions = () => {
     ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(user?.role) ||
     Boolean(user?.is_sales_head) ||
     /sales coordinator|counsellor manager|sales manager|sales head/i.test(user?.designation || "");
+  const isAdmin = isSalesHeadOrAdmin;
   const leadsPath = isSalesHeadOrAdmin ? "/employee/lead-management" : "/employee/leads";
   const followupsPath = "/employee/followups";
   const [admissions, setAdmissions] = useState([]);

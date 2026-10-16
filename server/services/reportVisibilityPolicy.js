@@ -112,10 +112,12 @@ const resolveVisibilityScope = async (user) => {
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%sub-team lead%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%sub team lead%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%sub tl%' THEN 2
-                  WHEN UPPER(COALESCE(e.role, '')) IN ('MANAGER', 'DEPARTMENT_HEAD')
+                  WHEN UPPER(COALESCE(e.role, '')) IN ('MANAGER', 'DEPARTMENT_HEAD', 'SALES_HEAD', 'ADMIN')
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%department head%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%head of department%'
-                    OR LOWER(COALESCE(e.designation, '')) LIKE '%manager%' THEN 4
+                    OR LOWER(COALESCE(e.designation, '')) LIKE '%sales head%'
+                    OR LOWER(COALESCE(e.designation, '')) LIKE '%manager%'
+                    OR LOWER(COALESCE(e.designation, '')) LIKE '%head%' THEN 4
                   WHEN UPPER(COALESCE(e.role, '')) = 'TL'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%team lead%'
                     OR LOWER(COALESCE(e.designation, '')) LIKE '%team leader%'
@@ -140,10 +142,12 @@ const resolveVisibilityScope = async (user) => {
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%sub-team lead%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%sub team lead%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%sub tl%' THEN 2
-                    WHEN UPPER(COALESCE(e.role, '')) IN ('MANAGER', 'DEPARTMENT_HEAD')
+                    WHEN UPPER(COALESCE(e.role, '')) IN ('MANAGER', 'DEPARTMENT_HEAD', 'SALES_HEAD', 'ADMIN')
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%department head%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%head of department%'
-                      OR LOWER(COALESCE(e.designation, '')) LIKE '%manager%' THEN 4
+                      OR LOWER(COALESCE(e.designation, '')) LIKE '%sales head%'
+                      OR LOWER(COALESCE(e.designation, '')) LIKE '%manager%'
+                      OR LOWER(COALESCE(e.designation, '')) LIKE '%head%' THEN 4
                     WHEN UPPER(COALESCE(e.role, '')) = 'TL'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%team lead%'
                       OR LOWER(COALESCE(e.designation, '')) LIKE '%team leader%'

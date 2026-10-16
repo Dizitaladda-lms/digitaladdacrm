@@ -36,10 +36,16 @@ export const getRoleLevel = ({ role, designation, employmentType } = {}) => {
   ) return REPORT_ROLE_LEVELS.SUB_TL;
   if (
     normalizedRole === "MANAGER" ||
+    normalizedRole === "ADMIN" ||
+    normalizedRole === "SALES_HEAD" ||
     normalizedRole === "DEPARTMENT_HEAD" ||
     normalizedDesignation.includes("department head") ||
+    normalizedDesignation.includes("head of department") ||
+    normalizedDesignation.includes("sales head") ||
+    normalizedDesignation.includes("sales coordinator") ||
+    normalizedDesignation.includes("counsellor manager") ||
     normalizedDesignation.includes("manager") ||
-    normalizedDesignation.includes("head of department")
+    normalizedDesignation.includes("head")
   ) return REPORT_ROLE_LEVELS.DEPARTMENT_HEAD;
   if (
     normalizedRole === "TL" ||

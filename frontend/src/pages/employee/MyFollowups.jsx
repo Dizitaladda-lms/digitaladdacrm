@@ -35,6 +35,7 @@ const MyFollowups = () => {
     ["ADMIN", "MANAGER", "SUPER_ADMIN", "SALES_HEAD"].includes(user?.role) ||
     Boolean(user?.is_sales_head) ||
     /sales coordinator|counsellor manager|sales manager|sales head/i.test(user?.designation || "");
+  const isAdmin = isSalesHeadOrAdmin;
   const leadsPath = isSalesHeadOrAdmin ? "/employee/lead-management" : "/employee/leads";
   const [followups, setFollowups] = useState([]);
   const [loading, setLoading] = useState(true);
