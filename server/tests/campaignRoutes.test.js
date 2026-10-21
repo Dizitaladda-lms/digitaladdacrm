@@ -15,7 +15,7 @@ const randomEmail = `campaign.test.${Date.now()}@example.com`;
 const ADMIN_USER = {
   full_name: 'Campaign Admin',
   email: randomEmail,
-  password: 'Admin@1234',
+  password: 'IntegrationPassphrase2026!',
   role: 'ADMIN',
 };
 

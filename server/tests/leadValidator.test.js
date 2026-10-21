@@ -12,7 +12,7 @@ const runIntegrationTest = isTestDatabase();
 const test = baseTest.skipIf(!runIntegrationTest);
 
 const adminEmail = `val.admin.${Date.now()}@example.com`;
-const ADMIN = { full_name: 'Val Admin', email: adminEmail, password: 'Admin@1234', role: 'ADMIN' };
+const ADMIN = { full_name: 'Val Admin', email: adminEmail, password: 'IntegrationPassphrase2026!', role: 'ADMIN' };
 let adminToken;
 
 beforeAll(async () => {

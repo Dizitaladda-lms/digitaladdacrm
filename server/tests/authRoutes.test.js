@@ -13,7 +13,7 @@ const randomEmail = `test.${Date.now()}@example.com`;
 const TEST_USER = {
   full_name: 'Test User',
   email: randomEmail,
-  password: 'Admin@1234',
+  password: 'IntegrationPassphrase2026!',
   role: 'ADMIN',
 };
 

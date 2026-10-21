@@ -113,8 +113,7 @@ export const register = asyncHandler(async (req, res) => {
 
 /**
  * Login User
- * Sets HttpOnly cookies and also returns tokens in JSON payload as fallback
- * for mobile browsers (iOS Safari ITP, WebViews, strict privacy modes).
+ * Sets HttpOnly cookies. Refresh tokens must never be exposed in JSON.
  */
 export const login = asyncHandler(async (req, res) => {
   const identifier = req.body?.email || req.body?.phone || req.body?.identifier;
@@ -140,7 +139,6 @@ export const login = asyncHandler(async (req, res) => {
       {
         user: result.user,
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
         deviceId,
       },
       "Login successful."
@@ -263,7 +261,6 @@ export const refreshToken = asyncHandler(async (req, res) => {
         {
           success: true,
           accessToken: result.accessToken,
-          refreshToken: result.refreshToken,
           deviceId,
         },
         "Access token refreshed successfully."

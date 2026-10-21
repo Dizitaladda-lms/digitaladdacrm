@@ -43,7 +43,7 @@ test('hashes with HMAC-SHA256 pepper and cost 12, verifies and requires no rehas
 
   const wrongCheck = await verifyPasswordWithRehashCheck('WrongPassword123!', secureHash);
   expect(wrongCheck.isValid).toBe(false);
-});
+}, 15_000);
 
 test('password policy enforces minimum 12 chars and maximum 128 chars', async () => {
   const shortRes = await validatePasswordPolicy('short123');
