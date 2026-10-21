@@ -8,6 +8,7 @@ import {
   getMyEmployeeDocuments,
   uploadMyEmployeeDocument,
 } from "../../services/employeeDocumentService";
+import dizitalAddaLogo from "../../assets/logo/dizitaladda-logo.png";
 import "./MyDocuments.css";
 
 const DOC_TYPES = [
@@ -151,7 +152,7 @@ const MyDocuments = () => {
         </div>
 
         <aside className="employee-id-card">
-          <div className="employee-id-company">DIZITAL ADDA</div>
+          <div className="employee-id-company"><img src={dizitalAddaLogo} alt="Dizital Adda" /></div>
           <div className="employee-id-title">OFFICIAL EMPLOYEE ID</div>
           <div className="employee-id-photo">
             {profilePhotoUrl ? <img src={profilePhotoUrl} alt="Employee ID" /> : <><ImagePlus size={28} /><span>Upload ID photo</span></>}
