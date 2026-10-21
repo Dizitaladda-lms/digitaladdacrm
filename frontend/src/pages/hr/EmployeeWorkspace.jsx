@@ -32,7 +32,7 @@ const EmployeeWorkspace = ({ initialTab = "employees" }) => {
         <h1>Employees &amp; Roster</h1>
         <p>Manage the employee directory and monthly rosters from one place.</p>
       </header>
-      <WorkspaceTabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <WorkspaceTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
       <section id="workspace-tab-panel" role="tabpanel" aria-labelledby={`workspace-tab-${activeTab}`}>
         {activeTab === "documents" && canViewDocuments ? <EmployeeDocuments /> : activeTab === "roster" ? <EmployeesRoster /> : <Employees />}
       </section>
