@@ -60,6 +60,13 @@ const createEmployeeSchema = Joi.object({
             "any.required": "Department is required.",
         }),
 
+    // Additional departments managed by a TL/Department Head. This must be
+    // explicitly whitelisted because this validator strips unknown keys.
+    managed_department_ids: Joi.array()
+        .items(Joi.number().integer().positive())
+        .unique()
+        .optional(),
+
     designation: Joi.string()
         .trim()
         .min(2)
@@ -242,6 +249,13 @@ const updateEmployeeSchema = Joi.object({
     department_id: Joi.number()
         .integer()
         .positive()
+        .optional(),
+
+    // Preserve multi-department assignments on profile updates instead of
+    // silently stripping them before the repository can persist JSONB.
+    managed_department_ids: Joi.array()
+        .items(Joi.number().integer().positive())
+        .unique()
         .optional(),
 
     designation: Joi.string()
