@@ -830,14 +830,10 @@ async (
     throw new ApiError(401, "This account cannot refresh its session.");
   }
 
-  // Keep a short 2-minute grace window on the previous refresh token instead of
-  // deleting immediately so concurrent requests/tabs don't fail with 401.
-  await client.query(
-    `UPDATE refresh_tokens
-     SET expires_at = LEAST(expires_at, CURRENT_TIMESTAMP + INTERVAL '2 minutes')
-     WHERE id = $1;`,
-    [storedToken.id]
-  );
+  // Rotation is single-use: invalidate the presented token before issuing its
+  // replacement. Keeping a grace window here allows a stolen/old cookie to be
+  // replayed and breaks the refresh-token rotation security contract.
+  await deleteRefreshTokenRepository(client, refreshToken);
 
   // Update device slot non-blockingly outside transaction so it cannot abort refresh
   findApprovedUserDeviceRepository(user.id, device.deviceId)
