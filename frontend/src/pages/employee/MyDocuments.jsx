@@ -71,13 +71,14 @@ const MyDocuments = () => {
 
   const uploadDocument = async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     if (!file) return toast.error("Select a PDF or image first.");
     try {
       setUploading(true);
       await uploadMyEmployeeDocument({ file, documentType, documentLabel });
       setFile(null);
       setDocumentLabel("");
-      event.currentTarget.reset();
+      form.reset();
       toast.success("Document uploaded securely.");
       await loadDocuments();
     } catch (error) {
