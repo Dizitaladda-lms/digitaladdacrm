@@ -86,9 +86,11 @@ const TeamReports = () => {
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedUserId, setSelectedUserId] = useState("ALL");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(() => (
-    canSeeBottleneckOwner ? "" : new Date().toISOString().split("T")[0]
-  ));
+  // A hierarchy view must include historical reports by default. Restricting
+  // TL/Sub-TL users to today's date made valid earlier reports (for example,
+  // reports submitted on the 16th) appear to be missing until they manually
+  // changed the date filter.
+  const [selectedDate, setSelectedDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [reports, setReports] = useState([]);
   const [reportPage, setReportPage] = useState(1);
