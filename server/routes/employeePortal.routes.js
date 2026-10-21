@@ -8,8 +8,21 @@ import {
   getMyLeadsController,
   getMyPerformanceController,
 } from "../controllers/employeeController.js";
+import {
+  deleteMyEmployeeDocument,
+  getMyEmployeeDocumentAccessUrl,
+  getMyEmployeeDocuments,
+  uploadMyEmployeeDocument,
+} from "../controllers/employeeDocument.controller.js";
+import { uploadEmployeeDocument } from "../middleware/employeeDocumentUpload.js";
 
 const router = express.Router();
+
+// Employees can only manage documents linked to their own employee profile.
+router.get("/documents", authMiddleware, getMyEmployeeDocuments);
+router.post("/documents", authMiddleware, uploadEmployeeDocument, uploadMyEmployeeDocument);
+router.get("/documents/:id/access", authMiddleware, getMyEmployeeDocumentAccessUrl);
+router.delete("/documents/:id", authMiddleware, deleteMyEmployeeDocument);
 
 router.get(
   "/dashboard",

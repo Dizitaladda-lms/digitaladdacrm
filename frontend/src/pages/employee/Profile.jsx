@@ -20,6 +20,7 @@ import {
   CalendarCheck,
   ArrowRight,
   ExternalLink,
+  IdCard,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -323,6 +324,27 @@ const Profile = () => {
 
         {/* Quick Action Navigation */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <button
+            type="button"
+            onClick={() => navigate("/employee/documents")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "#F8FAFC",
+              color: "#334155",
+              border: "1px solid #CBD5E1",
+              borderRadius: "8px",
+              padding: "8px 14px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <IdCard size={16} />
+            <span>My Documents & ID</span>
+          </button>
+
           {!isCounsellor && (
             <button
               type="button"

@@ -9,6 +9,7 @@ const LeadDetails = lazy(() => import("../pages/employee/LeadDetails"));
 const MyFollowups = lazy(() => import("../pages/employee/MyFollowups"));
 const MyAdmissions = lazy(() => import("../pages/employee/MyAdmissions"));
 const Profile = lazy(() => import("../pages/employee/Profile"));
+const MyDocuments = lazy(() => import("../pages/employee/MyDocuments"));
 const Settings = lazy(() => import("../pages/employee/Settings"));
 const MyDailyReport = lazy(() => import("../pages/employee/MyDailyReport"));
 const TeamReports = lazy(() => import("../pages/employee/TeamReports"));
@@ -81,6 +82,7 @@ const EmployeeRoutes = () => {
           />
 
           <Route path="profile" element={renderEmpPage(Profile)} />
+          <Route path="documents" element={renderEmpPage(MyDocuments)} />
           <Route path="settings" element={renderEmpPage(Settings)} />
 
           <Route

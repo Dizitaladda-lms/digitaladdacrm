@@ -15,6 +15,7 @@ import {
   ClipboardList,
   CheckSquare,
   MessageSquare,
+  IdCard,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import "./EmployeeSidebar.css";
@@ -54,6 +55,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "Employee Presence", icon: UsersRound, path: "/employee/company-presence" },
       { title: "Monthly Roster", icon: CalendarDays, path: "/employee/roster" },
       { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "My Documents & ID", icon: IdCard, path: "/employee/documents" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
   } else if (isCounsellor && !canSeeSalesReport) {
@@ -69,6 +71,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "My Follow-ups", icon: PhoneCall, path: "/employee/followups" },
       { title: "My Admissions", icon: GraduationCap, path: "/employee/admissions" },
       { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "My Documents & ID", icon: IdCard, path: "/employee/documents" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
   } else if (canSeeSalesReport) {
@@ -85,6 +88,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "Employee Presence", icon: UsersRound, path: "/employee/company-presence" },
       { title: "Monthly Roster", icon: CalendarDays, path: "/employee/roster" },
       { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "My Documents & ID", icon: IdCard, path: "/employee/documents" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
   } else if (isHead) {
@@ -100,6 +104,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "Employee Presence", icon: UsersRound, path: "/employee/company-presence" },
       { title: "Monthly Roster", icon: CalendarDays, path: "/employee/roster" },
       { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "My Documents & ID", icon: IdCard, path: "/employee/documents" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
   } else {
@@ -114,6 +119,7 @@ const EmployeeSidebar = ({ isOpen = false, onToggle = () => {} }) => {
       { title: "Daily Work Report", icon: CalendarCheck, path: "/employee/daily-report" },
       { title: "My Performance", icon: TrendingUp, path: "/employee/performance" },
       { title: "Profile", icon: User, path: "/employee/profile" },
+      { title: "My Documents & ID", icon: IdCard, path: "/employee/documents" },
       { title: "Settings", icon: Settings, path: "/employee/settings" },
     ];
   }
