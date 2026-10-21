@@ -62,7 +62,7 @@ export const findAllEmployeeDocumentsForHRRepository = async ({ search = "", doc
     `SELECT d.id, d.employee_id, d.document_type, d.document_label, d.original_filename,
             d.mime_type, d.size_bytes, d.created_at,
             e.full_name AS employee_name, e.employee_code, e.designation,
-            e.email AS employee_email, dep.name AS department_name
+            e.email AS employee_email, dep.department_name AS department_name
      FROM employee_documents d
      INNER JOIN employees e ON e.id = d.employee_id
      LEFT JOIN departments dep ON dep.id = e.department_id
