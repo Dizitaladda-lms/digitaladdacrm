@@ -25,7 +25,13 @@ const canAssignWorkMiddleware = async (req, res, next) => {
   }
   try {
     const empResult = await pool.query(
-      `SELECT role, designation, is_sales_head, is_department_head, is_head FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1;`,
+      `SELECT role, designation,
+         COALESCE((to_jsonb(employees) ->> 'is_sales_head')::boolean, FALSE) AS is_sales_head,
+         COALESCE((to_jsonb(employees) ->> 'is_department_head')::boolean, FALSE) AS is_department_head,
+         COALESCE((to_jsonb(employees) ->> 'is_head')::boolean, FALSE) AS is_head
+       FROM employees
+       WHERE user_id = $1 AND is_deleted = FALSE
+       LIMIT 1;`,
       [req.user.id]
     );
     const emp = empResult.rows[0];

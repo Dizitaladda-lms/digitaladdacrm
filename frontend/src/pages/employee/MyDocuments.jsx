@@ -160,7 +160,7 @@ const MyDocuments = () => {
           <div className="employee-id-name">{user?.full_name || "Employee"}</div>
           <div className="employee-id-designation">{user?.designation || user?.role || "Team Member"}</div>
           <div className="employee-id-department"><span>DEPARTMENT</span><strong>{user?.department_name || "Dizital Adda"}</strong></div>
-          <div style={{ marginTop: 22, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.25)", display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>EMPLOYEE ID</span><strong>{user?.employee_code || `EMP-${user?.id || "—"}`}</strong></div>
+          <div className="employee-id-number"><span>EMPLOYEE ID</span><strong>{user?.employee_code || `EMP-${user?.id || "-"}`}</strong></div>
           <button type="button" onClick={() => window.print()} className="employee-id-print"><IdCard size={16} /> Print ID Card</button>
         </aside>
       </section>

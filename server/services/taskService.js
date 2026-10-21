@@ -58,7 +58,13 @@ export const getTasksService = async (user, query = {}) => {
   let isHeadOrLead = ["SALES_HEAD", "DEPARTMENT_HEAD", "MANAGER", "TL", "SUB_TL"].includes(userRole);
   if (!isPrivilegedRole && !isHeadOrLead) {
     const empRes = await pool.query(
-      `SELECT role, designation, is_sales_head, is_department_head, is_head FROM employees WHERE user_id = $1 AND is_deleted = FALSE LIMIT 1;`,
+      `SELECT role, designation,
+         COALESCE((to_jsonb(employees) ->> 'is_sales_head')::boolean, FALSE) AS is_sales_head,
+         COALESCE((to_jsonb(employees) ->> 'is_department_head')::boolean, FALSE) AS is_department_head,
+         COALESCE((to_jsonb(employees) ->> 'is_head')::boolean, FALSE) AS is_head
+       FROM employees
+       WHERE user_id = $1 AND is_deleted = FALSE
+       LIMIT 1;`,
       [user.id]
     );
     const emp = empRes.rows[0];

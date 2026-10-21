@@ -79,6 +79,9 @@ export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) 
       http_code: error?.http_code,
       name: error?.name,
     });
+    if (Number(error?.http_code) === 401 || Number(error?.http_code) === 403) {
+      throw new ApiError(503, "Cloudinary rejected document storage credentials or account access. Contact the administrator.");
+    }
     throw new ApiError(502, "Document upload failed. Please try again.");
   }
 
