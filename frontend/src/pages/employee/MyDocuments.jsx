@@ -121,6 +121,13 @@ const MyDocuments = () => {
         <div className="employee-documents-content">
           <form onSubmit={uploadDocument} className="document-upload-card">
             <div className="document-card-title"><span className="document-card-icon"><UploadCloud size={20} /></span><div><h2>Upload a document</h2><p>Select what you are uploading, then choose the file.</p></div></div>
+            <div className="document-type-cards" role="radiogroup" aria-label="Document type">
+              {DOC_TYPES.map((type) => (
+                <button key={type.value} type="button" role="radio" aria-checked={documentType === type.value} onClick={() => setDocumentType(type.value)} className={`document-type-card${documentType === type.value ? " is-selected" : ""}`}>
+                  <strong>{type.label}</strong><small>{type.hint}</small>
+                </button>
+              ))}
+            </div>
             <p style={{ color: "#64748b", fontSize: 13 }}>PDF, JPG, PNG, WEBP · maximum 5 MB. Do not enter Aadhaar or PAN numbers in the label.</p>
             <div className="document-form-grid">
               <label className="document-field">What are you uploading?<select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>{DOC_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select><span className="document-field-hint"><CheckCircle2 size={14} /> {selectedType.hint}</span></label>
