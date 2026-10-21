@@ -16,6 +16,7 @@ import {
   editAndResubmitReportService,
   getPendingApprovalsForMeService,
   getSubordinateUserIds,
+  normalizeManagedDepartmentIds,
 } from "./reportApprovalService.js";
 import {
   upsertDailyReportRepository,
@@ -348,9 +349,7 @@ export const getTeamReportsService = async (user, query, visibility = {}) => {
   } else {
     // Non-admin / Non-HR (TL, Manager, Employee)
     const primaryDeptId = empProfile?.department_id ? Number(empProfile.department_id) : null;
-    const managedIds = Array.isArray(empProfile?.managed_department_ids)
-      ? empProfile.managed_department_ids.map(Number).filter((id) => !isNaN(id) && id > 0)
-      : [];
+    const managedIds = normalizeManagedDepartmentIds(empProfile?.managed_department_ids);
 
     allowedDepartmentIds = Array.from(
       new Set([...(primaryDeptId ? [primaryDeptId] : []), ...managedIds])
@@ -434,9 +433,7 @@ export const reviewReportAsTLService = async (user, reportId, payload, visibilit
   const employeeProfile = await ensureEmployeeProfileForUser(user.id);
   const departmentIds = [
     employeeProfile?.department_id,
-    ...(Array.isArray(employeeProfile?.managed_department_ids)
-      ? employeeProfile.managed_department_ids
-      : []),
+    ...normalizeManagedDepartmentIds(employeeProfile?.managed_department_ids),
   ]
     .map(Number)
     .filter((id) => Number.isInteger(id) && id > 0);

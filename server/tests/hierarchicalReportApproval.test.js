@@ -34,6 +34,7 @@ import {
   rejectReportHierarchicalService,
   editAndResubmitReportService,
   getSubordinateUserIds,
+  normalizeManagedDepartmentIds,
 } from "../services/reportApprovalService.js";
 import { getRoleLevel, REPORT_ROLE_LEVELS } from "../services/reportHierarchyService.js";
 
@@ -165,6 +166,11 @@ describe("6-Level Hierarchical Report Approval System", () => {
       expect(getRoleLevel({ role: "HR" })).toBe(REPORT_ROLE_LEVELS.HR);
       expect(getRoleLevel({ role: "SUPER_ADMIN" })).toBe(REPORT_ROLE_LEVELS.SUPER_ADMIN);
     });
+  });
+
+  it("keeps a Department Head's managed department scope when JSONB is returned as a string", () => {
+    expect(normalizeManagedDepartmentIds('[10, 12, 12, 0, "bad"]')).toEqual([10, 12]);
+    expect(normalizeManagedDepartmentIds("not-json")).toEqual([]);
   });
 
   describe("2. Approval Chain Creation on Report Submit", () => {

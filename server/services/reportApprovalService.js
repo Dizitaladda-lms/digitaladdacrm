@@ -7,6 +7,29 @@ import {
 } from "./reportHierarchyService.js";
 import { invalidateReportVisibilityCache } from "./reportVisibilityPolicy.js";
 
+// PostgreSQL JSONB is normally returned as an array by `pg`, but older rows,
+// mocks and some connection configurations can surface it as a JSON string.
+// Keep every report-flow consumer on the same department scope in both cases.
+export const normalizeManagedDepartmentIds = (value) => {
+  let ids = value;
+  if (typeof ids === "string") {
+    try {
+      ids = JSON.parse(ids);
+    } catch {
+      ids = [];
+    }
+  }
+
+  if (!Array.isArray(ids)) return [];
+  return Array.from(
+    new Set(
+      ids
+        .map(Number)
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )
+  );
+};
+
 /**
  * Helper: safely insert an in-app notification for a user
  */
@@ -69,9 +92,7 @@ export const getActorHierarchyProfile = async (clientOrPool, user) => {
   if (level === 0) level = REPORT_ROLE_LEVELS.INTERN;
 
   const departmentId = row.emp_department_id || row.user_department_id || user?.department_id || null;
-  const managedDepts = Array.isArray(row.managed_department_ids)
-    ? row.managed_department_ids.map(Number).filter(Boolean)
-    : [];
+  const managedDepts = normalizeManagedDepartmentIds(row.managed_department_ids);
   const allowedDepartmentIds = Array.from(
     new Set([...(departmentId ? [Number(departmentId)] : []), ...managedDepts])
   );
