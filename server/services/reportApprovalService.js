@@ -107,6 +107,7 @@ export const getActorHierarchyProfile = async (clientOrPool, user) => {
     roleLabel: ROLE_LABELS_BY_LEVEL[level] || "INTERN",
     departmentId: departmentId ? Number(departmentId) : null,
     allowedDepartmentIds,
+    managedDepartmentIds: managedDepts,
     reportingManagerId: row.reporting_manager_id || null,
     reportsToUserId: row.reports_to || null,
   };
@@ -196,6 +197,32 @@ export const getSubordinateUserIds = async (user, clientOrPool = pool) => {
       if (lvl < REPORT_ROLE_LEVELS.DEPARTMENT_HEAD) {
         subordinateIds.add(Number(r.id));
       }
+    }
+  }
+
+  // Primary-team visibility for TL/Sub-TL stays reporting-tree based. Extra
+  // departments are explicit assignments, so their lower-level staff may be
+  // reviewed without exposing peer or higher-level reports.
+  if (
+    (profile.level === REPORT_ROLE_LEVELS.TL || profile.level === REPORT_ROLE_LEVELS.SUB_TL) &&
+    profile.managedDepartmentIds.length > 0
+  ) {
+    const managedDeptRes = await clientOrPool.query(
+      `SELECT u.id, u.role AS user_role, e.role AS emp_role, e.designation, e.employment_type
+       FROM users u
+       JOIN employees e ON e.user_id = u.id
+       WHERE u.is_deleted = FALSE
+         AND e.is_deleted = FALSE
+         AND e.department_id = ANY($1::bigint[]);`,
+      [profile.managedDepartmentIds]
+    );
+    for (const member of managedDeptRes.rows) {
+      const level = getRoleLevel({
+        role: member.emp_role || member.user_role,
+        designation: member.designation,
+        employmentType: member.employment_type,
+      });
+      if (level < profile.level) subordinateIds.add(Number(member.id));
     }
   }
 

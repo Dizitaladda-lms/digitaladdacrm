@@ -534,5 +534,33 @@ describe("6-Level Hierarchical Report Approval System", () => {
       // Does not include TL2 (302) or Intern2 (102)
       expect(tlIds).not.toContain(302);
     });
+
+    it("extends a TL's approvable scope to lower-level users in explicitly managed secondary departments", async () => {
+      const secondaryTl = {
+        ...HIERARCHY_NODES[300],
+        managed_department_ids: [11],
+      };
+      mockClient.query.mockImplementation(async (sql, params) => {
+        if (sql.includes("WITH RECURSIVE subordinates AS")) {
+          return { rows: [{ user_id: 300 }, { user_id: 200 }, { user_id: 101 }] };
+        }
+        if (sql.includes("e.department_id = ANY")) {
+          return {
+            rows: [
+              { id: 111, user_role: "INTERN", emp_role: "INTERN", designation: "Intern", employment_type: "INTERN" },
+              { id: 112, user_role: "TL", emp_role: "TL", designation: "Team Lead", employment_type: "FULL_TIME" },
+            ],
+          };
+        }
+        if (sql.includes("WHERE u.id = $1") && sql.includes("FROM users u")) {
+          return { rows: [params[0] === 300 ? secondaryTl : HIERARCHY_NODES[params[0]]] };
+        }
+        return { rows: [] };
+      });
+
+      const ids = await getSubordinateUserIds({ id: 300, role: "TL" }, mockClient);
+      expect(ids).toEqual(expect.arrayContaining([300, 200, 101, 111]));
+      expect(ids).not.toContain(112);
+    });
   });
 });

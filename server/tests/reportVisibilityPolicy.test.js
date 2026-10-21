@@ -67,6 +67,24 @@ describe("report visibility policy", () => {
     expect(pool.query.mock.calls[1][0]).toContain("child.role_level < parent.role_level");
   });
 
+  it("includes lower-level reports from a TL's explicitly managed secondary department", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 30, department_id: 7, role: "TL", designation: "Team Lead", managed_department_ids: [8] }] })
+      .mockResolvedValueOnce({ rows: [{ user_id: 30 }, { user_id: 31 }] })
+      .mockResolvedValueOnce({ rows: [
+        { id: 81, user_role: "EMPLOYEE", employee_role: "EMPLOYEE", designation: "Executive" },
+        { id: 82, user_role: "TL", employee_role: "TL", designation: "Team Lead" },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ department_id: 7 }, { department_id: 8 }] });
+
+    const scope = await getReportVisibilityScope({ id: 30, role: "TL" });
+
+    expect(scope.userIds).toEqual(expect.arrayContaining([30, 31, 81]));
+    expect(scope.userIds).not.toContain(82);
+    expect(pool.query.mock.calls[2][0]).toContain("e.department_id = ANY");
+    expect(pool.query.mock.calls[2][1]).toEqual([[8]]);
+  });
+
   it("limits a department head to users in their own department", async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 5, department_id: 8, role: "MANAGER", designation: "Department Head" }] })

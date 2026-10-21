@@ -4,6 +4,19 @@ import { getRoleLevel, REPORT_ROLE_LEVELS } from "./reportHierarchyService.js";
 const DEFAULT_CACHE_TTL_MS = 15_000;
 const visibleUserCache = new Map();
 
+const normalizeDepartmentIds = (value) => {
+  let ids = value;
+  if (typeof ids === "string") {
+    try {
+      ids = JSON.parse(ids);
+    } catch {
+      ids = [];
+    }
+  }
+  if (!Array.isArray(ids)) return [];
+  return Array.from(new Set(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0)));
+};
+
 const isGlobalReportAccessEnabled = () => {
   const value = String(process.env.REPORT_GLOBAL_ACCESS_ENABLED || "true").toLowerCase();
   if (!["true", "false"].includes(value)) {
@@ -64,14 +77,8 @@ const resolveVisibilityScope = async (user) => {
   let headDeptIds = [];
   if (employee?.department_id) headDeptIds.push(Number(employee.department_id));
   if (employee?.user_dept_id) headDeptIds.push(Number(employee.user_dept_id));
-  if (Array.isArray(employee?.managed_department_ids)) {
-    headDeptIds.push(...employee.managed_department_ids.map(Number));
-  } else if (typeof employee?.managed_department_ids === "string") {
-    try {
-      const parsed = JSON.parse(employee.managed_department_ids);
-      if (Array.isArray(parsed)) headDeptIds.push(...parsed.map(Number));
-    } catch {}
-  }
+  const managedDepartmentIds = normalizeDepartmentIds(employee?.managed_department_ids);
+  headDeptIds.push(...managedDepartmentIds);
   headDeptIds = Array.from(new Set(headDeptIds.filter((id) => Number.isInteger(id) && id > 0)));
 
   let visibleUserIds = [];
@@ -174,6 +181,35 @@ const resolveVisibilityScope = async (user) => {
       [userId]
     );
     visibleUserIds = treeResult.rows.map((row) => Number(row.user_id || row.id));
+
+    // A TL/Sub-TL can be deliberately assigned additional departments through
+    // managed_department_ids. Their primary department remains tree-based;
+    // only explicit secondary assignments expand the report scope.
+    const primaryDepartmentId = Number(employee?.department_id || employee?.user_dept_id);
+    const secondaryDepartmentIds = managedDepartmentIds.filter((id) => id !== primaryDepartmentId);
+    if (secondaryDepartmentIds.length > 0) {
+      const managedDepartmentResult = await pool.query(
+        `SELECT DISTINCT u.id, u.role AS user_role, e.role AS employee_role,
+                e.designation, e.employment_type
+         FROM employees e
+         JOIN users u ON u.id = e.user_id
+         WHERE e.department_id = ANY($1::bigint[])
+           AND e.is_deleted = FALSE
+           AND u.is_deleted = FALSE;`,
+        [secondaryDepartmentIds]
+      );
+
+      for (const member of managedDepartmentResult.rows) {
+        const memberLevel = getRoleLevel({
+          role: member.employee_role || member.user_role,
+          designation: member.designation,
+          employmentType: member.employment_type,
+        });
+        if (memberLevel < roleLevel && Number(member.id) > 0) {
+          visibleUserIds.push(Number(member.id));
+        }
+      }
+    }
   } else {
     visibleUserIds = [userId];
   }
