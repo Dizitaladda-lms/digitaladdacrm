@@ -27,6 +27,10 @@ import {
   renameEmployeeDeviceController,
   revokeEmployeeDeviceController,
 } from "../controllers/deviceController.js";
+import {
+  getHREmployeeDocuments,
+  getHREmployeeDocumentAccessUrl,
+} from "../controllers/employeeDocument.controller.js";
 
 import {
   validateCreateEmployee,
@@ -73,6 +77,21 @@ router.get(
   authenticate,
   roleMiddleware("SUPER_ADMIN"),
   getEmployeeApprovalRequestsController
+);
+
+// Aadhaar, PAN and other employee documents are sensitive: HR and Super Admin only.
+router.get(
+  "/documents",
+  authenticate,
+  roleMiddleware("HR", "SUPER_ADMIN"),
+  getHREmployeeDocuments
+);
+
+router.get(
+  "/documents/:id/access",
+  authenticate,
+  roleMiddleware("HR", "SUPER_ADMIN"),
+  getHREmployeeDocumentAccessUrl
 );
 
 router.get(

@@ -4,6 +4,8 @@ import {
   deleteMyEmployeeDocumentService,
   getMyEmployeeDocumentAccessUrlService,
   getMyEmployeeDocumentsService,
+  getHREmployeeDocumentsService,
+  getHREmployeeDocumentAccessUrlService,
   uploadMyEmployeeDocumentService,
 } from "../services/employeeDocument.service.js";
 
@@ -25,4 +27,14 @@ export const getMyEmployeeDocumentAccessUrl = asyncHandler(async (req, res) => {
 export const deleteMyEmployeeDocument = asyncHandler(async (req, res) => {
   const result = await deleteMyEmployeeDocumentService(req.user, req.params.id);
   return res.status(200).json(new ApiResponse(200, result, "Document removed."));
+});
+
+export const getHREmployeeDocuments = asyncHandler(async (req, res) => {
+  const documents = await getHREmployeeDocumentsService(req.query);
+  return res.status(200).json(new ApiResponse(200, documents, "Employee documents retrieved."));
+});
+
+export const getHREmployeeDocumentAccessUrl = asyncHandler(async (req, res) => {
+  const access = await getHREmployeeDocumentAccessUrlService(req.params.id);
+  return res.status(200).json(new ApiResponse(200, access, "Secure document access granted."));
 });

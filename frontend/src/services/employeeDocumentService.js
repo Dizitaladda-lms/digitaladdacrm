@@ -25,3 +25,13 @@ export const deleteMyEmployeeDocument = async (id) => {
   const response = await axiosInstance.delete(`/employee/documents/${id}`);
   return response.data;
 };
+
+export const getHREmployeeDocuments = async (params = {}) => {
+  const response = await axiosInstance.get("/employees/documents", { params });
+  return response.data;
+};
+
+export const getHREmployeeDocumentAccessUrl = async (id) => {
+  const response = await axiosInstance.get(`/employees/documents/${id}/access`);
+  return response.data;
+};

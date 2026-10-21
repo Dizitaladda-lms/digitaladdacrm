@@ -27,6 +27,8 @@ vi.mock("../repositories/employeeDocumentRepository.js", () => ({
   deleteEmployeeDocumentRepository: vi.fn(),
   findEmployeeDocumentByIdRepository: vi.fn(),
   findEmployeeDocumentsRepository: vi.fn(),
+  findAllEmployeeDocumentsForHRRepository: vi.fn(),
+  findEmployeeDocumentByIdForHRRepository: vi.fn(),
 }));
 
 import { ensureEmployeeProfileForUser } from "../services/ensureEmployeeProfile.service.js";

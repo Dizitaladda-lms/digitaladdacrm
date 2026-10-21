@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Badge, Download, FileText, IdCard, ImagePlus, LoaderCircle, Trash2, UploadCloud } from "lucide-react";
+import { CheckCircle2, Download, FileText, FileUp, IdCard, ImagePlus, LoaderCircle, ShieldCheck, Trash2, UploadCloud, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -8,14 +8,19 @@ import {
   getMyEmployeeDocuments,
   uploadMyEmployeeDocument,
 } from "../../services/employeeDocumentService";
+import "./MyDocuments.css";
 
 const DOC_TYPES = [
-  ["AADHAAR_CARD", "Aadhaar Card"],
-  ["PAN_CARD", "PAN Card"],
-  ["OFFICE_DOCUMENT", "Office Document"],
-  ["OTHER", "Other Document"],
-  ["PROFILE_PHOTO", "ID Card Photo"],
+  { value: "AADHAAR_CARD", label: "Aadhaar Card", hint: "Upload Aadhaar front or a combined PDF." },
+  { value: "PAN_CARD", label: "PAN Card", hint: "Upload your PAN card image or PDF." },
+  { value: "OFFICE_DOCUMENT", label: "Office Document", hint: "Offer letter, joining document, or other office file." },
+  { value: "OTHER", label: "Other Document", hint: "Any other document requested by the office." },
+  { value: "PROFILE_PHOTO", label: "ID Card Photo", hint: "A clear face photo. This appears on your employee ID card." },
 ];
+
+const formatFileSize = (bytes) => bytes < 1024 * 1024
+  ? `${Math.ceil(bytes / 1024)} KB`
+  : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 const MyDocuments = () => {
   const { user } = useAuth();
@@ -26,6 +31,7 @@ const MyDocuments = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const selectedType = DOC_TYPES.find((type) => type.value === documentType) || DOC_TYPES[0];
 
   const loadDocuments = async () => {
     try {
@@ -101,31 +107,35 @@ const MyDocuments = () => {
   };
 
   return (
-    <main style={{ maxWidth: 1180, margin: "0 auto", padding: "24px" }}>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0, color: "#0f172a" }}>My Documents & ID Card</h1>
-        <p style={{ color: "#64748b", marginBottom: 0 }}>Upload your own identity and office documents. Only you can access these files.</p>
+    <main className="employee-documents-page">
+      <div className="employee-documents-heading">
+        <div>
+          <span className="employee-documents-kicker"><ShieldCheck size={15} /> PRIVATE EMPLOYEE VAULT</span>
+          <h1>My Documents & ID Card</h1>
+          <p>Keep your identity and office documents safely in one place. Only you can open these files.</p>
+        </div>
+        <div className="employee-documents-security"><ShieldCheck size={18} /><span>Private & secure</span></div>
       </div>
 
-      <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 390px)", gap: 20, alignItems: "start" }}>
-        <div style={{ display: "grid", gap: 20 }}>
-          <form onSubmit={uploadDocument} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20 }}>
-            <h2 style={{ marginTop: 0, fontSize: 18 }}><UploadCloud size={18} style={{ verticalAlign: "-3px", marginRight: 7 }} />Secure document upload</h2>
+      <section className="employee-documents-layout">
+        <div className="employee-documents-content">
+          <form onSubmit={uploadDocument} className="document-upload-card">
+            <div className="document-card-title"><span className="document-card-icon"><UploadCloud size={20} /></span><div><h2>Upload a document</h2><p>Select what you are uploading, then choose the file.</p></div></div>
             <p style={{ color: "#64748b", fontSize: 13 }}>PDF, JPG, PNG, WEBP · maximum 5 MB. Do not enter Aadhaar or PAN numbers in the label.</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <label>Document type<select value={documentType} onChange={(event) => setDocumentType(event.target.value)} style={{ width: "100%" }}>{DOC_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label>Label (optional)<input value={documentLabel} onChange={(event) => setDocumentLabel(event.target.value)} placeholder="e.g. Aadhaar front" /></label>
-              <label style={{ gridColumn: "1 / -1" }}>File<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} /></label>
+            <div className="document-form-grid">
+              <label className="document-field">What are you uploading?<select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>{DOC_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select><span className="document-field-hint"><CheckCircle2 size={14} /> {selectedType.hint}</span></label>
+              <label className="document-field">Document label <span>(optional)</span><input value={documentLabel} onChange={(event) => setDocumentLabel(event.target.value)} placeholder={`Example: ${selectedType.label}`} /><span className="document-field-hint">Do not write Aadhaar or PAN numbers here.</span></label>
+              <label className="document-file-section">Choose file <span>PDF, JPG, PNG or WEBP · up to 5 MB</span><input className="document-file-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />{file && <span className="document-selected-file"><FileText size={20} /><strong>{file.name}</strong><small>{formatFileSize(file.size)} · Ready as {selectedType.label}</small><button type="button" onClick={() => setFile(null)} aria-label="Remove selected file"><X size={16} /></button></span>}</label>
             </div>
-            <button type="submit" disabled={uploading} style={{ marginTop: 16 }}>
+            <button type="submit" disabled={uploading || !file} className="document-upload-submit">
               {uploading ? <><LoaderCircle size={16} className="spin" /> Uploading…</> : <><UploadCloud size={16} /> Upload securely</>}
             </button>
           </form>
 
-          <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20 }}>
-            <h2 style={{ marginTop: 0, fontSize: 18 }}><FileText size={18} style={{ verticalAlign: "-3px", marginRight: 7 }} />My uploaded documents</h2>
+          <section className="uploaded-documents-card">
+            <div className="document-card-title"><span className="document-card-icon document-card-icon-soft"><FileText size={20} /></span><div><h2>My uploaded documents</h2><p>{loading ? "Checking your private vault..." : `${documents.length} document${documents.length === 1 ? "" : "s"} saved securely`}</p></div></div>
             {loading ? <p>Loading…</p> : documents.length === 0 ? <p style={{ color: "#64748b" }}>No documents uploaded yet.</p> : documents.map((document) => (
-              <div key={document.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "12px 0", borderTop: "1px solid #f1f5f9" }}>
+              <div key={document.id} className="uploaded-document-row">
                 <div><strong>{document.document_label}</strong><div style={{ color: "#64748b", fontSize: 12 }}>{document.document_type.replaceAll("_", " ")} · {document.original_filename}</div></div>
                 <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => openDocument(document)} title="Open securely"><Download size={16} /></button><button type="button" onClick={() => removeDocument(document)} title="Remove"><Trash2 size={16} /></button></div>
               </div>
@@ -133,16 +143,18 @@ const MyDocuments = () => {
           </section>
         </div>
 
-        <aside style={{ background: "linear-gradient(145deg, #0f172a, #1d4ed8)", color: "#fff", borderRadius: 18, padding: 22, minHeight: 300, boxShadow: "0 12px 28px rgba(30,64,175,.2)" }}>
-          <div style={{ fontSize: 12, letterSpacing: ".14em", fontWeight: 800, opacity: .8 }}>DIZITAL ADDA</div>
-          <div style={{ fontSize: 18, fontWeight: 800, marginTop: 3 }}>OFFICIAL EMPLOYEE ID</div>
-          <div style={{ width: 108, height: 126, margin: "22px auto 14px", borderRadius: 12, background: "#e2e8f0", border: "3px solid rgba(255,255,255,.65)", display: "grid", placeItems: "center", overflow: "hidden", color: "#475569" }}>
-            {profilePhotoUrl ? <img src={profilePhotoUrl} alt="Employee ID" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <><ImagePlus size={28} /><span style={{ fontSize: 10 }}>Upload ID photo</span></>}
+        <aside className="employee-id-card">
+          <div className="employee-id-company">DIZITAL ADDA</div>
+          <div className="employee-id-title">OFFICIAL EMPLOYEE ID</div>
+          <div className="employee-id-photo">
+            {profilePhotoUrl ? <img src={profilePhotoUrl} alt="Employee ID" /> : <><ImagePlus size={28} /><span>Upload ID photo</span></>}
           </div>
-          <div style={{ textAlign: "center", fontSize: 18, fontWeight: 800 }}>{user?.full_name || "Employee"}</div>
-          <div style={{ textAlign: "center", opacity: .84, fontSize: 13, marginTop: 3 }}>{user?.designation || user?.role || "Team Member"}</div>
+          {!profilePhotoUrl && <div className="employee-id-photo-note">Select <strong>ID Card Photo</strong> above to add your photo here.</div>}
+          <div className="employee-id-name">{user?.full_name || "Employee"}</div>
+          <div className="employee-id-designation">{user?.designation || user?.role || "Team Member"}</div>
+          <div className="employee-id-department"><span>DEPARTMENT</span><strong>{user?.department_name || "Dizital Adda"}</strong></div>
           <div style={{ marginTop: 22, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.25)", display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>EMPLOYEE ID</span><strong>{user?.employee_code || `EMP-${user?.id || "—"}`}</strong></div>
-          <button type="button" onClick={() => window.print()} style={{ width: "100%", marginTop: 18, background: "#fff", color: "#1d4ed8" }}><IdCard size={16} /> Print ID Card</button>
+          <button type="button" onClick={() => window.print()} className="employee-id-print"><IdCard size={16} /> Print ID Card</button>
         </aside>
       </section>
     </main>

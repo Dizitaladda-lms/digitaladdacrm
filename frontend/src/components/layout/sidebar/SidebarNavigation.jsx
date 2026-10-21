@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Network,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -73,6 +74,7 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "My Monthly Roster", icon: CalendarDays, path: "/my-roster" },
       { title: "Employees & Roster", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Employee Documents", icon: FileText, path: "/employees?tab=documents" },
       { title: "Organization Tree", icon: Network, path: "/org-tree" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
@@ -88,6 +90,7 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Agency Leads", icon: Globe, path: "/agency-leads" },
       { title: "Company Attendance", icon: ShieldCheck, path: "/attendance-reports" },
       { title: "Employees & Roster", icon: BriefcaseBusiness, path: "/employees" },
+      { title: "Employee Documents", icon: FileText, path: "/employees?tab=documents" },
       { title: "Organization Tree", icon: Network, path: "/org-tree" },
       { title: "Operations & HR Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Company Work Reports", icon: CheckSquare, path: "/team-reports" },

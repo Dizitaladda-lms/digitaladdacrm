@@ -8,6 +8,8 @@ import {
   deleteEmployeeDocumentRepository,
   findEmployeeDocumentByIdRepository,
   findEmployeeDocumentsRepository,
+  findAllEmployeeDocumentsForHRRepository,
+  findEmployeeDocumentByIdForHRRepository,
 } from "../repositories/employeeDocumentRepository.js";
 
 const DOCUMENT_TYPES = new Set(["AADHAAR_CARD", "PAN_CARD", "OFFICE_DOCUMENT", "OTHER", "PROFILE_PHOTO"]);
@@ -120,6 +122,43 @@ export const getMyEmployeeDocumentAccessUrlService = async (user, documentId) =>
     secure: true,
   });
   return { access_url: accessUrl, mime_type: document.mime_type, original_filename: document.original_filename };
+};
+
+export const getHREmployeeDocumentsService = async (filters = {}) => {
+  configureCloudinary();
+  const documentType = String(filters.document_type || "").toUpperCase();
+  if (documentType && !DOCUMENT_TYPES.has(documentType)) {
+    throw new ApiError(400, "Choose a valid document type.");
+  }
+  const documents = await findAllEmployeeDocumentsForHRRepository({
+    search: String(filters.search || "").slice(0, 100),
+    documentType,
+  });
+  return documents.map((document) => ({
+    ...toDocumentResponse(document),
+    employee_id: document.employee_id,
+    employee_name: document.employee_name,
+    employee_code: document.employee_code,
+    designation: document.designation,
+    employee_email: document.employee_email,
+    department_name: document.department_name,
+  }));
+};
+
+export const getHREmployeeDocumentAccessUrlService = async (documentId) => {
+  configureCloudinary();
+  const document = await findEmployeeDocumentByIdForHRRepository(parseDocumentId(documentId));
+  if (!document) throw new ApiError(404, "Document not found.");
+  return {
+    access_url: cloudinary.url(document.cloudinary_public_id, {
+      resource_type: document.cloudinary_resource_type || "raw",
+      type: "authenticated",
+      sign_url: true,
+      secure: true,
+    }),
+    mime_type: document.mime_type,
+    original_filename: document.original_filename,
+  };
 };
 
 export const deleteMyEmployeeDocumentService = async (user, documentId) => {
