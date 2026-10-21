@@ -73,7 +73,12 @@ export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) 
   let uploaded;
   try {
     uploaded = await uploadToCloudinary(file, employee.id);
-  } catch {
+  } catch (error) {
+    console.error("Cloudinary employee document upload failed", {
+      message: error?.message,
+      http_code: error?.http_code,
+      name: error?.name,
+    });
     throw new ApiError(502, "Document upload failed. Please try again.");
   }
 
