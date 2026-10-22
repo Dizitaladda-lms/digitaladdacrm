@@ -26,6 +26,28 @@ const KNOWN_SOURCES = [
   "OTHER",
 ];
 
+// Website attribution rule: paid campaign subdomains are landing pages, while
+// every `www` host is treated as a main website enquiry. Keep this separate
+// from the brand/domain mapping below so `ads.nidads.com` can still route to
+// the Nidads team without being reported as a main-website lead.
+const getWebsiteSourceByHost = (rawDomain) => {
+  const candidate = String(rawDomain || "").trim().toLowerCase();
+  if (!candidate) return null;
+
+  let hostname = candidate;
+  try {
+    hostname = new URL(
+      candidate.startsWith("http") ? candidate : `https://${candidate}`
+    ).hostname.toLowerCase();
+  } catch {
+    hostname = candidate.split("/")[0].split(":")[0];
+  }
+
+  if (hostname.startsWith("ads.")) return "LANDING_PAGE";
+  if (hostname.startsWith("www.")) return "MAIN_WEBSITE";
+  return null;
+};
+
 /**
  * Payload Normalizer for External Website / Public Form submissions
  * Maps camelCase fields (fullName, phoneNumber, course, centre, campaignId)
@@ -159,7 +181,13 @@ const normalizePublicLeadPayload = (req, res, next) => {
       domainLower.includes("dizitaladdaagency") ||
       sourceLower.includes("agency");
 
-    let isMainWebsite = false;
+    // Prefer the actual page URL for attribution. A form may send a brand
+    // name (for routing) in `domain`, but the page host is what determines
+    // whether it is an ad landing page or the main website.
+    const websiteSourceByHost = getWebsiteSourceByHost(
+      req.body.landing_page_url || rawDomain
+    );
+    let isMainWebsite = websiteSourceByHost === "MAIN_WEBSITE";
 
     if (isAgency) {
       req.body.domain = "www.dizitaladdaagency.com";
@@ -213,11 +241,15 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.remarks = extraDetails.join(" | ");
     }
 
-    // 2. Source normalization: agency websites get "AGENCY_WEBSITE", main websites get "MAIN_WEBSITE"
+    // 2. Source normalization: `ads.*` is always a landing page and `www.*`
+    // is always a main website. This deliberately takes precedence over a
+    // source field sent by the form, so reporting stays consistent.
     const upperSource = rawSource.toUpperCase().replace(/\s+/g, "_");
 
     if (isAgency) {
       req.body.source = "AGENCY_WEBSITE";
+    } else if (websiteSourceByHost) {
+      req.body.source = websiteSourceByHost;
     } else if (
       isMainWebsite ||
       upperSource === "MAIN_WEBSITE" ||
