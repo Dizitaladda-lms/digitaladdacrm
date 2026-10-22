@@ -194,11 +194,9 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.source = "AGENCY_WEBSITE";
       req.body.is_agency_lead = true;
     } else if (domainLower.includes("nidads")) {
-      req.body.domain = "www.nidads.com";
-      isMainWebsite = true;
+      req.body.domain = "Nidads";
     } else if (domainLower.includes("nipage") || domainLower.includes("nigape")) {
-      req.body.domain = "www.nipage.com";
-      isMainWebsite = true;
+      req.body.domain = "Nigape";
     } else if (domainLower.includes("iidad")) {
       req.body.domain = "www.iidad.com";
       isMainWebsite = true;
