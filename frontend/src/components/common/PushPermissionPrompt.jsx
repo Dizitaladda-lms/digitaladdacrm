@@ -83,7 +83,7 @@ const PushPermissionPrompt = () => {
           </>
         ) : (
           <>
-            <p>Assigned work aur chat message ka alert CRM band hone par bhi milne ke liye notifications allow karein.</p>
+            <p>Assigned work aur chat message ka alert phone, Mac, ya laptop par CRM band hone ke baad bhi paane ke liye notifications allow karein.</p>
             <div className="push-permission-points">
               <span><CheckCircle2 size={15} /> Sirf aapke assigned work</span>
               <span><CheckCircle2 size={15} /> Sirf aapke chat messages</span>

@@ -97,7 +97,7 @@ const NotificationsPopover = ({ isEmployee = false }) => {
     try {
       await subscribeUserToPush();
       await checkPush();
-      toast.success("Mobile & background push notifications activated!");
+      toast.success("Device notifications activated on this phone or laptop!");
     } catch (err) {
       toast.error(err.message || "Failed to activate push notifications");
     } finally {
@@ -492,7 +492,7 @@ const NotificationsPopover = ({ isEmployee = false }) => {
             <div className={`notif-push-banner ${pushStatus.isSubscribed ? "active" : "inactive"}`}>
               <div className="notif-push-info">
                 <Smartphone size={13} className="push-banner-icon" />
-                <span>{pushStatus.isSubscribed ? "Mobile Push Active 🟢" : "Get alerts when CRM closed"}</span>
+                <span>{pushStatus.isSubscribed ? "Device Push Active 🟢" : "Get alerts when CRM closed"}</span>
               </div>
               {pushStatus.isSubscribed ? (
                 <button
