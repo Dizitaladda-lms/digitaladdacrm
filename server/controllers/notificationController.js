@@ -16,7 +16,9 @@ import {
  * (Supports both Admin & Counsellor/Employee Portals)
  * =====================================================
  */
-export const getNotificationsController = asyncHandler(async (req, res) => {
+// Kept temporarily for reference while the live notification endpoint is narrowed
+// to the two notification categories the product uses.
+const getLegacyNotificationsController = asyncHandler(async (req, res) => {
   const user = req.user;
   const role = String(user.role || "").toUpperCase();
   const isHR = role === "HR";
@@ -463,6 +465,45 @@ export const getNotificationsController = asyncHandler(async (req, res) => {
 /**
  * Get Public VAPID key so browser can subscribe
  */
+/**
+ * Return only notifications that belong to the signed-in user.
+ * Work assignments and chat messages are persisted with their exact recipient
+ * users.id, so this query cannot expose another employee's alerts.
+ */
+export const getNotificationsController = asyncHandler(async (req, res) => {
+  const userId = Number(req.user?.id);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new ApiError(401, "A valid user session is required to view notifications.");
+  }
+
+  const { rows } = await pool.query(
+    `SELECT n.id, n.type, n.category, n.title, n.message, n.link, n.priority, n.created_at
+     FROM user_notifications n
+     WHERE n.user_id = $1
+       AND (
+         (n.category = 'TASK' AND n.type = 'TASK_ASSIGNED')
+         OR (n.category = 'CHAT' AND n.type IN ('CHAT_DM', 'CHAT_MENTION', 'CHAT_MESSAGE'))
+       )
+     ORDER BY n.created_at DESC
+     LIMIT 50;`,
+    [userId]
+  );
+
+  const notifications = rows.map((notification) => ({
+    ...notification,
+    time: notification.created_at,
+    icon: notification.category === "CHAT" ? "MessageSquare" : "CheckSquare",
+  }));
+
+  return res.status(200).json(
+    new ApiResponse(200, {
+      notifications,
+      total_count: notifications.length,
+      unread_count: notifications.length,
+    }, "Notifications fetched successfully.")
+  );
+});
+
 export const getVapidPublicKeyController = asyncHandler(async (req, res) => {
   const publicKey = getVapidPublicKeyService();
   return res.status(200).json(

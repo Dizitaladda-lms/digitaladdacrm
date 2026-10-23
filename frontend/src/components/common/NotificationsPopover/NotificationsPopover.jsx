@@ -46,20 +46,7 @@ const URGENT_OR_ACTIONABLE_TYPES = [
   "CHAT_MENTION",
   "CHAT_DM",
   "CHAT_MESSAGE",
-  "BIOMETRIC_PENDING",
-  "DAILY_REPORT_TL_PENDING",
-  "DAILY_REPORT_HR_PENDING",
-  "DAILY_REPORT_SUBMITTED",
-  "DAILY_REPORT_STATUS",
-  "UNASSIGNED_LEAD",
-  "NEW_ASSIGNED",
-  "FOLLOWUP_DUE_NOW",
-  "ADMISSION_DONE",
   "TASK_ASSIGNED",
-  "TASK_UPDATE",
-  "ATTENDANCE_CHECKIN",
-  "ATTENDANCE_CHECKOUT",
-  "COUNSELLOR_PASSWORD_CHANGED",
 ];
 
 const NotificationsPopover = ({ isEmployee = false }) => {
@@ -268,11 +255,10 @@ const NotificationsPopover = ({ isEmployee = false }) => {
           }
         }
       } else {
-        // First load on application start:
-        // If there are urgent unread items (e.g. pending biometrics or pending reports), show a helpful banner
+        // First load on application start: show a single summary for unread work/chat items.
         const urgentPending = list.filter(
           (n) =>
-            (n.priority === "URGENT" || n.type === "BIOMETRIC_PENDING" || n.type === "DAILY_REPORT_TL_PENDING" || n.type === "DAILY_REPORT_HR_PENDING") &&
+            URGENT_OR_ACTIONABLE_TYPES.includes(n.type) &&
             !readIds.includes(n.id)
         );
 
@@ -412,12 +398,8 @@ const NotificationsPopover = ({ isEmployee = false }) => {
 
   const displayedList = notifications.filter((n) => {
     if (filterTab === "UNREAD") return !readIds.includes(n.id);
-    if (filterTab === "REPORT") return n.category === "REPORT";
-    if (filterTab === "BIOMETRIC") return n.category === "BIOMETRIC";
-    if (filterTab === "LEAD") return n.category === "LEAD";
     if (filterTab === "TASK") return n.category === "TASK";
-    if (filterTab === "FOLLOWUP") return n.category === "FOLLOWUP";
-    if (filterTab === "ADMISSION") return n.category === "ADMISSION";
+    if (filterTab === "CHAT") return n.category === "CHAT";
     return true;
   });
 
@@ -492,28 +474,16 @@ const NotificationsPopover = ({ isEmployee = false }) => {
               Unread ({unreadCount})
             </button>
             <button
-              className={`tab-pill ${filterTab === "REPORT" ? "active" : ""}`}
-              onClick={() => setFilterTab("REPORT")}
-            >
-              Reports
-            </button>
-            <button
-              className={`tab-pill ${filterTab === "BIOMETRIC" ? "active" : ""}`}
-              onClick={() => setFilterTab("BIOMETRIC")}
-            >
-              Biometrics
-            </button>
-            <button
-              className={`tab-pill ${filterTab === "LEAD" ? "active" : ""}`}
-              onClick={() => setFilterTab("LEAD")}
-            >
-              Leads
-            </button>
-            <button
               className={`tab-pill ${filterTab === "TASK" ? "active" : ""}`}
               onClick={() => setFilterTab("TASK")}
             >
               Tasks
+            </button>
+            <button
+              className={`tab-pill ${filterTab === "CHAT" ? "active" : ""}`}
+              onClick={() => setFilterTab("CHAT")}
+            >
+              Chat
             </button>
           </div>
 
