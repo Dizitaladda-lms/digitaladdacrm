@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
 import { withTransaction } from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
+import { decryptDocumentDetail, encryptDocumentDetail, maskDocumentNumber } from "../utils/employeeDocumentSecurity.js";
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
 import {
   createEmployeeDocumentRepository,
@@ -48,7 +49,10 @@ const uploadToCloudinary = (file, employeeId) => new Promise((resolve, reject) =
   stream.end(file.buffer);
 });
 
-const toDocumentResponse = (document) => ({
+const toDocumentResponse = (document, { includeDetails = false } = {}) => {
+  const documentNumber = decryptDocumentDetail(document.document_number_encrypted);
+  const documentDetails = decryptDocumentDetail(document.document_details_encrypted);
+  return {
   id: document.id,
   document_type: document.document_type,
   document_label: document.document_label,
@@ -57,7 +61,26 @@ const toDocumentResponse = (document) => ({
   size_bytes: Number(document.size_bytes),
   created_at: document.created_at,
   is_profile_photo: document.document_type === "PROFILE_PHOTO",
-});
+  document_number: includeDetails ? documentNumber : maskDocumentNumber(documentNumber),
+  document_details: includeDetails ? documentDetails : "",
+  };
+};
+
+const parseManualDocumentDetails = (payload, documentType) => {
+  const documentNumber = String(payload.document_number || "").trim().toUpperCase();
+  const documentDetails = String(payload.document_details || "").trim().slice(0, 1000);
+  const aadhaarDigits = documentNumber.replace(/\s/g, "");
+  if (documentType === "AADHAAR_CARD" && documentNumber && !/^\d{12}$/.test(aadhaarDigits)) {
+    throw new ApiError(400, "Aadhaar number must contain exactly 12 digits.");
+  }
+  if (documentType === "PAN_CARD" && documentNumber && !/^[A-Z]{5}\d{4}[A-Z]$/.test(documentNumber)) {
+    throw new ApiError(400, "Enter a valid PAN number (for example, ABCDE1234F).");
+  }
+  if (documentType === "PROFILE_PHOTO" && (documentNumber || documentDetails)) {
+    throw new ApiError(400, "ID card photos cannot contain document details.");
+  }
+  return { documentNumber: documentType === "AADHAAR_CARD" ? aadhaarDigits : documentNumber, documentDetails };
+};
 
 export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) => {
   if (!file) throw new ApiError(400, "Select a document to upload.");
@@ -65,6 +88,7 @@ export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) 
   if (!DOCUMENT_TYPES.has(documentType)) throw new ApiError(400, "Choose a valid document type.");
   const documentLabel = String(payload.document_label || file.originalname || "Document").trim().slice(0, 120);
   if (!documentLabel) throw new ApiError(400, "Document label is required.");
+  const { documentNumber, documentDetails } = parseManualDocumentDetails(payload, documentType);
 
   configureCloudinary();
   const employee = await ensureEmployeeProfileForUser(user.id);
@@ -98,6 +122,8 @@ export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) 
       publicId: uploaded.public_id,
       resourceType: uploaded.resource_type || "raw",
       version: uploaded.version ? String(uploaded.version) : null,
+      documentNumberEncrypted: encryptDocumentDetail(documentNumber),
+      documentDetailsEncrypted: encryptDocumentDetail(documentDetails),
     }));
   } catch (error) {
     await cloudinary.uploader.destroy(uploaded.public_id, {
@@ -107,7 +133,7 @@ export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) 
     }).catch(() => {});
     throw error;
   }
-  return toDocumentResponse(saved);
+  return toDocumentResponse(saved, { includeDetails: true });
 };
 
 export const getMyEmployeeDocumentsService = async (user) => {
@@ -115,7 +141,7 @@ export const getMyEmployeeDocumentsService = async (user) => {
   const employee = await ensureEmployeeProfileForUser(user.id);
   if (!employee?.id) throw new ApiError(400, "Your employee profile is not available.");
   const documents = await findEmployeeDocumentsRepository(employee.id);
-  return documents.map(toDocumentResponse);
+  return documents.map((document) => toDocumentResponse(document, { includeDetails: true }));
 };
 
 export const getMyEmployeeDocumentAccessUrlService = async (user, documentId) => {

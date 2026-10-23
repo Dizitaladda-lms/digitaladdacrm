@@ -70,7 +70,7 @@ const EmployeeDocuments = () => {
           <article className="hr-document-row" key={document.id}>
             <span className="hr-document-avatar"><UserRound size={21} /></span>
             <div className="hr-document-person"><strong>{document.employee_name}</strong><span>{document.employee_code || "Employee ID unavailable"} · {document.designation || "Team member"}</span><small>{document.department_name || "No department"}</small></div>
-            <div className="hr-document-file"><span>{TYPE_LABELS[document.document_type] || document.document_type}</span><strong>{document.document_label}</strong><small>{document.original_filename}</small></div>
+            <div className="hr-document-file"><span>{TYPE_LABELS[document.document_type] || document.document_type}</span><strong>{document.document_label}</strong><small>{document.original_filename}</small>{document.document_number && <small>Document no.: {document.document_number}</small>}</div>
             <button type="button" onClick={() => openDocument(document)}><Download size={16} /> Open</button>
           </article>
         ))}

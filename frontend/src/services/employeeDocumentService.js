@@ -5,11 +5,13 @@ export const getMyEmployeeDocuments = async () => {
   return response.data;
 };
 
-export const uploadMyEmployeeDocument = async ({ file, documentType, documentLabel }) => {
+export const uploadMyEmployeeDocument = async ({ file, documentType, documentLabel, documentNumber, documentDetails }) => {
   const body = new FormData();
   body.append("file", file);
   body.append("document_type", documentType);
   body.append("document_label", documentLabel || file.name);
+  body.append("document_number", documentNumber || "");
+  body.append("document_details", documentDetails || "");
   const response = await axiosInstance.post("/employee/documents", body, {
     headers: { "Content-Type": "multipart/form-data" },
   });

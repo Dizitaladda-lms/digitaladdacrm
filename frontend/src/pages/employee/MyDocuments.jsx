@@ -29,6 +29,8 @@ const MyDocuments = () => {
   const [file, setFile] = useState(null);
   const [documentType, setDocumentType] = useState("AADHAAR_CARD");
   const [documentLabel, setDocumentLabel] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [documentDetails, setDocumentDetails] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
@@ -75,9 +77,11 @@ const MyDocuments = () => {
     if (!file) return toast.error("Select a PDF or image first.");
     try {
       setUploading(true);
-      await uploadMyEmployeeDocument({ file, documentType, documentLabel });
+      await uploadMyEmployeeDocument({ file, documentType, documentLabel, documentNumber, documentDetails });
       setFile(null);
       setDocumentLabel("");
+      setDocumentNumber("");
+      setDocumentDetails("");
       form.reset();
       toast.success("Document uploaded securely.");
       await loadDocuments();
@@ -130,10 +134,12 @@ const MyDocuments = () => {
                 </button>
               ))}
             </div>
-            <p style={{ color: "#64748b", fontSize: 13 }}>PDF, JPG, PNG, WEBP · maximum 5 MB. Do not enter Aadhaar or PAN numbers in the label.</p>
+            <p style={{ color: "#64748b", fontSize: 13 }}>PDF, JPG, PNG, WEBP · maximum 5 MB. Identity details are encrypted; HR sees only a masked ID number.</p>
             <div className="document-form-grid">
               <label className="document-field">What are you uploading?<select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>{DOC_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select><span className="document-field-hint"><CheckCircle2 size={14} /> {selectedType.hint}</span></label>
               <label className="document-field">Document label <span>(optional)</span><input value={documentLabel} onChange={(event) => setDocumentLabel(event.target.value)} placeholder={`Example: ${selectedType.label}`} /><span className="document-field-hint">Do not write Aadhaar or PAN numbers here.</span></label>
+              {documentType !== "PROFILE_PHOTO" && <label className="document-field">{documentType === "AADHAAR_CARD" ? "Aadhaar number" : documentType === "PAN_CARD" ? "PAN number" : "Document number"} <span>(optional)</span><input value={documentNumber} onChange={(event) => setDocumentNumber(event.target.value)} inputMode={documentType === "AADHAAR_CARD" ? "numeric" : "text"} maxLength={documentType === "AADHAAR_CARD" ? 14 : 30} placeholder={documentType === "AADHAAR_CARD" ? "1234 5678 9012" : documentType === "PAN_CARD" ? "ABCDE1234F" : "Reference or document number"} /><span className="document-field-hint">Saved encrypted. Aadhaar and PAN are validated.</span></label>}
+              {documentType !== "PROFILE_PHOTO" && <label className="document-field document-field--full">Document details <span>(optional)</span><textarea value={documentDetails} onChange={(event) => setDocumentDetails(event.target.value)} maxLength={1000} placeholder="Name on document, issuing authority, issue/expiry date, or relevant information." /><span className="document-field-hint">Only add details relevant to this document.</span></label>}
               <label className="document-file-section">Choose file <span>PDF, JPG, PNG or WEBP · up to 5 MB</span><input className="document-file-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />{file && <span className="document-selected-file"><FileText size={20} /><strong>{file.name}</strong><small>{formatFileSize(file.size)} · Ready as {selectedType.label}</small><button type="button" onClick={() => setFile(null)} aria-label="Remove selected file"><X size={16} /></button></span>}</label>
             </div>
             <button type="submit" disabled={uploading || !file} className="document-upload-submit">
@@ -145,7 +151,7 @@ const MyDocuments = () => {
             <div className="document-card-title"><span className="document-card-icon document-card-icon-soft"><FileText size={20} /></span><div><h2>My uploaded documents</h2><p>{loading ? "Checking your private vault..." : `${documents.length} document${documents.length === 1 ? "" : "s"} saved securely`}</p></div></div>
             {loading ? <p>Loading…</p> : documents.length === 0 ? <p style={{ color: "#64748b" }}>No documents uploaded yet.</p> : documents.map((document) => (
               <div key={document.id} className="uploaded-document-row">
-                <div><strong>{document.document_label}</strong><div style={{ color: "#64748b", fontSize: 12 }}>{document.document_type.replaceAll("_", " ")} · {document.original_filename}</div></div>
+                <div><strong>{document.document_label}</strong><div style={{ color: "#64748b", fontSize: 12 }}>{document.document_type.replaceAll("_", " ")} · {document.original_filename}</div>{document.document_number && <small className="document-manual-detail">No.: {document.document_number}</small>}{document.document_details && <small className="document-manual-detail">{document.document_details}</small>}</div>
                 <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => openDocument(document)} title="Open securely"><Download size={16} /></button><button type="button" onClick={() => removeDocument(document)} title="Remove"><Trash2 size={16} /></button></div>
               </div>
             ))}
