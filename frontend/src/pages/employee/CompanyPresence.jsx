@@ -206,7 +206,7 @@ const CompanyPresence = () => {
               <UserCheck size={15} /> Mark / Edit Attendance
             </button>
           )}
-          <label className="company-presence__today" title="Past date ki presence dekhne ke liye date select karein">
+          <div className="company-presence__today" title="Past date ki presence dekhne ke liye date select karein">
             <CalendarDays size={16} />
             <input
               type="date"
@@ -215,8 +215,7 @@ const CompanyPresence = () => {
               onChange={(event) => setSelectedDate(event.target.value || today)}
               aria-label="View employee presence for date"
             />
-            <span>{formatPresenceDate(selectedDate)}</span>
-          </label>
+          </div>
         </div>
       </header>
 
