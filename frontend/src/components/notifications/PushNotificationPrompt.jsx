@@ -122,7 +122,7 @@ const PushNotificationPrompt = () => {
             <div className="push-prompt-text">
               <h4>Enable Mobile Notifications</h4>
               <p>
-                Get instant alerts for <strong>team chat mentions</strong>, <strong>lead assignments</strong>, and attendance even when CRM is closed.
+                Get instant alerts for <strong>every personal and group chat message</strong>, lead assignments, and attendance even when CRM is closed.
               </p>
             </div>
           </div>

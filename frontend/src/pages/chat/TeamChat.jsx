@@ -33,6 +33,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useSearchParams } from "react-router-dom";
 import {
   getUserChatGroups,
   getChatUsers,
@@ -50,6 +51,8 @@ import "./TeamChat.css";
 
 const TeamChat = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedGroupId = searchParams.get("groupId");
   const userRole = String(user?.role || "").toUpperCase();
   const canCreateGroup = ["TL", "MANAGER", "ADMIN", "SUPER_ADMIN", "HR"].includes(userRole);
 
@@ -188,8 +191,21 @@ const TeamChat = () => {
   }, [activeGroup]);
 
   useEffect(() => {
-    loadGroups();
+    loadGroups(requestedGroupId);
+    // The notification destination is only needed when this screen opens.
+    // Keeping this mount-only prevents re-fetching forever after activeGroup
+    // becomes the selected group object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A push notification opens this exact conversation using ?groupId=... .
+  // Remove the transient parameter once it has selected the conversation so
+  // normal polling/navigation keeps the selected group stable.
+  useEffect(() => {
+    if (requestedGroupId && Number(activeGroup?.id) === Number(requestedGroupId)) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [activeGroup?.id, requestedGroupId, setSearchParams]);
 
   // Refresh sidebar activity without repeatedly reloading it in a background tab.
   useEffect(() => {

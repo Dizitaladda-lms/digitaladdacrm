@@ -259,6 +259,26 @@ describe("attendance face verification gate", () => {
     expect(dependencies.updateAttendanceCheckOutRepository).not.toHaveBeenCalled();
   });
 
+  it("does not expand the 100-meter checkout radius for an imprecise GPS reading", async () => {
+    process.env.ATTENDANCE_PASSKEY_REQUIRED = "false";
+
+    await expect(
+      checkOutAttendanceService(
+        {
+          // About 150m north of the office. This used to pass because up to
+          // 65m of reported GPS accuracy was subtracted from the distance.
+          latitude: 28.5431,
+          longitude: 77.240611111,
+          accuracy: 65,
+        },
+        { id: 9, email: "employee@example.com", full_name: "Employee" },
+        { headers: { "user-agent": "Android" }, ip: "127.0.0.1" }
+      )
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(dependencies.updateAttendanceCheckOutRepository).not.toHaveBeenCalled();
+  });
+
   it("registers an Android passkey without requiring or creating a face template", async () => {
     await registerBiometricService(
       { id: "credential-response", faceConsent: false },

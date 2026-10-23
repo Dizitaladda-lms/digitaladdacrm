@@ -385,7 +385,6 @@ const verifyAttendanceFace = async (employeeId, biometric, faceProof) => {
 const OFFICE_LAT = 28.54175;
 const OFFICE_LNG = 77.240611111;
 const MAX_GEOFENCE_RADIUS_METERS = 100;
-const INDOOR_GPS_TOLERANCE_METERS = 65;
 
 export const calculateGeofenceDistance = (userLat, userLng) => {
   const R = 6371000; // Earth's radius in meters
@@ -428,16 +427,11 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   const employee = await getEmployeeId(currentUser);
   ensureLaptopAttendanceIsEnabled(employee, req);
 
-  const { assertion, latitude, longitude, location_name, accuracy } = payload || {};
+  const { assertion, latitude, longitude, location_name } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "mark attendance");
 
   const distanceInMeters = calculateGeofenceDistance(lat, lng);
-  const accuracyBuffer =
-    Number(accuracy) > 0
-      ? Math.min(Math.max(Number(accuracy), 0), INDOOR_GPS_TOLERANCE_METERS)
-      : 0;
-  const effectiveDistance = Math.max(0, distanceInMeters - accuracyBuffer);
-  if (effectiveDistance > MAX_GEOFENCE_RADIUS_METERS) {
+  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
     throw new ApiError(
       400,
       `📍 Attendance Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. Attendance can only be marked within 100 meters of the office premises.`
@@ -511,7 +505,7 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }
 
   const cleanLocation =
-    effectiveDistance <= MAX_GEOFENCE_RADIUS_METERS
+    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
       ? "Dizital Adda Office Premises"
       : (location_name || null);
 
@@ -533,16 +527,11 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   const employee = await getEmployeeId(currentUser);
   ensureLaptopAttendanceIsEnabled(employee, req);
 
-  const { assertion, latitude, longitude, location_name, accuracy } = payload || {};
+  const { assertion, latitude, longitude, location_name } = payload || {};
   const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "check out");
 
   const distanceInMeters = calculateGeofenceDistance(lat, lng);
-  const accuracyBuffer =
-    Number(accuracy) > 0
-      ? Math.min(Math.max(Number(accuracy), 0), INDOOR_GPS_TOLERANCE_METERS)
-      : 0;
-  const effectiveDistance = Math.max(0, distanceInMeters - accuracyBuffer);
-  if (effectiveDistance > MAX_GEOFENCE_RADIUS_METERS) {
+  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
     throw new ApiError(
       400,
       `📍 Check-Out Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. You can only check out within 100 meters of the office premises.`
@@ -561,7 +550,7 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   }
 
   const cleanLocation =
-    effectiveDistance <= MAX_GEOFENCE_RADIUS_METERS
+    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
       ? "Dizital Adda Office Premises"
       : (location_name || null);
 
@@ -611,13 +600,7 @@ export const syncOfflineAttendanceService = async (payload = {}, currentUser, re
     );
 
     const distanceInMeters = calculateGeofenceDistance(lat, lng);
-    const accuracyBuffer =
-      Number(punch.accuracy) > 0
-        ? Math.min(Math.max(Number(punch.accuracy), 0), INDOOR_GPS_TOLERANCE_METERS)
-        : 0;
-    const effectiveDistance = Math.max(0, distanceInMeters - accuracyBuffer);
-
-    if (effectiveDistance > MAX_GEOFENCE_RADIUS_METERS) {
+    if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
       throw new ApiError(
         400,
         `📍 Offline attendance punch rejected! Coordinates (${Math.round(distanceInMeters)}m) are outside the 100m office geofence.`
@@ -625,7 +608,7 @@ export const syncOfflineAttendanceService = async (payload = {}, currentUser, re
     }
 
     const cleanLocation =
-      effectiveDistance <= MAX_GEOFENCE_RADIUS_METERS
+      distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
         ? "Dizital Adda Office Premises"
         : (punch.location_name || null);
 

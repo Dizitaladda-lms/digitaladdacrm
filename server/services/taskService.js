@@ -9,6 +9,39 @@ import {
 import { findReportByIdRepository } from "../repositories/reportRepository.js";
 import { getRoleLevel, REPORT_ROLE_LEVELS } from "./reportHierarchyService.js";
 import pool from "../config/db.js";
+import { sendPushToUsersService } from "./pushNotificationService.js";
+
+// Task notifications are deliberately addressed to one users.id only. Do not
+// expand this to a department/member list: a Department Head assigning work
+// must notify the assignee, not every colleague in that department.
+const notifyTaskAssignee = ({ task, assigneeUserId, actorUser }) => {
+  const recipientId = Number(assigneeUserId);
+  if (!Number.isInteger(recipientId) || recipientId <= 0 || recipientId === Number(actorUser?.id)) {
+    return;
+  }
+
+  const actorName = actorUser?.full_name || actorUser?.name || "Your Department Head";
+  const title = `New task assigned by ${actorName}`;
+  const body = task?.title || "You have been assigned a new task.";
+  const link = "/employee/assigned-work";
+
+  // Persist an in-app bell notification and independently dispatch Web Push.
+  // Both calls are non-blocking so a transient push-provider error cannot stop
+  // the assignment transaction after the task is already saved.
+  pool.query(
+    `INSERT INTO user_notifications (user_id, actor_user_id, type, category, title, message, link, priority)
+     VALUES ($1, $2, 'TASK_ASSIGNED', 'TASK', $3, $4, $5, $6)`,
+    [recipientId, actorUser?.id || null, title, body, link, task?.priority === "HIGH" ? "HIGH" : "INFO"]
+  ).catch((err) => console.error("Task notification insert error:", err.message));
+
+  sendPushToUsersService(recipientId, {
+    title: `Task assigned: ${body}`,
+    body: `${actorName} assigned you a ${String(task?.priority || "MEDIUM").toLowerCase()} priority task.`,
+    url: link,
+    tag: `task-assigned-${task?.id || "new"}`,
+    data: { taskId: task?.id },
+  }).catch((err) => console.error("Task push dispatch error:", err.message));
+};
 
 /**
  * Assign a new task / project work to an employee or Team Lead
@@ -35,7 +68,9 @@ export const createTaskService = async (user, payload) => {
   };
 
   const created = await createTaskRepository(taskData);
-  return await findTaskByIdRepository(created.id);
+  const task = await findTaskByIdRepository(created.id);
+  notifyTaskAssignee({ task, assigneeUserId: taskData.assigned_to_id, actorUser: user });
+  return task;
 };
 
 /**
@@ -315,9 +350,12 @@ export const requestReportRevisionService = async (user, reportId, payload) => {
     revision_feedback: feedback,
   });
 
+  const task = await findTaskByIdRepository(createdTask.id);
+  notifyTaskAssignee({ task, assigneeUserId: targetUserId, actorUser: user });
+
   return {
     reportId,
-    task: await findTaskByIdRepository(createdTask.id),
+    task,
     message: "Report marked for revision and routed to assignee's tasks.",
   };
 };

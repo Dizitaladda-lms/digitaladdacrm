@@ -38,6 +38,7 @@ import "./MobileBiometricAttendance.css";
 const OFFICE_LAT = 28.54175;
 const OFFICE_LNG = 77.240611111;
 const MAX_GEOFENCE_RADIUS_METERS = 100;
+const MAX_GPS_ACCURACY_METERS = 50;
 
 /**
  * Calculates straight-line distance in meters using Haversine formula
@@ -119,11 +120,9 @@ const buildLocationFix = (position) => {
   const longitude = position.coords.longitude;
   const accuracy = position.coords.accuracy;
   const rawDistance = calculateDistanceInMeters(latitude, longitude);
-  const accuracyBuffer = Math.min(Math.max(Number(accuracy) || 0, 25), 65);
-  const distance =
-    rawDistance <= MAX_GEOFENCE_RADIUS_METERS
-      ? rawDistance
-      : Math.max(0, rawDistance - accuracyBuffer);
+  // Accuracy is a confidence radius, not extra geofence radius. Never subtract
+  // it from the actual distance: 100m must remain 100m.
+  const distance = rawDistance;
 
   const location_name =
     distance <= MAX_GEOFENCE_RADIUS_METERS
@@ -137,6 +136,7 @@ const buildLocationFix = (position) => {
     distance,
     raw_distance: rawDistance,
     accuracy,
+    position_timestamp: position.timestamp || Date.now(),
   };
   saveLastKnownGps(fix);
   return fix;
@@ -147,7 +147,7 @@ const buildLocationFix = (position) => {
  * Simultaneously queries Network/Wi-Fi positioning (fast indoors), High-Accuracy GPS,
  * and watchPosition so indoor office phones and laptops resolve reliably without timing out.
  */
-export const getGPSLocation = () => {
+export const getGPSLocation = ({ requireFresh = false } = {}) => {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return resolve({
@@ -157,6 +157,32 @@ export const getGPSLocation = () => {
         distance: null,
         error_code: -1,
       });
+    }
+
+    // Attendance actions must use a new high-accuracy fix. In particular, do
+    // not reuse a 15-minute session cache or an OS-cached position here.
+    if (requireFresh) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const fix = buildLocationFix(position);
+          const ageMs = Date.now() - Number(fix.position_timestamp || 0);
+          if (ageMs > 30_000) {
+            resolve({ latitude: null, longitude: null, location_name: "GPS Location is too old. Please retry.", distance: null, error_code: 2 });
+            return;
+          }
+          resolve(fix);
+        },
+        (err) => resolve({
+          latitude: null,
+          longitude: null,
+          location_name: err?.code === 1 ? "Location Permission Denied" : "GPS Location Unavailable / Turn ON Phone Location",
+          distance: null,
+          error_code: err?.code ?? 2,
+          error_msg: err?.message || "Could not detect a fresh location",
+        }),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+      return;
     }
 
     let settled = false;
@@ -621,6 +647,11 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         ? loc.distance
         : calculateDistanceInMeters(Number(loc.latitude), Number(loc.longitude));
 
+    if (!Number.isFinite(Number(loc.accuracy)) || Number(loc.accuracy) <= 0 || Number(loc.accuracy) > MAX_GPS_ACCURACY_METERS) {
+      toast.error(`GPS accuracy is ${Math.round(Number(loc.accuracy) || 0)}m. Please move near a window/open area and retry (accuracy must be 50m or better).`, { duration: 7000 });
+      return false;
+    }
+
     // STRICT 100-METER GEOFENCE ENFORCEMENT ON BOTH LAPTOP & MOBILE
     if (distance > MAX_GEOFENCE_RADIUS_METERS) {
       toast.error(
@@ -679,12 +710,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      let loc =
-        locationData?.latitude != null &&
-        locationData?.longitude != null &&
-        locationData?.distance <= MAX_GEOFENCE_RADIUS_METERS
-          ? locationData
-          : await getGPSLocation();
+      const loc = await getGPSLocation({ requireFresh: true });
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
@@ -794,37 +820,21 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      let loc =
-        locationData?.latitude != null && locationData?.longitude != null
-          ? locationData
-          : await getGPSLocation();
+      const loc = await getGPSLocation({ requireFresh: true });
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
 
-      const currentToday = statusData?.today_attendance;
-      const isLocInOffice =
-        loc?.latitude != null &&
-        loc?.longitude != null &&
-        (loc?.distance == null || loc.distance <= MAX_GEOFENCE_RADIUS_METERS);
-      const resolvedLat = isLocInOffice
-        ? loc.latitude
-        : (currentToday?.check_in_lat ?? OFFICE_LAT);
-      const resolvedLng = isLocInOffice
-        ? loc.longitude
-        : (currentToday?.check_in_lng ?? OFFICE_LNG);
-      const resolvedLocName = isLocInOffice
-        ? loc.location_name
-        : currentToday?.check_in_location || "Office Premises";
+      if (!validateGPSLocation(loc)) return;
 
       if (!navigator.onLine) {
         const nowIso = new Date().toISOString();
         enqueueOfflinePunch({
           type: "check-out",
-          latitude: resolvedLat,
-          longitude: resolvedLng,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
           accuracy: loc?.accuracy,
-          location_name: resolvedLocName,
+          location_name: loc.location_name,
           punchTime: nowIso,
           faceImage: capturedPhoto,
         });
@@ -834,22 +844,20 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           today_attendance: {
             ...(prev?.today_attendance || {}),
             check_out_time: nowIso,
-            check_out_location: resolvedLocName,
+            check_out_location: loc.location_name,
             is_offline: true,
           },
         }));
-        toast.success(
-          `📡 Offline Face ID Check-out saved! 📍 ${resolvedLocName}. Internet aate hi auto-sync hoga.`
-        );
+        toast.success(`Offline Face ID Check-out saved at ${loc.location_name}. Internet aate hi auto-sync hoga.`);
         closeCamera();
         return;
       }
 
       const result = await checkOutAttendance({
-        latitude: resolvedLat,
-        longitude: resolvedLng,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
         accuracy: loc?.accuracy,
-        location_name: resolvedLocName,
+        location_name: loc.location_name,
         faceImage: capturedPhoto,
       });
 
@@ -859,7 +867,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         );
       }
 
-      toast.success(`Face ID Check-Out Marked! 📍 ${resolvedLocName}`);
+      toast.success(`Face ID Check-Out Marked! 📍 ${loc.location_name}`);
       closeCamera();
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(result?.data);
@@ -870,6 +878,12 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         !err?.response ||
         [502, 503, 504].includes(err?.response?.status);
       if (isNetError) {
+        toast.error("Connection interrupted. Reconnect and check out again so a fresh GPS location can be verified.");
+        return;
+      }
+      /* Legacy fallback intentionally disabled: it reused check-in coordinates
+         after a failed checkout request, which could falsify the checkout place.
+      if (false) {
         const nowIso = new Date().toISOString();
         const currentToday = statusData?.today_attendance;
         const resolvedLat = currentToday?.check_in_lat ?? OFFICE_LAT;
@@ -900,6 +914,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         closeCamera();
         return;
       }
+      */
       const msg = err.response?.data?.message || err.message || "Failed to mark Face ID check-out.";
       toast.error(msg);
     } finally {
@@ -987,12 +1002,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      let loc =
-        locationData?.latitude != null &&
-        locationData?.longitude != null &&
-        locationData?.distance <= MAX_GEOFENCE_RADIUS_METERS
-          ? locationData
-          : await getGPSLocation();
+      const loc = await getGPSLocation({ requireFresh: true });
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
@@ -1103,37 +1113,21 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      let loc =
-        locationData?.latitude != null && locationData?.longitude != null
-          ? locationData
-          : await getGPSLocation();
+      const loc = await getGPSLocation({ requireFresh: true });
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
 
-      const currentToday = statusData?.today_attendance;
-      const isLocInOffice =
-        loc?.latitude != null &&
-        loc?.longitude != null &&
-        (loc?.distance == null || loc.distance <= MAX_GEOFENCE_RADIUS_METERS);
-      const resolvedLat = isLocInOffice
-        ? loc.latitude
-        : (currentToday?.check_in_lat ?? OFFICE_LAT);
-      const resolvedLng = isLocInOffice
-        ? loc.longitude
-        : (currentToday?.check_in_lng ?? OFFICE_LNG);
-      const resolvedLocName = isLocInOffice
-        ? loc.location_name
-        : currentToday?.check_in_location || "Office Premises";
+      if (!validateGPSLocation(loc)) return;
 
       if (!navigator.onLine) {
         const nowIso = new Date().toISOString();
         enqueueOfflinePunch({
           type: "check-out",
-          latitude: resolvedLat,
-          longitude: resolvedLng,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
           accuracy: loc?.accuracy,
-          location_name: resolvedLocName,
+          location_name: loc.location_name,
           punchTime: nowIso,
         });
         setOfflinePunchesCount(getOfflineQueue().length);
@@ -1142,13 +1136,11 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
           today_attendance: {
             ...(prev?.today_attendance || {}),
             check_out_time: nowIso,
-            check_out_location: resolvedLocName,
+            check_out_location: loc.location_name,
             is_offline: true,
           },
         }));
-        toast.success(
-          `📡 Offline Check-out marked! 📍 ${resolvedLocName}. Will sync automatically.`
-        );
+        toast.success(`Offline Check-out marked at ${loc.location_name}. Will sync automatically.`);
         return;
       }
 
@@ -1164,10 +1156,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         });
       }
       const attendancePayload = {
-        latitude: resolvedLat,
-        longitude: resolvedLng,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
         accuracy: loc?.accuracy,
-        location_name: resolvedLocName,
+        location_name: loc.location_name,
         ...(assertion ? { assertion } : {}),
       };
       const result = await checkOutAttendance(attendancePayload);
@@ -1179,8 +1171,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       toast.dismiss("biometric-auth");
       toast.success(
         statusData?.passkey_required === false
-          ? `Check-out marked at 📍 ${resolvedLocName}`
-          : `Passkey verified. Check-out marked at 📍 ${resolvedLocName}`
+          ? `Check-out marked at 📍 ${loc.location_name}`
+          : `Passkey verified. Check-out marked at 📍 ${loc.location_name}`
       );
       await loadStatus();
       if (onCheckInSuccess) onCheckInSuccess(result?.data);
@@ -1192,6 +1184,12 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         !err?.response ||
         [502, 503, 504].includes(err?.response?.status);
       if (isNetError) {
+        toast.error("Connection interrupted. Reconnect and check out again so a fresh GPS location can be verified.");
+        return;
+      }
+      /* Legacy fallback intentionally disabled: it reused check-in coordinates
+         after a failed checkout request, which could falsify the checkout place.
+      if (false) {
         const nowIso = new Date().toISOString();
         const currentToday = statusData?.today_attendance;
         const resolvedLat = currentToday?.check_in_lat ?? OFFICE_LAT;
@@ -1220,6 +1218,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         );
         return;
       }
+      */
       await showBiometricActionError(err, "Failed to check out.");
     } finally {
       setActionLoading(false);

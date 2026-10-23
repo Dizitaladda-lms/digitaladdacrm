@@ -254,7 +254,7 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
       sendPushToEmployeesService([partnerId], {
         title: `💬 Personal message from ${senderName}`,
         body: preview,
-        url: `/team-chat`,
+        url: `/employee/team-chat?groupId=${group.id}`,
         tag: `chat-dm-${group.id}`,
         data: { groupId: group.id, messageId: message.id },
       }).catch((err) => console.error("Push dispatch error on DM:", err.message));
@@ -309,7 +309,7 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
       sendPushToEmployeesService(effectiveMentionedIds, {
         title: `💬 ${senderName} mentioned you in #${groupName}`,
         body: preview,
-        url: `/team-chat`,
+        url: `/employee/team-chat?groupId=${group.id}`,
         tag: `chat-mention-${groupId}`,
         data: { groupId, messageId: message.id },
       }).catch((err) => console.error("Push dispatch error on chat mention:", err.message));
@@ -340,7 +340,7 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
       sendPushToEmployeesService(nonMentionedEmployeeIds, {
         title: `💬 #${groupName}: ${senderName}`,
         body: preview,
-        url: `/team-chat`,
+        url: `/employee/team-chat?groupId=${group.id}`,
         tag: `chat-group-${group.id}`,
         data: { groupId: group.id, messageId: message.id },
       }).catch((err) => console.error("Push dispatch error on group chat:", err.message));
