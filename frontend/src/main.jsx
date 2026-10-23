@@ -10,15 +10,25 @@ import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
-// Automatically activate new service worker and purge stale precaches on deployment
+// When a deploy creates a new service worker, let the UI show an explicit
+// update action. This is important for installed iOS/Android PWA users.
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    updateSW(true);
+    if (typeof window !== "undefined") {
+      window.__dizitalAddaApplyUpdate = () => updateSW(true);
+      window.__dizitalAddaUpdateReady = true;
+      window.dispatchEvent(new CustomEvent("dizitaladda:pwa-update-ready"));
+    }
   },
   onRegisteredSW(_swUrl, registration) {
     if (registration) {
       registration.update().catch(() => {});
+      const checkForUpdate = () => registration.update().catch(() => {});
+      window.addEventListener("focus", checkForUpdate);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") checkForUpdate();
+      });
     }
   },
   onOfflineReady() {

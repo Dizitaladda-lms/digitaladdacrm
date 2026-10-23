@@ -8,7 +8,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      // Keep a new worker waiting until the user accepts the in-app update.
+      // This gives installed iOS/Android PWA users a clear "Update now" action
+      // instead of silently retaining an old screen/bundle.
+      registerType: "prompt",
       injectRegister: "auto",
       includeAssets: ["favicon.png", "favicon.svg"],
       manifest: {
@@ -40,7 +43,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        skipWaiting: true,
+        skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{ico,png,svg}"],

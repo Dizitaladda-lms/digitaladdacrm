@@ -1,0 +1,57 @@
+.pwa-update-prompt {
+  position: fixed;
+  z-index: 100000;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 28px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 42px 14px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+}
+
+.pwa-update-icon {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.pwa-update-copy { display: grid; gap: 3px; min-width: 0; }
+.pwa-update-copy strong { color: #0f172a; font-size: 14px; }
+.pwa-update-copy span { color: #64748b; font-size: 12px; line-height: 1.35; }
+
+.pwa-update-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 11px;
+  color: #ffffff;
+  background: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pwa-update-button:disabled { cursor: wait; opacity: 0.8; }
+.pwa-update-dismiss { position: absolute; top: 7px; right: 7px; border: 0; background: transparent; color: #64748b; cursor: pointer; padding: 4px; }
+.pwa-update-spin { animation: pwa-update-spin 0.8s linear infinite; }
+@keyframes pwa-update-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 560px) {
+  .pwa-update-prompt { gap: 9px; padding: 12px 34px 12px 12px; }
+  .pwa-update-icon { display: none; }
+  .pwa-update-button { padding: 8px 9px; }
+}
