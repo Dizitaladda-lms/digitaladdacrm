@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, X } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import "./PwaUpdatePrompt.css";
 
 const PWA_UPDATE_EVENT = "dizitaladda:pwa-update-ready";
 
 const PwaUpdatePrompt = () => {
-  const { user, loading } = useAuth();
   const [updateReady, setUpdateReady] = useState(
     () => Boolean(window.__dizitalAddaUpdateReady)
   );
@@ -15,7 +13,6 @@ const PwaUpdatePrompt = () => {
   const [statusText, setStatusText] = useState("Latest features are ready. Update karke app refresh karein.");
   const [needsReload, setNeedsReload] = useState(false);
   const timersRef = useRef([]);
-  const loginPromptedForUserRef = useRef(null);
 
   const clearTimers = () => {
     timersRef.current.forEach(clearTimeout);
@@ -30,20 +27,6 @@ const PwaUpdatePrompt = () => {
       clearTimers();
     };
   }, []);
-
-  // Make the update option visible as soon as a user enters the portal. This
-  // gives installed mobile PWA users a reliable way to fetch the newest CRM
-  // build even when the browser has not yet raised a waiting-worker event.
-  useEffect(() => {
-    if (loading || !user?.id || loginPromptedForUserRef.current === user.id) return;
-    loginPromptedForUserRef.current = user.id;
-
-    const timer = setTimeout(() => {
-      setStatusText("Get the latest CRM features and fixes before you start work.");
-      setUpdateReady(true);
-    }, 900);
-    return () => clearTimeout(timer);
-  }, [loading, user?.id]);
 
   const startProgress = () => {
     clearTimers();
@@ -90,6 +73,7 @@ const PwaUpdatePrompt = () => {
 
       const updateApp = window.__dizitalAddaApplyUpdate;
       if (typeof updateApp === "function") {
+        window.__dizitalAddaUpdateReady = false;
         await updateApp();
         return;
       }
@@ -120,6 +104,11 @@ const PwaUpdatePrompt = () => {
     }).catch(() => {}).finally(() => window.location.reload());
   };
 
+  const dismiss = () => {
+    window.__dizitalAddaUpdateReady = false;
+    setUpdateReady(false);
+  };
+
   if (!updateReady) return null;
 
   return (
@@ -127,7 +116,7 @@ const PwaUpdatePrompt = () => {
       <button
         type="button"
         className="pwa-update-dismiss"
-        onClick={() => setUpdateReady(false)}
+        onClick={dismiss}
         aria-label="Update later"
       >
         <X size={17} />

@@ -74,7 +74,15 @@ export const subscribeUserToPush = async () => {
   }
 
   // Fetch VAPID public key
-  const res = await axiosInstance.get("/notifications/vapid-public-key");
+  let res;
+  try {
+    res = await axiosInstance.get("/notifications/vapid-public-key");
+  } catch (error) {
+    throw new Error(
+      error?.response?.data?.message ||
+      "Notification service is not ready. Please contact the administrator."
+    );
+  }
   const vapidPublicKey = res.data?.data?.publicKey;
   if (!vapidPublicKey) {
     throw new Error("VAPID public key not found on server.");
@@ -96,18 +104,31 @@ export const subscribeUserToPush = async () => {
   }
 
   // Subscribe new push subscription
-  subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: convertedKey,
-  });
+  try {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedKey,
+    });
+  } catch (error) {
+    throw new Error(
+      error?.message || "This device could not register for notifications."
+    );
+  }
 
   const subJson = subscription.toJSON();
 
   // Save subscription to backend
-  await axiosInstance.post("/notifications/push-subscribe", {
-    subscription: subJson,
-    userAgent: navigator.userAgent,
-  });
+  try {
+    await axiosInstance.post("/notifications/push-subscribe", {
+      subscription: subJson,
+      userAgent: navigator.userAgent,
+    });
+  } catch (error) {
+    throw new Error(
+      error?.response?.data?.message ||
+      "Notification subscription could not be saved. Please try again."
+    );
+  }
 
   return { success: true, subscription: subJson };
 };
