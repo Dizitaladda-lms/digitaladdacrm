@@ -97,8 +97,8 @@ export const getHRAttendanceReports = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, result, "HR attendance reports fetched successfully."));
 });
 
-export const getCompanyPresence = asyncHandler(async (_req, res) => {
-  const result = await getCompanyPresenceService();
+export const getCompanyPresence = asyncHandler(async (req, res) => {
+  const result = await getCompanyPresenceService(req.query.date);
   return res.status(200).json(new ApiResponse(200, result, "Company presence retrieved."));
 });
 

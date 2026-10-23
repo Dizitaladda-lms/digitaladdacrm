@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
 
-export const getCompanyPresenceRepository = async () => {
+export const getCompanyPresenceRepository = async (targetDate) => {
   const { rows } = await pool.query(
     `SELECT
        e.id AS employee_id,
@@ -20,7 +20,7 @@ export const getCompanyPresenceRepository = async () => {
        presence_override.status AS presence_override,
        CASE
          WHEN presence_override.status = 'ON_LEAVE' THEN 'ON_LEAVE'
-         WHEN a.check_in_time IS NOT NULL AND UPPER(COALESCE(a.status, '')) <> 'ABSENT' THEN 'PRESENT'
+         WHEN a.check_in_time IS NOT NULL THEN 'PRESENT'
          WHEN UPPER(COALESCE(a.status, '')) IN ('PRESENT', 'LATE', 'HALF_DAY') THEN 'PRESENT'
          WHEN UPPER(COALESCE(a.status, '')) = 'ON_LEAVE'
            OR e.status = 'ON_LEAVE'
@@ -33,22 +33,22 @@ export const getCompanyPresenceRepository = async () => {
      LEFT JOIN departments d ON d.id = e.department_id
      LEFT JOIN daily_employee_presence_overrides presence_override
        ON presence_override.employee_id = e.id
-      AND presence_override.presence_date = CURRENT_DATE
+      AND presence_override.presence_date = $1::date
      LEFT JOIN daily_attendance a
-       ON a.employee_id = e.id AND a.date = CURRENT_DATE
+       ON a.employee_id = e.id AND a.date = $1::date
      LEFT JOIN employee_monthly_rosters roster
        ON roster.employee_id = e.id
-      AND roster.year = EXTRACT(YEAR FROM CURRENT_DATE)::int
-      AND roster.month = EXTRACT(MONTH FROM CURRENT_DATE)::int
+      AND roster.year = EXTRACT(YEAR FROM $1::date)::int
+      AND roster.month = EXTRACT(MONTH FROM $1::date)::int
        AND roster.status = 'APPROVED'
      LEFT JOIN LATERAL (
        SELECT day_entry->>'status' AS status
        FROM jsonb_array_elements(COALESCE(roster.days_data, '[]'::jsonb)) AS day_entry
-       WHERE (day_entry->>'day')::int = EXTRACT(DAY FROM CURRENT_DATE)::int
+       WHERE (day_entry->>'day')::int = EXTRACT(DAY FROM $1::date)::int
        LIMIT 1
      ) roster_day ON TRUE
      LEFT JOIN daily_employee_work_modes work_mode
-       ON work_mode.employee_id = e.id AND work_mode.work_date = CURRENT_DATE
+       ON work_mode.employee_id = e.id AND work_mode.work_date = $1::date
      WHERE e.is_deleted = FALSE
        AND e.status IN ('ACTIVE', 'ON_LEAVE')
        AND UPPER(COALESCE(e.role, '')) <> 'SUPER_ADMIN'
@@ -67,7 +67,8 @@ export const getCompanyPresenceRepository = async () => {
            THEN 1
          ELSE 0
        END,
-       e.full_name ASC;`
+       e.full_name ASC;`,
+    [targetDate]
   );
 
   return rows;

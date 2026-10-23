@@ -7,7 +7,24 @@ import {
 
 const WORK_MODE_ADMIN_ROLES = new Set(["HR", "ADMIN", "MANAGER", "SUPER_ADMIN"]);
 
-export const getCompanyPresenceService = async () => getCompanyPresenceRepository();
+export const getCompanyPresenceService = async (date) => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const today = ["year", "month", "day"]
+    .map((type) => parts.find((part) => part.type === type)?.value)
+    .join("-");
+  const targetDate = date || today;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate) || Number.isNaN(Date.parse(`${targetDate}T00:00:00Z`))) {
+    throw new ApiError(400, "Date must be in YYYY-MM-DD format.");
+  }
+
+  return getCompanyPresenceRepository(targetDate);
+};
 
 export const setEmployeeWorkModeService = async (employeeId, workMode, currentUser) => {
   if (!WORK_MODE_ADMIN_ROLES.has(String(currentUser?.role || "").toUpperCase())) {

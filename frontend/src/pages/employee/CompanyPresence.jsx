@@ -16,8 +16,27 @@ const STATUS_LABELS = {
   ON_LEAVE: "On leave",
 };
 
-const fetchPresence = async () => {
-  const response = await getCompanyPresence();
+const getTodayInIst = () => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type) => parts.find((part) => part.type === type)?.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
+};
+
+const formatPresenceDate = (date) => new Intl.DateTimeFormat("en-IN", {
+  timeZone: "Asia/Kolkata",
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+}).format(new Date(`${date}T12:00:00+05:30`));
+
+const fetchPresence = async (date) => {
+  const response = await getCompanyPresence(date);
   return Array.isArray(response?.data) ? response.data : [];
 };
 
@@ -38,10 +57,14 @@ const CompanyPresence = () => {
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(getTodayInIst);
+  const today = getTodayInIst();
+  const isToday = selectedDate === today;
 
   useEffect(() => {
     let isCurrent = true;
-    fetchPresence()
+    setLoading(true);
+    fetchPresence(selectedDate)
       .then((rows) => {
         if (isCurrent) setEmployees(rows);
       })
@@ -55,12 +78,12 @@ const CompanyPresence = () => {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [selectedDate]);
 
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      setEmployees(await fetchPresence());
+      setEmployees(await fetchPresence(selectedDate));
     } catch (error) {
       console.error("Failed to refresh company presence:", error);
       toast.error(error?.response?.data?.message || "Company presence could not be refreshed.");
@@ -155,7 +178,7 @@ const CompanyPresence = () => {
           <p className="company-presence__eyebrow"><Building2 size={15} /> Company overview</p>
           <h1>Employee Presence</h1>
           <p className="company-presence__subtitle">
-            Aaj ka present, absent aur leave status, saath mein office/WFH mode.
+            {isToday ? "Aaj" : formatPresenceDate(selectedDate)} ka present, absent aur leave status, saath mein office/WFH mode.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -183,15 +206,17 @@ const CompanyPresence = () => {
               <UserCheck size={15} /> Mark / Edit Attendance
             </button>
           )}
-          <div className="company-presence__today">
+          <label className="company-presence__today" title="Past date ki presence dekhne ke liye date select karein">
             <CalendarDays size={16} />
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </div>
+            <input
+              type="date"
+              value={selectedDate}
+              max={today}
+              onChange={(event) => setSelectedDate(event.target.value || today)}
+              aria-label="View employee presence for date"
+            />
+            <span>{formatPresenceDate(selectedDate)}</span>
+          </label>
         </div>
       </header>
 
@@ -360,7 +385,7 @@ const CompanyPresence = () => {
                       {canManagePresence && (
                         <td>
                           <div className="company-presence__actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                            {canEditAttendanceTime && (
+                            {canEditAttendanceTime && isToday && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -395,7 +420,7 @@ const CompanyPresence = () => {
                             <select
                               value={workMode}
                               onChange={(event) => handleWorkModeChange(employee, event.target.value)}
-                              disabled={savingId === employee.employee_id}
+                              disabled={!isToday || savingId === employee.employee_id}
                               aria-label={`Set work mode for ${employee.full_name}`}
                             >
                               <option value="OFFICE">Office</option>
@@ -404,7 +429,7 @@ const CompanyPresence = () => {
                             <select
                               value={employee.presence_override === "ON_LEAVE" ? "ON_LEAVE" : "AUTO"}
                               onChange={(event) => handlePresenceStatusChange(employee, event.target.value)}
-                              disabled={savingId === employee.employee_id}
+                              disabled={!isToday || savingId === employee.employee_id}
                               aria-label={`Set leave status for ${employee.full_name}`}
                             >
                               <option value="AUTO">Automatic status</option>

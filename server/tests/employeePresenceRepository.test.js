@@ -14,7 +14,7 @@ describe("employee presence repository", () => {
   it("excludes super admins from the employee presence list", async () => {
     const query = vi.spyOn(pool, "query").mockResolvedValue({ rows: [] });
 
-    await getCompanyPresenceRepository();
+    await getCompanyPresenceRepository("2026-10-23");
 
     const sql = query.mock.calls[0][0];
     expect(sql).toContain("UPPER(COALESCE(e.role, '')) <> 'SUPER_ADMIN'");
@@ -35,11 +35,14 @@ describe("employee presence repository", () => {
   it("uses the daily HR leave override in the company presence view", async () => {
     const query = vi.spyOn(pool, "query").mockResolvedValue({ rows: [] });
 
-    await getCompanyPresenceRepository();
+    await getCompanyPresenceRepository("2026-10-23");
 
     const sql = query.mock.calls[0][0];
     expect(sql).toContain("daily_employee_presence_overrides");
     expect(sql).toContain("presence_override.status = 'ON_LEAVE'");
+    expect(sql).toContain("a.date = $1::date");
+    expect(sql).toContain("WHEN a.check_in_time IS NOT NULL THEN 'PRESENT'");
+    expect(query).toHaveBeenCalledWith(expect.any(String), ["2026-10-23"]);
   });
 
   it("removes today's HR leave override when returning to automatic status", async () => {

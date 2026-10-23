@@ -67,8 +67,10 @@ export const getMyAttendanceHistory = async (params = {}) => {
   return response.data;
 };
 
-export const getCompanyPresence = async () => {
-  const response = await axiosInstance.get("/attendance/company-presence");
+export const getCompanyPresence = async (date) => {
+  const response = await axiosInstance.get("/attendance/company-presence", {
+    params: date ? { date } : undefined,
+  });
   return response.data;
 };
 

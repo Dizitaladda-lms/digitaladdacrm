@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, X } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 import "./PwaUpdatePrompt.css";
 
 const PWA_UPDATE_EVENT = "dizitaladda:pwa-update-ready";
 
 const PwaUpdatePrompt = () => {
+  const { user, loading } = useAuth();
   const [updateReady, setUpdateReady] = useState(
     () => Boolean(window.__dizitalAddaUpdateReady)
   );
@@ -13,6 +15,7 @@ const PwaUpdatePrompt = () => {
   const [statusText, setStatusText] = useState("Latest features are ready. Update karke app refresh karein.");
   const [needsReload, setNeedsReload] = useState(false);
   const timersRef = useRef([]);
+  const loginPromptedForUserRef = useRef(null);
 
   const clearTimers = () => {
     timersRef.current.forEach(clearTimeout);
@@ -28,10 +31,21 @@ const PwaUpdatePrompt = () => {
     };
   }, []);
 
-  const applyUpdate = () => {
-    const updateApp = window.__dizitalAddaApplyUpdate;
-    if (typeof updateApp !== "function") return;
+  // Make the update option visible as soon as a user enters the portal. This
+  // gives installed mobile PWA users a reliable way to fetch the newest CRM
+  // build even when the browser has not yet raised a waiting-worker event.
+  useEffect(() => {
+    if (loading || !user?.id || loginPromptedForUserRef.current === user.id) return;
+    loginPromptedForUserRef.current = user.id;
 
+    const timer = setTimeout(() => {
+      setStatusText("Get the latest CRM features and fixes before you start work.");
+      setUpdateReady(true);
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [loading, user?.id]);
+
+  const startProgress = () => {
     clearTimers();
     setUpdating(true);
     setNeedsReload(false);
@@ -66,12 +80,37 @@ const PwaUpdatePrompt = () => {
       }, 8000),
     ];
 
-    Promise.resolve(updateApp()).catch(() => {
+  };
+
+  const applyUpdate = async () => {
+    startProgress();
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration();
+      await registration?.update();
+
+      const updateApp = window.__dizitalAddaApplyUpdate;
+      if (typeof updateApp === "function") {
+        await updateApp();
+        return;
+      }
+
+      if (registration?.waiting) {
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        return;
+      }
+
+      // There is no waiting worker, so the current build is already the
+      // newest one. Reload once to ensure the portal starts from that build.
+      clearTimers();
+      setProgress(100);
+      setStatusText("CRM is already on the latest version. Reloading...");
+      setTimeout(() => window.location.reload(), 450);
+    } catch {
       clearTimers();
       setUpdating(false);
       setNeedsReload(true);
       setStatusText("Could not apply the update automatically. Please reload CRM.");
-    });
+    }
   };
 
   const reloadNow = () => {
@@ -95,7 +134,7 @@ const PwaUpdatePrompt = () => {
       </button>
       <div className="pwa-update-icon"><Download size={21} /></div>
       <div className="pwa-update-copy">
-        <strong>New CRM update available</strong>
+        <strong>{progress > 0 || window.__dizitalAddaUpdateReady ? "New CRM update available" : "Update your CRM"}</strong>
         <span>{statusText}</span>
         {updating || progress > 0 ? (
           <span className="pwa-update-progress" aria-label={`Update progress ${progress}%`}>
