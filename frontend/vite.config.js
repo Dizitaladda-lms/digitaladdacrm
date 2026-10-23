@@ -46,7 +46,10 @@ export default defineConfig({
         skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        globPatterns: ["**/*.{ico,png,svg}"],
+        // Include app shell and hashed bundles. Without these files a normal
+        // software deploy does not change the worker manifest, so users never
+        // receive the "Update now" prompt.
+        globPatterns: ["**/*.{html,js,css,ico,png,svg}"],
         navigateFallback: null,
         importScripts: ["push-sw.js"],
       },

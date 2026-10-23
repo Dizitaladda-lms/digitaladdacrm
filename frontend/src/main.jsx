@@ -11,19 +11,36 @@ import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
 // When a deploy creates a new service worker, let the UI show an explicit
-// update action. This is important for installed iOS/Android PWA users.
+// update action. This is important for installed mobile and desktop PWA users.
+const announceUpdate = () => {
+  if (typeof window === "undefined") return;
+  window.__dizitalAddaUpdateReady = true;
+  window.dispatchEvent(new CustomEvent("dizitaladda:pwa-update-ready"));
+};
+
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
     if (typeof window !== "undefined") {
       window.__dizitalAddaApplyUpdate = () => updateSW(true);
-      window.__dizitalAddaUpdateReady = true;
-      window.dispatchEvent(new CustomEvent("dizitaladda:pwa-update-ready"));
+      announceUpdate();
     }
   },
   onRegisteredSW(_swUrl, registration) {
     if (registration) {
+      const notifyWhenWaiting = () => {
+        if (registration.waiting) announceUpdate();
+      };
       registration.update().catch(() => {});
+      notifyWhenWaiting();
+      registration.addEventListener("updatefound", () => {
+        const installingWorker = registration.installing;
+        installingWorker?.addEventListener("statechange", () => {
+          if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+            notifyWhenWaiting();
+          }
+        });
+      });
       const checkForUpdate = () => registration.update().catch(() => {});
       window.addEventListener("focus", checkForUpdate);
       document.addEventListener("visibilitychange", () => {
@@ -35,19 +52,6 @@ const updateSW = registerSW({
     console.log("PWA ready.");
   },
 });
-
-if (typeof window !== "undefined" && "caches" in window) {
-  caches
-    .keys()
-    .then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.includes("precache"))
-          .map((key) => caches.delete(key))
-      )
-    )
-    .catch(() => {});
-}
 
 // Automatic reload handler when dynamic imports change or stale chunk runs
 window.addEventListener("error", (event) => {
