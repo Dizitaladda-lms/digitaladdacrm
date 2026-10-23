@@ -29,6 +29,10 @@
 .pwa-update-copy { display: grid; gap: 3px; min-width: 0; }
 .pwa-update-copy strong { color: #0f172a; font-size: 14px; }
 .pwa-update-copy span { color: #64748b; font-size: 12px; line-height: 1.35; }
+.pwa-update-progress { display: flex; align-items: center; gap: 7px; margin-top: 4px; }
+.pwa-update-progress-track { display: block; width: 100%; height: 5px; overflow: hidden; border-radius: 999px; background: #dbeafe; }
+.pwa-update-progress-track span { display: block; height: 100%; border-radius: inherit; background: #2563eb; transition: width 0.45s ease; }
+.pwa-update-progress b { color: #1d4ed8; font-size: 11px; }
 
 .pwa-update-button {
   display: inline-flex;
