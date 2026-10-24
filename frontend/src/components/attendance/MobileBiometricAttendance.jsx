@@ -369,7 +369,9 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [locationData, setLocationData] = useState(() => loadLastKnownGps());
+  // Do not render a session-cached GPS fix as the employee's current location.
+  // A fresh high-accuracy request below populates this after every page visit.
+  const [locationData, setLocationData] = useState(null);
   const [locating, setLocating] = useState(false);
   const [showLocationHelpModal, setShowLocationHelpModal] = useState(false);
   const [faceConsentChecked, setFaceConsentChecked] = useState(false);
@@ -412,10 +414,9 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const refreshLocation = useCallback(async (isUserInitiated = false) => {
     try {
-      // A user-triggered refresh must bypass browser/OS cached coordinates.
-      // Background refreshes remain fast, but the visible button gets a new
-      // high-accuracy fix before the employee attempts attendance.
-      const gpsPromise = getGPSLocation({ requireFresh: isUserInitiated });
+      // Attendance location must always come from a new high-accuracy reading;
+      // never show a browser/OS-cached coordinate as the current GPS location.
+      const gpsPromise = getGPSLocation({ requireFresh: true });
       setLocating(true);
       const loc = await gpsPromise;
       setLocationData(loc);
@@ -533,6 +534,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const fix = buildLocationFix(position);
+        if (Date.now() - Number(fix.position_timestamp || 0) > 30_000) return;
         setShowLocationHelpModal(false);
         setLocationData((prev) => {
           // Do not overwrite an already-verified office fix with a noisy coarse reading
@@ -548,7 +550,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         });
       },
       () => {},
-      { enableHighAccuracy: !device.isLaptop, timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
@@ -1308,6 +1310,37 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const isLocationDenied = locationData?.error_code === 1;
   const laptopAttendanceAllowed = Boolean(statusData?.laptop_attendance_enabled);
   const attendanceActionDisabled = actionLoading;
+
+  // No manual retry should be needed when an employee is already at the office
+  // but receives an imprecise GPS fix (for example, 105m/155m indoors). Keep
+  // asking the device for a new *fresh* high-accuracy reading while the page is
+  // visible, until it receives a precise in-office fix. Permission-denied state
+  // is intentionally excluded because only the employee can allow it.
+  useEffect(() => {
+    if (
+      isLocationDenied ||
+      locating ||
+      actionLoading ||
+      (isWithinOffice && hasAcceptableGpsAccuracy)
+    ) {
+      return undefined;
+    }
+
+    const retryId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshLocation(false);
+      }
+    }, 30_000);
+
+    return () => window.clearInterval(retryId);
+  }, [
+    actionLoading,
+    hasAcceptableGpsAccuracy,
+    isLocationDenied,
+    isWithinOffice,
+    locating,
+    refreshLocation,
+  ]);
 
   return (
     <div className="biometric-card">
