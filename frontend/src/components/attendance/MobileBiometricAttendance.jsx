@@ -161,27 +161,87 @@ export const getGPSLocation = ({ requireFresh = false } = {}) => {
 
     // Attendance actions must use a new high-accuracy fix. In particular, do
     // not reuse a 15-minute session cache or an OS-cached position here.
+    //
+    // A single getCurrentPosition call is unreliable inside the office: mobile
+    // browsers often return their first, coarse cell/Wi-Fi reading (for example
+    // 187m accuracy) even when GPS improves a few seconds later. Keep a fresh
+    // high-accuracy watch alive briefly and use the best fresh reading it sees.
+    // This does not relax either the 50m accuracy check or the 100m geofence.
     if (requireFresh) {
+      let settled = false;
+      let watchId = null;
+      let timeoutId = null;
+      let bestFix = null;
+      let lastError = null;
+
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        if (watchId != null) navigator.geolocation.clearWatch(watchId);
+        if (timeoutId != null) clearTimeout(timeoutId);
+        resolve(result);
+      };
+
+      const handleFreshPosition = (position) => {
+        if (settled) return;
+        const fix = buildLocationFix(position);
+        const ageMs = Date.now() - Number(fix.position_timestamp || 0);
+        if (ageMs > 30_000) return;
+
+        if (!bestFix || Number(fix.accuracy) < Number(bestFix.accuracy)) {
+          bestFix = fix;
+        }
+
+        // A valid precise reading need not wait for the full collection window.
+        if (Number(fix.accuracy) > 0 && Number(fix.accuracy) <= MAX_GPS_ACCURACY_METERS) {
+          finish(fix);
+        }
+      };
+
+      const handleFreshError = (err) => {
+        if (settled) return;
+        lastError = err;
+        if (err?.code === 1) {
+          finish({
+            latitude: null,
+            longitude: null,
+            location_name: "Location Permission Denied",
+            distance: null,
+            error_code: 1,
+            error_msg: err?.message || "Location permission was denied",
+          });
+        }
+      };
+
+      try {
+        watchId = navigator.geolocation.watchPosition(
+          handleFreshPosition,
+          handleFreshError,
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        );
+      } catch (err) {
+        handleFreshError(err);
+      }
+
+      // Some browser implementations resolve getCurrentPosition sooner than
+      // watchPosition, so run it too; both callbacks share the same best fix.
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const fix = buildLocationFix(position);
-          const ageMs = Date.now() - Number(fix.position_timestamp || 0);
-          if (ageMs > 30_000) {
-            resolve({ latitude: null, longitude: null, location_name: "GPS Location is too old. Please retry.", distance: null, error_code: 2 });
-            return;
-          }
-          resolve(fix);
-        },
-        (err) => resolve({
+        handleFreshPosition,
+        handleFreshError,
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+      );
+
+      timeoutId = setTimeout(() => {
+        if (bestFix) return finish(bestFix);
+        finish({
           latitude: null,
           longitude: null,
-          location_name: err?.code === 1 ? "Location Permission Denied" : "GPS Location Unavailable / Turn ON Phone Location",
+          location_name: "GPS Location Unavailable / Turn ON Phone Location",
           distance: null,
-          error_code: err?.code ?? 2,
-          error_msg: err?.message || "Could not detect a fresh location",
-        }),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
+          error_code: lastError?.code ?? 2,
+          error_msg: lastError?.message || "Could not detect a fresh location",
+        });
+      }, 20500);
       return;
     }
 
