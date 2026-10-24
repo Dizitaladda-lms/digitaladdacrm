@@ -412,8 +412,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const refreshLocation = useCallback(async (isUserInitiated = false) => {
     try {
-      // Trigger getGPSLocation synchronously before state updates to preserve browser user-gesture context
-      const gpsPromise = getGPSLocation();
+      // A user-triggered refresh must bypass browser/OS cached coordinates.
+      // Background refreshes remain fast, but the visible button gets a new
+      // high-accuracy fix before the employee attempts attendance.
+      const gpsPromise = getGPSLocation({ requireFresh: isUserInitiated });
       setLocating(true);
       const loc = await gpsPromise;
       setLocationData(loc);
@@ -1299,6 +1301,10 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     : "Passkey Active & Locked";
 
   const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
+  const hasAcceptableGpsAccuracy =
+    Number.isFinite(Number(locationData?.accuracy)) &&
+    Number(locationData.accuracy) > 0 &&
+    Number(locationData.accuracy) <= MAX_GPS_ACCURACY_METERS;
   const isLocationDenied = locationData?.error_code === 1;
   const laptopAttendanceAllowed = Boolean(statusData?.laptop_attendance_enabled);
   const attendanceActionDisabled = actionLoading;
@@ -1346,9 +1352,16 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 <RefreshCw size={12} className="spin-anim" /> Checking Geofence...
               </span>
             ) : locationData?.distance != null ? (
-              isWithinOffice ? (
+              isWithinOffice && hasAcceptableGpsAccuracy ? (
                 <span className="biometric-pill biometric-pill-geofence-ok" title="Within 100 meters of office location">
                   <MapPin size={12} /> Office Premises ({Math.round(locationData.distance)}m • Within 100m)
+                </span>
+              ) : isWithinOffice ? (
+                <span
+                  className="biometric-pill biometric-pill-geofence-outside"
+                  title="Get a fresh GPS location with 50m or better accuracy before checkout"
+                >
+                  <AlertTriangle size={12} /> GPS weak ({Math.round(locationData.accuracy || 0)}m accuracy - 50m required)
                 </span>
               ) : (
                 <span
@@ -1374,13 +1387,13 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               </span>
             )}
 
-            {/* Fast Location Refresh / Allow Location button */}
+            {/* A user-triggered refresh always fetches a fresh GPS fix. */}
             <button
               type="button"
               className="btn-loc-refresh"
               onClick={() => refreshLocation(true)}
               disabled={locating}
-              title="Re-verify or re-request GPS location permission"
+              title="Fetch a fresh high-accuracy GPS location before attendance"
               style={
                 isLocationDenied
                   ? {
@@ -1394,7 +1407,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               }
             >
               <RefreshCw size={11} className={locating ? "spin-anim" : ""} />{" "}
-              {isLocationDenied ? "Allow Location / Refresh" : "Refresh"}
+              {isLocationDenied ? "Allow Location / Refresh" : "Get Fresh GPS"}
             </button>
 
             {/* Offline Mode / Pending Queue Sync Pill */}
