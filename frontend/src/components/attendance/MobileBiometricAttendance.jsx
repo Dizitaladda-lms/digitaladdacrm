@@ -38,7 +38,10 @@ import "./MobileBiometricAttendance.css";
 const OFFICE_LAT = 28.54175;
 const OFFICE_LNG = 77.240611111;
 const MAX_GEOFENCE_RADIUS_METERS = 100;
-const MAX_GPS_ACCURACY_METERS = 50;
+// Indoor office GPS commonly reports 80-130m confidence even while the phone
+// is physically inside the 100m office geofence. Keep the geofence strict,
+// but accept a practical 130m GPS confidence radius.
+const MAX_GPS_ACCURACY_METERS = 130;
 
 /**
  * Calculates straight-line distance in meters using Haversine formula
@@ -166,7 +169,7 @@ export const getGPSLocation = ({ requireFresh = false } = {}) => {
     // browsers often return their first, coarse cell/Wi-Fi reading (for example
     // 187m accuracy) even when GPS improves a few seconds later. Keep a fresh
     // high-accuracy watch alive briefly and use the best fresh reading it sees.
-    // This does not relax either the 50m accuracy check or the 100m geofence.
+    // This does not relax either the 130m accuracy check or the 100m geofence.
     if (requireFresh) {
       let settled = false;
       let watchId = null;
@@ -712,7 +715,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         : calculateDistanceInMeters(Number(loc.latitude), Number(loc.longitude));
 
     if (!Number.isFinite(Number(loc.accuracy)) || Number(loc.accuracy) <= 0 || Number(loc.accuracy) > MAX_GPS_ACCURACY_METERS) {
-      toast.error(`GPS accuracy is ${Math.round(Number(loc.accuracy) || 0)}m. Please move near a window/open area and retry (accuracy must be 50m or better).`, { duration: 7000 });
+      toast.error(`GPS accuracy is ${Math.round(Number(loc.accuracy) || 0)}m. Please move near a window/open area and retry (accuracy must be 130m or better).`, { duration: 7000 });
       return false;
     }
 
@@ -1392,9 +1395,9 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               ) : isWithinOffice ? (
                 <span
                   className="biometric-pill biometric-pill-geofence-outside"
-                  title="Get a fresh GPS location with 50m or better accuracy before checkout"
+                  title="Get a fresh GPS location with 130m or better accuracy before checkout"
                 >
-                  <AlertTriangle size={12} /> GPS weak ({Math.round(locationData.accuracy || 0)}m accuracy - 50m required)
+                  <AlertTriangle size={12} /> GPS weak ({Math.round(locationData.accuracy || 0)}m accuracy - 130m required)
                 </span>
               ) : (
                 <span

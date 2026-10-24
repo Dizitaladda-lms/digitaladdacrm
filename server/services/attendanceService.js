@@ -25,6 +25,7 @@ import {
   findTodayAttendanceRepository,
   createAttendanceCheckInRepository,
   updateAttendanceCheckOutRepository,
+  autoCheckOutOpenAttendancesRepository,
   getMyAttendanceHistoryRepository,
   getHRAttendanceReportsRepository,
   findEmployeeByIdForAttendanceRepository,
@@ -49,6 +50,38 @@ const getClientIp = (req) => {
 export const verifyOfficeIP = async (req) => {
   const clientIp = getClientIp(req);
   return { clientIp, isOfficeWifi: true };
+};
+
+const getIstDateString = (now = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  return ["year", "month", "day"]
+    .map((type) => parts.find((part) => part.type === type)?.value)
+    .join("-");
+};
+
+/**
+ * Server-side safety net for employees who forget to check out. It uses the
+ * fixed 7:00 PM IST cut-off rather than the job's actual run time, so a late
+ * restart cannot accidentally credit additional hours. No GPS is fabricated:
+ * the record is explicitly labelled as a system auto-checkout.
+ */
+export const runScheduledAutoCheckout = async (now = new Date()) => {
+  const date = getIstDateString(now);
+  const checkOutTime = new Date(`${date}T19:00:00+05:30`);
+
+  if (now.getTime() < checkOutTime.getTime()) {
+    return [];
+  }
+
+  return autoCheckOutOpenAttendancesRepository({
+    date,
+    checkOutTime: checkOutTime.toISOString(),
+  });
 };
 
 /**

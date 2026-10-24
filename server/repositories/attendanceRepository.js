@@ -367,6 +367,35 @@ export const updateAttendanceCheckOutRepository = async (client, {
   return result.rows[0];
 };
 
+// Close only still-open records for the current IST date. The WHERE condition
+// makes this safe if more than one server instance runs the scheduled job.
+export const autoCheckOutOpenAttendancesRepository = async ({ date, checkOutTime }) => {
+  const result = await pool.query(
+    `
+      UPDATE daily_attendance
+      SET
+        check_out_time = $2::timestamptz,
+        total_hours = ROUND(
+          GREATEST(
+            0.00,
+            (EXTRACT(EPOCH FROM ($2::timestamptz - COALESCE(check_in_time, $2::timestamptz))) / 3600.0)::numeric
+          ),
+          2
+        ),
+        check_out_lat = COALESCE(check_out_lat, check_in_lat),
+        check_out_lng = COALESCE(check_out_lng, check_in_lng),
+        check_out_location = 'System auto-checkout at 7:00 PM (IST)',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE date = $1::date
+        AND check_in_time IS NOT NULL
+        AND check_out_time IS NULL
+      RETURNING id, employee_id, date, check_in_time, check_out_time, total_hours;
+    `,
+    [date, checkOutTime]
+  );
+  return result.rows;
+};
+
 // ==========================================
 // Employee Read-Only Attendance History
 // ==========================================

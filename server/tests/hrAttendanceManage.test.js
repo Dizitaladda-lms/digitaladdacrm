@@ -24,6 +24,7 @@ vi.mock("../repositories/attendanceRepository.js", () => ({
   findTodayAttendanceRepository: vi.fn(),
   createAttendanceCheckInRepository: vi.fn(),
   updateAttendanceCheckOutRepository: vi.fn(),
+  autoCheckOutOpenAttendancesRepository: vi.fn(),
   getMyAttendanceHistoryRepository: vi.fn(),
   getHRAttendanceReportsRepository: vi.fn(),
   findEmployeeByIdForAttendanceRepository: mockFindEmployeeById,

@@ -3,15 +3,18 @@ import pool from "./config/db.js";
 import { initDatabaseSchema } from "./config/dbInit.js";
 import logger from "./utils/logger.js";
 import { initializeFaceVerification } from "./utils/faceVerification.js";
+import { startAttendanceAutoCheckoutJob, stopAttendanceAutoCheckoutJob } from "./jobs/attendanceAutoCheckout.js";
 
 const PORT = process.env.PORT || 5000;
 
 let server;
+let attendanceAutoCheckoutJob;
 
 const startServer = async () => {
   try {
     await initDatabaseSchema();
     await initializeFaceVerification();
+    attendanceAutoCheckoutJob = startAttendanceAutoCheckoutJob();
 
     server = app.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);
@@ -36,6 +39,7 @@ startServer();
 const gracefulShutdown = async (signal) => {
 
   logger.info(`${signal} received. Shutting down server...`);
+  stopAttendanceAutoCheckoutJob(attendanceAutoCheckoutJob);
 
   if (!server) {
     try {
