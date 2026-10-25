@@ -133,8 +133,6 @@ export const findUsersByIdentifierWithPasswordRepository = async (identifier) =>
       u.is_deleted,
       u.email_verified,
       u.last_login,
-      u.failed_login_attempts,
-      u.lockout_until,
       u.created_at,
       u.updated_at,
       e.id AS employee_id,
