@@ -45,6 +45,7 @@ import {
 } from "../repositories/authRepository.js";
 
 import auditLogger from "../utils/auditLogger.js";
+import logger from "../utils/logger.js";
 import {
   verifyStoredPassword,
   verifyPasswordWithRehashCheck,
@@ -158,6 +159,7 @@ export const loginUserService = async (
   password,
   device
 ) => {
+  const authDiagnosticsEnabled = process.env.AUTH_DIAGNOSTICS === "true";
   let candidates = [];
   if (typeof findUsersByIdentifierWithPasswordRepository === "function") {
     const found = await findUsersByIdentifierWithPasswordRepository(email);
@@ -171,6 +173,12 @@ export const loginUserService = async (
   }
 
   if (candidates.length === 0) {
+    if (authDiagnosticsEnabled) {
+      logger.info("Authentication login rejected: no matching user.", {
+        event: "auth.login.rejected",
+        reason: "user_not_found",
+      });
+    }
     await runDummyPasswordWork();
     throw new ApiError(
       401,
@@ -201,6 +209,13 @@ export const loginUserService = async (
   }
 
   if (!matchedUser) {
+    if (authDiagnosticsEnabled) {
+      logger.info("Authentication login rejected: password did not match.", {
+        event: "auth.login.rejected",
+        reason: "password_mismatch",
+        candidateCount: candidates.length,
+      });
+    }
     for (const candidate of candidates) {
       if (candidate.id) {
         const nextAttempts = (Number(candidate.failed_login_attempts) || 0) + 1;
@@ -218,6 +233,14 @@ export const loginUserService = async (
   }
 
   const user = matchedUser;
+
+  if (authDiagnosticsEnabled) {
+    logger.info("Authentication password verification succeeded.", {
+      event: "auth.login.password_verified",
+      userId: user.id,
+      usedLegacyHashUpgrade: matchedNeedsRehash,
+    });
+  }
 
   // Clear failed login attempts & lockout on valid password match
   await pool.query(
@@ -252,6 +275,13 @@ export const loginUserService = async (
   }
 
   if (!user.is_active) {
+    if (authDiagnosticsEnabled) {
+      logger.info("Authentication login rejected: inactive account.", {
+        event: "auth.login.rejected",
+        reason: "account_inactive",
+        userId: user.id,
+      });
+    }
     throw new ApiError(
       403,
       "Your account has been deactivated. Please contact HR or an administrator."

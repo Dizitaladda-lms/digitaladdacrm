@@ -13,6 +13,7 @@ import {
   getProfile,
   updateProfile as updateProfileRequest,
 } from "../services/authService";
+import { hasFailedSessionRecovery } from "../api/axiosInstance";
 
 const AuthContext = createContext();
 
@@ -34,6 +35,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
+      if (hasFailedSessionRecovery()) return;
       getProfile()
         .then((response) => {
           const profileUser = response?.data || response?.user || null;
