@@ -11,6 +11,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:seed:test": "node scripts/seed-test-db.js",
     "db:seed:hierarchy": "node scripts/seedReportHierarchy.js",
+    "auth:diagnose-login": "node scripts/diagnose-login.js",
     "create:admin": "node scripts/create-admin.js",
     "test": "node scripts/prepare-test-db.js && vitest run",
     "test:watch": "vitest",
