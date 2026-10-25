@@ -118,15 +118,6 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   const identifier = req.body?.email || req.body?.phone || req.body?.identifier;
   const { password } = req.body;
-  if (process.env.AUTH_DIAGNOSTICS === "true") {
-    console.info("Authentication login request received.", {
-      event: "auth.login.request",
-      hasEmail: Boolean(req.body?.email),
-      hasPhone: Boolean(req.body?.phone),
-      hasIdentifier: Boolean(req.body?.identifier),
-      hasPassword: Boolean(password),
-    });
-  }
   const userAgent = String(req.get("user-agent") || "");
   const deviceId = resolveSafeDeviceId(req);
   const deviceType = getDeviceType(userAgent, req);

@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename);
 // Ensure server/.env is loaded regardless of current working directory
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
+import bcrypt from "bcryptjs";
 import pool from "../config/db.js";
-import { hashSecurePassword } from "../utils/passwordUtils.js";
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -90,7 +90,8 @@ async function createOrUpdateAdmin() {
       [email]
     );
 
-    const hashedPassword = await hashSecurePassword(password);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     if (existingRes.rows.length > 0) {
       const existingUser = existingRes.rows[0];

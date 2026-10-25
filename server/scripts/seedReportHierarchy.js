@@ -1,7 +1,7 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import pool, { withTransaction } from "../config/db.js";
 import initializeDatabase from "../config/dbInit.js";
-import { hashSecurePassword } from "../utils/passwordUtils.js";
 
 /**
  * Seeds a complete 6-Level Role Hierarchy for Report Approval Testing:
@@ -19,7 +19,7 @@ import { hashSecurePassword } from "../utils/passwordUtils.js";
  */
 export const seedReportHierarchy = async () => {
   await initializeDatabase();
-  const passwordHash = await hashSecurePassword("Pass@123");
+  const passwordHash = await bcrypt.hash("Pass@123", 10);
 
   return await withTransaction(async (client) => {
     // 1. Ensure Departments
@@ -55,7 +55,7 @@ export const seedReportHierarchy = async () => {
       managerUser = null,
     }) => {
       const userRes = await client.query(
-        `INSERT INTO users (full_name, email, phone, password, role, reports_to, department_id, is_active, is_deleted)
+        `INSERT INTO users (full_name, email, phone, password_hash, role, reports_to, department_id, is_active, is_deleted)
          VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, FALSE)
          ON CONFLICT (email) DO UPDATE SET
            full_name = EXCLUDED.full_name,
