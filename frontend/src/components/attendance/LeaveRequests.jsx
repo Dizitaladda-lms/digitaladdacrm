@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { CalendarDays, Check, Clock3, RefreshCw, Send, X } from "lucide-react";
+import { CalendarDays, Check, Clock3, Paperclip, RefreshCw, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import {
   createLeaveRequest,
   decideLeaveRequest,
   getMyLeaveRequests,
+  getLeaveApprovalProof,
   getPendingLeaveApprovals,
 } from "../../services/attendanceService";
 
@@ -64,6 +65,7 @@ const LeaveRequests = () => {
     start_date: "",
     end_date: "",
     reason: "",
+    manager_approval_proof: null,
   });
 
   const refresh = useCallback(async () => {
@@ -97,7 +99,7 @@ const LeaveRequests = () => {
           ? "Planned leave sent to your department head for approval."
           : "Urgent leave submitted directly to HR."
       );
-      setForm({ leave_type: "PLANNED", start_date: "", end_date: "", reason: "" });
+      setForm({ leave_type: "PLANNED", start_date: "", end_date: "", reason: "", manager_approval_proof: null });
       setShowForm(false);
       await refresh();
     } catch (error) {
@@ -128,6 +130,17 @@ const LeaveRequests = () => {
       toast.error(error.response?.data?.message || "Could not review leave request.");
     } finally {
       setActionId(null);
+    }
+  };
+
+  const openApprovalProof = async (request) => {
+    try {
+      const response = await getLeaveApprovalProof(request.id);
+      const accessUrl = response?.data?.access_url;
+      if (!accessUrl) throw new Error("No screenshot URL returned");
+      window.open(accessUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not open the approval screenshot.");
     }
   };
 
@@ -212,6 +225,27 @@ const LeaveRequests = () => {
               />
             </label>
           </div>
+          <label style={{ ...fieldStyle, marginTop: 12 }}>
+            <span style={fieldLabelStyle}>Manager WhatsApp approval screenshot <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional)</span></span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                if (file && file.size > 5 * 1024 * 1024) {
+                  toast.error("Screenshot must be 5 MB or smaller.");
+                  event.target.value = "";
+                  return;
+                }
+                setForm((current) => ({ ...current, manager_approval_proof: file }));
+              }}
+              style={inputStyle}
+            />
+            <small style={{ color: "#64748b" }}>
+              <Paperclip size={12} style={{ verticalAlign: "-2px" }} /> Attach the manager&apos;s WhatsApp approval if you already received it. JPG, PNG or WEBP, up to 5 MB.
+              {form.manager_approval_proof ? ` Selected: ${form.manager_approval_proof.name}` : ""}
+            </small>
+          </label>
           <button disabled={submitting} type="submit" style={{ ...primaryButton, marginTop: 12, opacity: submitting ? 0.65 : 1 }}>
             <Send size={14} /> {submitting ? "Submitting..." : "Submit Leave Request"}
           </button>
@@ -236,6 +270,11 @@ const LeaveRequests = () => {
                   {request.department_name ? ` · ${request.department_name}` : ""}
                 </div>
                 <p style={{ margin: "6px 0 0", color: "#334155", fontSize: 13, whiteSpace: "pre-wrap" }}>{request.reason}</p>
+                {request.manager_approval_proof_public_id && (
+                  <button type="button" onClick={() => openApprovalProof(request)} style={proofButton}>
+                    <Paperclip size={13} /> View WhatsApp approval
+                  </button>
+                )}
               </div>
               <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
                 <button type="button" disabled={actionId === request.id} onClick={() => reviewRequest(request, "APPROVE")} style={approveButton}>
@@ -266,6 +305,11 @@ const LeaveRequests = () => {
                     {formatDate(request.start_date)} – {formatDate(request.end_date)}
                   </div>
                   <p style={{ margin: "5px 0 0", color: "#64748b", fontSize: 13, whiteSpace: "pre-wrap" }}>{request.reason}</p>
+                  {request.manager_approval_proof_public_id && (
+                    <button type="button" onClick={() => openApprovalProof(request)} style={proofButton}>
+                      <Paperclip size={13} /> View WhatsApp approval
+                    </button>
+                  )}
                   {request.rejection_reason && <p style={{ margin: "5px 0 0", color: "#b91c1c", fontSize: 12 }}>Review note: {request.rejection_reason}</p>}
                 </div>
                 {statusBadge(request.status)}
@@ -306,5 +350,6 @@ const emptyTextStyle = { margin: 0, padding: "12px 14px", border: "1px dashed #c
 const requestCardStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 14px" };
 const approveButton = { display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#15803d", padding: "7px 10px", borderRadius: 7, fontWeight: 700, cursor: "pointer" };
 const rejectButton = { ...approveButton, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c" };
+const proofButton = { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 8, border: 0, background: "transparent", color: "#2563eb", padding: 0, fontSize: 12, fontWeight: 700, cursor: "pointer" };
 
 export default LeaveRequests;

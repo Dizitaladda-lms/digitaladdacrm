@@ -3,6 +3,9 @@ import pool, { withTransaction } from "../config/db.js";
 const leaveRequestSelect = `
   SELECT lr.id, lr.user_id, lr.employee_id, lr.department_id, lr.leave_type,
          lr.start_date, lr.end_date, lr.reason, lr.status, lr.rejection_reason,
+         lr.manager_approval_proof_public_id, lr.manager_approval_proof_filename,
+         lr.manager_approval_proof_mime_type, lr.manager_approval_proof_size_bytes,
+         lr.manager_approval_proof_resource_type, lr.manager_approval_proof_version,
          lr.created_at, lr.updated_at, lr.department_head_reviewed_at, lr.hr_reviewed_at,
          employee.full_name AS employee_name, employee.employee_code,
          department.department_name
@@ -50,9 +53,12 @@ export const findDepartmentHeadRepository = async (departmentId, excludingUserId
 export const createLeaveRequestRepository = async (data) => {
   const result = await pool.query(
     `INSERT INTO employee_leave_requests (
-       user_id, employee_id, department_id, leave_type, start_date, end_date, reason, status
+       user_id, employee_id, department_id, leave_type, start_date, end_date, reason, status,
+       manager_approval_proof_public_id, manager_approval_proof_resource_type,
+       manager_approval_proof_version, manager_approval_proof_filename,
+       manager_approval_proof_mime_type, manager_approval_proof_size_bytes
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING *;`,
     [
       data.userId,
@@ -63,6 +69,12 @@ export const createLeaveRequestRepository = async (data) => {
       data.endDate,
       data.reason,
       data.status,
+      data.managerApprovalProof?.publicId || null,
+      data.managerApprovalProof?.resourceType || null,
+      data.managerApprovalProof?.version || null,
+      data.managerApprovalProof?.filename || null,
+      data.managerApprovalProof?.mimeType || null,
+      data.managerApprovalProof?.sizeBytes || null,
     ]
   );
   return result.rows[0];
@@ -126,6 +138,40 @@ export const getPendingHRLeaveRequestsRepository = async () => {
      ORDER BY lr.created_at ASC, lr.id ASC;`
   );
   return result.rows;
+};
+
+export const findLeaveApprovalProofForUserRepository = async (id, user) => {
+  const result = await pool.query(
+    `SELECT lr.manager_approval_proof_public_id, lr.manager_approval_proof_resource_type,
+            lr.manager_approval_proof_version, lr.manager_approval_proof_filename,
+            lr.manager_approval_proof_mime_type
+     FROM employee_leave_requests lr
+     WHERE lr.id = $1
+       AND lr.manager_approval_proof_public_id IS NOT NULL
+       AND (
+         lr.user_id = $2
+         OR $3 IN ('HR', 'SUPER_ADMIN')
+         OR EXISTS (
+           SELECT 1
+           FROM employees approver
+           WHERE approver.user_id = $2
+             AND approver.is_deleted = FALSE
+             AND UPPER(approver.status) = 'ACTIVE'
+             AND (
+               UPPER(COALESCE(approver.role, '')) IN ('MANAGER', 'ADMIN')
+               OR LOWER(COALESCE(approver.designation, '')) LIKE '%department head%'
+               OR LOWER(COALESCE(approver.designation, '')) LIKE '%head of department%'
+             )
+             AND (
+               approver.department_id = lr.department_id
+               OR COALESCE(approver.managed_department_ids, '[]'::jsonb) @> jsonb_build_array(lr.department_id)
+             )
+         )
+       )
+     LIMIT 1;`,
+    [id, user.id, String(user.role || '').toUpperCase()]
+  );
+  return result.rows[0] || null;
 };
 
 export const decideLeaveRequestRepository = async ({ id, user, decision, reason }) =>

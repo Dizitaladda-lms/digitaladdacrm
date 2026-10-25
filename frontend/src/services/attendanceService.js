@@ -121,12 +121,22 @@ export const getMyLeaveRequests = async () => {
 };
 
 export const createLeaveRequest = async (payload) => {
-  const response = await axiosInstance.post("/leave", payload);
+  const body = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && key !== "manager_approval_proof") body.append(key, value);
+  });
+  if (payload.manager_approval_proof) body.append("manager_approval_proof", payload.manager_approval_proof);
+  const response = await axiosInstance.post("/leave", body);
   return response.data;
 };
 
 export const getPendingLeaveApprovals = async () => {
   const response = await axiosInstance.get("/leave/approvals");
+  return response.data;
+};
+
+export const getLeaveApprovalProof = async (id) => {
+  const response = await axiosInstance.get(`/leave/${id}/manager-approval-proof`);
   return response.data;
 };
 

@@ -1,3 +1,5 @@
+import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
 import ApiError from "../utils/ApiError.js";
 import {
   createLeaveRequestRepository,
@@ -7,6 +9,7 @@ import {
   getMyLeaveRequestsRepository,
   getPendingDepartmentHeadLeaveRequestsRepository,
   getPendingHRLeaveRequestsRepository,
+  findLeaveApprovalProofForUserRepository,
   isDepartmentHeadRepository,
 } from "../repositories/leaveRepository.js";
 
@@ -24,7 +27,28 @@ const isValidDate = (value) => {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 };
 
-export const createLeaveRequestService = async (payload, user) => {
+const configureCloudinary = () => {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new ApiError(503, "Screenshot storage is not configured. Contact HR.");
+  }
+  cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+};
+
+const uploadApprovalProof = (file, employeeId) => new Promise((resolve, reject) => {
+  const stream = cloudinary.uploader.upload_stream({
+    public_id: `dizitaladda/leave-approval-proofs/${employeeId}/${crypto.randomUUID()}`,
+    resource_type: "image",
+    type: "authenticated",
+    overwrite: false,
+    context: { employee_id: String(employeeId), purpose: "leave_manager_approval" },
+  }, (error, result) => (error ? reject(error) : resolve(result)));
+  stream.end(file.buffer);
+});
+
+export const createLeaveRequestService = async (payload, user, approvalProofFile) => {
   const leaveType = String(payload?.leave_type || "").toUpperCase();
   const startDate = String(payload?.start_date || "");
   const endDate = String(payload?.end_date || "");
@@ -60,19 +84,66 @@ export const createLeaveRequestService = async (payload, user) => {
     }
   }
 
-  return createLeaveRequestRepository({
-    userId: user.id,
-    employeeId: employee.id,
-    departmentId: employee.department_id,
-    leaveType,
-    startDate,
-    endDate,
-    reason,
-    status: leaveType === "PLANNED" ? "PENDING_DEPARTMENT_HEAD" : "PENDING_HR_APPROVAL",
-  });
+  let uploadedProof;
+  if (approvalProofFile) {
+    configureCloudinary();
+    try {
+      uploadedProof = await uploadApprovalProof(approvalProofFile, employee.id);
+    } catch (error) {
+      console.error("Leave approval screenshot upload failed", { message: error?.message, http_code: error?.http_code });
+      if ([401, 403].includes(Number(error?.http_code))) {
+        throw new ApiError(503, "Screenshot storage credentials were rejected. Contact HR.");
+      }
+      throw new ApiError(502, "Approval screenshot upload failed. Please try again.");
+    }
+  }
+
+  try {
+    return await createLeaveRequestRepository({
+      userId: user.id,
+      employeeId: employee.id,
+      departmentId: employee.department_id,
+      leaveType,
+      startDate,
+      endDate,
+      reason,
+      status: leaveType === "PLANNED" ? "PENDING_DEPARTMENT_HEAD" : "PENDING_HR_APPROVAL",
+      managerApprovalProof: uploadedProof && {
+        publicId: uploadedProof.public_id,
+        resourceType: uploadedProof.resource_type || "image",
+        version: uploadedProof.version ? String(uploadedProof.version) : null,
+        filename: approvalProofFile.originalname.slice(0, 255),
+        mimeType: approvalProofFile.mimetype,
+        sizeBytes: approvalProofFile.size,
+      },
+    });
+  } catch (error) {
+    if (uploadedProof?.public_id) {
+      await cloudinary.uploader.destroy(uploadedProof.public_id, { resource_type: "image", type: "authenticated", invalidate: true }).catch(() => {});
+    }
+    throw error;
+  }
 };
 
 export const getMyLeaveRequestsService = (user) => getMyLeaveRequestsRepository(user.id);
+
+export const getLeaveApprovalProofService = async (id, user) => {
+  if (!/^\d+$/.test(String(id))) throw new ApiError(400, "A valid leave request ID is required.");
+  const proof = await findLeaveApprovalProofForUserRepository(Number(id), user);
+  if (!proof) throw new ApiError(404, "Approval screenshot was not found or you do not have access.");
+  configureCloudinary();
+  return {
+    access_url: cloudinary.url(proof.manager_approval_proof_public_id, {
+      resource_type: proof.manager_approval_proof_resource_type || "image",
+      type: "authenticated",
+      sign_url: true,
+      secure: true,
+      version: proof.manager_approval_proof_version || undefined,
+    }),
+    original_filename: proof.manager_approval_proof_filename,
+    mime_type: proof.manager_approval_proof_mime_type,
+  };
+};
 
 export const getPendingLeaveApprovalsService = async (user) => {
   const role = String(user?.role || "").toUpperCase();
