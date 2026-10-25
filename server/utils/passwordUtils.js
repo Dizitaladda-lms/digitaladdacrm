@@ -27,6 +27,15 @@ import crypto from 'crypto';
 
 const DEFAULT_FALLBACK_PEPPER = 'dizitaladda_default_secure_pepper_2026_do_not_use_in_prod_directly';
 const PEPPER = process.env.PASSWORD_PEPPER || DEFAULT_FALLBACK_PEPPER;
+const PREVIOUS_PEPPERS = String(process.env.PASSWORD_PEPPER_PREVIOUS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .slice(0, 3);
+// Accounts created before PASSWORD_PEPPER was configured used this repository's
+// fallback value. Keep it as a verification-only candidate so they can be
+// transparently rehashed with the current secret on their next login.
+const VERIFICATION_PEPPERS = [...new Set([PEPPER, ...PREVIOUS_PEPPERS, DEFAULT_FALLBACK_PEPPER])];
 const TARGET_BCRYPT_ROUNDS = 12;
 
 // Precomputed cost-12 dummy hash for constant-time missing-user defense
@@ -43,8 +52,12 @@ export const isArgon2Hash = (value) =>
  * Returns 64-character hex string.
  */
 export const applyPepper = (rawPassword) => {
+  return applyPepperWith(PEPPER, rawPassword);
+};
+
+const applyPepperWith = (pepper, rawPassword) => {
   return crypto
-    .createHmac('sha256', PEPPER)
+    .createHmac('sha256', pepper)
     .update(String(rawPassword || ''), 'utf8')
     .digest('hex');
 };
@@ -96,11 +109,18 @@ export const runDummyPasswordWork = async () => {
 const compareCandidateAgainstStored = async (candidate, normalizedStored) => {
   // Case 1: Bcrypt hash
   if (isBcryptHash(normalizedStored)) {
-    // 1A. Try verifying with HMAC Pepper (Modern standard)
-    const pepperedCandidate = applyPepper(candidate);
-    const matchesWithPepper = await bcrypt.compare(pepperedCandidate, normalizedStored);
-    if (matchesWithPepper) {
-      return { isValid: true, isPeppered: true, isLegacyPlaintext: false };
+    // 1A. Try current, explicitly configured previous, then legacy fallback
+    // peppers. A previous/fallback match is immediately upgraded after login.
+    for (const pepper of VERIFICATION_PEPPERS) {
+      const pepperedCandidate = applyPepperWith(pepper, candidate);
+      const matchesWithPepper = await bcrypt.compare(pepperedCandidate, normalizedStored);
+      if (matchesWithPepper) {
+        return {
+          isValid: true,
+          isPeppered: pepper === PEPPER,
+          isLegacyPlaintext: false,
+        };
+      }
     }
 
     // 1B. Fallback: Try verifying raw password (Legacy unpeppered bcrypt)

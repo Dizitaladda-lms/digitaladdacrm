@@ -1,5 +1,6 @@
 import { test, expect } from 'vitest';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import {
   verifyStoredPassword,
   verifyPasswordWithRehashCheck,
@@ -43,6 +44,21 @@ test('hashes with HMAC-SHA256 pepper and cost 12, verifies and requires no rehas
 
   const wrongCheck = await verifyPasswordWithRehashCheck('WrongPassword123!', secureHash);
   expect(wrongCheck.isValid).toBe(false);
+}, 15_000);
+
+test('verifies legacy fallback-peppered bcrypt hashes and upgrades them on login', async () => {
+  const legacyFallbackPepper = 'dizitaladda_default_secure_pepper_2026_do_not_use_in_prod_directly';
+  const legacyPepperedPassword = crypto
+    .createHmac('sha256', legacyFallbackPepper)
+    .update('LegacyEmployeePassword2026!', 'utf8')
+    .digest('hex');
+  const legacyHash = await bcrypt.hash(legacyPepperedPassword, 12);
+
+  const check = await verifyPasswordWithRehashCheck('LegacyEmployeePassword2026!', legacyHash);
+  expect(check.isValid).toBe(true);
+  expect(check.needsRehash).toBe(
+    !(await bcrypt.compare(applyPepper('LegacyEmployeePassword2026!'), legacyHash))
+  );
 }, 15_000);
 
 test('password policy enforces minimum 12 chars and maximum 128 chars', async () => {
