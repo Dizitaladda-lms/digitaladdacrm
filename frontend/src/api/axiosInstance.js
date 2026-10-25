@@ -27,6 +27,7 @@ const axiosInstance = axios.create({
 let refreshPromise = null;
 let memoryAccessToken = null;
 let memoryRefreshToken = null;
+let sessionRecoveryFailed = false;
 const REFRESH_GENERATION_KEY = "dizitaladda_auth_refresh_generation";
 const ACCESS_TOKEN_STORAGE_KEY = "dizitaladda_access_token";
 const REFRESH_TOKEN_STORAGE_KEY = "dizitaladda_refresh_token";
@@ -50,6 +51,7 @@ const getStoredRefreshToken = () => {
 };
 
 export const setStoredAuthTokens = (accessToken, refreshToken) => {
+  sessionRecoveryFailed = false;
   if (accessToken) {
     memoryAccessToken = accessToken;
     try {
@@ -78,6 +80,8 @@ export const clearStoredAuthTokens = () => {
     // Ignore storage restrictions
   }
 };
+
+export const hasFailedSessionRecovery = () => sessionRecoveryFailed;
 
 const getRefreshGeneration = () => {
   try {
@@ -156,6 +160,10 @@ axiosInstance.interceptors.response.use(
       .test(requestUrl);
     if (isAuthEndpoint) return Promise.reject(error);
 
+    // A rejected refresh token means there is no recoverable session. Do not
+    // create another refresh attempt for later 401s (for example /auth/me).
+    if (sessionRecoveryFailed) return Promise.reject(error);
+
     originalRequest._retry = true;
     const generationAtFailure = originalRequest._authGeneration || "0";
     try {
@@ -201,6 +209,7 @@ axiosInstance.interceptors.response.use(
         return axiosInstance(originalRequest);
       }
       if ([401, 403].includes(refreshError.response?.status)) {
+        sessionRecoveryFailed = true;
         clearStoredAuthTokens();
         if (window.location.pathname !== "/") {
           window.location.href = "/";
