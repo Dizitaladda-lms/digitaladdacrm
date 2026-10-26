@@ -919,7 +919,8 @@ const AttendanceReports = () => {
             <option value="ALL">All Statuses</option>
             <option value="PRESENT">Present</option>
             <option value="LATE">Late</option>
-            <option value="HALF_DAY">Half Day</option>
+            <option value="WEEK_OFF">Week Off</option>
+            <option value="ON_LEAVE">On Leave</option>
           </select>
         </div>
 
@@ -1153,16 +1154,29 @@ const AttendanceReports = () => {
                       </td>
                       <td style={{ padding: "14px 18px" }}>
                         {(() => {
+                          const upperStatus = String(row.status || "").toUpperCase();
+                          const isWeekOff = upperStatus === "WEEK_OFF" || upperStatus === "OFF";
+                          const isOnLeave = upperStatus === "ON_LEAVE" || upperStatus === "LEAVE";
                           const lateInfo = row.check_in_time ? calculateLateArrival(row.check_in_time) : null;
                           const isLate = row.status === "LATE" || (lateInfo && lateInfo.isLate);
-                          const isPresent = row.status === "PRESENT" || (!isLate && row.check_in_time);
+                          const isPresent = !isWeekOff && !isOnLeave && (row.status === "PRESENT" || (!isLate && row.check_in_time));
 
                           let bg = "#fee2e2";
                           let color = "#b91c1c";
                           let border = "1px solid #fecaca";
                           let text = row.status || "ABSENT";
 
-                          if (isLate) {
+                          if (isWeekOff) {
+                            bg = "#e0f2fe";
+                            color = "#0369a1";
+                            border = "1px solid #bae6fd";
+                            text = "WEEK OFF";
+                          } else if (isOnLeave) {
+                            bg = "#fef9c3";
+                            color = "#a16207";
+                            border = "1px solid #fde047";
+                            text = "ON LEAVE";
+                          } else if (isLate) {
                             bg = "#fef3c7";
                             color = "#b45309";
                             border = "1px solid #fde68a";

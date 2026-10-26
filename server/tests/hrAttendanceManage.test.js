@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockFindEmployeeById,
   mockUpsertEmployeeAttendance,
+  mockGetEmployeeAttendanceQuotaSummary,
 } = vi.hoisted(() => ({
   mockFindEmployeeById: vi.fn(),
   mockUpsertEmployeeAttendance: vi.fn(),
+  mockGetEmployeeAttendanceQuotaSummary: vi.fn(),
 }));
 
 vi.mock("../repositories/attendanceRepository.js", () => ({
@@ -29,13 +31,17 @@ vi.mock("../repositories/attendanceRepository.js", () => ({
   getHRAttendanceReportsRepository: vi.fn(),
   findEmployeeByIdForAttendanceRepository: mockFindEmployeeById,
   upsertEmployeeAttendanceByHRRepository: mockUpsertEmployeeAttendance,
+  getEmployeeAttendanceQuotaSummaryRepository: mockGetEmployeeAttendanceQuotaSummary,
 }));
 
 vi.mock("../repositories/employeeRepository.js", () => ({
   findEmployeeByUserIdRepository: vi.fn(),
 }));
 
-import { upsertEmployeeAttendanceByHRService } from "../services/attendanceService.js";
+import {
+  upsertEmployeeAttendanceByHRService,
+  getEmployeeAttendanceQuotaSummaryService,
+} from "../services/attendanceService.js";
 
 describe("HR Attendance Mark & Edit Time Service (upsertEmployeeAttendanceByHRService)", () => {
   beforeEach(() => {
@@ -116,5 +122,40 @@ describe("HR Attendance Mark & Edit Time Service (upsertEmployeeAttendanceByHRSe
         { headers: {} }
       )
     ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("marks status as WEEK_OFF and clears check-in/out times and sets total_hours to 0", async () => {
+    const res = await upsertEmployeeAttendanceByHRService(
+      {
+        employee_id: 25,
+        date: "2026-10-18",
+        status: "WEEK_OFF",
+      },
+      { id: 5, role: "HR" },
+      { headers: {} }
+    );
+
+    expect(res.status).toBe("WEEK_OFF");
+    expect(res.check_in_time).toBeNull();
+    expect(res.check_out_time).toBeNull();
+    expect(res.total_hours).toBe(0);
+  });
+
+  it("fetches employee attendance quota summary for authorized HR", async () => {
+    mockGetEmployeeAttendanceQuotaSummary.mockResolvedValue({
+      employee_id: 25,
+      year: 2026,
+      month: 10,
+      monthly_week_offs: { allowed: 4, used: 1, remaining: 3 },
+      yearly_leaves: { allowed: 12, used: 2, remaining: 10 },
+    });
+
+    const res = await getEmployeeAttendanceQuotaSummaryService(25, "2026-10-26", {
+      id: 5,
+      role: "HR",
+    });
+
+    expect(res.monthly_week_offs.remaining).toBe(3);
+    expect(res.yearly_leaves.remaining).toBe(10);
   });
 });

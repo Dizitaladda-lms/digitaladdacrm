@@ -21,6 +21,7 @@ import {
   upsertEmployeeAttendanceByHRService,
   getAttendanceSettingsService,
   updateAttendanceSettingsService,
+  getEmployeeAttendanceQuotaSummaryService,
 } from "../services/attendanceService.js";
 import {
   getCompanyPresenceService,
@@ -163,6 +164,13 @@ export const getAttendanceSettings = asyncHandler(async (req, res) => {
 export const updateAttendanceSettings = asyncHandler(async (req, res) => {
   const result = await updateAttendanceSettingsService(req.body, req.user, req);
   return res.status(200).json(new ApiResponse(200, result, "Attendance settings updated successfully."));
+});
+
+export const getEmployeeAttendanceQuotaSummary = asyncHandler(async (req, res) => {
+  const employeeId = req.params.employeeId;
+  const date = req.query.date;
+  const result = await getEmployeeAttendanceQuotaSummaryService(employeeId, date, req.user);
+  return res.status(200).json(new ApiResponse(200, result, "Employee quota summary fetched successfully."));
 });
 
 

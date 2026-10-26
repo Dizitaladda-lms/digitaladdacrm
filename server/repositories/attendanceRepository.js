@@ -900,3 +900,83 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
 
   return result.rows[0];
 };
+
+export const getEmployeeAttendanceQuotaSummaryRepository = async (employeeId, targetDateStr) => {
+  const dateObj = targetDateStr ? new Date(targetDateStr) : new Date();
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth() + 1; // 1-12
+
+  const monthPad = String(month).padStart(2, "0");
+  const monthStart = `${year}-${monthPad}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const monthEnd = `${year}-${monthPad}-${String(lastDay).padStart(2, "0")}`;
+
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
+
+  // 1. Check monthly roster if exists for this employee, year, month
+  const rosterResult = await pool.query(
+    `SELECT total_week_offs, status
+     FROM employee_monthly_rosters
+     WHERE employee_id = $1 AND year = $2 AND month = $3
+     LIMIT 1;`,
+    [employeeId, year, month]
+  );
+
+  let allowedWeekOffs = 4; // default monthly week off allocation
+  let rosterConfigured = false;
+  if (rosterResult.rows.length > 0 && Number(rosterResult.rows[0].total_week_offs) > 0) {
+    allowedWeekOffs = Number(rosterResult.rows[0].total_week_offs);
+    rosterConfigured = true;
+  }
+
+  // 2. Count used week offs in this month
+  const usedWeekOffsResult = await pool.query(
+    `SELECT COUNT(*)::int AS count
+     FROM daily_attendance
+     WHERE employee_id = $1
+       AND date >= $2::date AND date <= $3::date
+       AND UPPER(status) IN ('WEEK_OFF', 'OFF');`,
+    [employeeId, monthStart, monthEnd]
+  );
+  const usedWeekOffs = Number(usedWeekOffsResult.rows[0]?.count || 0);
+  const remainingWeekOffs = Math.max(0, allowedWeekOffs - usedWeekOffs);
+
+  // 3. Yearly leaves (standard 12 days per calendar year)
+  const allowedYearlyLeaves = 12;
+  const usedYearlyLeavesResult = await pool.query(
+    `SELECT COUNT(*)::int AS count
+     FROM daily_attendance
+     WHERE employee_id = $1
+       AND date >= $2::date AND date <= $3::date
+       AND UPPER(status) IN ('ON_LEAVE', 'LEAVE');`,
+    [employeeId, yearStart, yearEnd]
+  );
+  const usedYearlyLeaves = Number(usedYearlyLeavesResult.rows[0]?.count || 0);
+  const remainingYearlyLeaves = Math.max(0, allowedYearlyLeaves - usedYearlyLeaves);
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const monthName = `${monthNames[month - 1]} ${year}`;
+
+  return {
+    employee_id: Number(employeeId),
+    date: targetDateStr || `${year}-${monthPad}-${String(dateObj.getDate()).padStart(2, "0")}`,
+    year,
+    month,
+    month_name: monthName,
+    monthly_week_offs: {
+      allowed: allowedWeekOffs,
+      used: usedWeekOffs,
+      remaining: remainingWeekOffs,
+      is_roster_configured: rosterConfigured,
+    },
+    yearly_leaves: {
+      allowed: allowedYearlyLeaves,
+      used: usedYearlyLeaves,
+      remaining: remainingYearlyLeaves,
+    },
+  };
+};

@@ -14,6 +14,7 @@ const STATUS_LABELS = {
   PRESENT: "Present",
   ABSENT: "Absent",
   ON_LEAVE: "On leave",
+  WEEK_OFF: "Week off",
 };
 
 const getTodayInIst = () => {

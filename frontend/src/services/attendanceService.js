@@ -100,6 +100,13 @@ export const upsertEmployeeAttendanceByHR = async (payload = {}) => {
   return response.data;
 };
 
+export const getEmployeeAttendanceQuotaSummary = async (employeeId, date) => {
+  const response = await axiosInstance.get(`/attendance/employee-quota/${employeeId}`, {
+    params: date ? { date } : undefined,
+  });
+  return response.data;
+};
+
 export const getOfficeIPs = async () => {
   const response = await axiosInstance.get("/attendance/office-ips");
   return response.data;

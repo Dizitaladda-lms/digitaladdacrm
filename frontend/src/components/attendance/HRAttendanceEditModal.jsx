@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Clock, Calendar, UserCheck, X, CheckCircle2, RotateCcw } from "lucide-react";
 import toast from "react-hot-toast";
-import { upsertEmployeeAttendanceByHR } from "../../services/attendanceService";
+import {
+  upsertEmployeeAttendanceByHR,
+  getEmployeeAttendanceQuotaSummary,
+} from "../../services/attendanceService";
 
 const toIstTimeInputValue = (isoStr) => {
   if (!isoStr) return "";
@@ -58,6 +61,8 @@ const HRAttendanceEditModal = ({
   const [checkInTime, setCheckInTime] = useState("10:00");
   const [checkOutTime, setCheckOutTime] = useState("");
   const [saving, setSaving] = useState(false);
+  const [quotaSummary, setQuotaSummary] = useState(null);
+  const [loadingQuota, setLoadingQuota] = useState(false);
 
   const selectedEmployeeObj = useMemo(() => {
     if (initialRecord?.employee_id && Number(initialRecord.employee_id) === Number(employeeId)) {
@@ -86,15 +91,42 @@ const HRAttendanceEditModal = ({
     setCheckOutTime(existingCheckOut || "");
 
     const rawStatus = String(initialRecord?.raw_attendance_status || initialRecord?.status || "").toUpperCase();
-    if (["PRESENT", "LATE", "HALF_DAY", "ON_LEAVE", "ABSENT"].includes(rawStatus)) {
+    if (["PRESENT", "LATE", "WEEK_OFF", "ON_LEAVE"].includes(rawStatus)) {
       setStatus(rawStatus);
     } else {
       setStatus("AUTO");
     }
   }, [isOpen, initialRecord, employeesList]);
 
+  useEffect(() => {
+    if (!isOpen || !employeeId) {
+      setQuotaSummary(null);
+      return;
+    }
+    let active = true;
+    setLoadingQuota(true);
+    getEmployeeAttendanceQuotaSummary(employeeId, date)
+      .then((res) => {
+        if (active && res?.data) {
+          setQuotaSummary(res.data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load quota summary:", err);
+      })
+      .finally(() => {
+        if (active) setLoadingQuota(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, employeeId, date]);
+
+  const isTimeExcluded = status === "ON_LEAVE" || status === "WEEK_OFF";
+
   const calculatedDuration = useMemo(() => {
-    if (!checkInTime || !checkOutTime || status === "ABSENT" || status === "ON_LEAVE") return null;
+    if (!checkInTime || !checkOutTime || isTimeExcluded) return null;
     const [inH, inM] = checkInTime.split(":").map(Number);
     const [outH, outM] = checkOutTime.split(":").map(Number);
     if (Number.isNaN(inH) || Number.isNaN(inM) || Number.isNaN(outH) || Number.isNaN(outM)) return null;
@@ -107,7 +139,7 @@ const HRAttendanceEditModal = ({
       label: h > 0 ? `${h}h ${m}m` : `${m}m`,
       hours: (diffMins / 60).toFixed(2),
     };
-  }, [checkInTime, checkOutTime, status]);
+  }, [checkInTime, checkOutTime, isTimeExcluded]);
 
   if (!isOpen) return null;
 
@@ -126,13 +158,12 @@ const HRAttendanceEditModal = ({
       return;
     }
 
-    const isLeaveOrAbsent = status === "ABSENT" || status === "ON_LEAVE";
-    if (!isLeaveOrAbsent && !checkInTime) {
+    if (!isTimeExcluded && !checkInTime) {
       toast.error("Please enter Check-In time.");
       return;
     }
 
-    if (!isLeaveOrAbsent && checkInTime && checkOutTime && calculatedDuration?.invalid) {
+    if (!isTimeExcluded && checkInTime && checkOutTime && calculatedDuration?.invalid) {
       toast.error("Check-Out time must be after Check-In time.");
       return;
     }
@@ -143,8 +174,8 @@ const HRAttendanceEditModal = ({
         employee_id: Number(employeeId),
         date,
         status,
-        check_in_time: isLeaveOrAbsent ? null : checkInTime,
-        check_out_time: isLeaveOrAbsent ? null : (checkOutTime || null),
+        check_in_time: isTimeExcluded ? null : checkInTime,
+        check_out_time: isTimeExcluded ? null : (checkOutTime || null),
       });
 
       const empName =
@@ -336,15 +367,95 @@ const HRAttendanceEditModal = ({
                 <option value="AUTO">⚡ Auto (By Check-In Time)</option>
                 <option value="PRESENT">✅ Present (On Time)</option>
                 <option value="LATE">⚠️ Late</option>
-                <option value="HALF_DAY">🌓 Half Day</option>
+                <option value="WEEK_OFF">🏖️ Week Off</option>
                 <option value="ON_LEAVE">🌴 On Leave</option>
-                <option value="ABSENT">❌ Absent</option>
               </select>
             </div>
           </div>
 
+          {/* Monthly Week Off Rule Card */}
+          {status === "WEEK_OFF" && (
+            <div
+              style={{
+                background: "#f0f9ff",
+                border: "1px solid #bae6fd",
+                borderRadius: "12px",
+                padding: "14px 16px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={{ fontWeight: 700, fontSize: "13px", color: "#0369a1", display: "flex", alignItems: "center", gap: "6px" }}>
+                  🏖️ Monthly Week Off Rule ({quotaSummary?.month_name || "Current Month"})
+                </span>
+                {quotaSummary && (
+                  <span
+                    style={{
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "6px",
+                      background: (quotaSummary?.monthly_week_offs?.remaining ?? 0) > 0 ? "#dcfce7" : "#fee2e2",
+                      color: (quotaSummary?.monthly_week_offs?.remaining ?? 0) > 0 ? "#15803d" : "#b91c1c",
+                      border: (quotaSummary?.monthly_week_offs?.remaining ?? 0) > 0 ? "1px solid #bbf7d0" : "1px solid #fecaca",
+                    }}
+                  >
+                    {quotaSummary.monthly_week_offs.remaining} Remaining
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: "12.5px", color: "#0c4a6e" }}>
+                Monthly Allowed: <strong>{quotaSummary?.monthly_week_offs?.allowed ?? 4} days</strong> • Used: <strong>{quotaSummary?.monthly_week_offs?.used ?? 0} days</strong>
+                {quotaSummary?.monthly_week_offs?.is_roster_configured && " (from Monthly Roster)"}
+              </div>
+              <p style={{ margin: "6px 0 0 0", fontSize: "11px", color: "#0284c7" }}>
+                ℹ️ Week Offs are allocated and counted monthly per company roster policy. Timings are waived for week offs.
+              </p>
+            </div>
+          )}
+
+          {/* Yearly Leave Rule Card */}
+          {status === "ON_LEAVE" && (
+            <div
+              style={{
+                background: "#fefce8",
+                border: "1px solid #fef08a",
+                borderRadius: "12px",
+                padding: "14px 16px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={{ fontWeight: 700, fontSize: "13px", color: "#854d0e", display: "flex", alignItems: "center", gap: "6px" }}>
+                  🌴 Yearly Leave Rule ({quotaSummary?.year || new Date().getFullYear()})
+                </span>
+                {quotaSummary && (
+                  <span
+                    style={{
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "6px",
+                      background: (quotaSummary?.yearly_leaves?.remaining ?? 0) > 0 ? "#dcfce7" : "#fee2e2",
+                      color: (quotaSummary?.yearly_leaves?.remaining ?? 0) > 0 ? "#15803d" : "#b91c1c",
+                      border: (quotaSummary?.yearly_leaves?.remaining ?? 0) > 0 ? "1px solid #bbf7d0" : "1px solid #fecaca",
+                    }}
+                  >
+                    {quotaSummary.yearly_leaves.remaining} Remaining
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: "12.5px", color: "#713f12" }}>
+                Annual Allowance: <strong>{quotaSummary?.yearly_leaves?.allowed ?? 12} days</strong> • Used: <strong>{quotaSummary?.yearly_leaves?.used ?? 0} days</strong>
+              </div>
+              <p style={{ margin: "6px 0 0 0", fontSize: "11px", color: "#a16207" }}>
+                ℹ️ Leaves are counted and tracked on an annual basis (12 paid leaves/year). Timings are waived for leaves.
+              </p>
+            </div>
+          )}
+
           {/* Check-In and Check-Out Time Inputs */}
-          {status !== "ABSENT" && status !== "ON_LEAVE" && (
+          {!isTimeExcluded && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                 {/* Check-In Time */}

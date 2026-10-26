@@ -26,6 +26,7 @@ import {
   upsertEmployeeAttendanceByHR,
   getAttendanceSettings,
   updateAttendanceSettings,
+  getEmployeeAttendanceQuotaSummary,
 } from "../controllers/attendanceController.js";
 
 const router = express.Router();
@@ -89,6 +90,11 @@ router.put(
   "/hr-manage/:employeeId",
   roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   upsertEmployeeAttendanceByHR
+);
+router.get(
+  "/employee-quota/:employeeId",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  getEmployeeAttendanceQuotaSummary
 );
 
 // Office Wi-Fi Whitelist Management (HR & Super Admin)

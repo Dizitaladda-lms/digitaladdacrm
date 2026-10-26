@@ -32,6 +32,7 @@ import {
   getHRAttendanceReportsRepository,
   findEmployeeByIdForAttendanceRepository,
   upsertEmployeeAttendanceByHRRepository,
+  getEmployeeAttendanceQuotaSummaryRepository,
 } from "../repositories/attendanceRepository.js";
 
 /**
@@ -1205,7 +1206,7 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
   }
 
   const requestedStatus = String(payload.status || "AUTO").trim().toUpperCase();
-  const allowedStatuses = new Set(["AUTO", "PRESENT", "LATE", "HALF_DAY", "ABSENT", "ON_LEAVE"]);
+  const allowedStatuses = new Set(["AUTO", "PRESENT", "LATE", "HALF_DAY", "ABSENT", "ON_LEAVE", "WEEK_OFF"]);
   if (!allowedStatuses.has(requestedStatus)) {
     throw new ApiError(400, "Invalid attendance status.");
   }
@@ -1213,7 +1214,7 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
   let checkInIso = parseDateAndTimeToISO(targetDate, payload.check_in_time);
   let checkOutIso = parseDateAndTimeToISO(targetDate, payload.check_out_time);
 
-  if (requestedStatus === "ABSENT" || requestedStatus === "ON_LEAVE") {
+  if (requestedStatus === "ABSENT" || requestedStatus === "ON_LEAVE" || requestedStatus === "WEEK_OFF") {
     if (!payload.keep_times) {
       checkInIso = null;
       checkOutIso = null;
@@ -1318,5 +1319,19 @@ export const updateAttendanceSettingsService = async (payload = {}, currentUser,
   }
 
   return await getAttendanceSettingsService(req);
+};
+
+export const getEmployeeAttendanceQuotaSummaryService = async (employeeId, targetDate, currentUser) => {
+  const isAuthorized = ["HR", "ADMIN", "SUPER_ADMIN", "MANAGER", "DEPARTMENT_HEAD", "TL"].includes(currentUser.role);
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to view employee attendance quota summary.");
+  }
+
+  const employee = await findEmployeeByIdForAttendanceRepository(employeeId);
+  if (!employee) {
+    throw new ApiError(404, "Employee not found.");
+  }
+
+  return await getEmployeeAttendanceQuotaSummaryRepository(employeeId, targetDate);
 };
 
