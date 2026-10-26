@@ -1,20 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Writable } from "stream";
 
 const cloudinaryMocks = vi.hoisted(() => ({
   config: vi.fn(),
   url: vi.fn(() => "https://res.cloudinary.com/example/signed-document"),
-  destroy: vi.fn(),
+  destroy: vi.fn().mockResolvedValue({ result: "ok" }),
+  upload_stream: vi.fn(),
 }));
 
 vi.mock("../config/db.js", () => ({
-  withTransaction: vi.fn(),
+  withTransaction: vi.fn(async (cb) => await cb({ query: vi.fn() })),
 }));
 
 vi.mock("cloudinary", () => ({
   v2: {
     config: cloudinaryMocks.config,
     url: cloudinaryMocks.url,
-    uploader: { destroy: cloudinaryMocks.destroy },
+    uploader: {
+      destroy: cloudinaryMocks.destroy,
+      upload_stream: vi.fn((_options, callback) => {
+        const stream = new Writable({
+          write(_chunk, _encoding, next) {
+            next();
+          },
+        });
+        stream.on("finish", () => {
+          callback(null, {
+            public_id: "dizitaladda/employee-documents/44/mock-uuid",
+            resource_type: "raw",
+            version: "12345",
+          });
+        });
+        return stream;
+      }),
+    },
   },
 }));
 
@@ -33,12 +52,14 @@ vi.mock("../repositories/employeeDocumentRepository.js", () => ({
 
 import { ensureEmployeeProfileForUser } from "../services/ensureEmployeeProfile.service.js";
 import {
+  createEmployeeDocumentRepository,
   findEmployeeDocumentByIdRepository,
   findEmployeeDocumentsRepository,
 } from "../repositories/employeeDocumentRepository.js";
 import {
   getMyEmployeeDocumentAccessUrlService,
   getMyEmployeeDocumentsService,
+  uploadMyEmployeeDocumentService,
 } from "../services/employeeDocument.service.js";
 
 describe("employee document service", () => {
@@ -47,6 +68,7 @@ describe("employee document service", () => {
     process.env.CLOUDINARY_CLOUD_NAME = "test-cloud";
     process.env.CLOUDINARY_API_KEY = "test-key";
     process.env.CLOUDINARY_API_SECRET = "test-secret";
+    process.env.EMPLOYEE_DOCUMENT_ENCRYPTION_KEY = "test-secret-key-32-chars-long123";
     ensureEmployeeProfileForUser.mockResolvedValue({ id: 44 });
   });
 
@@ -92,5 +114,62 @@ describe("employee document service", () => {
     await expect(getMyEmployeeDocumentAccessUrlService({ id: 8 }, "not-an-id"))
       .rejects.toMatchObject({ statusCode: 400 });
     expect(findEmployeeDocumentByIdRepository).not.toHaveBeenCalled();
+  });
+
+  it("rejects upload when document file is missing", async () => {
+    await expect(
+      uploadMyEmployeeDocumentService({ id: 8 }, null, { document_type: "AADHAAR_CARD" })
+    ).rejects.toMatchObject({ statusCode: 400, message: "Select a document to upload." });
+  });
+
+  it("rejects upload when Aadhaar number is missing or invalid", async () => {
+    const dummyFile = { originalname: "aadhaar.pdf", mimetype: "application/pdf", size: 1024, buffer: Buffer.from("test") };
+    await expect(
+      uploadMyEmployeeDocumentService(
+        { id: 8 },
+        dummyFile,
+        { document_type: "AADHAAR_CARD", document_label: "My Aadhaar", document_number: "1234", document_details: "John Doe" }
+      )
+    ).rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/12 digits/) });
+  });
+
+  it("rejects upload when Bank Details account or details are missing", async () => {
+    const dummyFile = { originalname: "passbook.pdf", mimetype: "application/pdf", size: 1024, buffer: Buffer.from("test") };
+    await expect(
+      uploadMyEmployeeDocumentService(
+        { id: 8 },
+        dummyFile,
+        { document_type: "BANK_DETAILS", document_label: "Salary Account", document_number: "", document_details: "" }
+      )
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("accepts bank details when all compulsory fields are provided", async () => {
+    const dummyFile = { originalname: "passbook.pdf", mimetype: "application/pdf", size: 1024, buffer: Buffer.from("test") };
+    createEmployeeDocumentRepository.mockResolvedValue({
+      id: 99,
+      document_type: "BANK_DETAILS",
+      document_label: "Salary Account Passbook",
+      original_filename: "passbook.pdf",
+      mime_type: "application/pdf",
+      size_bytes: 1024,
+      document_number_encrypted: "enc_acc",
+      document_details_encrypted: "enc_details",
+      created_at: new Date().toISOString(),
+    });
+
+    const result = await uploadMyEmployeeDocumentService(
+      { id: 8 },
+      dummyFile,
+      {
+        document_type: "BANK_DETAILS",
+        document_label: "Salary Account Passbook",
+        document_number: "123456789012",
+        document_details: "Bank: HDFC Bank | IFSC: HDFC0001234 | Holder: John Doe | Branch: Delhi",
+      }
+    );
+
+    expect(result).toHaveProperty("document_type", "BANK_DETAILS");
+    expect(createEmployeeDocumentRepository).toHaveBeenCalledOnce();
   });
 });

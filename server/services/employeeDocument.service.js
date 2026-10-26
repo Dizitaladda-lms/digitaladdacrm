@@ -13,7 +13,14 @@ import {
   findEmployeeDocumentByIdForHRRepository,
 } from "../repositories/employeeDocumentRepository.js";
 
-const DOCUMENT_TYPES = new Set(["AADHAAR_CARD", "PAN_CARD", "OFFICE_DOCUMENT", "OTHER", "PROFILE_PHOTO"]);
+const DOCUMENT_TYPES = new Set([
+  "AADHAAR_CARD",
+  "PAN_CARD",
+  "OFFICE_DOCUMENT",
+  "OTHER",
+  "PROFILE_PHOTO",
+  "BANK_DETAILS",
+]);
 
 const parseDocumentId = (documentId) => {
   const id = Number(documentId);
@@ -70,16 +77,55 @@ const parseManualDocumentDetails = (payload, documentType) => {
   const documentNumber = String(payload.document_number || "").trim().toUpperCase();
   const documentDetails = String(payload.document_details || "").trim().slice(0, 1000);
   const aadhaarDigits = documentNumber.replace(/\s/g, "");
-  if (documentType === "AADHAAR_CARD" && documentNumber && !/^\d{12}$/.test(aadhaarDigits)) {
-    throw new ApiError(400, "Aadhaar number must contain exactly 12 digits.");
+
+  if (documentType === "PROFILE_PHOTO") {
+    return { documentNumber: "", documentDetails: "" };
   }
-  if (documentType === "PAN_CARD" && documentNumber && !/^[A-Z]{5}\d{4}[A-Z]$/.test(documentNumber)) {
-    throw new ApiError(400, "Enter a valid PAN number (for example, ABCDE1234F).");
+
+  // All non-profile-photo documents require both document number and details (Compulsory)
+  if (!documentNumber) {
+    if (documentType === "AADHAAR_CARD") throw new ApiError(400, "Aadhaar number is compulsory.");
+    if (documentType === "PAN_CARD") throw new ApiError(400, "PAN number is compulsory.");
+    if (documentType === "BANK_DETAILS") throw new ApiError(400, "Bank account number is compulsory.");
+    throw new ApiError(400, "Document / Reference number is compulsory.");
   }
-  if (documentType === "PROFILE_PHOTO" && (documentNumber || documentDetails)) {
-    throw new ApiError(400, "ID card photos cannot contain document details.");
+
+  if (documentType === "AADHAAR_CARD") {
+    if (!/^\d{12}$/.test(aadhaarDigits)) {
+      throw new ApiError(400, "Aadhaar number must contain exactly 12 digits.");
+    }
+    if (!documentDetails) {
+      throw new ApiError(400, "Aadhaar details (Name on Aadhaar & DOB/Address) are compulsory.");
+    }
+    return { documentNumber: aadhaarDigits, documentDetails };
   }
-  return { documentNumber: documentType === "AADHAAR_CARD" ? aadhaarDigits : documentNumber, documentDetails };
+
+  if (documentType === "PAN_CARD") {
+    if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(documentNumber)) {
+      throw new ApiError(400, "Enter a valid 10-character PAN number (e.g. ABCDE1234F).");
+    }
+    if (!documentDetails) {
+      throw new ApiError(400, "PAN details (Name on PAN & Father's Name/DOB) are compulsory.");
+    }
+    return { documentNumber, documentDetails };
+  }
+
+  if (documentType === "BANK_DETAILS") {
+    const cleanAcc = documentNumber.replace(/[\s-]/g, "");
+    if (!/^\d{9,18}$/.test(cleanAcc)) {
+      throw new ApiError(400, "Bank account number must be between 9 and 18 digits.");
+    }
+    if (!documentDetails) {
+      throw new ApiError(400, "Bank details (Bank Name, IFSC Code, Account Holder Name, Branch) are compulsory.");
+    }
+    return { documentNumber: cleanAcc, documentDetails };
+  }
+
+  if (!documentDetails) {
+    throw new ApiError(400, "Document details are compulsory.");
+  }
+
+  return { documentNumber, documentDetails };
 };
 
 export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) => {

@@ -22,6 +22,18 @@
 .document-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .document-field { display: grid; gap: 7px; color: #334155; font-size: 13px; font-weight: 750; }
 .document-field > span { color: #94a3b8; font-weight: 500; }
+.document-field .required-star { color: #ef4444; font-weight: 800; margin-left: 3px; }
+.document-completion-banner { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+.document-completion-info { display: flex; flex-direction: column; gap: 4px; }
+.document-completion-title { display: flex; align-items: center; gap: 8px; color: #0f172a; font-size: 14px; }
+.document-completion-info p { margin: 0; color: #64748b; font-size: 12.5px; }
+.document-completion-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.doc-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s ease; }
+.doc-chip.is-complete { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.doc-chip.is-pending { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.doc-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+.doc-chip small { font-size: 10px; opacity: 0.85; text-transform: uppercase; margin-left: 2px; }
+.bank-notice { grid-column: 1 / -1; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; font-size: 12.5px; color: #1e40af; line-height: 1.45; display: flex; align-items: center; gap: 8px; }
 .document-field input, .document-field select, .document-field textarea { width: 100%; height: 43px; border: 1px solid #cbd5e1; border-radius: 9px; color: #0f172a; background: #fff; padding: 0 12px; outline: none; box-sizing: border-box; }
 .document-field textarea { min-height: 76px; padding: 10px 12px; resize: vertical; font: inherit; }
 .document-field input:focus, .document-field select:focus, .document-field textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }

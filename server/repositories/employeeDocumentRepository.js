@@ -64,7 +64,7 @@ export const findAllEmployeeDocumentsForHRRepository = async ({ search = "", doc
 
   const { rows } = await client.query(
     `SELECT d.id, d.employee_id, d.document_type, d.document_label, d.original_filename,
-            d.mime_type, d.size_bytes, d.document_number_encrypted, d.created_at,
+            d.mime_type, d.size_bytes, d.document_number_encrypted, d.document_details_encrypted, d.created_at,
             e.full_name AS employee_name, e.employee_code, e.designation,
             e.email AS employee_email, dep.department_name AS department_name
      FROM employee_documents d
