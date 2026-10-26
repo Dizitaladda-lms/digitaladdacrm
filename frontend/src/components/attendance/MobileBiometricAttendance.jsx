@@ -483,6 +483,32 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     };
   }, [refreshLocation]);
 
+  // Indoor GPS can begin with a coarse reading or briefly be unavailable while
+  // the device wakes its location provider. Retry a fresh reading while this
+  // page is visible so employees do not have to repeatedly press Refresh.
+  // Permission-denied devices are excluded: they need an explicit user change.
+  useEffect(() => {
+    const needsFreshLocation =
+      !locationData ||
+      locationData.latitude == null ||
+      locationData.longitude == null ||
+      Number(locationData.distance) > MAX_GEOFENCE_RADIUS_METERS ||
+      !Number.isFinite(Number(locationData.accuracy)) ||
+      Number(locationData.accuracy) <= 0 ||
+      Number(locationData.accuracy) > MAX_GPS_ACCURACY_METERS;
+
+    if (!needsFreshLocation || locationData?.error_code === 1) return undefined;
+
+    const retryFreshLocation = () => {
+      if (document.visibilityState === "visible" && !locating) {
+        refreshLocation(false);
+      }
+    };
+
+    const retryTimer = window.setInterval(retryFreshLocation, 30_000);
+    return () => window.clearInterval(retryTimer);
+  }, [locationData, locating, refreshLocation]);
+
   // Automatically re-request GPS the moment user changes browser Location permission (Block -> Allow / Ask)
   // or returns to the app after turning ON phone GPS in notification shade / settings
   useEffect(() => {

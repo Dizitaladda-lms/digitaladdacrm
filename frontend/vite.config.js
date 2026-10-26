@@ -50,7 +50,13 @@ export default defineConfig({
         // software deploy does not change the worker manifest, so users never
         // receive the "Update now" prompt.
         globPatterns: ["**/*.{html,js,css,ico,png,svg}"],
-        navigateFallback: null,
+        // A browser refresh, an installed-PWA relaunch, or a push notification
+        // can open a client-side route directly (for example
+        // /employee/assigned-work). Serve the React app shell so BrowserRouter
+        // can resolve that route instead of showing the host's 404 page.
+        // API and auth requests must still reach their server endpoints.
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/auth(?:\/|$)/],
         importScripts: ["push-sw.js"],
       },
     }),
