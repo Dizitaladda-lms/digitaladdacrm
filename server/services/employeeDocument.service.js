@@ -132,7 +132,14 @@ export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) 
   if (!file) throw new ApiError(400, "Select a document to upload.");
   const documentType = String(payload.document_type || "").toUpperCase();
   if (!DOCUMENT_TYPES.has(documentType)) throw new ApiError(400, "Choose a valid document type.");
-  const documentLabel = String(payload.document_label || file.originalname || "Document").trim().slice(0, 120);
+  const defaultLabel =
+    documentType === "AADHAAR_CARD" ? "Aadhaar Card" :
+    documentType === "PAN_CARD" ? "PAN Card" :
+    documentType === "BANK_DETAILS" ? "Bank Details (Passbook / Cheque)" :
+    documentType === "PROFILE_PHOTO" ? "Official ID Card Photo" :
+    documentType === "OFFICE_DOCUMENT" ? "Office Document" :
+    file.originalname || "Other Document";
+  const documentLabel = String(payload.document_label || defaultLabel).trim().slice(0, 120);
   if (!documentLabel) throw new ApiError(400, "Document label is required.");
   const { documentNumber, documentDetails } = parseManualDocumentDetails(payload, documentType);
 

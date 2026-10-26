@@ -71,7 +71,31 @@ const EmployeeDocuments = () => {
           <article className="hr-document-row" key={document.id}>
             <span className="hr-document-avatar"><UserRound size={21} /></span>
             <div className="hr-document-person"><strong>{document.employee_name}</strong><span>{document.employee_code || "Employee ID unavailable"} · {document.designation || "Team member"}</span><small>{document.department_name || "No department"}</small></div>
-            <div className="hr-document-file"><span>{TYPE_LABELS[document.document_type] || document.document_type}</span><strong>{document.document_label}</strong><small>{document.original_filename}</small>{document.document_number && <small>Document / Account no.: {document.document_number}</small>}{document.document_details && <small style={{ color: "#475569", marginTop: "2px" }}>Details: {document.document_details}</small>}</div>
+            <div className="hr-document-file">
+              <span>{TYPE_LABELS[document.document_type] || document.document_type}</span>
+              <strong>{document.document_label}</strong>
+              <small>{document.original_filename}</small>
+              {document.document_number && <small>Document / Account no.: {document.document_number}</small>}
+              {document.document_details && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px" }}>
+                  {document.document_details.split(" | ").map((part, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        background: "#f1f5f9",
+                        color: "#334155",
+                        padding: "1px 6px",
+                        borderRadius: "4px",
+                        fontSize: "11px",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      {part}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <button type="button" onClick={() => openDocument(document)}><Download size={16} /> Open</button>
           </article>
         ))}

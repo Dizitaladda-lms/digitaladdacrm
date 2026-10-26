@@ -149,8 +149,13 @@ const buildLocationFix = (position) => {
  * High-Accuracy Geolocation fetcher:
  * Uses getBestLocation helper to watch and collect the best accuracy fix.
  */
-export const getGPSLocation = async ({ requireFresh = false, maxWaitMs = 10000, goodAccuracy = 100 } = {}) => {
-  const loc = await getBestLocation(maxWaitMs, goodAccuracy);
+export const getGPSLocation = async ({
+  requireFresh = false,
+  maxWaitMs = 5000,
+  goodAccuracy = 120,
+  maxAgeMs = 30000,
+} = {}) => {
+  const loc = await getBestLocation(maxWaitMs, goodAccuracy, requireFresh ? 0 : maxAgeMs);
   if (!loc || loc.error) {
     return {
       latitude: null,
@@ -519,6 +524,50 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
   };
 
+  /**
+   * Smooth, fast location resolver for Check-In and Check-Out:
+   * Reuses current verified locationData in state if valid and recent (< 3 mins).
+   * This makes Check-In / Check-Out instantaneous (0ms wait) for users already on the page!
+   */
+  const getActionLocation = async () => {
+    const now = Date.now();
+    const isRecent = (ts) => ts && now - ts <= 3 * 60 * 1000;
+
+    // 1. If locationData in state is already valid & recent, return it instantly!
+    if (
+      locationData &&
+      !locationData.error &&
+      locationData.latitude != null &&
+      locationData.longitude != null &&
+      isRecent(locationData.timestamp || locationData.position_timestamp || now)
+    ) {
+      return locationData;
+    }
+
+    // 2. If memory / sessionStorage has recent valid GPS, return it instantly!
+    const lastKnown = loadLastKnownGps();
+    if (
+      lastKnown &&
+      lastKnown.latitude != null &&
+      lastKnown.longitude != null &&
+      isRecent(lastKnown.saved_at)
+    ) {
+      return lastKnown;
+    }
+
+    // 3. Otherwise fetch quickly (max 4s wait, allowing 30s browser cache)
+    const fresh = await getGPSLocation({
+      requireFresh: false,
+      maxWaitMs: 4000,
+      goodAccuracy: 120,
+      maxAgeMs: 30000,
+    });
+    if (fresh?.latitude != null) {
+      setLocationData(fresh);
+    }
+    return fresh;
+  };
+
   const validateGPSLocation = (loc) => {
     const isOfficeWifi = Boolean(statusData?.is_office_ip);
     const targetLat = statusData?.office_lat ?? DEFAULT_OFFICE_LAT;
@@ -530,7 +579,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       return true;
     }
 
-    if (!loc || loc.error || loc.latitude == null || loc.longitude == null) {
+    // If passed loc has an issue, fallback to locationData or last known valid GPS
+    const resolvedLoc =
+      loc && !loc.error && loc.latitude != null
+        ? loc
+        : locationData && !locationData.error && locationData.latitude != null
+        ? locationData
+        : loadLastKnownGps();
+
+    if (!resolvedLoc || resolvedLoc.error || resolvedLoc.latitude == null || resolvedLoc.longitude == null) {
       setShowLocationHelpModal(true);
       if (loc?.error_code === 1) {
         if (device.isLaptop) {
@@ -555,7 +612,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       return false;
     }
 
-    const evalResult = evaluateGpsStatus(loc, targetLat, targetLng, targetRadius);
+    const evalResult = evaluateGpsStatus(resolvedLoc, targetLat, targetLng, targetRadius);
 
     if (evalResult.status === "weak") {
       toast.error(
@@ -622,7 +679,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      const loc = await getGPSLocation({ requireFresh: true });
+      const loc = await getActionLocation();
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
@@ -732,7 +789,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      const loc = await getGPSLocation({ requireFresh: true });
+      const loc = await getActionLocation();
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
@@ -914,7 +971,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      const loc = await getGPSLocation({ requireFresh: true });
+      const loc = await getActionLocation();
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
@@ -950,7 +1007,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       }
 
       let assertion;
-      if (statusData?.passkey_required !== false) {
+      if (statusData?.passkey_required === true) {
         if (!window.isSecureContext || !window.PublicKeyCredential) {
           throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
         }
@@ -964,7 +1021,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         latitude: loc.latitude,
         longitude: loc.longitude,
         accuracy: loc.accuracy,
-        location_name: loc.location_name,
+        location_name: loc.location_name || "Office Premises",
         ...(assertion ? { assertion } : {}),
       };
       const result = await checkInAttendance(attendancePayload);
@@ -975,11 +1032,12 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       }
       toast.dismiss("biometric-auth");
       toast.success(
-        statusData?.passkey_required === false
-          ? `Check-in marked at 📍 ${loc.location_name}`
-          : `Passkey verified. Check-in marked at 📍 ${loc.location_name}`
+        statusData?.passkey_required === true
+          ? `Passkey verified. Check-in marked at 📍 ${loc.location_name || "Office Premises"}`
+          : `Check-in marked at 📍 ${loc.location_name || "Office Premises"}`
       );
-      await loadStatus();
+      setActionLoading(false);
+      loadStatus().catch(() => {});
       if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
       toast.dismiss("biometric-auth");
@@ -1025,7 +1083,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     try {
       setActionLoading(true);
 
-      const loc = await getGPSLocation({ requireFresh: true });
+      const loc = await getActionLocation();
       if (loc?.latitude != null) {
         setLocationData(loc);
       }
@@ -1057,7 +1115,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       }
 
       let assertion;
-      if (statusData?.passkey_required !== false) {
+      if (statusData?.passkey_required === true) {
         if (!window.isSecureContext || !window.PublicKeyCredential) {
           throw new Error("Passkeys require a supported browser and a secure HTTPS connection.");
         }
@@ -1071,7 +1129,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         latitude: loc.latitude,
         longitude: loc.longitude,
         accuracy: loc?.accuracy,
-        location_name: loc.location_name,
+        location_name: loc.location_name || "Office Premises",
         ...(assertion ? { assertion } : {}),
       };
       const result = await checkOutAttendance(attendancePayload);
@@ -1082,11 +1140,12 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       }
       toast.dismiss("biometric-auth");
       toast.success(
-        statusData?.passkey_required === false
-          ? `Check-out marked at 📍 ${loc.location_name}`
-          : `Passkey verified. Check-out marked at 📍 ${loc.location_name}`
+        statusData?.passkey_required === true
+          ? `Passkey verified. Check-out marked at 📍 ${loc.location_name || "Office Premises"}`
+          : `Check-out marked at 📍 ${loc.location_name || "Office Premises"}`
       );
-      await loadStatus();
+      setActionLoading(false);
+      loadStatus().catch(() => {});
       if (onCheckInSuccess) onCheckInSuccess(result?.data);
     } catch (err) {
       toast.dismiss("biometric-auth");

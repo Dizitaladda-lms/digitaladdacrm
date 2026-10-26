@@ -21,11 +21,11 @@ export const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 /**
- * Actively watches and gathers high-accuracy GPS positions up to maxWaitMs (default 10s).
- * If a position with accuracy <= goodAccuracy (default 100m) is found, resolves early.
- * Otherwise, holds and returns the best (lowest accuracy radius) reading seen during the window.
+ * Actively gathers high-accuracy GPS positions up to maxWaitMs (default 6s).
+ * If a position with accuracy <= goodAccuracy (default 120m) is found, resolves early.
+ * Otherwise, holds and returns the best reading seen during the window.
  */
-export const getBestLocation = (maxWaitMs = 10000, goodAccuracy = 100) => {
+export const getBestLocation = (maxWaitMs = 6000, goodAccuracy = 120, maxAgeMs = 30000) => {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return resolve({
@@ -71,7 +71,7 @@ export const getBestLocation = (maxWaitMs = 10000, goodAccuracy = 100) => {
         bestPosition = pos;
       }
 
-      // If accuracy <= goodAccuracy (100m), resolve immediately without waiting further
+      // If accuracy <= goodAccuracy, resolve immediately without waiting further
       if (acc > 0 && acc <= goodAccuracy) {
         finish({
           latitude: pos.coords.latitude,
@@ -98,29 +98,27 @@ export const getBestLocation = (maxWaitMs = 10000, goodAccuracy = 100) => {
       }
     };
 
-    // 1. Start continuous watchPosition with strict high accuracy
+    const geoOptions = {
+      enableHighAccuracy: true,
+      maximumAge: Number.isFinite(maxAgeMs) ? maxAgeMs : 30000,
+      timeout: Math.min(Math.max(maxWaitMs, 2000), 8000),
+    };
+
+    // 1. Start continuous watchPosition
     try {
-      watchId = navigator.geolocation.watchPosition(handlePosition, handleError, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 15000,
-      });
+      watchId = navigator.geolocation.watchPosition(handlePosition, handleError, geoOptions);
     } catch (e) {
       handleError(e);
     }
 
-    // 2. Also trigger getCurrentPosition in parallel (often resolves earlier on some mobile OS)
+    // 2. Also trigger getCurrentPosition in parallel
     try {
-      navigator.geolocation.getCurrentPosition(handlePosition, handleError, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 15000,
-      });
+      navigator.geolocation.getCurrentPosition(handlePosition, handleError, geoOptions);
     } catch {
       // Ignore parallel trigger error
     }
 
-    // 3. Set collection window deadline (10 seconds)
+    // 3. Set collection window deadline
     timeoutId = setTimeout(() => {
       if (bestPosition) {
         finish({
