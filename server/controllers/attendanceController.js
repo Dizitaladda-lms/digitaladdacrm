@@ -19,6 +19,8 @@ import {
   addOfficeIPService,
   deleteOfficeIPService,
   upsertEmployeeAttendanceByHRService,
+  getAttendanceSettingsService,
+  updateAttendanceSettingsService,
 } from "../services/attendanceService.js";
 import {
   getCompanyPresenceService,
@@ -28,7 +30,7 @@ import {
 
 export const getMyBiometricStatus = asyncHandler(async (req, res) => {
   const targetDate = req.query.date || null;
-  const result = await getMyBiometricStatusService(req.user, targetDate);
+  const result = await getMyBiometricStatusService(req.user, targetDate, req);
   return res.status(200).json(new ApiResponse(200, result, "Biometric status fetched successfully."));
 });
 
@@ -151,6 +153,16 @@ export const syncOfflineAttendance = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Offline attendance synchronized successfully."));
+});
+
+export const getAttendanceSettings = asyncHandler(async (req, res) => {
+  const result = await getAttendanceSettingsService(req);
+  return res.status(200).json(new ApiResponse(200, result, "Attendance settings fetched successfully."));
+});
+
+export const updateAttendanceSettings = asyncHandler(async (req, res) => {
+  const result = await updateAttendanceSettingsService(req.body, req.user, req);
+  return res.status(200).json(new ApiResponse(200, result, "Attendance settings updated successfully."));
 });
 
 

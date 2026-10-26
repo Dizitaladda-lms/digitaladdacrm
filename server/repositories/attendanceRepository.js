@@ -4,6 +4,31 @@ import pool from "../config/db.js";
 // Office Wi-Fi Whitelisted IPs
 // ==========================================
 
+export const getAttendanceSettingsRepository = async () => {
+  try {
+    const result = await pool.query(
+      `SELECT key, value FROM attendance_settings;`
+    );
+    return result.rows || [];
+  } catch {
+    return [];
+  }
+};
+
+export const upsertAttendanceSettingRepository = async (key, value, description = null) => {
+  const result = await pool.query(
+    `INSERT INTO attendance_settings (key, value, description, updated_at)
+     VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+     ON CONFLICT (key)
+     DO UPDATE SET value = EXCLUDED.value,
+                   description = COALESCE(EXCLUDED.description, attendance_settings.description),
+                   updated_at = CURRENT_TIMESTAMP
+     RETURNING *;`,
+    [key, String(value), description]
+  );
+  return result.rows[0];
+};
+
 export const getWhitelistedIPsRepository = async () => {
   const result = await pool.query(
     `SELECT * FROM office_wifi_ips WHERE is_active = TRUE ORDER BY id ASC;`
@@ -273,98 +298,207 @@ export const findTodayAttendanceRepository = async (employee_id, dateStr) => {
 
 export const createAttendanceCheckInRepository = async (client, {
   employee_id, date, ip_address, is_office_wifi, status,
-  check_in_lat, check_in_lng, check_in_location, check_in_time
+  check_in_lat, check_in_lng, check_in_location, check_in_time,
+  check_in_accuracy, check_in_distance, verification_method
 }) => {
   const dbClient = client || pool;
   const targetDate = date || getTodayISTDateString();
-  const result = await dbClient.query(
-    `
-      INSERT INTO daily_attendance (
-        employee_id, date, check_in_time, ip_address, is_office_wifi, status,
-        check_in_lat, check_in_lng, check_in_location
-      )
-      VALUES ($1, $2::date, COALESCE($9::timestamptz, CURRENT_TIMESTAMP), $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (employee_id, date) 
-      DO UPDATE SET 
-        check_in_time = COALESCE(daily_attendance.check_in_time, EXCLUDED.check_in_time, CURRENT_TIMESTAMP),
-        status = CASE
-          WHEN daily_attendance.check_in_time IS NULL THEN EXCLUDED.status
-          ELSE daily_attendance.status
-        END,
-        ip_address = COALESCE($3, daily_attendance.ip_address),
-        check_in_lat = COALESCE(EXCLUDED.check_in_lat, daily_attendance.check_in_lat),
-        check_in_lng = COALESCE(EXCLUDED.check_in_lng, daily_attendance.check_in_lng),
-        check_in_location = COALESCE(EXCLUDED.check_in_location, daily_attendance.check_in_location),
-        updated_at = CURRENT_TIMESTAMP
-      RETURNING
-        *,
-        ROUND(
-          GREATEST(
-            0.00,
-            ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
-          ),
-          2
-        ) AS live_hours;
-    `,
-    [
-      employee_id,
-      targetDate,
-      ip_address || null,
-      is_office_wifi !== false,
-      status || "PRESENT",
-      check_in_lat ?? null,
-      check_in_lng ?? null,
-      check_in_location || null,
-      check_in_time || null
-    ]
-  );
-  return result.rows[0];
-};
-
-export const updateAttendanceCheckOutRepository = async (client, {
-  id, total_hours, check_out_lat, check_out_lng, check_out_location, check_out_time
-}) => {
-  const dbClient = client || pool;
-  const result = await dbClient.query(
-    `
-      UPDATE daily_attendance
-      SET 
-        check_out_time = COALESCE($6::timestamptz, CURRENT_TIMESTAMP),
-        total_hours = COALESCE(
-          $1::numeric,
+  try {
+    const result = await dbClient.query(
+      `
+        INSERT INTO daily_attendance (
+          employee_id, date, check_in_time, ip_address, is_office_wifi, status,
+          check_in_lat, check_in_lng, check_in_location,
+          check_in_accuracy, check_in_distance, verification_method
+        )
+        VALUES ($1, $2::date, COALESCE($9::timestamptz, CURRENT_TIMESTAMP), $3, $4, $5, $6, $7, $8, $10, $11, $12)
+        ON CONFLICT (employee_id, date) 
+        DO UPDATE SET 
+          check_in_time = COALESCE(daily_attendance.check_in_time, EXCLUDED.check_in_time, CURRENT_TIMESTAMP),
+          status = CASE
+            WHEN daily_attendance.check_in_time IS NULL THEN EXCLUDED.status
+            ELSE daily_attendance.status
+          END,
+          ip_address = COALESCE($3, daily_attendance.ip_address),
+          check_in_lat = COALESCE(EXCLUDED.check_in_lat, daily_attendance.check_in_lat),
+          check_in_lng = COALESCE(EXCLUDED.check_in_lng, daily_attendance.check_in_lng),
+          check_in_location = COALESCE(EXCLUDED.check_in_location, daily_attendance.check_in_location),
+          check_in_accuracy = COALESCE(EXCLUDED.check_in_accuracy, daily_attendance.check_in_accuracy),
+          check_in_distance = COALESCE(EXCLUDED.check_in_distance, daily_attendance.check_in_distance),
+          verification_method = COALESCE(EXCLUDED.verification_method, daily_attendance.verification_method),
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING
+          *,
           ROUND(
             GREATEST(
               0.00,
-              ((EXTRACT(EPOCH FROM (COALESCE($6::timestamptz, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+              ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
             ),
             2
+          ) AS live_hours;
+      `,
+      [
+        employee_id,
+        targetDate,
+        ip_address || null,
+        is_office_wifi !== false,
+        status || "PRESENT",
+        check_in_lat ?? null,
+        check_in_lng ?? null,
+        check_in_location || null,
+        check_in_time || null,
+        check_in_accuracy ?? null,
+        check_in_distance ?? null,
+        verification_method || (is_office_wifi ? "IP" : "GPS")
+      ]
+    );
+    return result.rows[0];
+  } catch (err) {
+    if (err?.code === "42703") {
+      const fallbackResult = await dbClient.query(
+        `
+          INSERT INTO daily_attendance (
+            employee_id, date, check_in_time, ip_address, is_office_wifi, status,
+            check_in_lat, check_in_lng, check_in_location
           )
-        ),
-        check_out_lat = COALESCE($2, check_out_lat, check_in_lat),
-        check_out_lng = COALESCE($3, check_out_lng, check_in_lng),
-        check_out_location = COALESCE($4, check_out_location, check_in_location, 'Dizital Adda Office Premises'),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
-      RETURNING
-        *,
-        ROUND(
-          GREATEST(
-            0.00,
-            ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+          VALUES ($1, $2::date, COALESCE($9::timestamptz, CURRENT_TIMESTAMP), $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (employee_id, date) 
+          DO UPDATE SET 
+            check_in_time = COALESCE(daily_attendance.check_in_time, EXCLUDED.check_in_time, CURRENT_TIMESTAMP),
+            status = CASE
+              WHEN daily_attendance.check_in_time IS NULL THEN EXCLUDED.status
+              ELSE daily_attendance.status
+            END,
+            ip_address = COALESCE($3, daily_attendance.ip_address),
+            check_in_lat = COALESCE(EXCLUDED.check_in_lat, daily_attendance.check_in_lat),
+            check_in_lng = COALESCE(EXCLUDED.check_in_lng, daily_attendance.check_in_lng),
+            check_in_location = COALESCE(EXCLUDED.check_in_location, daily_attendance.check_in_location),
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING
+            *,
+            ROUND(
+              GREATEST(
+                0.00,
+                ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+              ),
+              2
+            ) AS live_hours;
+        `,
+        [
+          employee_id,
+          targetDate,
+          ip_address || null,
+          is_office_wifi !== false,
+          status || "PRESENT",
+          check_in_lat ?? null,
+          check_in_lng ?? null,
+          check_in_location || null,
+          check_in_time || null
+        ]
+      );
+      return fallbackResult.rows[0];
+    }
+    throw err;
+  }
+};
+
+export const updateAttendanceCheckOutRepository = async (client, {
+  id, total_hours, check_out_lat, check_out_lng, check_out_location, check_out_time,
+  check_out_accuracy, check_out_distance, verification_method
+}) => {
+  const dbClient = client || pool;
+  try {
+    const result = await dbClient.query(
+      `
+        UPDATE daily_attendance
+        SET 
+          check_out_time = COALESCE($6::timestamptz, CURRENT_TIMESTAMP),
+          total_hours = COALESCE(
+            $1::numeric,
+            ROUND(
+              GREATEST(
+                0.00,
+                ((EXTRACT(EPOCH FROM (COALESCE($6::timestamptz, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+              ),
+              2
+            )
           ),
-          2
-        ) AS live_hours;
-    `,
-    [
-      total_hours != null ? Number(total_hours) : null,
-      check_out_lat ?? null,
-      check_out_lng ?? null,
-      check_out_location || null,
-      id,
-      check_out_time || null
-    ]
-  );
-  return result.rows[0];
+          check_out_lat = COALESCE($2, check_out_lat, check_in_lat),
+          check_out_lng = COALESCE($3, check_out_lng, check_in_lng),
+          check_out_location = COALESCE($4, check_out_location, check_in_location, 'Dizital Adda Office Premises'),
+          check_out_accuracy = COALESCE($7, check_out_accuracy),
+          check_out_distance = COALESCE($8, check_out_distance),
+          verification_method = COALESCE($9, verification_method, daily_attendance.verification_method),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+        RETURNING
+          *,
+          ROUND(
+            GREATEST(
+              0.00,
+              ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+            ),
+            2
+          ) AS live_hours;
+      `,
+      [
+        total_hours != null ? Number(total_hours) : null,
+        check_out_lat ?? null,
+        check_out_lng ?? null,
+        check_out_location || null,
+        id,
+        check_out_time || null,
+        check_out_accuracy ?? null,
+        check_out_distance ?? null,
+        verification_method || null
+      ]
+    );
+    return result.rows[0];
+  } catch (err) {
+    if (err?.code === "42703") {
+      const fallbackResult = await dbClient.query(
+        `
+          UPDATE daily_attendance
+          SET 
+            check_out_time = COALESCE($6::timestamptz, CURRENT_TIMESTAMP),
+            total_hours = COALESCE(
+              $1::numeric,
+              ROUND(
+                GREATEST(
+                  0.00,
+                  ((EXTRACT(EPOCH FROM (COALESCE($6::timestamptz, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+                ),
+                2
+              )
+            ),
+            check_out_lat = COALESCE($2, check_out_lat, check_in_lat),
+            check_out_lng = COALESCE($3, check_out_lng, check_in_lng),
+            check_out_location = COALESCE($4, check_out_location, check_in_location, 'Dizital Adda Office Premises'),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $5
+          RETURNING
+            *,
+            ROUND(
+              GREATEST(
+                0.00,
+                ((EXTRACT(EPOCH FROM (COALESCE(check_out_time, CURRENT_TIMESTAMP) - COALESCE(check_in_time, CURRENT_TIMESTAMP))) / 3600.0)::numeric)
+              ),
+              2
+            ) AS live_hours;
+        `,
+        [
+          total_hours != null ? Number(total_hours) : null,
+          check_out_lat ?? null,
+          check_out_lng ?? null,
+          check_out_location || null,
+          id,
+          check_out_time || null
+        ]
+      );
+      return fallbackResult.rows[0];
+    }
+    throw err;
+  }
 };
 
 // Close only still-open records for the current IST date. The WHERE condition

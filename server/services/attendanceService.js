@@ -10,6 +10,8 @@ import {
 import { getAttendanceWebAuthnConfig } from "../utils/attendanceWebAuthn.js";
 import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
 import {
+  getAttendanceSettingsRepository,
+  upsertAttendanceSettingRepository,
   getWhitelistedIPsRepository,
   addWhitelistedIPRepository,
   deleteWhitelistedIPRepository,
@@ -35,21 +37,92 @@ import {
 /**
  * Extracts and cleans client IP address from request headers / socket
  */
-const getClientIp = (req) => {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) {
+export const getClientIp = (req) => {
+  if (!req) return "127.0.0.1";
+  const cf = req.headers?.["cf-connecting-ip"];
+  if (cf && typeof cf === "string" && cf.trim()) return cf.trim();
+
+  const forwarded = req.headers?.["x-forwarded-for"];
+  if (forwarded && typeof forwarded === "string") {
     const ips = forwarded.split(",");
-    return ips[0].trim();
+    const first = ips[0].trim();
+    if (first) {
+      return first.startsWith("::ffff:") ? first.replace("::ffff:", "") : first;
+    }
   }
-  return req.ip || req.connection?.remoteAddress || "127.0.0.1";
+
+  const realIp = req.headers?.["x-real-ip"];
+  if (realIp && typeof realIp === "string" && realIp.trim()) {
+    const cleaned = realIp.trim();
+    return cleaned.startsWith("::ffff:") ? cleaned.replace("::ffff:", "") : cleaned;
+  }
+
+  let raw = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || "127.0.0.1";
+  if (typeof raw === "string" && raw.startsWith("::ffff:")) {
+    raw = raw.replace("::ffff:", "");
+  }
+  return raw;
 };
 
 /**
- * Verifies request IP (now non-restrictive: allows attendance from any mobile Wi-Fi / Cellular data network)
+ * Verifies if the request originates from a registered office Wi-Fi / IP
  */
 export const verifyOfficeIP = async (req) => {
   const clientIp = getClientIp(req);
-  return { clientIp, isOfficeWifi: true };
+  if (!clientIp) {
+    return { clientIp: "Unknown", isOfficeWifi: false };
+  }
+
+  // 1. Check process.env.OFFICE_IPS
+  const envOfficeIps = (process.env.OFFICE_IPS || "")
+    .split(",")
+    .map((ip) => ip.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (envOfficeIps.includes(clientIp.toLowerCase())) {
+    return { clientIp, isOfficeWifi: true };
+  }
+
+  // 2. Check office_wifi_ips table in DB
+  try {
+    const dbIps = await getWhitelistedIPsRepository();
+    const isMatch = (dbIps || []).some(
+      (row) =>
+        row.is_active !== false &&
+        row.ip_address &&
+        row.ip_address.trim().toLowerCase() === clientIp.toLowerCase()
+    );
+    return { clientIp, isOfficeWifi: isMatch };
+  } catch {
+    return { clientIp, isOfficeWifi: false };
+  }
+};
+
+/**
+ * Retrieves configured office coordinates & radius (from DB or .env fallback)
+ */
+export const getOfficeSettings = async () => {
+  let dbSettings = {};
+  try {
+    const rows = await getAttendanceSettingsRepository();
+    for (const r of rows || []) {
+      dbSettings[r.key] = r.value;
+    }
+  } catch {
+    // fallback
+  }
+
+  const office_lat = Number(
+    dbSettings.office_lat || process.env.OFFICE_LAT || 28.54175
+  );
+  const office_lng = Number(
+    dbSettings.office_lng || process.env.OFFICE_LNG || 77.240611111
+  );
+  const office_radius = Number(
+    dbSettings.office_radius || process.env.OFFICE_RADIUS || 100
+  );
+
+  return { office_lat, office_lng, office_radius };
 };
 
 const getIstDateString = (now = new Date()) => {
@@ -141,10 +214,18 @@ export const requiresIOSFaceVerification = (req) =>
 // Service Methods
 // ==========================================
 
-export const getMyBiometricStatusService = async (currentUser, dateStr = null) => {
+export const getMyBiometricStatusService = async (currentUser, dateStr = null, req = null) => {
   const employee = await getEmployeeId(currentUser);
   const biometric = await findEmployeeBiometricRepository(employee.id);
   const todayAttendance = await findTodayAttendanceRepository(employee.id, dateStr);
+  const { office_lat, office_lng, office_radius } = await getOfficeSettings();
+  let client_ip = null;
+  let is_office_ip = false;
+  if (req) {
+    const verified = await verifyOfficeIP(req);
+    client_ip = verified.clientIp;
+    is_office_ip = verified.isOfficeWifi;
+  }
 
   return {
     employee_id: employee.id,
@@ -168,6 +249,11 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null) =
     custom_shift_timings: employee.custom_shift_timings || null,
     laptop_attendance_enabled: Boolean(employee.laptop_attendance_enabled),
     today_attendance: todayAttendance || null,
+    office_lat,
+    office_lng,
+    office_radius,
+    client_ip,
+    is_office_ip,
   };
 };
 
@@ -414,19 +500,19 @@ const verifyAttendanceFace = async (employeeId, biometric, faceProof) => {
   });
 };
 
-// Office Geofence Coordinates: 28°32'30.3"N 77°14'26.2"E
-const OFFICE_LAT = 28.54175;
-const OFFICE_LNG = 77.240611111;
-const MAX_GEOFENCE_RADIUS_METERS = 100;
+// Default Office Geofence Coordinates: 28°32'30.3"N 77°14'26.2"E
+const DEFAULT_OFFICE_LAT = 28.54175;
+const DEFAULT_OFFICE_LNG = 77.240611111;
+const DEFAULT_MAX_GEOFENCE_RADIUS_METERS = 100;
 
-export const calculateGeofenceDistance = (userLat, userLng) => {
+export const calculateGeofenceDistance = (userLat, userLng, targetLat = DEFAULT_OFFICE_LAT, targetLng = DEFAULT_OFFICE_LNG) => {
   const R = 6371000; // Earth's radius in meters
   const rad = Math.PI / 180;
-  const dLat = (OFFICE_LAT - userLat) * rad;
-  const dLon = (OFFICE_LNG - userLng) * rad;
+  const dLat = (targetLat - userLat) * rad;
+  const dLon = (targetLng - userLng) * rad;
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(userLat * rad) * Math.cos(OFFICE_LAT * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(userLat * rad) * Math.cos(targetLat * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -460,21 +546,88 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   const employee = await getEmployeeId(currentUser);
   ensureLaptopAttendanceIsEnabled(employee, req);
 
-  const { assertion, latitude, longitude, location_name } = payload || {};
-  const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "mark attendance");
+  const { assertion, latitude, longitude, accuracy, location_name } = payload || {};
+  const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
+  const { office_lat, office_lng, office_radius } = await getOfficeSettings();
 
-  const distanceInMeters = calculateGeofenceDistance(lat, lng);
-  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
+  const hasCoords =
+    latitude !== undefined &&
+    longitude !== undefined &&
+    Number.isFinite(Number(latitude)) &&
+    Number.isFinite(Number(longitude)) &&
+    Number(latitude) >= -90 &&
+    Number(latitude) <= 90 &&
+    Number(longitude) >= -180 &&
+    Number(longitude) <= 180;
+
+  const lat = hasCoords ? Number(latitude) : null;
+  const lng = hasCoords ? Number(longitude) : null;
+  const acc =
+    accuracy !== undefined && Number.isFinite(Number(accuracy)) && Number(accuracy) > 0
+      ? Number(accuracy)
+      : null;
+
+  let distanceInMeters = null;
+  if (hasCoords) {
+    distanceInMeters = calculateGeofenceDistance(lat, lng, office_lat, office_lng);
+  }
+
+  let isGpsOk = false;
+  let isGpsWeak = false;
+
+  if (hasCoords) {
+    if (acc !== null && acc > 150) {
+      isGpsWeak = true;
+      isGpsOk = false;
+    } else {
+      const allowedRadius = office_radius + (acc || 0);
+      isGpsOk = distanceInMeters <= allowedRadius;
+    }
+  }
+
+  // Rule: IP match OR GPS ok => check-in allow
+  const isAllowed = isOfficeWifi || isGpsOk;
+
+  let verificationMethod = "NONE";
+  if (isOfficeWifi && isGpsOk) {
+    verificationMethod = "GPS+IP";
+  } else if (isOfficeWifi) {
+    verificationMethod = "IP";
+  } else if (isGpsOk) {
+    verificationMethod = "GPS";
+  }
+
+  // Debugging log: lat, lng, accuracy, distance, userIp, final decision
+  console.log(
+    `[ATTENDANCE_CHECKIN] Employee: ${employee.id} (${employee.full_name}) | ` +
+    `IP: ${clientIp} (Office Wi-Fi Match: ${isOfficeWifi}) | ` +
+    `GPS: (${lat ?? 'N/A'}, ${lng ?? 'N/A'}, acc: ${acc !== null ? acc + 'm' : 'N/A'}) | ` +
+    `Distance: ${distanceInMeters !== null ? Math.round(distanceInMeters) + 'm' : 'N/A'} (Radius: ${office_radius}m) | ` +
+    `Decision: ${isAllowed ? 'ALLOWED via ' + verificationMethod : 'REJECTED'}`
+  );
+
+  if (!isAllowed) {
+    if (isGpsWeak) {
+      throw new ApiError(
+        400,
+        `📍 GPS signal weak hai (${Math.round(acc)}m accuracy - 150m max allowed) aur aap office Wi-Fi se connect nahi hain. Kripya phone me 'Precise Location' aur Wi-Fi ON karein, phir dobara try karein.`
+      );
+    }
+    if (hasCoords && distanceInMeters > office_radius + (acc || 0)) {
+      throw new ApiError(
+        400,
+        `📍 Attendance Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. Attendance can only be marked within ${office_radius} meters of office premises or on office Wi-Fi.`
+      );
+    }
     throw new ApiError(
       400,
-      `📍 Attendance Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. Attendance can only be marked within 100 meters of the office premises.`
+      `GPS location ya office Wi-Fi connection zaroori hai attendance mark karne ke liye.`
     );
   }
 
   if (isAttendancePasskeyRequired()) {
     await verifyAttendancePasskey(employee.id, assertion);
   }
-  const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
 
   const todayStr = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -484,9 +637,6 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }).format(new Date());
 
   // Calculate if check-in is late based on IST office schedule
-  // Mon - Fri: 10:00 AM (600 mins)
-  // Sat: 9:30 AM (570 mins)
-  // Sun: 9:30 AM (570 mins)
   let status = "PRESENT";
   try {
     const now = new Date();
@@ -538,8 +688,10 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }
 
   const cleanLocation =
-    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
+    distanceInMeters != null && distanceInMeters <= (office_radius + (acc || 0))
       ? "Dizital Adda Office Premises"
+      : isOfficeWifi
+      ? "Dizital Adda Office Premises (Office Wi-Fi)"
       : (location_name || null);
 
   const attendance = await createAttendanceCheckInRepository(null, {
@@ -551,6 +703,9 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     check_in_lat: lat,
     check_in_lng: lng,
     check_in_location: cleanLocation,
+    check_in_accuracy: acc,
+    check_in_distance: distanceInMeters !== null ? Math.round(distanceInMeters * 100) / 100 : null,
+    verification_method: verificationMethod,
   });
 
   return attendance;
@@ -560,18 +715,83 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   const employee = await getEmployeeId(currentUser);
   ensureLaptopAttendanceIsEnabled(employee, req);
 
-  const { assertion, latitude, longitude, location_name } = payload || {};
-  const { lat, lng } = getValidatedCoordinates(latitude, longitude, location_name, "check out");
+  const { assertion, latitude, longitude, accuracy, location_name } = payload || {};
+  const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
+  const { office_lat, office_lng, office_radius } = await getOfficeSettings();
 
-  const distanceInMeters = calculateGeofenceDistance(lat, lng);
-  if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
+  const hasCoords =
+    latitude !== undefined &&
+    longitude !== undefined &&
+    Number.isFinite(Number(latitude)) &&
+    Number.isFinite(Number(longitude)) &&
+    Number(latitude) >= -90 &&
+    Number(latitude) <= 90 &&
+    Number(longitude) >= -180 &&
+    Number(longitude) <= 180;
+
+  const lat = hasCoords ? Number(latitude) : null;
+  const lng = hasCoords ? Number(longitude) : null;
+  const acc =
+    accuracy !== undefined && Number.isFinite(Number(accuracy)) && Number(accuracy) > 0
+      ? Number(accuracy)
+      : null;
+
+  let distanceInMeters = null;
+  if (hasCoords) {
+    distanceInMeters = calculateGeofenceDistance(lat, lng, office_lat, office_lng);
+  }
+
+  let isGpsOk = false;
+  let isGpsWeak = false;
+
+  if (hasCoords) {
+    if (acc !== null && acc > 150) {
+      isGpsWeak = true;
+      isGpsOk = false;
+    } else {
+      const allowedRadius = office_radius + (acc || 0);
+      isGpsOk = distanceInMeters <= allowedRadius;
+    }
+  }
+
+  const isAllowed = isOfficeWifi || isGpsOk;
+
+  let verificationMethod = "NONE";
+  if (isOfficeWifi && isGpsOk) {
+    verificationMethod = "GPS+IP";
+  } else if (isOfficeWifi) {
+    verificationMethod = "IP";
+  } else if (isGpsOk) {
+    verificationMethod = "GPS";
+  }
+
+  console.log(
+    `[ATTENDANCE_CHECKOUT] Employee: ${employee.id} (${employee.full_name}) | ` +
+    `IP: ${clientIp} (Office Wi-Fi Match: ${isOfficeWifi}) | ` +
+    `GPS: (${lat ?? 'N/A'}, ${lng ?? 'N/A'}, acc: ${acc !== null ? acc + 'm' : 'N/A'}) | ` +
+    `Distance: ${distanceInMeters !== null ? Math.round(distanceInMeters) + 'm' : 'N/A'} (Radius: ${office_radius}m) | ` +
+    `Decision: ${isAllowed ? 'ALLOWED via ' + verificationMethod : 'REJECTED'}`
+  );
+
+  if (!isAllowed) {
+    if (isGpsWeak) {
+      throw new ApiError(
+        400,
+        `📍 GPS signal weak hai (${Math.round(acc)}m accuracy - 150m max allowed) aur aap office Wi-Fi se connect nahi hain. Kripya phone me 'Precise Location' aur Wi-Fi ON karein, phir dobara try karein.`
+      );
+    }
+    if (hasCoords && distanceInMeters > office_radius + (acc || 0)) {
+      throw new ApiError(
+        400,
+        `📍 Check-Out Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. You can only check out within ${office_radius} meters of office premises or on office Wi-Fi.`
+      );
+    }
     throw new ApiError(
       400,
-      `📍 Check-Out Rejected! You are ${Math.round(distanceInMeters)} meters away from the office location. You can only check out within 100 meters of the office premises.`
+      `GPS location ya office Wi-Fi connection zaroori hai check out ke liye.`
     );
   }
 
-  await verifyOfficeIP(req);
   if (isAttendancePasskeyRequired() && assertion) {
     await verifyAttendancePasskey(employee.id, assertion);
   }
@@ -583,8 +803,10 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
   }
 
   const cleanLocation =
-    distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
+    distanceInMeters != null && distanceInMeters <= (office_radius + (acc || 0))
       ? "Dizital Adda Office Premises"
+      : isOfficeWifi
+      ? "Dizital Adda Office Premises (Office Wi-Fi)"
       : (location_name || null);
 
   return await updateAttendanceCheckOutRepository(null, {
@@ -592,6 +814,9 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
     check_out_lat: lat,
     check_out_lng: lng,
     check_out_location: cleanLocation,
+    check_out_accuracy: acc,
+    check_out_distance: distanceInMeters !== null ? Math.round(distanceInMeters * 100) / 100 : null,
+    verification_method: verificationMethod,
   });
 };
 
@@ -617,6 +842,7 @@ export const syncOfflineAttendanceService = async (payload = {}, currentUser, re
   });
 
   const { clientIp, isOfficeWifi } = await verifyOfficeIP(req);
+  const { office_lat, office_lng, office_radius } = await getOfficeSettings();
   const results = [];
 
   for (const punch of punches) {
@@ -632,16 +858,25 @@ export const syncOfflineAttendanceService = async (payload = {}, currentUser, re
       isCheckIn ? "sync offline check-in" : "sync offline check-out"
     );
 
-    const distanceInMeters = calculateGeofenceDistance(lat, lng);
-    if (distanceInMeters > MAX_GEOFENCE_RADIUS_METERS) {
+    const distanceInMeters = calculateGeofenceDistance(lat, lng, office_lat, office_lng);
+    const acc = Number.isFinite(Number(punch.accuracy)) && Number(punch.accuracy) > 0 ? Number(punch.accuracy) : null;
+
+    if (acc !== null && acc > 150) {
       throw new ApiError(
         400,
-        `📍 Offline attendance punch rejected! Coordinates (${Math.round(distanceInMeters)}m) are outside the 100m office geofence.`
+        `📍 Offline attendance punch rejected! GPS accuracy (${Math.round(acc)}m) was too weak (150m required).`
+      );
+    }
+
+    if (distanceInMeters > office_radius + (acc || 0)) {
+      throw new ApiError(
+        400,
+        `📍 Offline attendance punch rejected! Coordinates (${Math.round(distanceInMeters)}m) are outside the ${office_radius}m office geofence.`
       );
     }
 
     const cleanLocation =
-      distanceInMeters <= MAX_GEOFENCE_RADIUS_METERS
+      distanceInMeters <= office_radius + (acc || 0)
         ? "Dizital Adda Office Premises"
         : (punch.location_name || null);
 
@@ -712,6 +947,9 @@ export const syncOfflineAttendanceService = async (payload = {}, currentUser, re
         check_in_lng: lng,
         check_in_location: cleanLocation,
         check_in_time: punchDate.toISOString(),
+        check_in_accuracy: acc,
+        check_in_distance: distanceInMeters !== null ? Math.round(distanceInMeters * 100) / 100 : null,
+        verification_method: "GPS",
       });
       results.push({ action: "check-in", attendance });
     } else {
@@ -727,6 +965,9 @@ export const syncOfflineAttendanceService = async (payload = {}, currentUser, re
           check_in_lng: lng,
           check_in_location: cleanLocation,
           check_in_time: punchDate.toISOString(),
+          check_in_accuracy: acc,
+          check_in_distance: distanceInMeters !== null ? Math.round(distanceInMeters * 100) / 100 : null,
+          verification_method: "GPS",
         });
       }
 
@@ -736,6 +977,9 @@ export const syncOfflineAttendanceService = async (payload = {}, currentUser, re
         check_out_lng: lng,
         check_out_location: cleanLocation,
         check_out_time: punchDate.toISOString(),
+        check_out_accuracy: acc,
+        check_out_distance: distanceInMeters !== null ? Math.round(distanceInMeters * 100) / 100 : null,
+        verification_method: "GPS",
       });
       results.push({ action: "check-out", attendance: updated });
     }
@@ -1011,5 +1255,68 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
     ip_address: getClientIp(req || { headers: {} }),
     location_label: locationLabel,
   });
+};
+
+export const getAttendanceSettingsService = async (req = null) => {
+  const settings = await getOfficeSettings();
+  let clientIp = "127.0.0.1";
+  let isOfficeWifi = false;
+  if (req) {
+    const verified = await verifyOfficeIP(req);
+    clientIp = verified.clientIp;
+    isOfficeWifi = verified.isOfficeWifi;
+  }
+  const ips = await getWhitelistedIPsRepository();
+  return {
+    ...settings,
+    client_ip: clientIp,
+    is_office_ip: isOfficeWifi,
+    office_ips: ips || [],
+  };
+};
+
+export const updateAttendanceSettingsService = async (payload = {}, currentUser, req = null) => {
+  const isAuthorized = ["HR", "ADMIN", "SUPER_ADMIN"].includes(currentUser.role);
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to edit attendance settings.");
+  }
+
+  const { office_lat, office_lng, office_radius, office_ips } = payload;
+
+  if (office_lat !== undefined && office_lat !== null) {
+    const lat = Number(office_lat);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      throw new ApiError(400, "Invalid office latitude (must be between -90 and 90).");
+    }
+    await upsertAttendanceSettingRepository("office_lat", lat, "Office Latitude Coordinate");
+  }
+
+  if (office_lng !== undefined && office_lng !== null) {
+    const lng = Number(office_lng);
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+      throw new ApiError(400, "Invalid office longitude (must be between -180 and 180).");
+    }
+    await upsertAttendanceSettingRepository("office_lng", lng, "Office Longitude Coordinate");
+  }
+
+  if (office_radius !== undefined && office_radius !== null) {
+    const rad = Number(office_radius);
+    if (!Number.isFinite(rad) || rad <= 0 || rad > 10000) {
+      throw new ApiError(400, "Invalid office radius (must be between 1 and 10000 meters).");
+    }
+    await upsertAttendanceSettingRepository("office_radius", rad, "Office Geofence Radius in Meters");
+  }
+
+  if (Array.isArray(office_ips)) {
+    for (const ipItem of office_ips) {
+      const ip = typeof ipItem === "string" ? ipItem : ipItem?.ip_address;
+      const label = typeof ipItem === "object" ? ipItem?.label : "Office Wi-Fi";
+      if (ip && typeof ip === "string" && ip.trim()) {
+        await addWhitelistedIPRepository(ip.trim(), label || "Office Wi-Fi");
+      }
+    }
+  }
+
+  return await getAttendanceSettingsService(req);
 };
 

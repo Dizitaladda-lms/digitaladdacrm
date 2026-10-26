@@ -105,6 +105,16 @@ export const getOfficeIPs = async () => {
   return response.data;
 };
 
+export const getAttendanceSettings = async () => {
+  const response = await axiosInstance.get("/attendance/settings");
+  return response.data;
+};
+
+export const updateAttendanceSettings = async (payload) => {
+  const response = await axiosInstance.put("/attendance/settings", payload);
+  return response.data;
+};
+
 export const addOfficeIP = async (payload) => {
   const response = await axiosInstance.post("/attendance/office-ips", payload);
   return response.data;

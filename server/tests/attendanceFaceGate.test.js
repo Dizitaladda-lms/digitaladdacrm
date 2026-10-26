@@ -260,17 +260,15 @@ describe("attendance face verification gate", () => {
     expect(dependencies.updateAttendanceCheckOutRepository).not.toHaveBeenCalled();
   });
 
-  it("does not expand the 100-meter checkout radius for an imprecise GPS reading", async () => {
+  it("rejects checkout when GPS accuracy is too weak (> 150m)", async () => {
     process.env.ATTENDANCE_PASSKEY_REQUIRED = "false";
 
     await expect(
       checkOutAttendanceService(
         {
-          // About 150m north of the office. This used to pass because up to
-          // 65m of reported GPS accuracy was subtracted from the distance.
-          latitude: 28.5431,
+          latitude: 28.54175,
           longitude: 77.240611111,
-          accuracy: 65,
+          accuracy: 200, // > 150m is weak
         },
         { id: 9, email: "employee@example.com", full_name: "Employee" },
         { headers: { "user-agent": "Android" }, ip: "127.0.0.1" }

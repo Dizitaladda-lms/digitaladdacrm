@@ -14,9 +14,12 @@ import {
   UserCheck,
   WifiOff,
   Radio,
+  Wifi,
+  Settings,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
+import { useAuth } from "../../context/AuthContext";
 import {
   getBiometricStatus,
   getBiometricRegistrationOptions,
@@ -31,31 +34,28 @@ import {
   getOfflineQueue,
 } from "../../utils/offlineAttendanceQueue";
 import AttendanceFaceCapture from "./AttendanceFaceCapture";
+import AttendanceSettingsModal from "./AttendanceSettingsModal";
 import { calculateLateArrival, format12hTime } from "../../utils/shiftTiming";
+import {
+  getBestLocation,
+  calculateHaversineDistance,
+  evaluateGpsStatus,
+} from "../../utils/gpsHelper";
 import "./MobileBiometricAttendance.css";
 
-// 100% In-House Geofence Protection - Strict 100 Meters Office Radius
-const OFFICE_LAT = 28.54175;
-const OFFICE_LNG = 77.240611111;
-const MAX_GEOFENCE_RADIUS_METERS = 100;
-// Indoor office GPS commonly reports 80-130m confidence even while the phone
-// is physically inside the 100m office geofence. Keep the geofence strict,
-// but accept a practical 130m GPS confidence radius.
-const MAX_GPS_ACCURACY_METERS = 130;
+// Default In-House Geofence Coordinates (Fallbacks when server config is loading)
+const DEFAULT_OFFICE_LAT = 28.54175;
+const DEFAULT_OFFICE_LNG = 77.240611111;
+const DEFAULT_MAX_GEOFENCE_RADIUS_METERS = 100;
+const MAX_GEOFENCE_RADIUS_METERS = DEFAULT_MAX_GEOFENCE_RADIUS_METERS;
+const MAX_GPS_ACCURACY_METERS = 150;
+const MAX_GPS_WEAK_ACCURACY_METERS = 150;
 
 /**
- * Calculates straight-line distance in meters using Haversine formula
+ * Helper to calculate distance with fallback defaults
  */
-const calculateDistanceInMeters = (userLat, userLng) => {
-  const R = 6371000; // Earth's radius in meters
-  const rad = Math.PI / 180;
-  const dLat = (OFFICE_LAT - userLat) * rad;
-  const dLon = (OFFICE_LNG - userLng) * rad;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(userLat * rad) * Math.cos(OFFICE_LAT * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+const calculateDistanceInMeters = (userLat, userLng, officeLat = DEFAULT_OFFICE_LAT, officeLng = DEFAULT_OFFICE_LNG) => {
+  return calculateHaversineDistance(userLat, userLng, officeLat, officeLng);
 };
 
 /**
@@ -146,234 +146,42 @@ const buildLocationFix = (position) => {
 };
 
 /**
- * Multi-tier Parallel Geolocation fetcher:
- * Simultaneously queries Network/Wi-Fi positioning (fast indoors), High-Accuracy GPS,
- * and watchPosition so indoor office phones and laptops resolve reliably without timing out.
+ * High-Accuracy Geolocation fetcher:
+ * Uses getBestLocation helper to watch and collect the best accuracy fix.
  */
-export const getGPSLocation = ({ requireFresh = false } = {}) => {
-  return new Promise((resolve) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      return resolve({
-        latitude: null,
-        longitude: null,
-        location_name: "Location Not Supported on this Browser",
-        distance: null,
-        error_code: -1,
-      });
-    }
-
-    // Attendance actions must use a new high-accuracy fix. In particular, do
-    // not reuse a 15-minute session cache or an OS-cached position here.
-    //
-    // A single getCurrentPosition call is unreliable inside the office: mobile
-    // browsers often return their first, coarse cell/Wi-Fi reading (for example
-    // 187m accuracy) even when GPS improves a few seconds later. Keep a fresh
-    // high-accuracy watch alive briefly and use the best fresh reading it sees.
-    // This does not relax either the 130m accuracy check or the 100m geofence.
-    if (requireFresh) {
-      let settled = false;
-      let watchId = null;
-      let timeoutId = null;
-      let bestFix = null;
-      let lastError = null;
-
-      const finish = (result) => {
-        if (settled) return;
-        settled = true;
-        if (watchId != null) navigator.geolocation.clearWatch(watchId);
-        if (timeoutId != null) clearTimeout(timeoutId);
-        resolve(result);
-      };
-
-      const handleFreshPosition = (position) => {
-        if (settled) return;
-        const fix = buildLocationFix(position);
-        const ageMs = Date.now() - Number(fix.position_timestamp || 0);
-        if (ageMs > 30_000) return;
-
-        if (!bestFix || Number(fix.accuracy) < Number(bestFix.accuracy)) {
-          bestFix = fix;
-        }
-
-        // A valid precise reading need not wait for the full collection window.
-        if (Number(fix.accuracy) > 0 && Number(fix.accuracy) <= MAX_GPS_ACCURACY_METERS) {
-          finish(fix);
-        }
-      };
-
-      const handleFreshError = (err) => {
-        if (settled) return;
-        lastError = err;
-        if (err?.code === 1) {
-          finish({
-            latitude: null,
-            longitude: null,
-            location_name: "Location Permission Denied",
-            distance: null,
-            error_code: 1,
-            error_msg: err?.message || "Location permission was denied",
-          });
-        }
-      };
-
-      try {
-        watchId = navigator.geolocation.watchPosition(
-          handleFreshPosition,
-          handleFreshError,
-          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-        );
-      } catch (err) {
-        handleFreshError(err);
-      }
-
-      // Some browser implementations resolve getCurrentPosition sooner than
-      // watchPosition, so run it too; both callbacks share the same best fix.
-      navigator.geolocation.getCurrentPosition(
-        handleFreshPosition,
-        handleFreshError,
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-      );
-
-      timeoutId = setTimeout(() => {
-        if (bestFix) return finish(bestFix);
-        finish({
-          latitude: null,
-          longitude: null,
-          location_name: "GPS Location Unavailable / Turn ON Phone Location",
-          distance: null,
-          error_code: lastError?.code ?? 2,
-          error_msg: lastError?.message || "Could not detect a fresh location",
-        });
-      }, 20500);
-      return;
-    }
-
-    let settled = false;
-    let pendingCount = 3;
-    let bestCandidate = null;
-    let lastError = null;
-    let watchId = null;
-    let settleTimer = null;
-
-    const cleanup = () => {
-      if (watchId != null) {
-        try {
-          navigator.geolocation.clearWatch(watchId);
-        } catch {
-          // Ignore clearWatch errors
-        }
-        watchId = null;
-      }
-      if (settleTimer) {
-        clearTimeout(settleTimer);
-        settleTimer = null;
-      }
+export const getGPSLocation = async ({ requireFresh = false, maxWaitMs = 10000, goodAccuracy = 100 } = {}) => {
+  const loc = await getBestLocation(maxWaitMs, goodAccuracy);
+  if (!loc || loc.error) {
+    return {
+      latitude: null,
+      longitude: null,
+      location_name: loc?.error_code === 1 ? "Location Permission Denied" : "GPS Location Unavailable / Turn ON Phone Location",
+      distance: null,
+      accuracy: null,
+      error_code: loc?.error_code ?? 2,
+      error_msg: loc?.error_message || "Could not detect location",
     };
+  }
 
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(result);
-    };
-
-    const handleSuccess = (position) => {
-      if (settled) return;
-      const fix = buildLocationFix(position);
-
-      // If within the 100m office geofence, resolve immediately!
-      if (fix.distance <= MAX_GEOFENCE_RADIUS_METERS) {
-        return finish(fix);
-      }
-
-      if (!bestCandidate || fix.distance < bestCandidate.distance) {
-        bestCandidate = fix;
-      }
-
-      pendingCount -= 1;
-      if (pendingCount <= 0) {
-        return finish(bestCandidate);
-      }
-
-      // Give the high-accuracy provider up to 2.5s to refine if the first fix was coarse
-      if (!settleTimer) {
-        settleTimer = setTimeout(() => {
-          if (!settled && bestCandidate) {
-            finish(bestCandidate);
-          }
-        }, 2500);
-      }
-    };
-
-    const handleError = (err) => {
-      if (settled) return;
-      lastError = err;
-      pendingCount -= 1;
-
-      if (pendingCount <= 0) {
-        if (bestCandidate) {
-          return finish(bestCandidate);
-        }
-        const cached = loadLastKnownGps();
-        if (cached) {
-          return finish(cached);
-        }
-
-        // Final instant fallback accepting any cached OS position (maximumAge: Infinity)
-        navigator.geolocation.getCurrentPosition(
-          (pos) => finish(buildLocationFix(pos)),
-          (finalErr) => {
-            const errToReport = finalErr || lastError || {};
-            finish({
-              latitude: null,
-              longitude: null,
-              location_name:
-                errToReport.code === 1
-                  ? "Location Permission Denied"
-                  : "GPS Location Unavailable / Turn ON Phone Location",
-              distance: null,
-              error_code: errToReport.code ?? 2,
-              error_msg: errToReport.message || "Could not detect location",
-            });
-          },
-          { enableHighAccuracy: false, timeout: 3000, maximumAge: Infinity }
-        );
-      }
-    };
-
-    // 1. Fast Network / Wi-Fi / Cell tower location (works indoors in <1s)
-    navigator.geolocation.getCurrentPosition(
-      handleSuccess,
-      handleError,
-      { enableHighAccuracy: false, timeout: 7000, maximumAge: 600000 }
-    );
-
-    // 2. High-Accuracy GPS satellite / fused location
-    navigator.geolocation.getCurrentPosition(
-      handleSuccess,
-      handleError,
-      { enableHighAccuracy: true, timeout: 9000, maximumAge: 120000 }
-    );
-
-    // 3. Active watchPosition wake-up (wakes up Android FusedLocationProvider)
-    try {
-      watchId = navigator.geolocation.watchPosition(
-        handleSuccess,
-        handleError,
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 900000 }
-      );
-    } catch {
-      pendingCount -= 1;
-    }
-  });
+  const fix = {
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    accuracy: loc.accuracy,
+    location_name: "Office Premises",
+    position_timestamp: loc.timestamp || Date.now(),
+  };
+  saveLastKnownGps(fix);
+  return fix;
 };
 
 const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
+  const { user } = useAuth();
+  const canManageSettings = ["HR", "ADMIN", "SUPER_ADMIN"].includes(user?.role);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  // Do not render a session-cached GPS fix as the employee's current location.
-  // A fresh high-accuracy request below populates this after every page visit.
   const [locationData, setLocationData] = useState(null);
   const [locating, setLocating] = useState(false);
   const [showLocationHelpModal, setShowLocationHelpModal] = useState(false);
@@ -417,34 +225,41 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   const refreshLocation = useCallback(async (isUserInitiated = false) => {
     try {
-      // Attendance location must always come from a new high-accuracy reading;
-      // never show a browser/OS-cached coordinate as the current GPS location.
-      const gpsPromise = getGPSLocation({ requireFresh: true });
       setLocating(true);
-      const loc = await gpsPromise;
+      const loc = await getBestLocation(10000, 100);
       setLocationData(loc);
 
-      if (loc?.latitude != null && loc?.longitude != null) {
+      const targetLat = statusData?.office_lat ?? DEFAULT_OFFICE_LAT;
+      const targetLng = statusData?.office_lng ?? DEFAULT_OFFICE_LNG;
+      const targetRadius = statusData?.office_radius ?? DEFAULT_MAX_GEOFENCE_RADIUS_METERS;
+      const evalResult = evaluateGpsStatus(loc, targetLat, targetLng, targetRadius);
+
+      if (loc && !loc.error && loc.latitude != null && loc.longitude != null) {
         setShowLocationHelpModal(false);
         if (isUserInitiated) {
-          toast.success(
-            loc.distance <= MAX_GEOFENCE_RADIUS_METERS
-              ? "📍 Location verified! You are within office premises."
-              : `📍 Location updated (${Math.round(loc.distance)}m from office).`
-          );
+          if (evalResult.status === "ok") {
+            toast.success(`📍 Location verified! ${evalResult.message}`);
+          } else if (evalResult.status === "weak") {
+            toast(
+              `⚠️ GPS signal weak (${Math.round(evalResult.accuracy)}m accuracy). Phone me 'Precise Location' & Wi-Fi ON karein, phir dobara try karein.`,
+              { icon: "⚠️", duration: 6000 }
+            );
+          } else {
+            toast.error(`📍 ${evalResult.message}`);
+          }
         }
       } else if (loc?.error_code === 1) {
         setShowLocationHelpModal(true);
         if (isUserInitiated) {
           toast.error(
-            "📍 Location Permission Blocked! URL bar ke 🔒 Lock/Tune icon ya Phone Settings -> Apps -> Chrome -> Permissions me Location 'Allow' karein.",
+            "📍 Location Permission Blocked! URL bar ke 🔒 Lock icon par click karke Location 'Allow' karein.",
             { duration: 6000 }
           );
         }
       } else if (isUserInitiated) {
         setShowLocationHelpModal(true);
         toast.error(
-          "📍 Phone ka GPS / Location OFF hai! Apne phone ke upar Notification bar se Location (GPS) ON karein aur Retry dabayein.",
+          "📍 Phone GPS OFF hai! Notification bar se Phone Location ON karein aur Wi-Fi ON rakhein.",
           { duration: 6000 }
         );
       }
@@ -455,7 +270,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     } finally {
       setLocating(false);
     }
-  }, []);
+  }, [statusData?.office_lat, statusData?.office_lng, statusData?.office_radius]);
 
   useEffect(() => {
     loadStatus();
@@ -705,50 +520,54 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   };
 
   const validateGPSLocation = (loc) => {
-    if (!loc || loc.latitude == null || loc.longitude == null) {
+    const isOfficeWifi = Boolean(statusData?.is_office_ip);
+    const targetLat = statusData?.office_lat ?? DEFAULT_OFFICE_LAT;
+    const targetLng = statusData?.office_lng ?? DEFAULT_OFFICE_LNG;
+    const targetRadius = statusData?.office_radius ?? DEFAULT_MAX_GEOFENCE_RADIUS_METERS;
+
+    // Rule: IP match OR GPS ok => check-in allow
+    if (isOfficeWifi) {
+      return true;
+    }
+
+    if (!loc || loc.error || loc.latitude == null || loc.longitude == null) {
       setShowLocationHelpModal(true);
       if (loc?.error_code === 1) {
         if (device.isLaptop) {
           toast.error(
-            "📍 Laptop Location Blocked! Click 'Allow Location' or click the lock/tune icon 🔒 in your browser URL bar, set Location to 'Allow', and click Refresh.",
-            { duration: 7000 }
-          );
-        } else if (device.isIPhone) {
-          toast.error(
-            "📍 iPhone Location Blocked! Turn ON Location in iPhone Settings -> Privacy -> Location Services and Safari -> Allow.",
+            "📍 Laptop Location Blocked! Click 'Allow Location' or connect to office Wi-Fi.",
             { duration: 7000 }
           );
         } else {
           toast.error(
-            "📍 Phone Location Blocked! Turn ON Location in phone settings and allow browser site access.",
+            "📍 Phone Location Blocked! Settings me Location 'Allow' karein ya office Wi-Fi se connect karein.",
             { duration: 7000 }
           );
         }
       } else {
         toast.error(
           device.isLaptop
-            ? "📍 Laptop Location Unavailable! Please make sure your laptop is connected to Wi-Fi and Windows Location is ON."
-            : "📍 Phone GPS is OFF or Unavailable! Upar notification bar se Phone Location (GPS) ON karein aur Chrome App ko Location permission dein.",
+            ? "📍 Laptop Location Unavailable! Office Wi-Fi se connect karein ya Windows Location ON karein."
+            : "📍 Phone GPS OFF hai! Notification bar se Phone Location ON karein ya Office Wi-Fi se connect karein.",
           { duration: 7000 }
         );
       }
       return false;
     }
 
-    const distance =
-      loc.distance != null
-        ? loc.distance
-        : calculateDistanceInMeters(Number(loc.latitude), Number(loc.longitude));
+    const evalResult = evaluateGpsStatus(loc, targetLat, targetLng, targetRadius);
 
-    if (!Number.isFinite(Number(loc.accuracy)) || Number(loc.accuracy) <= 0 || Number(loc.accuracy) > MAX_GPS_ACCURACY_METERS) {
-      toast.error(`GPS accuracy is ${Math.round(Number(loc.accuracy) || 0)}m. Please move near a window/open area and retry (accuracy must be 130m or better).`, { duration: 7000 });
+    if (evalResult.status === "weak") {
+      toast.error(
+        `📍 GPS signal weak hai (${Math.round(evalResult.accuracy)}m accuracy - 150m required) aur aap office Wi-Fi se connect nahi hain. Phone me 'Precise Location' aur Wi-Fi ON karein, phir 10 sec baad 'Get Fresh GPS' dabayein.`,
+        { duration: 7000 }
+      );
       return false;
     }
 
-    // STRICT 100-METER GEOFENCE ENFORCEMENT ON BOTH LAPTOP & MOBILE
-    if (distance > MAX_GEOFENCE_RADIUS_METERS) {
+    if (evalResult.status === "outside") {
       toast.error(
-        `📍 Out of Office Range! You are ${Math.round(distance)} meters away from the office. Attendance can ONLY be marked within 100 meters of the Dizital Adda office premises.`,
+        `📍 Out of Office Range! You are ${Math.round(evalResult.distance)}m away from office. Attendance can only be marked within ${targetRadius}m of office premises or on office Wi-Fi.`,
         { duration: 7000 }
       );
       return false;
@@ -1331,11 +1150,14 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     ? "Passkey setup required"
     : "Passkey Active & Locked";
 
-  const isWithinOffice = locationData?.distance != null && locationData.distance <= MAX_GEOFENCE_RADIUS_METERS;
-  const hasAcceptableGpsAccuracy =
-    Number.isFinite(Number(locationData?.accuracy)) &&
-    Number(locationData.accuracy) > 0 &&
-    Number(locationData.accuracy) <= MAX_GPS_ACCURACY_METERS;
+  const officeLat = statusData?.office_lat ?? DEFAULT_OFFICE_LAT;
+  const officeLng = statusData?.office_lng ?? DEFAULT_OFFICE_LNG;
+  const officeRadius = statusData?.office_radius ?? DEFAULT_MAX_GEOFENCE_RADIUS_METERS;
+  const isOfficeWifi = Boolean(statusData?.is_office_ip);
+
+  const gpsEval = evaluateGpsStatus(locationData, officeLat, officeLng, officeRadius);
+  const isWithinOffice = gpsEval.status === "ok";
+  const hasAcceptableGpsAccuracy = gpsEval.status === "ok";
   const isLocationDenied = locationData?.error_code === 1;
   const laptopAttendanceAllowed = Boolean(statusData?.laptop_attendance_enabled);
   const attendanceActionDisabled = actionLoading;
@@ -1350,7 +1172,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       isLocationDenied ||
       locating ||
       actionLoading ||
-      (isWithinOffice && hasAcceptableGpsAccuracy)
+      isOfficeWifi ||
+      gpsEval.status === "ok"
     ) {
       return undefined;
     }
@@ -1359,14 +1182,14 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       if (document.visibilityState === "visible") {
         refreshLocation(false);
       }
-    }, 30_000);
+    }, 20_000);
 
     return () => window.clearInterval(retryId);
   }, [
     actionLoading,
-    hasAcceptableGpsAccuracy,
+    gpsEval.status,
     isLocationDenied,
-    isWithinOffice,
+    isOfficeWifi,
     locating,
     refreshLocation,
   ]);
@@ -1408,31 +1231,67 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               </span>
             )}
 
+            {/* Office Wi-Fi / IP Verified Pill */}
+            {isOfficeWifi && (
+              <span
+                className="biometric-pill biometric-pill-approved"
+                style={{
+                  background: "#EFF6FF",
+                  color: "#1D4ED8",
+                  borderColor: "#BFDBFE",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                }}
+                title={`Office Wi-Fi IP Verified (${statusData?.client_ip || "Whitelisted"})`}
+              >
+                <Wifi size={13} /> Office Verified
+              </span>
+            )}
+
             {/* Geofence GPS status pill */}
             {locating ? (
               <span className="biometric-pill biometric-pill-geofence-loading">
                 <RefreshCw size={12} className="spin-anim" /> Checking Geofence...
               </span>
-            ) : locationData?.distance != null ? (
-              isWithinOffice && hasAcceptableGpsAccuracy ? (
-                <span className="biometric-pill biometric-pill-geofence-ok" title="Within 100 meters of office location">
-                  <MapPin size={12} /> Office Premises ({Math.round(locationData.distance)}m • Within 100m)
-                </span>
-              ) : isWithinOffice ? (
-                <span
-                  className="biometric-pill biometric-pill-geofence-outside"
-                  title="Get a fresh GPS location with 130m or better accuracy before checkout"
-                >
-                  <AlertTriangle size={12} /> GPS weak ({Math.round(locationData.accuracy || 0)}m accuracy - 130m required)
-                </span>
-              ) : (
-                <span
-                  className="biometric-pill biometric-pill-geofence-outside"
-                  title="Attendance can only be marked within 100m of office location"
-                >
-                  <AlertTriangle size={12} /> Outside Office ({Math.round(locationData.distance)}m away • 100m Req)
-                </span>
-              )
+            ) : gpsEval.status === "ok" ? (
+              <span
+                className="biometric-pill biometric-pill-geofence-ok"
+                style={{
+                  background: gpsEval.bgColor,
+                  color: gpsEval.color,
+                  borderColor: gpsEval.borderColor,
+                }}
+                title={`Within ${officeRadius}m of office location`}
+              >
+                <MapPin size={12} /> {gpsEval.message}
+              </span>
+            ) : gpsEval.status === "weak" ? (
+              <span
+                className="biometric-pill biometric-pill-geofence-outside"
+                style={{
+                  background: gpsEval.bgColor,
+                  color: gpsEval.color,
+                  borderColor: gpsEval.borderColor,
+                }}
+                title="GPS accuracy > 150m. Phone me 'Precise Location' & Wi-Fi ON karein."
+              >
+                <AlertTriangle size={12} /> {gpsEval.message}
+              </span>
+            ) : gpsEval.status === "outside" ? (
+              <span
+                className="biometric-pill biometric-pill-geofence-outside"
+                style={{
+                  background: gpsEval.bgColor,
+                  color: gpsEval.color,
+                  borderColor: gpsEval.borderColor,
+                }}
+                title={`Attendance can only be marked within ${officeRadius}m of office location or on Office Wi-Fi`}
+              >
+                <AlertTriangle size={12} /> {gpsEval.message}
+              </span>
             ) : isLocationDenied ? (
               <button
                 type="button"
@@ -1469,8 +1328,29 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               }
             >
               <RefreshCw size={11} className={locating ? "spin-anim" : ""} />{" "}
-              {isLocationDenied ? "Allow Location / Refresh" : "Get Fresh GPS"}
+              {locating ? "Fetching GPS..." : isLocationDenied ? "Allow Location / Refresh" : "Get Fresh GPS"}
             </button>
+
+            {/* Admin / HR Attendance Geofence Settings button */}
+            {canManageSettings && (
+              <button
+                type="button"
+                className="btn-loc-refresh"
+                onClick={() => setShowSettingsModal(true)}
+                title="Manage Office Geofence Coordinates, Radius & Whitelisted IPs"
+                style={{
+                  background: "#f8fafc",
+                  color: "#334155",
+                  border: "1px solid #cbd5e1",
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+              >
+                <Settings size={12} /> Geofence Settings
+              </button>
+            )}
 
             {/* Offline Mode / Pending Queue Sync Pill */}
             {(!navigator.onLine || offlinePunchesCount > 0) && (
@@ -1612,6 +1492,63 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
           )}
 
+          {/* User guidance on weak GPS */}
+          {!locating && !isOfficeWifi && gpsEval.status === "weak" && (
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px 14px",
+                borderRadius: "12px",
+                background: "rgba(245, 158, 11, 0.16)",
+                border: "1px solid rgba(251, 191, 36, 0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", flex: "1 1 240px" }}>
+                <AlertTriangle
+                  size={18}
+                  style={{
+                    color: "#f59e0b",
+                    marginTop: "2px",
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ fontSize: "12.5px", color: "#fef3c7", lineHeight: 1.45 }}>
+                  <strong style={{ display: "block", marginBottom: "2px", color: "#ffffff" }}>
+                    GPS Accuracy Weak ({Math.round(gpsEval.accuracy || 0)}m)
+                  </strong>
+                  💡 Location ON + Precise Location ON karo, Wi-Fi ON rakho, 10 sec baad dobara try karo.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => refreshLocation(true)}
+                disabled={locating}
+                style={{
+                  background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "7px 13px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <RefreshCw size={13} className={locating ? "spin-anim" : ""} />
+                Get Fresh GPS
+              </button>
+            </div>
+          )}
+
           {!loading && needsPasskeyRegistration && (
             <div className="biometric-registration-notice" role="status">
               <ShieldCheck size={18} aria-hidden="true" />
@@ -1671,7 +1608,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               className="btn-bio-primary"
               onClick={handleCheckIn}
               disabled={attendanceActionDisabled}
-              title={device.isLaptop && !isWithinOffice ? "Attendance is available only within 100m of the office." : undefined}
+              title={device.isLaptop && !isWithinOffice && !isOfficeWifi ? `Attendance is available only within ${officeRadius}m of the office or on office Wi-Fi.` : undefined}
             >
               {actionLoading ? (
                 <RefreshCw size={18} className="spin-anim" />
@@ -1733,7 +1670,7 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
         )}
         {!passkeyRequired && (
           <p className="biometric-subtitle">
-            Location access is required. Attendance is available only within 100 meters of the office.
+            Location access is required. Attendance is available within {officeRadius} meters of the office or on office Wi-Fi.
           </p>
         )}
       </div>
@@ -2084,6 +2021,17 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
           </div>
         </div>
+      )}
+      {/* Admin / HR Attendance Geofence & Office IP Settings Modal */}
+      {showSettingsModal && (
+        <AttendanceSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          onSettingsUpdated={() => {
+            loadStatus();
+            refreshLocation(false);
+          }}
+        />
       )}
     </div>
   );
