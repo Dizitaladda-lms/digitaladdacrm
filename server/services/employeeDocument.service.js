@@ -222,7 +222,7 @@ export const getHREmployeeDocumentsService = async (filters = {}) => {
     documentType,
   });
   return documents.map((document) => ({
-    ...toDocumentResponse(document),
+    ...toDocumentResponse(document, { includeDetails: true }),
     employee_id: document.employee_id,
     employee_name: document.employee_name,
     employee_code: document.employee_code,

@@ -25,7 +25,7 @@ export const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
  * If a position with accuracy <= goodAccuracy (default 120m) is found, resolves early.
  * Otherwise, holds and returns the best reading seen during the window.
  */
-export const getBestLocation = (maxWaitMs = 6000, goodAccuracy = 120, maxAgeMs = 30000) => {
+export const getBestLocation = (maxWaitMs = 10000, goodAccuracy = 120, maxAgeMs = 0) => {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return resolve({
@@ -100,8 +100,8 @@ export const getBestLocation = (maxWaitMs = 6000, goodAccuracy = 120, maxAgeMs =
 
     const geoOptions = {
       enableHighAccuracy: true,
-      maximumAge: Number.isFinite(maxAgeMs) ? maxAgeMs : 30000,
-      timeout: Math.min(Math.max(maxWaitMs, 2000), 8000),
+      maximumAge: Number.isFinite(maxAgeMs) ? maxAgeMs : 0,
+      timeout: Math.max(maxWaitMs, 10000),
     };
 
     // 1. Start continuous watchPosition
@@ -173,7 +173,21 @@ export const evaluateGpsStatus = (loc, officeLat, officeLng, officeRadius = 100)
   );
   const accuracy = Number(loc.accuracy) || 0;
 
-  // 1. "weak": accuracy > 150m (Never claim "Outside Office" when confidence radius is imprecise)
+  // 1. "approximate": accuracy >= 1000m (Coarse cell-tower / Android Approximate Location permission)
+  if (accuracy >= 1000) {
+    return {
+      status: "approximate",
+      is_approximate: true,
+      message: `Approximate Location active (${Math.round(accuracy)}m) • Precise Location ON karein`,
+      distance,
+      accuracy,
+      color: "#b45309",
+      bgColor: "#fef3c7",
+      borderColor: "#fde68a",
+    };
+  }
+
+  // 2. "weak": accuracy > 150m (Never claim "Outside Office" when confidence radius is imprecise)
   if (accuracy > 150) {
     return {
       status: "weak",

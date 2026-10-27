@@ -85,6 +85,15 @@ let memoryLastKnownGps = null;
 
 const saveLastKnownGps = (fix) => {
   if (!fix || fix.latitude == null || fix.longitude == null) return;
+  const accuracy = Number(fix.accuracy) || 999999;
+  // STRICT: Never store a weak/coarse fix (> 150m) as last valid GPS
+  if (accuracy > 150) {
+    try {
+      sessionStorage.removeItem(LAST_KNOWN_GPS_STORAGE_KEY);
+    } catch {}
+    memoryLastKnownGps = null;
+    return;
+  }
   const payload = { ...fix, saved_at: Date.now() };
   memoryLastKnownGps = payload;
   try {
@@ -96,7 +105,11 @@ const saveLastKnownGps = (fix) => {
 
 const loadLastKnownGps = () => {
   const now = Date.now();
-  if (memoryLastKnownGps && now - (memoryLastKnownGps.saved_at || 0) <= LAST_KNOWN_GPS_TTL_MS) {
+  if (
+    memoryLastKnownGps &&
+    Number(memoryLastKnownGps.accuracy) <= 150 &&
+    now - (memoryLastKnownGps.saved_at || 0) <= LAST_KNOWN_GPS_TTL_MS
+  ) {
     return memoryLastKnownGps;
   }
   try {
@@ -107,15 +120,25 @@ const loadLastKnownGps = () => {
       parsed &&
       parsed.latitude != null &&
       parsed.longitude != null &&
+      Number(parsed.accuracy) <= 150 &&
       now - (parsed.saved_at || 0) <= LAST_KNOWN_GPS_TTL_MS
     ) {
       memoryLastKnownGps = parsed;
       return parsed;
     }
+    // Clean up stale or weak entries
+    sessionStorage.removeItem(LAST_KNOWN_GPS_STORAGE_KEY);
   } catch {
     // Ignore storage errors
   }
   return null;
+};
+
+const clearLastKnownGps = () => {
+  memoryLastKnownGps = null;
+  try {
+    sessionStorage.removeItem(LAST_KNOWN_GPS_STORAGE_KEY);
+  } catch {}
 };
 
 const buildLocationFix = (position) => {
@@ -150,10 +173,10 @@ const buildLocationFix = (position) => {
  * Uses getBestLocation helper to watch and collect the best accuracy fix.
  */
 export const getGPSLocation = async ({
-  requireFresh = false,
-  maxWaitMs = 5000,
+  requireFresh = true,
+  maxWaitMs = 10000,
   goodAccuracy = 120,
-  maxAgeMs = 30000,
+  maxAgeMs = 0,
 } = {}) => {
   const loc = await getBestLocation(maxWaitMs, goodAccuracy, requireFresh ? 0 : maxAgeMs);
   if (!loc || loc.error) {
@@ -231,7 +254,11 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
   const refreshLocation = useCallback(async (isUserInitiated = false) => {
     try {
       setLocating(true);
-      const loc = await getBestLocation(10000, 100);
+      if (isUserInitiated) {
+        clearLastKnownGps();
+        setLocationData(null);
+      }
+      const loc = await getBestLocation(10000, 100, 0);
       setLocationData(loc);
 
       const targetLat = statusData?.office_lat ?? DEFAULT_OFFICE_LAT;
@@ -240,10 +267,18 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       const evalResult = evaluateGpsStatus(loc, targetLat, targetLng, targetRadius);
 
       if (loc && !loc.error && loc.latitude != null && loc.longitude != null) {
-        setShowLocationHelpModal(false);
+        if (evalResult.status === "ok") {
+          setShowLocationHelpModal(false);
+        }
         if (isUserInitiated) {
           if (evalResult.status === "ok") {
             toast.success(`📍 Location verified! ${evalResult.message}`);
+          } else if (evalResult.status === "approximate") {
+            setShowLocationHelpModal(true);
+            toast.error(
+              `📍 Approximate Location (${Math.round(evalResult.accuracy)}m)! Phone Chrome ke address bar me 🔒 / Tune icon dabakar 'Use precise location' ON karein.`,
+              { duration: 8000 }
+            );
           } else if (evalResult.status === "weak") {
             toast(
               `⚠️ GPS signal weak (${Math.round(evalResult.accuracy)}m accuracy). Phone me 'Precise Location' & Wi-Fi ON karein, phir dobara try karein.`,
@@ -526,19 +561,20 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
 
   /**
    * Smooth, fast location resolver for Check-In and Check-Out:
-   * Reuses current verified locationData in state if valid and recent (< 3 mins).
-   * This makes Check-In / Check-Out instantaneous (0ms wait) for users already on the page!
+   * Reuses current verified locationData in state if valid, recent (< 3 mins), and accurate (<= 150m).
+   * This makes Check-In / Check-Out instantaneous (0ms wait) for users already verified!
    */
   const getActionLocation = async () => {
     const now = Date.now();
     const isRecent = (ts) => ts && now - ts <= 3 * 60 * 1000;
 
-    // 1. If locationData in state is already valid & recent, return it instantly!
+    // 1. If locationData in state is already valid & recent & has acceptable accuracy (<= 150m), return it instantly!
     if (
       locationData &&
       !locationData.error &&
       locationData.latitude != null &&
       locationData.longitude != null &&
+      Number(locationData.accuracy) <= 150 &&
       isRecent(locationData.timestamp || locationData.position_timestamp || now)
     ) {
       return locationData;
@@ -550,17 +586,18 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
       lastKnown &&
       lastKnown.latitude != null &&
       lastKnown.longitude != null &&
+      Number(lastKnown.accuracy) <= 150 &&
       isRecent(lastKnown.saved_at)
     ) {
       return lastKnown;
     }
 
-    // 3. Otherwise fetch quickly (max 4s wait, allowing 30s browser cache)
+    // 3. Otherwise fetch fresh GPS without using coarse stale cache
     const fresh = await getGPSLocation({
-      requireFresh: false,
-      maxWaitMs: 4000,
+      requireFresh: true,
+      maxWaitMs: 8000,
       goodAccuracy: 120,
-      maxAgeMs: 30000,
+      maxAgeMs: 0,
     });
     if (fresh?.latitude != null) {
       setLocationData(fresh);
@@ -613,6 +650,15 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
     }
 
     const evalResult = evaluateGpsStatus(resolvedLoc, targetLat, targetLng, targetRadius);
+
+    if (evalResult.status === "approximate") {
+      setShowLocationHelpModal(true);
+      toast.error(
+        `📍 Phone me 'Approximate Location' active hai (${Math.round(evalResult.accuracy)}m cell tower accuracy). Chrome URL bar me 🔒 Lock / Tune icon dabayein aur 'Use precise location' ON karein!`,
+        { duration: 8000 }
+      );
+      return false;
+    }
 
     if (evalResult.status === "weak") {
       toast.error(
@@ -1327,6 +1373,18 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               >
                 <MapPin size={12} /> {gpsEval.message}
               </span>
+            ) : gpsEval.status === "approximate" ? (
+              <span
+                className="biometric-pill biometric-pill-geofence-outside"
+                style={{
+                  background: gpsEval.bgColor,
+                  color: gpsEval.color,
+                  borderColor: gpsEval.borderColor,
+                }}
+                title="Approximate Location Active. Turn on 'Precise Location' in Chrome."
+              >
+                <AlertTriangle size={12} /> {gpsEval.message}
+              </span>
             ) : gpsEval.status === "weak" ? (
               <span
                 className="biometric-pill biometric-pill-geofence-outside"
@@ -1551,8 +1609,8 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
             </div>
           )}
 
-          {/* User guidance on weak GPS */}
-          {!locating && !isOfficeWifi && gpsEval.status === "weak" && (
+          {/* User guidance on weak or approximate GPS */}
+          {!locating && !isOfficeWifi && (gpsEval.status === "weak" || gpsEval.status === "approximate") && (
             <div
               style={{
                 marginTop: "12px",
@@ -1578,33 +1636,55 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 />
                 <div style={{ fontSize: "12.5px", color: "#fef3c7", lineHeight: 1.45 }}>
                   <strong style={{ display: "block", marginBottom: "2px", color: "#ffffff" }}>
-                    GPS Accuracy Weak ({Math.round(gpsEval.accuracy || 0)}m)
+                    {gpsEval.status === "approximate"
+                      ? `Approximate Location Active (${Math.round(gpsEval.accuracy || 0)}m)`
+                      : `GPS Accuracy Weak (${Math.round(gpsEval.accuracy || 0)}m)`}
                   </strong>
-                  💡 Location ON + Precise Location ON karo, Wi-Fi ON rakho, 10 sec baad dobara try karo.
+                  {gpsEval.status === "approximate"
+                    ? "💡 Chrome ne Cell-Tower approximate location di hai. URL bar ke 🔒 / Tune icon par click karke 'Use precise location' ON karein."
+                    : "💡 Location ON + Precise Location ON karo, Wi-Fi ON rakho, 10 sec baad dobara try karo."}
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => refreshLocation(true)}
-                disabled={locating}
-                style={{
-                  background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "7px 13px",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <RefreshCw size={13} className={locating ? "spin-anim" : ""} />
-                Get Fresh GPS
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLocationHelpModal(true)}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.12)",
+                    color: "#fef3c7",
+                    border: "1px solid rgba(251, 191, 36, 0.4)",
+                    borderRadius: "8px",
+                    padding: "7px 11px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Precise Kaise Karein?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => refreshLocation(true)}
+                  disabled={locating}
+                  style={{
+                    background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "7px 13px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <RefreshCw size={13} className={locating ? "spin-anim" : ""} />
+                  Get Fresh GPS
+                </button>
+              </div>
             </div>
           )}
 
@@ -2042,17 +2122,17 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
                 </ol>
               ) : (
                 <ol style={{ margin: 0, paddingLeft: "18px" }}>
-                  <li style={{ marginBottom: "6px" }}>
-                    <strong>Step 1 (Sabse Zaroori):</strong> Phone ke upar से <strong>Notification Bar (Quick Settings)</strong> niche swipe karein aur <strong>Location / GPS (📍)</strong> button ko <strong>ON</strong> karein.
+                  <li style={{ marginBottom: "8px" }}>
+                    <strong>Step 1 (Sabse Zaroori - Precise Location):</strong> Browser ke top URL bar me <strong>🔒 Lock / Tune icon (Site Settings)</strong> par click karein &rarr; <strong>Permissions</strong> &rarr; <strong>Location</strong> par jayein aur <strong>&ldquo;Use precise location&rdquo;</strong> ko <strong>ON</strong> karein (agar Approximate hai toh 8200m cell-tower reading aati hai).
                   </li>
-                  <li style={{ marginBottom: "6px" }}>
-                    <strong>Step 2 (Chrome App Permission):</strong> Phone <strong>Settings &rarr; Apps &rarr; Chrome &rarr; Permissions &rarr; Location</strong> me jakar <strong>&ldquo;Allow only while using the app&rdquo;</strong> aur <strong>&ldquo;Use precise location&rdquo;</strong> ON karein.
+                  <li style={{ marginBottom: "8px" }}>
+                    <strong>Step 2 (Wi-Fi ON rakhein):</strong> Mobile ka <strong>Wi-Fi ON</strong> karein. Office Wi-Fi se connect ho jayein toh bina GPS ke turant check-in ho jayega; agar cellular par hain tab bhi Wi-Fi ON rakhne se Google location accuracy 10-20m tak accurate ho jaati hai.
                   </li>
-                  <li style={{ marginBottom: "6px" }}>
-                    <strong>Step 3 (Website Permission):</strong> Browser URL bar ke left me <strong>🔒 Lock / Tune icon &rarr; Permissions &rarr; Location: Allow</strong> rakhein.
+                  <li style={{ marginBottom: "8px" }}>
+                    <strong>Step 3 (Phone GPS):</strong> Phone notification bar se <strong>Location / GPS (📍)</strong> ON rakhein. Phone <strong>Settings &rarr; Location &rarr; Google Location Accuracy</strong> ON hona chahiye.
                   </li>
                   <li>
-                    Ab neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> par tap karein.
+                    Ye karne ke baad neeche <strong>&ldquo;Location Allow Kar Diya — Retry Now&rdquo;</strong> par tap karein.
                   </li>
                 </ol>
               )}
