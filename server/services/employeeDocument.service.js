@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
 import { withTransaction } from "../config/db.js";
 import ApiError from "../utils/ApiError.js";
+import auditLogger from "../utils/auditLogger.js";
 import { decryptDocumentDetail, encryptDocumentDetail, maskDocumentNumber } from "../utils/employeeDocumentSecurity.js";
 import { ensureEmployeeProfileForUser } from "./ensureEmployeeProfile.service.js";
 import {
@@ -186,6 +187,23 @@ export const uploadMyEmployeeDocumentService = async (user, file, payload = {}) 
     }).catch(() => {});
     throw error;
   }
+  auditLogger({
+    action: "DOCUMENT_UPLOADED",
+    module: "DOCUMENTS",
+    userId: user.id,
+    userName: user.full_name,
+    userEmail: user.email,
+    role: user.role,
+    entityType: "document",
+    entityId: saved.id,
+    entityName: saved.document_label,
+    description: `${user.full_name || "Employee"} uploaded ${saved.document_label} (${saved.document_type})`,
+    details: {
+      documentType: saved.document_type,
+      filename: saved.original_filename,
+      sizeBytes: saved.size_bytes,
+    },
+  });
   return toDocumentResponse(saved, { includeDetails: true });
 };
 
@@ -232,10 +250,24 @@ export const getHREmployeeDocumentsService = async (filters = {}) => {
   }));
 };
 
-export const getHREmployeeDocumentAccessUrlService = async (documentId) => {
+export const getHREmployeeDocumentAccessUrlService = async (documentId, hrUser = null) => {
   configureCloudinary();
   const document = await findEmployeeDocumentByIdForHRRepository(parseDocumentId(documentId));
   if (!document) throw new ApiError(404, "Document not found.");
+  if (hrUser) {
+    auditLogger({
+      action: "DOCUMENT_VIEWED",
+      module: "DOCUMENTS",
+      userId: hrUser.id,
+      userName: hrUser.full_name,
+      userEmail: hrUser.email,
+      role: hrUser.role,
+      entityType: "document",
+      entityId: document.id,
+      entityName: document.document_label,
+      description: `HR ${hrUser.full_name || ""} viewed verified document "${document.document_label}" (Employee ID: ${document.employee_id})`,
+    });
+  }
   return {
     access_url: cloudinary.url(document.cloudinary_public_id, {
       resource_type: document.cloudinary_resource_type || "raw",
@@ -258,5 +290,17 @@ export const deleteMyEmployeeDocumentService = async (user, documentId) => {
     type: "authenticated",
     invalidate: true,
   }).catch(() => {});
+  auditLogger({
+    action: "DOCUMENT_DELETED",
+    module: "DOCUMENTS",
+    userId: user.id,
+    userName: user.full_name,
+    userEmail: user.email,
+    role: user.role,
+    entityType: "document",
+    entityId: deleted.id,
+    entityName: deleted.document_label,
+    description: `${user.full_name || "Employee"} deleted document "${deleted.document_label}"`,
+  });
   return { id: deleted.id };
 };

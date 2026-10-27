@@ -19,6 +19,7 @@ import {
   Network,
   MessageSquare,
   FileText,
+  ShieldAlert,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -77,7 +78,10 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Employee Documents", icon: FileText, path: "/employees?tab=documents" },
       { title: "Organization Tree", icon: Network, path: "/org-tree" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
+
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+      { title: "Activity Logs", icon: ShieldAlert, path: "/activity-logs" },
+
     ];
   } else if (isSuperAdmin) {
     // Super Admin: Master Executive Control across Sales, Operations, HR, & Attendance
@@ -95,6 +99,9 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Operations & HR Dashboard", icon: FileBarChart2, path: "/reports" },
       { title: "Company Work Reports", icon: CheckSquare, path: "/team-reports" },
       { title: "Call Recording", icon: Radio, path: "/telephony" },
+      { title: "Activity Logs", icon: ShieldAlert, path: "/activity-logs" },
+
+
     ];
   } else if (isTL || isHead) {
     // Team Lead (TL) & Department Head / Manager Dedicated Sales Menu
@@ -102,10 +109,12 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Team Chat", icon: MessageSquare, path: "/team-chat" },
       { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+
       { title: "Employee Presence", icon: UsersRound, path: "/company-presence" },
       { title: "Work Assigned by Admin", icon: ClipboardList, path: "/work-assignments" },
       { title: "Employees Roster", icon: CalendarDays, path: "/employees-roster" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
+
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "My Monthly Roster", icon: CalendarDays, path: "/my-roster" },
       { title: "Lead Management", icon: UsersRound, path: "/leads" },
@@ -124,6 +133,7 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "Organization Tree", icon: Network, path: "/org-tree" },
       { title: "Daily Work Report", icon: CalendarCheck, path: "/daily-report" },
       { title: "Team Reports", icon: CheckSquare, path: "/team-reports" },
+
     ];
   } else {
     // Sales Counsellors & Staff
@@ -137,6 +147,7 @@ const SidebarNavigation = ({ onClose }) => {
       { title: "My Attendance", icon: Fingerprint, path: "/my-attendance" },
       { title: "My Monthly Roster", icon: CalendarDays, path: "/my-roster" },
       { title: "My Daily Report", icon: CalendarCheck, path: "/daily-report" },
+
     ];
   }
 

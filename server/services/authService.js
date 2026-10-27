@@ -209,6 +209,17 @@ export const loginUserService = async (
   }
 
   if (!matchedUser) {
+    auditLogger({
+      action: "LOGIN_FAILED",
+      module: "AUTH",
+      userEmail: String(identifier).slice(0, 255),
+      ip: device?.ipAddress,
+      userAgent: device?.userAgent,
+      deviceName: device?.deviceName,
+      status: "FAILED",
+      description: `Failed login attempt for account "${identifier}" (incorrect credentials)`,
+      details: { identifier: String(identifier).slice(0, 100) },
+    });
     if (authDiagnosticsEnabled) {
       logger.info("Authentication login rejected: password did not match.", {
         event: "auth.login.rejected",
@@ -346,7 +357,14 @@ export const loginUserService = async (
   delete user.password;
 
   auditLogger({
-    action: "USER_LOGIN",
+    action: "LOGIN_SUCCESS",
+    userName: user.full_name,
+    userEmail: user.email,
+    ip: device?.ipAddress,
+    userAgent: device?.userAgent,
+    deviceName: device?.deviceName,
+    status: "SUCCESS",
+    description: `${user.full_name} (${user.role}) logged in from ${device?.deviceName || "browser"} (IP: ${device?.ipAddress || "local"})`,
     module: "AUTH",
     userId: user.id,
     role: user.role,

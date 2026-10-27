@@ -285,6 +285,32 @@ export async function initDatabaseSchema() {
           ('Referral', 'Referred by partner or student', TRUE),
           ('Walk In', 'Direct walk in enquiry', TRUE)
         ON CONFLICT (name) DO NOTHING;
+
+      -- Central Activity & Audit Logs Table
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(150),
+        user_email VARCHAR(255),
+        role VARCHAR(50),
+        action VARCHAR(100) NOT NULL,
+        module VARCHAR(50) NOT NULL,
+        entity_type VARCHAR(50),
+        entity_id VARCHAR(100),
+        entity_name VARCHAR(255),
+        description TEXT,
+        details JSONB DEFAULT '{}'::jsonb,
+        ip_address VARCHAR(100),
+        user_agent TEXT,
+        device_name VARCHAR(150),
+        status VARCHAR(20) DEFAULT 'SUCCESS',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_module ON activity_logs (module);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs (action);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs (user_id);
       `);
 
       console.log("✅ Core database tables and seed users initialized successfully.");
@@ -437,6 +463,32 @@ export async function initDatabaseSchema() {
         ('DesigningVidya'),
         ('LanguageVidya')
       ON CONFLICT (name) DO NOTHING;
+
+      -- Central Activity & Audit Logs Table
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(150),
+        user_email VARCHAR(255),
+        role VARCHAR(50),
+        action VARCHAR(100) NOT NULL,
+        module VARCHAR(50) NOT NULL,
+        entity_type VARCHAR(50),
+        entity_id VARCHAR(100),
+        entity_name VARCHAR(255),
+        description TEXT,
+        details JSONB DEFAULT '{}'::jsonb,
+        ip_address VARCHAR(100),
+        user_agent TEXT,
+        device_name VARCHAR(150),
+        status VARCHAR(20) DEFAULT 'SUCCESS',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_module ON activity_logs (module);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs (action);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs (user_id);
     `);
 
     // Ensure sequences align

@@ -31,6 +31,7 @@ import leaveRoutes from "./routes/leaveRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import rosterRoutes from "./routes/rosterRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import activityLogRoutes from "./routes/activityLog.routes.js";
 
 /* Middlewares */
 import { globalLimiter } from "./middleware/rateLimiter.js";
@@ -193,6 +194,7 @@ app.use("/api/leave", leaveRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/roster", rosterRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/activity-logs", activityLogRoutes);
 
 /**
  * 404 Handler

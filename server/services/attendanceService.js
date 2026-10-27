@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import crypto from "node:crypto";
 import ApiError from "../utils/ApiError.js";
+import auditLogger from "../utils/auditLogger.js";
 import {
   generateAuthenticationOptions,
   generateRegistrationOptions,
@@ -709,6 +710,26 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     verification_method: verificationMethod,
   });
 
+  auditLogger({
+    action: "CHECK_IN",
+    module: "ATTENDANCE",
+    userId: currentUser?.id,
+    userName: currentUser?.full_name,
+    userEmail: currentUser?.email,
+    role: currentUser?.role,
+    entityType: "attendance",
+    entityId: attendance?.id,
+    ip: clientIp,
+    description: `${currentUser?.full_name || "Employee"} marked check-in via ${verificationMethod} (${cleanLocation})`,
+    details: {
+      status,
+      verificationMethod,
+      accuracy: acc,
+      distance: distanceInMeters,
+      isOfficeWifi,
+    },
+  });
+
   return attendance;
 };
 
@@ -810,7 +831,7 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
       ? "Dizital Adda Office Premises (Office Wi-Fi)"
       : (location_name || null);
 
-  return await updateAttendanceCheckOutRepository(null, {
+  const updated = await updateAttendanceCheckOutRepository(null, {
     id: todayAttendance.id,
     check_out_lat: lat,
     check_out_lng: lng,
@@ -819,6 +840,27 @@ export const checkOutAttendanceService = async (payload = {}, currentUser, req) 
     check_out_distance: distanceInMeters !== null ? Math.round(distanceInMeters * 100) / 100 : null,
     verification_method: verificationMethod,
   });
+
+  auditLogger({
+    action: "CHECK_OUT",
+    module: "ATTENDANCE",
+    userId: currentUser?.id,
+    userName: currentUser?.full_name,
+    userEmail: currentUser?.email,
+    role: currentUser?.role,
+    entityType: "attendance",
+    entityId: todayAttendance.id,
+    ip: clientIp,
+    description: `${currentUser?.full_name || "Employee"} marked check-out via ${verificationMethod} (${cleanLocation})`,
+    details: {
+      verificationMethod,
+      accuracy: acc,
+      distance: distanceInMeters,
+      isOfficeWifi,
+    },
+  });
+
+  return updated;
 };
 
 export const syncOfflineAttendanceService = async (payload = {}, currentUser, req) => {
@@ -1317,6 +1359,17 @@ export const updateAttendanceSettingsService = async (payload = {}, currentUser,
       }
     }
   }
+
+  auditLogger({
+    action: "UPDATE_GEOFENCE_SETTINGS",
+    module: "SETTINGS",
+    userId: currentUser?.id,
+    userName: currentUser?.full_name,
+    userEmail: currentUser?.email,
+    role: currentUser?.role,
+    description: `${currentUser?.full_name || "Admin"} updated office geofence & IP settings`,
+    details: payload,
+  });
 
   return await getAttendanceSettingsService(req);
 };

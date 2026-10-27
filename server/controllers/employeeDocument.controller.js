@@ -35,6 +35,6 @@ export const getHREmployeeDocuments = asyncHandler(async (req, res) => {
 });
 
 export const getHREmployeeDocumentAccessUrl = asyncHandler(async (req, res) => {
-  const access = await getHREmployeeDocumentAccessUrlService(req.params.id);
+  const access = await getHREmployeeDocumentAccessUrlService(req.params.id, req.user);
   return res.status(200).json(new ApiResponse(200, access, "Secure document access granted."));
 });
