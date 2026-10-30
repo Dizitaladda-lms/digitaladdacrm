@@ -20,15 +20,20 @@ export const getCompanyPresenceRepository = async (targetDate) => {
        presence_override.status AS presence_override,
        CASE
          WHEN presence_override.status = 'ON_LEAVE' THEN 'ON_LEAVE'
+         WHEN approved_leave.is_on_leave = 1 THEN 'ON_LEAVE'
          WHEN a.check_in_time IS NOT NULL THEN 'PRESENT'
          WHEN UPPER(COALESCE(a.status, '')) IN ('PRESENT', 'LATE', 'HALF_DAY') THEN 'PRESENT'
+         WHEN COALESCE(work_mode.work_mode, 'OFFICE') = 'WFH' OR approved_wfh.is_wfh = 1 THEN 'PRESENT'
          WHEN UPPER(COALESCE(a.status, '')) = 'ON_LEAVE'
            OR e.status = 'ON_LEAVE'
            OR UPPER(COALESCE(roster_day.status, '')) IN ('LEAVE', 'PLANNED_LEAVE')
            THEN 'ON_LEAVE'
          ELSE 'ABSENT'
        END AS attendance_status,
-       COALESCE(work_mode.work_mode, 'OFFICE') AS work_mode
+       CASE
+         WHEN approved_wfh.is_wfh = 1 THEN 'WFH'
+         ELSE COALESCE(work_mode.work_mode, 'OFFICE')
+       END AS work_mode
      FROM employees e
      LEFT JOIN departments d ON d.id = e.department_id
      LEFT JOIN daily_employee_presence_overrides presence_override
@@ -36,6 +41,24 @@ export const getCompanyPresenceRepository = async (targetDate) => {
       AND presence_override.presence_date = $1::date
      LEFT JOIN daily_attendance a
        ON a.employee_id = e.id AND a.date = $1::date
+     LEFT JOIN LATERAL (
+       SELECT 1 AS is_on_leave
+       FROM employee_leave_requests elr
+       WHERE elr.employee_id = e.id
+         AND elr.status = 'APPROVED'
+         AND elr.start_date <= $1::date
+         AND elr.end_date >= $1::date
+       LIMIT 1
+     ) approved_leave ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT 1 AS is_wfh
+       FROM employee_wfh_requests ewfh
+       WHERE ewfh.employee_id = e.id
+         AND ewfh.status = 'APPROVED'
+         AND ewfh.start_date <= $1::date
+         AND ewfh.end_date >= $1::date
+       LIMIT 1
+     ) approved_wfh ON TRUE
      LEFT JOIN employee_monthly_rosters roster
        ON roster.employee_id = e.id
       AND roster.year = EXTRACT(YEAR FROM $1::date)::int

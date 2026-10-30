@@ -163,7 +163,7 @@ const ReportDetailsModal = ({
     }
     if (isSubTL && onReviewAsTL && (!nextPendingStep || nextPendingStep.level === 2)) {
       return {
-        label: "Verify (Sub-TL)",
+        label: "Verify (Executive)",
         style: { backgroundColor: "#0891B2", borderColor: "#0E7490", color: "#FFFFFF" },
         onClick: () => onReviewAsTL(report),
       };
@@ -546,7 +546,7 @@ const ReportDetailsModal = ({
               style={{ backgroundColor: "#0891B2", borderColor: "#0E7490", color: "#FFFFFF" }}
               onClick={() => onReviewAsTL(report)}
             >
-              Verify as Sub-TL
+              Verify as Executive
             </button>
           )}
 

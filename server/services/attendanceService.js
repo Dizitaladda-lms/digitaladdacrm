@@ -229,7 +229,30 @@ export const getMyBiometricStatusService = async (currentUser, dateStr = null, r
     is_office_ip = verified.isOfficeWifi;
   }
 
+  const todayStatusQuery = await pool.query(
+    `SELECT
+       EXISTS (
+         SELECT 1 FROM daily_employee_work_modes
+         WHERE employee_id = $1 AND work_date = CURRENT_DATE AND work_mode = 'WFH'
+         UNION
+         SELECT 1 FROM employee_wfh_requests
+         WHERE employee_id = $1 AND status = 'APPROVED' AND CURRENT_DATE BETWEEN start_date AND end_date
+       ) AS is_wfh_today,
+       EXISTS (
+         SELECT 1 FROM employee_leave_requests
+         WHERE employee_id = $1 AND status = 'APPROVED' AND CURRENT_DATE BETWEEN start_date AND end_date
+         UNION
+         SELECT 1 FROM daily_employee_presence_overrides
+         WHERE employee_id = $1 AND presence_date = CURRENT_DATE AND status = 'ON_LEAVE'
+       ) AS is_on_leave_today;`,
+    [employee.id]
+  );
+  const is_wfh_today = Boolean(todayStatusQuery.rows[0]?.is_wfh_today);
+  const is_on_leave_today = Boolean(todayStatusQuery.rows[0]?.is_on_leave_today);
+
   return {
+    is_wfh_today,
+    is_on_leave_today,
     employee_id: employee.id,
     passkey_required: isAttendancePasskeyRequired(),
     is_registered: !!biometric,
@@ -587,11 +610,25 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
     }
   }
 
-  // Rule: IP match OR GPS ok => check-in allow
-  const isAllowed = isOfficeWifi || isGpsOk;
+  // Check if employee has approved WFH for today
+  const wfhCheck = await pool.query(
+    `SELECT 1 FROM daily_employee_work_modes
+     WHERE employee_id = $1 AND work_date = CURRENT_DATE AND work_mode = 'WFH'
+     UNION
+     SELECT 1 FROM employee_wfh_requests
+     WHERE employee_id = $1 AND status = 'APPROVED' AND CURRENT_DATE BETWEEN start_date AND end_date
+     LIMIT 1;`,
+    [employee.id]
+  );
+  const isWfhToday = wfhCheck.rows.length > 0;
+
+  // Rule: IP match OR GPS ok OR WFH approved => check-in allow
+  const isAllowed = isOfficeWifi || isGpsOk || isWfhToday;
 
   let verificationMethod = "NONE";
-  if (isOfficeWifi && isGpsOk) {
+  if (isWfhToday) {
+    verificationMethod = "WFH";
+  } else if (isOfficeWifi && isGpsOk) {
     verificationMethod = "GPS+IP";
   } else if (isOfficeWifi) {
     verificationMethod = "IP";
@@ -690,7 +727,9 @@ export const checkInAttendanceService = async (payload = {}, currentUser, req) =
   }
 
   const cleanLocation =
-    distanceInMeters != null && distanceInMeters <= (office_radius + (acc || 0))
+    isWfhToday
+      ? "Work From Home (Approved)"
+      : distanceInMeters != null && distanceInMeters <= (office_radius + (acc || 0))
       ? "Dizital Adda Office Premises"
       : isOfficeWifi
       ? "Dizital Adda Office Premises (Office Wi-Fi)"

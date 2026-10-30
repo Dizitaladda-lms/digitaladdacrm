@@ -167,3 +167,26 @@ export const syncOfflineAttendance = async (payload) => {
   return response.data;
 };
 
+
+export const createWfhRequest = async (payload) => {
+  const response = await axiosInstance.post("/attendance/wfh-requests", payload);
+  return response.data;
+};
+
+export const getMyWfhRequests = async () => {
+  const response = await axiosInstance.get("/attendance/wfh-requests/my");
+  return response.data;
+};
+
+export const getPendingWfhApprovals = async () => {
+  const response = await axiosInstance.get("/attendance/wfh-requests/pending");
+  return response.data;
+};
+
+export const decideWfhRequest = async (id, decision, reason = "") => {
+  const response = await axiosInstance.patch(`/attendance/wfh-requests/${id}/decision`, {
+    decision,
+    reason,
+  });
+  return response.data;
+};

@@ -315,7 +315,7 @@ export const getHierarchySummary = ({ role, designation }) => {
 
   const labels = {
     1: "Intern",
-    2: "Sub-TL",
+    2: "Executive",
     3: "Team Leader",
     4: "Department Head",
     5: "HR",

@@ -1356,6 +1356,35 @@ const MobileBiometricAttendance = ({ onCheckInSuccess }) => {
               </span>
             )}
 
+            {statusData?.is_wfh_today && (
+              <span
+                className="biometric-pill"
+                style={{
+                  background: "#ecfdf5",
+                  color: "#047857",
+                  border: "1px solid #a7f3d0",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                }}
+              >
+                🏠 Work From Home Active
+              </span>
+            )}
+            {statusData?.is_on_leave_today && (
+              <span
+                className="biometric-pill"
+                style={{
+                  background: "#fef9c3",
+                  color: "#a16207",
+                  border: "1px solid #fde047",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                }}
+              >
+                🌴 On Approved Leave Today
+              </span>
+            )}
+
             {/* Geofence GPS status pill */}
             {locating ? (
               <span className="biometric-pill biometric-pill-geofence-loading">

@@ -119,7 +119,7 @@ const REPORTING_LEVELS = {
   DIRECT_EMPLOYEE: { role: "EMPLOYEE", designation: "Employee" },
   DEPARTMENT_HEAD: { role: "TL", designation: "Department Head" },
   TL: { role: "TL", designation: "Team Lead" },
-  SUB_TL: { role: "TL", designation: "Sub-Team Lead" },
+  SUB_TL: { role: "TL", designation: "Executive" },
   INTERN: { role: "INTERN", designation: "Intern" },
 };
 
@@ -1313,7 +1313,7 @@ const Employees = () => {
                       value={form.reporting_manager_id}
                       onChange={(event) => setForm({ ...form, reporting_manager_id: event.target.value })}
                     >
-                      <option value="">Select Department Head / Manager / TL / Sub-TL</option>
+                      <option value="">Select Department Head / Manager / TL / Executive</option>
                       {reportingManagerOptions.length === 0 ? (
                         <option value="" disabled>No eligible reporting managers available</option>
                       ) : (
@@ -1834,11 +1834,11 @@ const Employees = () => {
                       <option value="DIRECT_EMPLOYEE">Employee — Reports directly to HR</option>
                       <option value="DEPARTMENT_HEAD">Department Head</option>
                       <option value="TL">Team Lead (TL)</option>
-                      <option value="SUB_TL">Sub-Team Lead</option>
+                      <option value="SUB_TL">Executive</option>
                       <option value="INTERN">Intern</option>
                     </select>
                     <small style={{ color: "#64748B", fontSize: "11px", display: "block", marginTop: "2px" }}>
-                      Choose this person&apos;s place in the reporting chain. Department Head, TL, and Sub-Team Lead use team-report access without granting Manager or Super Admin access.
+                      Choose this person&apos;s place in the reporting chain. Department Head, TL, and Executive use team-report access without granting Manager or Super Admin access.
                     </small>
                   </label>
 
@@ -1859,7 +1859,7 @@ const Employees = () => {
                       value={editForm.reporting_manager_id}
                       onChange={(e) => setEditForm({ ...editForm, reporting_manager_id: e.target.value })}
                     >
-                      <option value="">Select HR / Department Head / TL / Sub-TL</option>
+                      <option value="">Select HR / Department Head / TL / Executive</option>
                       {reportingManagerOptions
                         .filter((emp) => String(emp.id) !== String(editingEmployee?.id))
                         .map((emp) => (

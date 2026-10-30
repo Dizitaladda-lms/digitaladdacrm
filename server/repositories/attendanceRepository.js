@@ -547,6 +547,7 @@ export const getMyAttendanceHistoryRepository = async ({ employee_id, page = 1, 
     `
       SELECT 
         a.*,
+        COALESCE(wm.work_mode, CASE WHEN a.verification_method = 'WFH' OR a.check_in_location ILIKE '%Work From Home%' THEN 'WFH' ELSE 'OFFICE' END) AS work_mode,
         COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
         COALESCE(e.shift_start_time, '10:00') AS shift_start_time,
         COALESCE(e.shift_end_time, '18:00') AS shift_end_time,
@@ -567,6 +568,7 @@ export const getMyAttendanceHistoryRepository = async ({ employee_id, page = 1, 
         ) AS live_hours
       FROM daily_attendance a
       LEFT JOIN employees e ON a.employee_id = e.id
+      LEFT JOIN daily_employee_work_modes wm ON wm.employee_id = a.employee_id AND wm.work_date = a.date
       WHERE a.employee_id = $1
       ORDER BY a.date DESC
       LIMIT $2 OFFSET $3;
@@ -640,6 +642,7 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
       FROM employees e
       LEFT JOIN users u ON e.user_id = u.id
       LEFT JOIN daily_attendance a ON a.employee_id = e.id AND a.date = $${dateParamIndex}::date
+      LEFT JOIN daily_employee_work_modes wm ON wm.employee_id = e.id AND wm.work_date = $${dateParamIndex}::date
       ${whereClause}
     `;
 
@@ -655,6 +658,7 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
         a.check_out_time,
         a.ip_address,
         COALESCE(a.is_office_wifi, false) AS is_office_wifi,
+        COALESCE(wm.work_mode, CASE WHEN a.verification_method = 'WFH' OR a.check_in_location ILIKE '%Work From Home%' THEN 'WFH' ELSE 'OFFICE' END) AS work_mode,
         COALESCE(a.status, 'NOT_CHECKED_IN') AS status,
         a.check_in_lat,
         a.check_in_lng,

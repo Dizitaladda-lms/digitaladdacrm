@@ -341,9 +341,9 @@ const TeamReports = () => {
       desig.includes("sub tl")
     ) {
       return {
-        label: "Sub-TL",
+        label: "Executive",
         icon: <UserCheck size={12} />,
-        className: "badge-hierarchy-subtl",
+        className: "badge-hierarchy-exec",
         bg: "#e0f2fe",
         color: "#0369a1",
         border: "#bae6fd",
@@ -375,7 +375,7 @@ const TeamReports = () => {
       };
     }
     return {
-      label: "Executive",
+      label: "Employee",
       icon: <Briefcase size={12} />,
       className: "badge-hierarchy-exec",
       bg: "#eff6ff",
@@ -412,7 +412,7 @@ const TeamReports = () => {
                 {isSuperAdmin ? "Super Admin Executive Control" : isHR ? "HR & Company Governance" : "Department Team Workspace"}
               </span>
               <span style={{ background: "#e0f2fe", color: "#0284c7", fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px" }}>
-                6-Level Hierarchy: Intern ➔ Sub-TL ➔ TL ➔ Dept Head ➔ HR ➔ Super Admin
+                6-Level Hierarchy: Intern ➔ Executive ➔ TL ➔ Dept Head ➔ HR ➔ Super Admin
               </span>
             </div>
             <h1 className="team-heading">
@@ -646,8 +646,8 @@ const TeamReports = () => {
                   <option value="ALL">All Hierarchy Roles</option>
                   <option value="DEPARTMENT_HEAD">🛡️ Department Heads</option>
                   <option value="TL">👑 Team Leaders (TL)</option>
-                  <option value="SUB_TL">⚡ Sub-TLs</option>
-                  <option value="EXECUTIVE">💼 Executives</option>
+                  <option value="SUB_TL">⚡ Executives</option>
+                  <option value="EXECUTIVE">💼 Employees</option>
                   <option value="INTERN">🎓 Interns</option>
                 </select>
               </div>
@@ -661,7 +661,7 @@ const TeamReports = () => {
                   className="filter-select"
                 >
                   <option value="ALL">All Approval Stages</option>
-                  <option value="SUBMITTED">⏳ Pending Sub-TL / TL / Dept Head ({pendingTLCount})</option>
+                  <option value="SUBMITTED">⏳ Pending Executive / TL / Dept Head ({pendingTLCount})</option>
                   <option value="TL_REVIEWED">⏳ Verified by TL/Head — Pending HR ({pendingHRCount})</option>
                   <option value="HR_APPROVED">✅ Approved (Super Admin Ready) ({approvedCount})</option>
                   <option value="SUPER_ADMIN_APPROVED">🛡️ Final Approved by Super Admin</option>
@@ -733,7 +733,7 @@ const TeamReports = () => {
           }}
           role="button"
           tabIndex={0}
-          title="Click to filter Pending Sub-TL / TL / Dept Head reports"
+          title="Click to filter Pending Executive / TL / Dept Head reports"
           style={{
             borderLeft: "4px solid #f59e0b",
             cursor: "pointer",
@@ -744,7 +744,7 @@ const TeamReports = () => {
             <Clock size={20} />
           </div>
           <div>
-            <span className="stat-label">Pending Sub-TL / TL / Dept Head</span>
+            <span className="stat-label">Pending Executive / TL / Dept Head</span>
             <strong className="stat-number" style={{ color: "#d97706" }}>
               {pendingTLCount}
             </strong>
@@ -1143,7 +1143,7 @@ const TeamReports = () => {
                                 : isDepartmentHead
                                 ? "Verify (Head)"
                                 : isSubTL
-                                ? "Verify (Sub-TL)"
+                                ? "Verify (Executive)"
                                 : "Verify (TL)"}
                             </button>
                           ) : null}
@@ -1195,7 +1195,7 @@ const TeamReports = () => {
                     : isDepartmentHead
                     ? "Level 4 • Department Head Verification"
                     : isSubTL
-                    ? "Level 2 • Sub-TL Verification"
+                    ? "Level 2 • Executive Verification"
                     : "Level 3 • Team Leader Verification"}
                 </span>
                 <h3>

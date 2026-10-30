@@ -245,5 +245,49 @@ export const decideLeaveRequestRepository = async ({ id, user, decision, reason 
        RETURNING *;`,
       [id, nextStatus, user.id, decision === "REJECT" ? reason : null]
     );
+
+    if (decision === "APPROVE") {
+      const datesRes = await client.query(
+        `SELECT d::date AS leave_date
+         FROM generate_series($1::date, $2::date, '1 day'::interval) d;`,
+        [request.start_date, request.end_date]
+      );
+
+      for (const row of datesRes.rows) {
+        const leaveDate = row.leave_date;
+
+        await client.query(
+          `INSERT INTO daily_attendance (
+             employee_id,
+             date,
+             status,
+             check_in_location,
+             is_office_wifi,
+             total_hours
+           )
+           VALUES ($1, $2, 'ON_LEAVE', 'Approved Leave', FALSE, 0.00)
+           ON CONFLICT (employee_id, date)
+           DO UPDATE SET
+             status = 'ON_LEAVE',
+             check_in_location = 'Approved Leave'
+           WHERE daily_attendance.check_in_time IS NULL;`,
+          [request.employee_id, leaveDate]
+        );
+
+        await client.query(
+          `INSERT INTO daily_employee_presence_overrides (
+             employee_id, presence_date, status, updated_by
+           )
+           VALUES ($1, $2, 'ON_LEAVE', $3)
+           ON CONFLICT (employee_id, presence_date)
+           DO UPDATE SET
+             status = 'ON_LEAVE',
+             updated_by = EXCLUDED.updated_by,
+             updated_at = CURRENT_TIMESTAMP;`,
+          [request.employee_id, leaveDate, user.id]
+        );
+      }
+    }
+
     return updateResult.rows[0];
   });

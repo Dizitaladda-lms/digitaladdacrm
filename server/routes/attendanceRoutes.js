@@ -3,6 +3,12 @@ import authMiddleware from "../middleware/authMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import ROLES from "../constants/roles.js";
 import {
+  createWfhRequest,
+  getMyWfhRequests,
+  getPendingWfhApprovals,
+  decideWfhRequest,
+} from "../controllers/wfhController.js";
+import {
   getMyBiometricStatus,
   getBiometricRegistrationOptions,
   getBiometricAuthenticationOptions,
@@ -112,6 +118,20 @@ router.delete(
   "/office-ips/:id",
   roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
   deleteOfficeIP
+);
+
+// WFH (Work From Home) Requests
+router.post("/wfh-requests", createWfhRequest);
+router.get("/wfh-requests/my", getMyWfhRequests);
+router.get(
+  "/wfh-requests/pending",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.MANAGER, ROLES.SUPER_ADMIN),
+  getPendingWfhApprovals
+);
+router.patch(
+  "/wfh-requests/:id/decision",
+  roleMiddleware(ROLES.HR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  decideWfhRequest
 );
 
 // Office Settings (Coordinates, Radius & IPs)

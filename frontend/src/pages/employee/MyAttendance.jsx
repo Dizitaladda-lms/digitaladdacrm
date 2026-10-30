@@ -13,6 +13,7 @@ import {
   FileText,
   MapPin,
   ExternalLink,
+  Home,
 } from "lucide-react";
 import { getMyAttendanceHistory } from "../../services/attendanceService";
 import MobileBiometricAttendance from "../../components/attendance/MobileBiometricAttendance";
@@ -308,22 +309,50 @@ const MyAttendance = () => {
                         })()}
                       </td>
                       <td style={{ padding: "14px 18px" }}>
-                        <span style={{ fontSize: "12px", color: "#0284c7", display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: "600" }}>
-                          <Wifi size={13} /> Office Verified ({row.ip_address || "127.0.0.1"})
-                        </span>
+                        {String(row.work_mode || "").toUpperCase() === "WFH" ||
+                        String(row.verification_method || "").toUpperCase() === "WFH" ||
+                        String(row.check_in_location || "").includes("Work From Home") ? (
+                          <span style={{ fontSize: "12px", color: "#0d9488", display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: "700" }}>
+                            <Home size={13} /> Work From Home (Approved)
+                          </span>
+                        ) : String(row.status || "").toUpperCase() === "ON_LEAVE" ? (
+                          <span style={{ fontSize: "12px", color: "#b45309", display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: "700" }}>
+                            🌴 Approved Leave
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: "12px", color: "#0284c7", display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: "600" }}>
+                            <Wifi size={13} /> Office Verified ({row.ip_address || "127.0.0.1"})
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: "14px 18px" }}>
                         {(() => {
                           const lateInfo = row.check_in_time ? calculateLateArrival(row.check_in_time) : null;
                           const isLate = row.status === "LATE" || (lateInfo && lateInfo.isLate);
                           const isPresent = row.status === "PRESENT" || (!isLate && row.check_in_time);
+                          const upperStatus = String(row.status || "").toUpperCase();
+                          const isWfh =
+                            String(row.work_mode || "").toUpperCase() === "WFH" ||
+                            String(row.verification_method || "").toUpperCase() === "WFH" ||
+                            String(row.check_in_location || "").includes("Work From Home");
+                          const isOnLeave = upperStatus === "ON_LEAVE" || upperStatus === "LEAVE";
 
                           let bg = "#fee2e2";
                           let color = "#b91c1c";
                           let border = "1px solid #fecaca";
                           let text = row.status || "ABSENT";
 
-                          if (isLate) {
+                          if (isWfh) {
+                            bg = "#ecfdf5";
+                            color = "#047857";
+                            border = "1px solid #a7f3d0";
+                            text = "PRESENT (WFH)";
+                          } else if (isOnLeave) {
+                            bg = "#fef9c3";
+                            color = "#a16207";
+                            border = "1px solid #fde047";
+                            text = "ON LEAVE";
+                          } else if (isLate) {
                             bg = "#fef3c7";
                             color = "#b45309";
                             border = "1px solid #fde68a";

@@ -12,7 +12,7 @@ import {
 
 const ROLE_DISPLAY_NAMES = {
   INTERN: "Intern",
-  SUB_TL: "Sub-TL",
+  SUB_TL: "Executive",
   TL: "Team Lead (TL)",
   DEPARTMENT_HEAD: "Department Head",
   MANAGER: "Department Head",
@@ -21,7 +21,7 @@ const ROLE_DISPLAY_NAMES = {
 };
 
 const ROLE_SHORT_NAMES = {
-  SUB_TL: "Sub-TL",
+  SUB_TL: "Executive",
   TL: "TL",
   DEPARTMENT_HEAD: "Dept Head",
   MANAGER: "Dept Head",

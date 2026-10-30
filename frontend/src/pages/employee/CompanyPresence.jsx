@@ -372,7 +372,24 @@ const CompanyPresence = () => {
                         </div>
                       </td>
                       <td>{employee.department_name || "General"}</td>
-                      <td><span className={`presence-badge presence-badge--${attendanceStatus.toLowerCase()}`}>{STATUS_LABELS[attendanceStatus] || "Absent"}</span></td>
+                      <td>
+                        {attendanceStatus === "PRESENT" && workMode === "WFH" ? (
+                          <span
+                            className="presence-badge presence-badge--present"
+                            style={{
+                              background: "#ecfdf5",
+                              color: "#047857",
+                              border: "1px solid #a7f3d0",
+                            }}
+                          >
+                            Present (WFH)
+                          </span>
+                        ) : (
+                          <span className={`presence-badge presence-badge--${attendanceStatus.toLowerCase()}`}>
+                            {STATUS_LABELS[attendanceStatus] || "Absent"}
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155", display: "flex", alignItems: "center", gap: "6px" }}>
                           <Clock size={13} style={{ color: "#64748b" }} />
