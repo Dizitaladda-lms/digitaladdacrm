@@ -162,7 +162,7 @@ export const runScheduledAutoCheckout = async (now = new Date()) => {
 /**
  * Helper to get linked employee ID for current user
  */
-const getEmployeeId = async (currentUser) => {
+export const getEmployeeId = async (currentUser) => {
   const employee = await findEmployeeByUserIdRepository(currentUser.id);
   if (!employee) {
     throw new ApiError(

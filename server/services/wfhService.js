@@ -1,5 +1,5 @@
 import ApiError from "../utils/ApiError.js";
-import { getEmployeeId } from "./attendanceService.js";
+import { findEmployeeByUserIdRepository } from "../repositories/employeeRepository.js";
 import {
   createWfhRequestRepository,
   getMyWfhRequestsRepository,
@@ -29,7 +29,13 @@ export const createWfhRequestService = async (payload, user) => {
     throw new ApiError(400, "Reason must be between 3 and 2000 characters.");
   }
 
-  const employee = await getEmployeeId(user);
+  const employee = await findEmployeeByUserIdRepository(user.id);
+  if (!employee) {
+    throw new ApiError(
+      403,
+      "No employee profile is linked to your account. Contact HR."
+    );
+  }
 
   return createWfhRequestRepository({
     userId: user.id,
