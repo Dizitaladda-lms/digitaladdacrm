@@ -1287,10 +1287,12 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
   }
 
   const requestedStatus = String(payload.status || "AUTO").trim().toUpperCase();
-  const allowedStatuses = new Set(["AUTO", "PRESENT", "LATE", "HALF_DAY", "ABSENT", "ON_LEAVE", "WEEK_OFF"]);
+  const allowedStatuses = new Set(["AUTO", "PRESENT", "LATE", "HALF_DAY", "ABSENT", "ON_LEAVE", "WEEK_OFF", "WFH"]);
   if (!allowedStatuses.has(requestedStatus)) {
     throw new ApiError(400, "Invalid attendance status.");
   }
+
+  const isWfh = requestedStatus === "WFH" || String(payload.work_mode || "").trim().toUpperCase() === "WFH";
 
   let checkInIso = parseDateAndTimeToISO(targetDate, payload.check_in_time);
   let checkOutIso = parseDateAndTimeToISO(targetDate, payload.check_out_time);
@@ -1301,7 +1303,7 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
       checkOutIso = null;
     }
   } else if (!checkInIso) {
-    // If HR marks PRESENT / LATE / HALF_DAY / AUTO without typing a time, default to shift start time (or 10:00)
+    // If HR marks PRESENT / LATE / HALF_DAY / AUTO / WFH without typing a time, default to shift start time (or 10:00)
     const defaultShiftStart = employee.shift_start_time || "10:00";
     checkInIso = parseDateAndTimeToISO(targetDate, defaultShiftStart);
   }
@@ -1318,16 +1320,26 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
       throw new ApiError(400, "Check-out time must be later than check-in time.");
     }
     totalHours = Number(((outMs - inMs) / 3600000).toFixed(2));
+  } else if (isWfh) {
+    totalHours = 8.00;
   }
 
-  const finalStatus =
-    requestedStatus === "AUTO"
-      ? computeShiftStatusForTimestamp(checkInIso, employee)
-      : requestedStatus;
+  let finalStatus = requestedStatus;
+  if (requestedStatus === "AUTO") {
+    finalStatus = computeShiftStatusForTimestamp(checkInIso, employee);
+  } else if (requestedStatus === "WFH") {
+    finalStatus = "PRESENT";
+  }
 
-  const locationLabel = "Dizital Adda Office Premises";
+  const locationLabel = isWfh
+    ? "Work From Home (Approved)"
+    : (payload.location_label || "Dizital Adda Office Premises");
+  const verificationMethod = isWfh ? "WFH" : (payload.verification_method || null);
+  const isOfficeWifi = isWfh
+    ? false
+    : (typeof payload.is_office_wifi === "boolean" ? payload.is_office_wifi : true);
 
-  return await upsertEmployeeAttendanceByHRRepository({
+  const updatedRecord = await upsertEmployeeAttendanceByHRRepository({
     employee_id: employeeId,
     date: targetDate,
     check_in_time: checkInIso,
@@ -1336,7 +1348,36 @@ export const upsertEmployeeAttendanceByHRService = async (payload = {}, currentU
     total_hours: totalHours,
     ip_address: getClientIp(req || { headers: {} }),
     location_label: locationLabel,
+    is_office_wifi: isOfficeWifi,
+    verification_method: verificationMethod,
   });
+
+  // Sync daily_employee_work_modes so Presence and Reports reflect WFH or OFFICE
+  const targetWorkMode = isWfh ? "WFH" : (payload.work_mode ? String(payload.work_mode).toUpperCase() : null);
+  if (targetWorkMode) {
+    await pool.query(
+      `INSERT INTO daily_employee_work_modes (
+         employee_id, work_date, work_mode, updated_by
+       )
+       VALUES ($1, $2::date, $3, $4)
+       ON CONFLICT (employee_id, work_date)
+       DO UPDATE SET
+         work_mode = EXCLUDED.work_mode,
+         updated_by = EXCLUDED.updated_by,
+         updated_at = CURRENT_TIMESTAMP;`,
+      [employeeId, targetDate, targetWorkMode, currentUser.id]
+    ).catch(() => {});
+  }
+
+  if (isWfh) {
+    await pool.query(
+      `DELETE FROM daily_employee_presence_overrides
+       WHERE employee_id = $1 AND presence_date = $2::date;`,
+      [employeeId, targetDate]
+    ).catch(() => {});
+  }
+
+  return updatedRecord;
 };
 
 export const getAttendanceSettingsService = async (req = null) => {

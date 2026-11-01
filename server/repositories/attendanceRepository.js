@@ -630,6 +630,8 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
       const upperStatus = String(status).toUpperCase();
       if (upperStatus === "ABSENT" || upperStatus === "NOT_CHECKED_IN") {
         whereClause += ` AND (a.id IS NULL OR UPPER(a.status) = 'ABSENT') `;
+      } else if (upperStatus === "WFH") {
+        whereClause += ` AND (wm.work_mode = 'WFH' OR a.verification_method = 'WFH' OR a.check_in_location ILIKE '%Work From Home%') `;
       } else {
         whereClause += ` AND UPPER(a.status) = $${index} `;
         values.push(upperStatus);
@@ -731,9 +733,14 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
     }
 
     if (status && String(status).toUpperCase() !== "ALL") {
-      whereClause += ` AND UPPER(a.status) = $${index} `;
-      values.push(String(status).toUpperCase());
-      index++;
+      const upperStatus = String(status).toUpperCase();
+      if (upperStatus === "WFH") {
+        whereClause += ` AND (wm.work_mode = 'WFH' OR a.verification_method = 'WFH' OR a.check_in_location ILIKE '%Work From Home%') `;
+      } else {
+        whereClause += ` AND UPPER(a.status) = $${index} `;
+        values.push(upperStatus);
+        index++;
+      }
     }
 
     if (date_from) {
@@ -753,6 +760,7 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
       FROM daily_attendance a
       JOIN employees e ON a.employee_id = e.id
       LEFT JOIN users u ON e.user_id = u.id
+      LEFT JOIN daily_employee_work_modes wm ON wm.employee_id = a.employee_id AND wm.work_date = a.date
       ${whereClause}
     `;
 
@@ -762,6 +770,7 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
     const query = `
       SELECT 
         a.*,
+        COALESCE(wm.work_mode, CASE WHEN a.verification_method = 'WFH' OR a.check_in_location ILIKE '%Work From Home%' THEN 'WFH' ELSE 'OFFICE' END) AS work_mode,
         e.full_name AS employee_name,
         e.employee_code,
         e.designation,
@@ -789,6 +798,7 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
       JOIN employees e ON a.employee_id = e.id
       LEFT JOIN users u ON e.user_id = u.id
       LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN daily_employee_work_modes wm ON wm.employee_id = a.employee_id AND wm.work_date = a.date
       ${whereClause}
       ORDER BY a.date DESC, a.check_in_time DESC
       LIMIT $${index} OFFSET $${index + 1};
@@ -828,7 +838,12 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
   total_hours,
   ip_address,
   location_label,
+  is_office_wifi,
+  verification_method,
 }) => {
+  const isWifi = typeof is_office_wifi === "boolean" ? is_office_wifi : true;
+  const verMethod = verification_method || (location_label?.includes("Work From Home") ? "WFH" : null);
+
   const result = await pool.query(
     `
       INSERT INTO daily_attendance (
@@ -842,6 +857,7 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
         status,
         check_in_location,
         check_out_location,
+        verification_method,
         updated_at
       )
       VALUES (
@@ -851,10 +867,11 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
         $4::timestamptz,
         $5,
         $6,
-        TRUE,
+        $9,
         $7,
         CASE WHEN $3::timestamptz IS NOT NULL THEN $8 ELSE NULL END,
         CASE WHEN $4::timestamptz IS NOT NULL THEN $8 ELSE NULL END,
+        $10,
         CURRENT_TIMESTAMP
       )
       ON CONFLICT (employee_id, date)
@@ -863,14 +880,16 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
         check_out_time = $4::timestamptz,
         total_hours = $5,
         status = $7,
+        is_office_wifi = $9,
         check_in_location = CASE
-          WHEN $3::timestamptz IS NOT NULL THEN COALESCE(daily_attendance.check_in_location, $8)
-          ELSE NULL
+          WHEN $3::timestamptz IS NOT NULL THEN $8
+          ELSE daily_attendance.check_in_location
         END,
         check_out_location = CASE
-          WHEN $4::timestamptz IS NOT NULL THEN COALESCE(daily_attendance.check_out_location, $8)
-          ELSE NULL
+          WHEN $4::timestamptz IS NOT NULL THEN $8
+          ELSE daily_attendance.check_out_location
         END,
+        verification_method = COALESCE($10, daily_attendance.verification_method),
         updated_at = CURRENT_TIMESTAMP
       RETURNING *;
     `,
@@ -883,6 +902,8 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
       ip_address || null,
       status || "PRESENT",
       location_label || "Dizital Adda Office Premises",
+      isWifi,
+      verMethod,
     ]
   );
 

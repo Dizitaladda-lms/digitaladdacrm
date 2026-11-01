@@ -51,6 +51,7 @@ const AttendanceReports = () => {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalRecords: 0 });
   const [editingRecord, setEditingRecord] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [defaultModalWorkMode, setDefaultModalWorkMode] = useState("OFFICE");
 
   const fetchPendingApprovals = async () => {
     try {
@@ -238,6 +239,7 @@ const AttendanceReports = () => {
               type="button"
               onClick={() => {
                 setEditingRecord(null);
+                setDefaultModalWorkMode("OFFICE");
                 setShowEditModal(true);
               }}
               style={{
@@ -256,6 +258,30 @@ const AttendanceReports = () => {
               }}
             >
               <PlusCircle size={16} /> Mark / Edit Attendance
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingRecord(null);
+                setDefaultModalWorkMode("WFH");
+                setShowEditModal(true);
+              }}
+              style={{
+                background: "#2563eb",
+                color: "#fff",
+                border: "none",
+                padding: "10px 18px",
+                borderRadius: "10px",
+                fontWeight: "700",
+                fontSize: "13.5px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
+              }}
+            >
+              <span>🏠 Mark WFH</span>
             </button>
             <button
               type="button"
@@ -918,6 +944,7 @@ const AttendanceReports = () => {
           >
             <option value="ALL">All Statuses</option>
             <option value="PRESENT">Present</option>
+            <option value="WFH">🏠 Work From Home (WFH)</option>
             <option value="LATE">Late</option>
             <option value="WEEK_OFF">Week Off</option>
             <option value="ON_LEAVE">On Leave</option>
@@ -1155,18 +1182,27 @@ const AttendanceReports = () => {
                       <td style={{ padding: "14px 18px" }}>
                         {(() => {
                           const upperStatus = String(row.status || "").toUpperCase();
+                          const isWfh =
+                            String(row.work_mode || "").toUpperCase() === "WFH" ||
+                            row.verification_method === "WFH" ||
+                            String(row.check_in_location || "").includes("Work From Home");
                           const isWeekOff = upperStatus === "WEEK_OFF" || upperStatus === "OFF";
                           const isOnLeave = upperStatus === "ON_LEAVE" || upperStatus === "LEAVE";
                           const lateInfo = row.check_in_time ? calculateLateArrival(row.check_in_time) : null;
-                          const isLate = row.status === "LATE" || (lateInfo && lateInfo.isLate);
-                          const isPresent = !isWeekOff && !isOnLeave && (row.status === "PRESENT" || (!isLate && row.check_in_time));
+                          const isLate = !isWfh && (row.status === "LATE" || (lateInfo && lateInfo.isLate));
+                          const isPresent = !isWeekOff && !isOnLeave && (isWfh || row.status === "PRESENT" || (!isLate && row.check_in_time));
 
                           let bg = "#fee2e2";
                           let color = "#b91c1c";
                           let border = "1px solid #fecaca";
                           let text = row.status || "ABSENT";
 
-                          if (isWeekOff) {
+                          if (isWfh) {
+                            bg = "#eff6ff";
+                            color = "#1d4ed8";
+                            border = "1px solid #bfdbfe";
+                            text = "PRESENT (WFH)";
+                          } else if (isWeekOff) {
                             bg = "#e0f2fe";
                             color = "#0369a1";
                             border = "1px solid #bae6fd";
@@ -1218,6 +1254,11 @@ const AttendanceReports = () => {
                             type="button"
                             onClick={() => {
                               setEditingRecord(row);
+                              const isRowWfh =
+                                String(row.work_mode || "").toUpperCase() === "WFH" ||
+                                row.verification_method === "WFH" ||
+                                String(row.check_in_location || "").includes("Work From Home");
+                              setDefaultModalWorkMode(isRowWfh ? "WFH" : "OFFICE");
                               setShowEditModal(true);
                             }}
                             title={row.check_in_time ? "Edit Check-In / Check-Out Time & Status" : "Mark Attendance for Employee"}
@@ -1290,6 +1331,7 @@ const AttendanceReports = () => {
         onSaved={fetchReports}
         initialRecord={editingRecord}
         employeesList={reports}
+        defaultWorkMode={defaultModalWorkMode}
       />
     </div>
   );

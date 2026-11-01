@@ -1,0 +1,146 @@
+                    
+                    
+┌──────────────────┐
+│ 16 Code Findings │
+└──────────────────┘
+                                           
+  [36m[22m[24m  .github\workflows\ci.yml[0m
+    ❯❱ yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently   
+          repointed by the action owner, enabling supply-chain attacks — as seen in the trivy-action and kics-
+          github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: 
+          actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.                                         
+          Details: https://sg.run/2LgAL                                                                       
+                                                                                                              
+           43┆ uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+           46┆ uses: actions/setup-node@v4
+            ⋮┆----------------------------------------
+           82┆ uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+           85┆ uses: actions/setup-node@v4
+                                     
+  [36m[22m[24m  docker-compose.yml[0m
+    ❯❱ yaml.docker-compose.security.no-new-privileges.no-new-privileges
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          Service 'postgres' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-
+          privileges:true' in 'security_opt' to prevent this.                                           
+          Details: https://sg.run/0n8q                                                                  
+                                                                                                        
+           26┆ postgres:
+   
+    ❯❱ yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          Service 'postgres' is running with a writable root filesystem. This may allow malicious applications
+          to download and run additional payloads, or modify container files. If an application inside a      
+          container has to save something temporarily consider using a tmpfs. Add 'read_only: true' to this   
+          service to prevent this.                                                                            
+          Details: https://sg.run/e4JE                                                                        
+                                                                                                              
+           26┆ postgres:
+                                    
+  [36m[22m[24m  server\Dockerfile[0m
+   ❯❯❱ dockerfile.security.missing-user.missing-user
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          By not specifying a USER, a program in the container may run as 'root'. This is a security hazard.
+          If an attacker can control a process running as root, they may have control over the container.   
+          Ensure that the last USER in a Dockerfile is a USER other than 'root'.                            
+          Details: https://sg.run/Gbvn                                                                      
+                                                                                                            
+           ▶▶┆ Autofix ▶ USER non-root CMD ["npm", "start"]
+           23┆ CMD ["npm", "start"]
+                                      
+  [36m[22m[24m  server\config\db.js[0m
+    ❯❱ problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS   
+          verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized
+          to false bypasses verification against the list of trusted CAs, which also leads to insecure        
+          transport. These options lead to vulnerability to MTM attacks, and should not be used.              
+          Details: https://sg.run/9oxr                                                                        
+                                                                                                              
+           34┆ ssl: isNeonOrCloud ? { rejectUnauthorized: false } : undefined,
+                                          
+  [36m[22m[24m  server\config\dbInit.js[0m
+   ❯❯❱ generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          bcrypt hash detected        
+          Details: https://sg.run/3A8G
+                                      
+          261┆ (1, 'System Administrator', 'admin@dizitaladda.com',                                 
+               '$2b$10$FdjvHaE0Zin7vtvsbFuLWuRVF7TZJjnKmwuDl/XTc16F6gC9aphoe', 'ADMIN', TRUE, FALSE,
+               TRUE),                                                                               
+            ⋮┆----------------------------------------
+          262┆ (2, 'Admissions Counsellor', 'counsellor@dizitaladda.com',                                
+               '$2b$10$0CkPoAU.v8LSO3eRVpvtaO8L6WVMGe9oY/q2z9KVUQ5zU62ahZaxK', 'COUNSELLOR', TRUE, FALSE,
+               TRUE)                                                                                     
+                                                              
+  [36m[22m[24m  server\controllers\leadCaptureController.js[0m
+    ❯❱ javascript.express.security.audit.express-open-redirect.express-open-redirect
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          The application redirects to a URL specified by user-supplied input `req` that is not validated.   
+          This could redirect users to malicious locations. Consider using an allow-list approach to validate
+          URLs, or warn users they are being redirected to a third-party website.                            
+          Details: https://sg.run/EpoP                                                                       
+                                                                                                             
+           22┆ return res.redirect(req.body.redirect_url);
+                                                           
+  [36m[22m[24m  server\utils\employeeDocumentSecurity.js[0m
+   ❯❯❱ javascript.node-crypto.security.gcm-no-tag-length.gcm-no-tag-length
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          The call to 'createDecipheriv' with the Galois Counter Mode (GCM) mode of operation is missing an 
+          expected authentication tag length. If the expected authentication tag length is not specified or 
+          otherwise checked, the application might be tricked into verifying a shorter-than-expected        
+          authentication tag. This can be abused by an attacker to spoof ciphertexts or recover the implicit
+          authentication key of GCM, allowing arbitrary forgeries.                                          
+          Details: https://sg.run/NbGG1                                                                     
+                                                                                                            
+           23┆ const decipher = crypto.createDecipheriv("aes-256-gcm", getKey(), Buffer.from(iv,
+               "base64"));                                                                      
+                                                   
+  [36m[22m[24m  server\utils\faceVerification.js[0m
+   ❯❯❱ javascript.node-crypto.security.gcm-no-tag-length.gcm-no-tag-length
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          The call to 'createDecipheriv' with the Galois Counter Mode (GCM) mode of operation is missing an 
+          expected authentication tag length. If the expected authentication tag length is not specified or 
+          otherwise checked, the application might be tricked into verifying a shorter-than-expected        
+          authentication tag. This can be abused by an attacker to spoof ciphertexts or recover the implicit
+          authentication key of GCM, allowing arbitrary forgeries.                                          
+          Details: https://sg.run/NbGG1                                                                     
+                                                                                                            
+          274┆ const decipher = crypto.createDecipheriv(
+          275┆   "aes-256-gcm",
+          276┆   getEncryptionKey(),
+          277┆   Buffer.from(encryptedTemplate.iv, "base64")
+          278┆ );
+                                                
+  [36m[22m[24m  server\utils\passwordUtils.js[0m
+   ❯❯❱ generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          bcrypt hash detected        
+          Details: https://sg.run/3A8G
+                                      
+           42┆ const DUMMY_BCRYPT_HASH = '$2b$12$NqWbXJtG3zHkF1x4M7.J8ec5Yd2L8p7Q1v4T6s9W0r3Y5u7I9o2Pa';
+                                               
+  [36m[22m[24m  server\utils\totpSecurity.js[0m
+   ❯❯❱ javascript.node-crypto.security.gcm-no-tag-length.gcm-no-tag-length
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          The call to 'createDecipheriv' with the Galois Counter Mode (GCM) mode of operation is missing an 
+          expected authentication tag length. If the expected authentication tag length is not specified or 
+          otherwise checked, the application might be tricked into verifying a shorter-than-expected        
+          authentication tag. This can be abused by an attacker to spoof ciphertexts or recover the implicit
+          authentication key of GCM, allowing arbitrary forgeries.                                          
+          Details: https://sg.run/NbGG1                                                                     
+                                                                                                            
+           30┆ const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivHex, "hex"));
+                                                          
+  [36m[22m[24m  server\validators\employee.validator.js[0m
+    ❯❱ javascript.express.security.express-data-exfiltration.express-data-exfiltration
+          [31m[1m[24m❰❰ Blocking ❱❱[0m
+          Depending on the context, user control data in `Object.assign` can cause web response to include
+          data that it should not have or can lead to a mass assignment vulnerability.                    
+          Details: https://sg.run/pkpL                                                                    
+                                                                                                          
+          583┆ Object.assign(req.query, value);
+

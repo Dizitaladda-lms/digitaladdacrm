@@ -54,10 +54,12 @@ const HRAttendanceEditModal = ({
   onSaved,
   initialRecord = null,
   employeesList = [],
+  defaultWorkMode = null,
 }) => {
   const [employeeId, setEmployeeId] = useState("");
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("AUTO");
+  const [workMode, setWorkMode] = useState("OFFICE");
   const [checkInTime, setCheckInTime] = useState("10:00");
   const [checkOutTime, setCheckOutTime] = useState("");
   const [saving, setSaving] = useState(false);
@@ -91,12 +93,25 @@ const HRAttendanceEditModal = ({
     setCheckOutTime(existingCheckOut || "");
 
     const rawStatus = String(initialRecord?.raw_attendance_status || initialRecord?.status || "").toUpperCase();
-    if (["PRESENT", "LATE", "WEEK_OFF", "ON_LEAVE"].includes(rawStatus)) {
-      setStatus(rawStatus);
+    const isWfhRecord =
+      defaultWorkMode === "WFH" ||
+      String(initialRecord?.work_mode || "").toUpperCase() === "WFH" ||
+      initialRecord?.verification_method === "WFH" ||
+      String(initialRecord?.check_in_location || "").includes("Work From Home") ||
+      rawStatus === "WFH";
+
+    if (isWfhRecord) {
+      setWorkMode("WFH");
+      setStatus("WFH");
     } else {
-      setStatus("AUTO");
+      setWorkMode("OFFICE");
+      if (["PRESENT", "LATE", "WEEK_OFF", "ON_LEAVE"].includes(rawStatus)) {
+        setStatus(rawStatus);
+      } else {
+        setStatus("AUTO");
+      }
     }
-  }, [isOpen, initialRecord, employeesList]);
+  }, [isOpen, initialRecord, employeesList, defaultWorkMode]);
 
   useEffect(() => {
     if (!isOpen || !employeeId) {
@@ -173,7 +188,8 @@ const HRAttendanceEditModal = ({
       await upsertEmployeeAttendanceByHR({
         employee_id: Number(employeeId),
         date,
-        status,
+        status: workMode === "WFH" ? "WFH" : status,
+        work_mode: workMode,
         check_in_time: isTimeExcluded ? null : checkInTime,
         check_out_time: isTimeExcluded ? null : (checkOutTime || null),
       });
@@ -183,7 +199,9 @@ const HRAttendanceEditModal = ({
         selectedEmployeeObj?.full_name ||
         "Employee";
       toast.success(
-        isMarkingNew
+        workMode === "WFH"
+          ? `${empName} marked as Work From Home (WFH)!`
+          : isMarkingNew
           ? `Attendance marked for ${empName}!`
           : `Attendance & time updated for ${empName}!`
       );
@@ -321,6 +339,63 @@ const HRAttendanceEditModal = ({
             )}
           </div>
 
+          {/* Work Mode / Location Toggle */}
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, color: "#334155", marginBottom: "6px" }}>
+              Work Location & Mode
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkMode("OFFICE");
+                  if (status === "WFH") setStatus("AUTO");
+                }}
+                style={{
+                  padding: "10px",
+                  borderRadius: "10px",
+                  border: workMode === "OFFICE" ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                  background: workMode === "OFFICE" ? "#eff6ff" : "#ffffff",
+                  color: workMode === "OFFICE" ? "#1d4ed8" : "#475569",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                🏢 Office Premises
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkMode("WFH");
+                  setStatus("WFH");
+                }}
+                style={{
+                  padding: "10px",
+                  borderRadius: "10px",
+                  border: workMode === "WFH" ? "2px solid #10b981" : "1px solid #cbd5e1",
+                  background: workMode === "WFH" ? "#ecfdf5" : "#ffffff",
+                  color: workMode === "WFH" ? "#047857" : "#475569",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                🏠 Work From Home (WFH)
+              </button>
+            </div>
+          </div>
+
           {/* Date & Status Row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "12px", marginBottom: "16px" }}>
             <div>
@@ -351,7 +426,15 @@ const HRAttendanceEditModal = ({
               </label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStatus(val);
+                  if (val === "WFH") {
+                    setWorkMode("WFH");
+                  } else if (workMode === "WFH" && val !== "WFH") {
+                    setWorkMode("OFFICE");
+                  }
+                }}
                 style={{
                   width: "100%",
                   padding: "10px 12px",
@@ -366,12 +449,39 @@ const HRAttendanceEditModal = ({
               >
                 <option value="AUTO">⚡ Auto (By Check-In Time)</option>
                 <option value="PRESENT">✅ Present (On Time)</option>
+                <option value="WFH">🏠 Work From Home (WFH)</option>
                 <option value="LATE">⚠️ Late</option>
                 <option value="WEEK_OFF">🏖️ Week Off</option>
                 <option value="ON_LEAVE">🌴 On Leave</option>
               </select>
             </div>
           </div>
+
+          {/* WFH Notice Card */}
+          {(workMode === "WFH" || status === "WFH") && (
+            <div
+              style={{
+                background: "#ecfdf5",
+                border: "1px solid #a7f3d0",
+                borderRadius: "12px",
+                padding: "12px 14px",
+                marginBottom: "16px",
+                display: "flex",
+                gap: "10px",
+                alignItems: "flex-start",
+              }}
+            >
+              <span style={{ fontSize: "18px" }}>🏠</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "13px", color: "#065f46" }}>
+                  Work From Home (WFH) Active
+                </div>
+                <div style={{ fontSize: "12px", color: "#047857", marginTop: "2px", lineHeight: "1.4" }}>
+                  Employee will be marked as <strong>Present (WFH)</strong> for both Presence and Reports. Office geofencing and Wi-Fi restrictions are waived.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Monthly Week Off Rule Card */}
           {status === "WEEK_OFF" && (

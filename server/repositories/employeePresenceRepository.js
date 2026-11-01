@@ -32,7 +32,9 @@ export const getCompanyPresenceRepository = async (targetDate) => {
        END AS attendance_status,
        CASE
          WHEN approved_wfh.is_wfh = 1 THEN 'WFH'
-         ELSE COALESCE(work_mode.work_mode, 'OFFICE')
+         WHEN work_mode.work_mode = 'WFH' THEN 'WFH'
+         WHEN a.verification_method = 'WFH' OR a.check_in_location ILIKE '%Work From Home%' THEN 'WFH'
+         ELSE 'OFFICE'
        END AS work_mode
      FROM employees e
      LEFT JOIN departments d ON d.id = e.department_id
@@ -123,6 +125,52 @@ export const setEmployeeWorkModeRepository = async (employeeId, workMode, adminU
      RETURNING employee_id, work_date, work_mode, updated_at;`,
     [employeeId, workMode, adminUserId]
   );
+
+  if (workMode === "WFH" && rows[0]) {
+    // Automatically register PRESENT for today with WFH tag
+    await pool.query(
+      `INSERT INTO daily_attendance (
+         employee_id,
+         date,
+         check_in_time,
+         status,
+         check_in_location,
+         is_office_wifi,
+         verification_method,
+         total_hours
+       )
+       VALUES (
+         $1,
+         CURRENT_DATE,
+         CURRENT_TIMESTAMP,
+         'PRESENT',
+         'Work From Home (Approved)',
+         FALSE,
+         'WFH',
+         8.00
+       )
+       ON CONFLICT (employee_id, date)
+       DO UPDATE SET
+         status = 'PRESENT',
+         check_in_location = COALESCE(daily_attendance.check_in_location, 'Work From Home (Approved)'),
+         verification_method = 'WFH',
+         is_office_wifi = FALSE,
+         total_hours = CASE
+           WHEN daily_attendance.total_hours > 0 THEN daily_attendance.total_hours
+           ELSE 8.00
+         END,
+         updated_at = CURRENT_TIMESTAMP;`,
+      [employeeId]
+    ).catch(() => {});
+
+    // Clear any leave override for today
+    await pool.query(
+      `DELETE FROM daily_employee_presence_overrides
+       WHERE employee_id = $1 AND presence_date = CURRENT_DATE;`,
+      [employeeId]
+    ).catch(() => {});
+  }
+
   return rows[0] || null;
 };
 

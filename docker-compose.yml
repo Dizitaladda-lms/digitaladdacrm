@@ -1,51 +1,36 @@
-version: "3.9"
-
 services:
 
   backend:
-
     build: .
-
     container_name: dizitaladda-crm-backend
-
     restart: always
-
     ports:
       - "5000:5000"
-
     env_file:
       - .env
-
     depends_on:
       - postgres
-
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - .:/app
       - /app/node_modules
 
   postgres:
-
     image: postgres:16
-
     container_name: dizitaladda-crm-db
-
     restart: always
-
     environment:
-
       POSTGRES_USER: postgres
-
-      POSTGRES_PASSWORD: postgres
-
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env mein set karo}
       POSTGRES_DB: dizitaladda_crm
-
     ports:
-      - "5432:5432"
-
+      - "127.0.0.1:5432:5432"
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./server/dizitaladda_crm.sql:/docker-entrypoint-initdb.d/01-dizitaladda-crm.sql:ro
 
 volumes:
-
   postgres_data:

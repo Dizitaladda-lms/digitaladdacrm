@@ -58,6 +58,7 @@ const CompanyPresence = () => {
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [defaultModalWorkMode, setDefaultModalWorkMode] = useState("OFFICE");
   const [selectedDate, setSelectedDate] = useState(getTodayInIst);
   const today = getTodayInIst();
   const isToday = selectedDate === today;
@@ -138,9 +139,16 @@ const CompanyPresence = () => {
       setSavingId(employee.employee_id);
       await setEmployeeWorkMode(employee.employee_id, workMode);
       setEmployees((current) => current.map((item) => (
-        item.employee_id === employee.employee_id ? { ...item, work_mode: workMode } : item
+        item.employee_id === employee.employee_id
+          ? {
+              ...item,
+              work_mode: workMode,
+              attendance_status: workMode === "WFH" ? "PRESENT" : item.attendance_status,
+            }
+          : item
       )));
-      toast.success(`${employee.full_name} marked ${workMode === "WFH" ? "WFH" : "Office"}.`);
+      toast.success(`${employee.full_name} marked ${workMode === "WFH" ? "Work From Home (WFH)" : "Office"}.`);
+      await handleRefresh();
     } catch (error) {
       console.error("Failed to update employee work mode:", error);
       toast.error(error?.response?.data?.message || "Work mode could not be updated.");
@@ -184,28 +192,54 @@ const CompanyPresence = () => {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           {canEditAttendanceTime && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingEmployee(null);
-                setShowEditModal(true);
-              }}
-              style={{
-                background: "#2563eb",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "10px",
-                padding: "9px 14px",
-                fontSize: "13px",
-                fontWeight: 700,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <UserCheck size={15} /> Mark / Edit Attendance
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingEmployee(null);
+                  setDefaultModalWorkMode("OFFICE");
+                  setShowEditModal(true);
+                }}
+                style={{
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "9px 14px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <UserCheck size={15} /> Mark / Edit Attendance
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingEmployee(null);
+                  setDefaultModalWorkMode("WFH");
+                  setShowEditModal(true);
+                }}
+                style={{
+                  background: "#eff6ff",
+                  color: "#1d4ed8",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: "10px",
+                  padding: "9px 14px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                🏠 Mark Employee WFH
+              </button>
+            </div>
           )}
           <div className="company-presence__today" title="Past date ki presence dekhne ke liye date select karein">
             <CalendarDays size={16} />
@@ -315,6 +349,7 @@ const CompanyPresence = () => {
             ["PRESENT", `Present (${counts.present})`],
             ["ABSENT", `Absent (${counts.absent})`],
             ["ON_LEAVE", `On leave (${counts.leave})`],
+            ["WFH", `WFH (${counts.wfh})`],
           ].map(([value, label]) => (
             <button
               type="button"
@@ -407,6 +442,7 @@ const CompanyPresence = () => {
                                 type="button"
                                 onClick={() => {
                                   setEditingEmployee(employee);
+                                  setDefaultModalWorkMode(employee.work_mode === "WFH" ? "WFH" : "OFFICE");
                                   setShowEditModal(true);
                                 }}
                                 style={{
@@ -473,6 +509,7 @@ const CompanyPresence = () => {
         onSaved={handleRefresh}
         initialRecord={editingEmployee}
         employeesList={employees}
+        defaultWorkMode={defaultModalWorkMode}
       />
     </main>
   );
