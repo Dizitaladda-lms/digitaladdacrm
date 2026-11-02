@@ -8,10 +8,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // Keep a new worker waiting until the user accepts the in-app update.
-      // This gives installed iOS/Android PWA users a clear "Update now" action
-      // instead of silently retaining an old screen/bundle.
-      registerType: "prompt",
+      // Apply new deployed builds automatically without an in-app update prompt.
+      registerType: "autoUpdate",
       injectRegister: "auto",
       includeAssets: ["favicon.png", "favicon.svg"],
       manifest: {
@@ -43,12 +41,11 @@ export default defineConfig({
         ],
       },
       workbox: {
-        skipWaiting: false,
+        skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // Include app shell and hashed bundles. Without these files a normal
-        // software deploy does not change the worker manifest, so users never
-        // receive the "Update now" prompt.
+        // Include app shell and hashed bundles so each deploy creates an
+        // updated worker that can be applied automatically.
         globPatterns: ["**/*.{html,js,css,ico,png,svg}"],
         // A browser refresh, an installed-PWA relaunch, or a push notification
         // can open a client-side route directly (for example

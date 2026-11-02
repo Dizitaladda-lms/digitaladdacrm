@@ -4,13 +4,18 @@ import {
   PanelLeftOpen,
   Search,
   Calendar,
+  Rocket,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ProfileMenu from "../profile/ProfileMenu";
 import FestivalToggle from "../festival/FestivalToggle";
+import useFireworks from "../../hooks/useFireworks";
+import { useTheme } from "../../context/ThemeContext";
 
 const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
   const { user } = useAuth();
+  const fireWorks = useFireworks();
+  const { festivalActive, animationsEnabled } = useTheme();
   const role = user?.role || "EMPLOYEE";
   const isCounsellor = role === "COUNSELLOR";
 
@@ -62,6 +67,19 @@ const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
       </div>
 
       <div className="topbar-right">
+        {festivalActive && (
+          <button
+            type="button"
+            className="diwali-skyshot"
+            onClick={fireWorks}
+            disabled={!animationsEnabled}
+            aria-label="Launch a Diwali skyshot visual effect"
+            title={animationsEnabled ? "Launch Diwali skyshot" : "Skyshot is off to respect reduced-motion or device settings"}
+          >
+            <Rocket size={16} aria-hidden="true" />
+            <span>Skyshot</span>
+          </button>
+        )}
         <FestivalToggle />
         <div className="topbar-date">
           <Calendar size={14} />

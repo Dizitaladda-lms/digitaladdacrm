@@ -245,6 +245,29 @@
   cursor: pointer;
 }
 
+.diwali-skyshot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 11px;
+  color: #7a1030;
+  background: linear-gradient(120deg, #fff2bd, #ffc83d);
+  border: 1px solid #e6a51f;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.diwali-skyshot:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .diwali-countdown {
   display: inline-flex;
   align-items: center;
@@ -330,6 +353,15 @@
 @media (max-width: 480px) {
   .diwali-toggle__label {
     display: none;
+  }
+
+  .diwali-skyshot span {
+    display: none;
+  }
+
+  .diwali-skyshot {
+    width: 36px;
+    padding: 0;
   }
 
   .diwali-toggle {
