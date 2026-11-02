@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
-const PETAL_COUNTS = [12, 9, 6];
+const PETAL_COUNTS = [8, 6, 4];
 
 const getFlower = (key, x, y, angle, scale, className = "") => (
   <g
     key={key}
     className={className}
     transform={`translate(${x} ${y}) rotate(${angle}) scale(${scale})`}
-    filter="url(#diwali-flower-shadow)"
   >
     <g className="diwali-toran__petal-layer">
       {PETAL_COUNTS.map((count, layer) => {
@@ -76,7 +75,7 @@ const Toran = ({ animationsEnabled }) => {
     for (let index = 0; index < swagCount; index += 1) {
       const left = index * swagWidth;
       const sag = swagWidth * (mobile ? 0.16 : 0.18);
-      const flowerCount = Math.max(7, Math.ceil(swagWidth / (mobile ? 22 : 27)));
+      const flowerCount = Math.max(6, Math.ceil(swagWidth / (mobile ? 32 : 36)));
       const flowers = [];
       const leaves = [];
 
@@ -100,7 +99,6 @@ const Toran = ({ animationsEnabled }) => {
             <g
               key={`leaf-${index}-${flowerIndex}`}
               transform={`translate(${x + leafSide * 10} ${y - 5}) rotate(${leafSide * (28 + Math.random() * 18)}) scale(${scale})`}
-              filter="url(#diwali-leaf-shadow)"
             >
               <path d="M0 0C-7-12-5-20 1-25 8-16 7-7 0 0Z" fill="url(#diwali-leaf-gradient)" />
               <path d="M0-2 1-21" fill="none" stroke="#1b6336" strokeWidth="1" opacity="0.8" />
@@ -149,7 +147,7 @@ const Toran = ({ animationsEnabled }) => {
             style={{ "--swag-delay": `${index * -0.9 - 0.3}s`, "--swag-duration": `${5 + (index % 2) * 1.1}s` }}
           >
             <path d="M0 0c-1 12 2 22 0 34" fill="none" stroke="#76501b" strokeWidth="1.5" />
-            {Array.from({ length: 5 }, (_, flowerIndex) => getFlower(
+            {Array.from({ length: 4 }, (_, flowerIndex) => getFlower(
               `hanging-${index}-${flowerIndex}`,
               Math.sin(flowerIndex * 0.7) * 2.2,
               12 + flowerIndex * 13,
@@ -173,7 +171,7 @@ const Toran = ({ animationsEnabled }) => {
           style={{ "--swag-delay": `${swagCount * -0.9}s`, "--swag-duration": "5.6s" }}
         >
           <path d="M0 0c-1 12 2 22 0 34" fill="none" stroke="#76501b" strokeWidth="1.5" />
-          {Array.from({ length: 5 }, (_, flowerIndex) => getFlower(
+          {Array.from({ length: 4 }, (_, flowerIndex) => getFlower(
             `hanging-end-${flowerIndex}`,
             Math.sin(flowerIndex * 0.7) * 2.2,
             12 + flowerIndex * 13,
@@ -227,12 +225,6 @@ const Toran = ({ animationsEnabled }) => {
           <stop offset="50%" stopColor="#34814a" />
           <stop offset="100%" stopColor="#155433" />
         </linearGradient>
-        <filter id="diwali-flower-shadow" x="-45%" y="-45%" width="190%" height="200%">
-          <feDropShadow dx="0" dy="2" stdDeviation="1.7" floodColor="#4a210c" floodOpacity="0.43" />
-        </filter>
-        <filter id="diwali-leaf-shadow" x="-50%" y="-40%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="#143a23" floodOpacity="0.4" />
-        </filter>
       </defs>
       {garland.swags}
       {garland.junctions}

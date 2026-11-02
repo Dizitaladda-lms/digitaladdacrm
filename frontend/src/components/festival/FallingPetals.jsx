@@ -18,7 +18,7 @@ const Flower = () => (
 );
 
 const FallingPetals = ({ animationsEnabled }) => {
-  const items = useMemo(() => Array.from({ length: 20 }, (_, index) => ({
+  const items = useMemo(() => Array.from({ length: 12 }, (_, index) => ({
     id: index,
     left: `${Math.random() * 100}%`,
     size: `${14 + Math.random() * 15}px`,

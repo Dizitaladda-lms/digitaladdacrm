@@ -23,7 +23,7 @@ const CursorSparkles = ({ enabled }) => {
     let isVisible = !document.hidden;
 
     const resize = () => {
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.25);
       canvas.width = Math.round(window.innerWidth * ratio);
       canvas.height = Math.round(window.innerHeight * ratio);
       canvas.style.width = `${window.innerWidth}px`;
@@ -33,7 +33,7 @@ const CursorSparkles = ({ enabled }) => {
 
     const addParticle = (x, y, amount = 1) => {
       for (let index = 0; index < amount; index += 1) {
-        if (particles.length >= 12) particles.shift();
+        if (particles.length >= 8) particles.shift();
         particles.push({
           x: x + (Math.random() - 0.5) * 8,
           y: y + (Math.random() - 0.5) * 8,
@@ -74,13 +74,13 @@ const CursorSparkles = ({ enabled }) => {
 
     const onPointerMove = (event) => {
       const now = performance.now();
-      if (!interactiveTarget(event.target) && now - lastTrailAt > 55) {
+      if (!interactiveTarget(event.target) && now - lastTrailAt > 75) {
         lastTrailAt = now;
         addParticle(event.clientX, event.clientY);
       }
     };
     const onPointerDown = (event) => {
-      if (!interactiveTarget(event.target)) addParticle(event.clientX, event.clientY, 5);
+      if (!interactiveTarget(event.target)) addParticle(event.clientX, event.clientY, 4);
     };
     const onVisibilityChange = () => {
       isVisible = !document.hidden;
