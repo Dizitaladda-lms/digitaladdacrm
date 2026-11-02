@@ -412,9 +412,6 @@ const NotificationsPopover = ({ isEmployee = false }) => {
         onClick={() => {
           setIsOpen(!isOpen);
           getAudioContext();
-          if ("Notification" in window && Notification.permission === "default") {
-            Notification.requestPermission();
-          }
         }}
         title="Notifications & Alerts"
       >

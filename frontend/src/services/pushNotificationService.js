@@ -14,6 +14,30 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+const getVapidApplicationServerKey = async () => {
+  const res = await axiosInstance.get("/notifications/vapid-public-key");
+  const vapidPublicKey = res.data?.data?.publicKey;
+  if (!vapidPublicKey) {
+    throw new Error("VAPID public key not found on server.");
+  }
+  return urlBase64ToUint8Array(vapidPublicKey);
+};
+
+const subscriptionUsesKey = (subscription, expectedKey) => {
+  const currentKey = subscription?.options?.applicationServerKey;
+  if (!currentKey) return true;
+  const currentBytes = new Uint8Array(currentKey);
+  return currentBytes.length === expectedKey.length &&
+    currentBytes.every((value, index) => value === expectedKey[index]);
+};
+
+const saveSubscription = async (subscription) => {
+  await axiosInstance.post("/notifications/push-subscribe", {
+    subscription: subscription.toJSON(),
+    userAgent: navigator.userAgent,
+  });
+};
+
 /**
  * Check if browser supports Web Push Notifications & Service Worker
  */
@@ -73,64 +97,58 @@ export const subscribeUserToPush = async () => {
     );
   }
 
-  // Fetch VAPID public key
-  let res;
   try {
-    res = await axiosInstance.get("/notifications/vapid-public-key");
+    const subscription = await createOrSyncPushSubscription();
+    return { success: true, subscription: subscription.toJSON() };
   } catch (error) {
     throw new Error(
       error?.response?.data?.message ||
+      error?.message ||
       "Notification service is not ready. Please contact the administrator."
     );
   }
-  const vapidPublicKey = res.data?.data?.publicKey;
-  if (!vapidPublicKey) {
-    throw new Error("VAPID public key not found on server.");
-  }
+};
 
-  const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
-
-  // Wait for Service Worker
+const createOrSyncPushSubscription = async () => {
+  const applicationServerKey = await getVapidApplicationServerKey();
   const registration = await navigator.serviceWorker.ready;
-
-  // Unsubscribe existing stale subscription if any
   let subscription = await registration.pushManager.getSubscription();
-  if (subscription) {
+
+  const isExpired = Boolean(
+    subscription?.expirationTime && subscription.expirationTime <= Date.now()
+  );
+  if (subscription && (isExpired || !subscriptionUsesKey(subscription, applicationServerKey))) {
+    const oldEndpoint = subscription.endpoint;
+    await subscription.unsubscribe();
     try {
-      await subscription.unsubscribe();
-    } catch {
-      // ignore
+      await axiosInstance.post("/notifications/push-unsubscribe", { endpoint: oldEndpoint });
+    } catch (error) {
+      console.error("Could not remove the old push subscription from the server:", error);
     }
+    subscription = null;
   }
 
-  // Subscribe new push subscription
-  try {
+  if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: convertedKey,
+      applicationServerKey,
     });
-  } catch (error) {
-    throw new Error(
-      error?.message || "This device could not register for notifications."
-    );
   }
 
-  const subJson = subscription.toJSON();
+  await saveSubscription(subscription);
+  return subscription;
+};
 
-  // Save subscription to backend
-  try {
-    await axiosInstance.post("/notifications/push-subscribe", {
-      subscription: subJson,
-      userAgent: navigator.userAgent,
-    });
-  } catch (error) {
-    throw new Error(
-      error?.response?.data?.message ||
-      "Notification subscription could not be saved. Please try again."
-    );
+/**
+ * Re-sync an already granted browser subscription with the authenticated user.
+ * This never prompts for permission; permission prompts remain user initiated.
+ */
+export const syncPushSubscription = async () => {
+  if (!isPushSupported() || Notification.permission !== "granted") {
+    return { success: false, reason: "permission-not-granted" };
   }
-
-  return { success: true, subscription: subJson };
+  const subscription = await createOrSyncPushSubscription();
+  return { success: true, subscription: subscription.toJSON() };
 };
 
 /**

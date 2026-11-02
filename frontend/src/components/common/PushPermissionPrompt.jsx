@@ -6,6 +6,7 @@ import {
   getPushSubscriptionStatus,
   isPushSupported,
   subscribeUserToPush,
+  syncPushSubscription,
 } from "../../services/pushNotificationService";
 import "./PushPermissionPrompt.css";
 
@@ -39,13 +40,28 @@ const PushPermissionPrompt = () => {
 
       if (!isPushSupported()) return;
       const status = await getPushSubscriptionStatus();
+      if (status.permission === "granted") {
+        await syncPushSubscription();
+        if (active) {
+          setVisible(false);
+          setIosNeedsInstall(false);
+        }
+        return;
+      }
+
       if (active && (!status.isSubscribed || status.permission !== "granted")) {
         setIosNeedsInstall(false);
         setVisible(true);
       }
     };
 
-    check().catch(() => {});
+    check().catch((error) => {
+      console.error("Could not sync push notification subscription:", error);
+      if (active) {
+        setIosNeedsInstall(false);
+        setVisible(true);
+      }
+    });
     return () => { active = false; };
   }, [loading, user?.id]);
 

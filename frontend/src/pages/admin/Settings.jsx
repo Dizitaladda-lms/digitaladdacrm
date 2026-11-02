@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import WorkspacePage from "../../components/workspace/WorkspacePage";
+import PushNotificationSettings from "../../components/notifications/PushNotificationSettings";
 import {
   getOfficeIPs,
   addOfficeIP,
@@ -327,6 +328,7 @@ const Settings = () => {
           )}
         </div>
       </section>
+      <PushNotificationSettings />
     </WorkspacePage>
   );
 };

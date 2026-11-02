@@ -18,7 +18,7 @@ self.addEventListener('push', function (event) {
     icon: data.icon || '/pwa-icon-192.png',
     badge: data.badge || '/pwa-icon-192.png',
     tag: data.tag || 'dizital-crm-alert',
-    renotify: true,
+    renotify: false,
     requireInteraction: false,
     vibrate: [200, 100, 200, 100, 200],
     data: {
@@ -38,14 +38,18 @@ self.addEventListener('notificationclick', function (event) {
   event.notification.close();
 
   const rawUrl = event.notification.data?.url || '/';
-  const targetUrl = new URL(rawUrl, self.location.origin).href;
+  const parsedUrl = new URL(rawUrl, self.location.origin);
+  const targetUrl = parsedUrl.origin === self.location.origin
+    ? parsedUrl.href
+    : self.location.origin + '/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (const client of clientList) {
-        if (client.url && client.url.startsWith(self.location.origin) && 'focus' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
+        if (client.url && new URL(client.url).origin === self.location.origin && 'focus' in client) {
+          return Promise.resolve(client.navigate(targetUrl))
+            .then(() => client.focus())
+            .catch(() => clients.openWindow(targetUrl));
         }
       }
       if (clients.openWindow) {
@@ -53,4 +57,43 @@ self.addEventListener('notificationclick', function (event) {
       }
     })
   );
+});
+
+self.addEventListener('pushsubscriptionchange', function (event) {
+  event.waitUntil((async () => {
+    try {
+      const keyResponse = await fetch('/api/notifications/vapid-public-key', {
+        credentials: 'include',
+      });
+      if (!keyResponse.ok) {
+        throw new Error(`VAPID key request failed (${keyResponse.status}).`);
+      }
+      const keyPayload = await keyResponse.json();
+      const publicKey = keyPayload?.data?.publicKey;
+      if (!publicKey) throw new Error('VAPID public key is missing.');
+
+      const padding = '='.repeat((4 - (publicKey.length % 4)) % 4);
+      const rawKey = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+      const applicationServerKey = Uint8Array.from(rawKey, (character) => character.charCodeAt(0));
+      const subscription = event.newSubscription ||
+        await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      const saveResponse = await fetch('/api/notifications/push-subscribe', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription: subscription.toJSON(),
+          userAgent: self.navigator.userAgent,
+        }),
+      });
+      if (!saveResponse.ok) {
+        throw new Error(`Push subscription sync failed (${saveResponse.status}).`);
+      }
+    } catch (error) {
+      console.error('Push subscription renewal failed:', error);
+    }
+  })());
 });
