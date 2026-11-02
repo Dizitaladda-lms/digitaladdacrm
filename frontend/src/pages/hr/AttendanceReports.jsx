@@ -29,6 +29,7 @@ import {
   approveBiometricRegistration,
   rejectBiometricRegistration,
 } from "../../services/attendanceService";
+import { getEmployees } from "../../services/employeeService";
 import HRAttendanceEditModal from "../../components/attendance/HRAttendanceEditModal";
 import { calculateLateArrival } from "../../utils/shiftTiming";
 
@@ -39,6 +40,8 @@ const AttendanceReports = () => {
   const [approvalTab, setApprovalTab] = useState("PENDING"); // "PENDING" | "APPROVED" | "REJECTED" | "ALL"
   const [approvalSearch, setApprovalSearch] = useState("");
   const [reports, setReports] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [approvalsLoading, setApprovalsLoading] = useState(false);
@@ -152,6 +155,39 @@ const AttendanceReports = () => {
     fetchReports();
     fetchPendingApprovals();
   }, [searchTerm, statusFilter, dateFrom, dateTo, pagination.page]);
+
+  useEffect(() => {
+    let active = true;
+    const loadEmployees = async () => {
+      try {
+        const pageSize = 500;
+        const firstPage = await getEmployees({ page: 1, limit: pageSize });
+        const firstPageData = firstPage?.data;
+        const totalPages = firstPageData?.pagination?.totalPages || 1;
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            getEmployees({ page: index + 2, limit: pageSize })
+          )
+        );
+        const employeeList = [
+          ...(firstPageData?.employees || []),
+          ...remainingPages.flatMap((res) => res?.data?.employees || []),
+        ];
+        if (active) setEmployees(employeeList);
+      } catch (err) {
+        console.error("Failed to fetch employees for attendance management:", err);
+        toast.error(err.response?.data?.message || "Could not load employees for attendance management.");
+      } finally {
+        if (active) setEmployeesLoading(false);
+      }
+    };
+
+    loadEmployees();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const pendingApprovalsList = pendingApprovals.filter(a => a.approval_status === "PENDING_APPROVAL");
   const approvedList = pendingApprovals.filter(a => a.approval_status === "APPROVED");
@@ -948,6 +984,7 @@ const AttendanceReports = () => {
             <option value="LATE">Late</option>
             <option value="WEEK_OFF">Week Off</option>
             <option value="ON_LEAVE">On Leave</option>
+            <option value="ABSENT">Absent</option>
           </select>
         </div>
 
@@ -1330,7 +1367,8 @@ const AttendanceReports = () => {
         }}
         onSaved={fetchReports}
         initialRecord={editingRecord}
-        employeesList={reports}
+        employeesList={employees}
+        employeesLoading={employeesLoading}
         defaultWorkMode={defaultModalWorkMode}
       />
     </div>

@@ -54,6 +54,7 @@ const HRAttendanceEditModal = ({
   onSaved,
   initialRecord = null,
   employeesList = [],
+  employeesLoading = false,
   defaultWorkMode = null,
 }) => {
   const [employeeId, setEmployeeId] = useState("");
@@ -93,19 +94,21 @@ const HRAttendanceEditModal = ({
     setCheckOutTime(existingCheckOut || "");
 
     const rawStatus = String(initialRecord?.raw_attendance_status || initialRecord?.status || "").toUpperCase();
+    const recordWorkMode = String(initialRecord?.work_mode || "").toUpperCase();
     const isWfhRecord =
       defaultWorkMode === "WFH" ||
-      String(initialRecord?.work_mode || "").toUpperCase() === "WFH" ||
-      initialRecord?.verification_method === "WFH" ||
-      String(initialRecord?.check_in_location || "").includes("Work From Home") ||
-      rawStatus === "WFH";
+      recordWorkMode === "WFH" ||
+      (!recordWorkMode &&
+        (initialRecord?.verification_method === "WFH" ||
+          String(initialRecord?.check_in_location || "").includes("Work From Home") ||
+          rawStatus === "WFH"));
 
     if (isWfhRecord) {
       setWorkMode("WFH");
       setStatus("WFH");
     } else {
       setWorkMode("OFFICE");
-      if (["PRESENT", "LATE", "WEEK_OFF", "ON_LEAVE"].includes(rawStatus)) {
+      if (["PRESENT", "LATE", "WEEK_OFF", "ON_LEAVE", "ABSENT"].includes(rawStatus)) {
         setStatus(rawStatus);
       } else {
         setStatus("AUTO");
@@ -138,7 +141,7 @@ const HRAttendanceEditModal = ({
     };
   }, [isOpen, employeeId, date]);
 
-  const isTimeExcluded = status === "ON_LEAVE" || status === "WEEK_OFF";
+  const isTimeExcluded = ["ABSENT", "ON_LEAVE", "WEEK_OFF"].includes(status);
 
   const calculatedDuration = useMemo(() => {
     if (!checkInTime || !checkOutTime || isTimeExcluded) return null;
@@ -158,7 +161,7 @@ const HRAttendanceEditModal = ({
 
   if (!isOpen) return null;
 
-  const isMarkingNew = !initialRecord?.check_in_time;
+  const isMarkingNew = !initialRecord?.id;
   const shiftStart = (selectedEmployeeObj?.shift_start_time || "10:00").slice(0, 5);
   const shiftEnd = (selectedEmployeeObj?.shift_end_time || "18:00").slice(0, 5);
 
@@ -255,7 +258,7 @@ const HRAttendanceEditModal = ({
               {isMarkingNew ? "Mark Employee Attendance" : "Edit Attendance & Timing"}
             </h3>
             <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
-              Mark manual attendance or edit check-in / check-out timing for the employee.
+              Mark attendance or correct a previous date's check-in, work mode, or status.
             </p>
           </div>
           <button
@@ -325,6 +328,7 @@ const HRAttendanceEditModal = ({
                 }}
               >
                 <option value="">-- Select Employee --</option>
+                {employeesLoading && <option value="" disabled>Loading employees...</option>}
                 {employeesList.map((emp) => {
                   const id = emp.employee_id || emp.id;
                   const name = emp.employee_name || emp.full_name;
@@ -453,6 +457,7 @@ const HRAttendanceEditModal = ({
                 <option value="LATE">⚠️ Late</option>
                 <option value="WEEK_OFF">🏖️ Week Off</option>
                 <option value="ON_LEAVE">🌴 On Leave</option>
+                <option value="ABSENT">❌ Absent</option>
               </select>
             </div>
           </div>

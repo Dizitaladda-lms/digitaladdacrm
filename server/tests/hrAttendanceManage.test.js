@@ -141,6 +141,32 @@ describe("HR Attendance Mark & Edit Time Service (upsertEmployeeAttendanceByHRSe
     expect(res.total_hours).toBe(0);
   });
 
+  it("allows HR to backdate an absence without retaining attendance times", async () => {
+    const res = await upsertEmployeeAttendanceByHRService(
+      {
+        employee_id: 25,
+        date: "2026-10-12",
+        status: "ABSENT",
+      },
+      { id: 5, role: "HR", full_name: "Neha HR" },
+      { headers: {} }
+    );
+
+    expect(res.status).toBe("ABSENT");
+    expect(res.check_in_time).toBeNull();
+    expect(res.check_out_time).toBeNull();
+    expect(res.total_hours).toBe(0);
+    expect(mockUpsertEmployeeAttendance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        employee_id: 25,
+        date: "2026-10-12",
+        status: "ABSENT",
+        check_in_time: null,
+        check_out_time: null,
+      })
+    );
+  });
+
   it("fetches employee attendance quota summary for authorized HR", async () => {
     mockGetEmployeeAttendanceQuotaSummary.mockResolvedValue({
       employee_id: 25,

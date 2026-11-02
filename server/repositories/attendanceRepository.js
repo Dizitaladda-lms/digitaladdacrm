@@ -883,13 +883,13 @@ export const upsertEmployeeAttendanceByHRRepository = async ({
         is_office_wifi = $9,
         check_in_location = CASE
           WHEN $3::timestamptz IS NOT NULL THEN $8
-          ELSE daily_attendance.check_in_location
+          ELSE NULL
         END,
         check_out_location = CASE
           WHEN $4::timestamptz IS NOT NULL THEN $8
-          ELSE daily_attendance.check_out_location
+          ELSE NULL
         END,
-        verification_method = COALESCE($10, daily_attendance.verification_method),
+        verification_method = $10,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *;
     `,
