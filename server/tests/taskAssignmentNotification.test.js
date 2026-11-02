@@ -4,7 +4,7 @@ const dependencies = vi.hoisted(() => ({
   createTaskRepository: vi.fn(),
   findTaskByIdRepository: vi.fn(),
   poolQuery: vi.fn(),
-  sendPushToUsersService: vi.fn(),
+  notifyUser: vi.fn(),
 }));
 
 vi.mock("../repositories/taskRepository.js", () => ({
@@ -23,8 +23,8 @@ vi.mock("../config/db.js", () => ({
   default: { query: dependencies.poolQuery },
 }));
 
-vi.mock("../services/pushNotificationService.js", () => ({
-  sendPushToUsersService: dependencies.sendPushToUsersService,
+vi.mock("../services/userNotificationService.js", () => ({
+  notifyUser: dependencies.notifyUser,
 }));
 
 import { createTaskService } from "../services/taskService.js";
@@ -39,8 +39,7 @@ describe("targeted task assignment notifications", () => {
       priority: "HIGH",
       assigned_to_id: 88,
     });
-    dependencies.poolQuery.mockResolvedValue({ rows: [] });
-    dependencies.sendPushToUsersService.mockResolvedValue({ sent: 1, failed: 0 });
+    dependencies.notifyUser.mockResolvedValue({ notificationCreated: true, push: { sent: 1, failed: 0 } });
   });
 
   it("notifies only the exact assigned user, never the whole department", async () => {
@@ -54,14 +53,15 @@ describe("targeted task assignment notifications", () => {
       }
     );
 
-    expect(dependencies.sendPushToUsersService).toHaveBeenCalledTimes(1);
-    expect(dependencies.sendPushToUsersService).toHaveBeenCalledWith(
+    expect(dependencies.notifyUser).toHaveBeenCalledTimes(1);
+    expect(dependencies.notifyUser).toHaveBeenCalledWith(
       88,
-      expect.objectContaining({ data: { taskId: 501 }, url: "/employee/assigned-work" })
-    );
-    expect(dependencies.poolQuery).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO user_notifications"),
-      expect.arrayContaining([88, 17])
+      expect.objectContaining({
+        data: { taskId: 501 },
+        url: "/employee/assigned-work",
+        actorUserId: 17,
+        type: "TASK_ASSIGNED",
+      })
     );
   });
 });

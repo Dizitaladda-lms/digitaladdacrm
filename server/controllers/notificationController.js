@@ -557,6 +557,7 @@ export const testPushNotificationController = asyncHandler(async (req, res) => {
     body: `Hello ${userName}! Mobile & background alerts are working properly even if CRM is closed.`,
     url: "/employee/dashboard",
     tag: "test-notification",
+    type: "PUSH_TEST",
   });
 
   return res.status(200).json(

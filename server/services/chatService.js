@@ -14,7 +14,7 @@ import {
   getOrCreateDirectGroupRepository,
   isGroupMemberRepository,
 } from "../repositories/chatRepository.js";
-import { sendPushToEmployeesService } from "./pushNotificationService.js";
+import { notifyUser } from "./userNotificationService.js";
 
 const getEmployeeForUser = async (currentUser) => {
   const employee = await findEmployeeByUserIdRepository(currentUser.id);
@@ -238,7 +238,6 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
     );
 
     if (partnerRows[0]?.employee_id) {
-      const partnerId = partnerRows[0].employee_id;
       const partnerUserId = partnerRows[0].user_id;
 
       // Check if partner is off today
@@ -250,28 +249,17 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
         });
       }
 
-      // Send background web push to partner
-      sendPushToEmployeesService([partnerId], {
-        title: `💬 Personal message from ${senderName}`,
-        body: preview,
-        url: `/employee/team-chat?groupId=${group.id}`,
-        tag: `chat-dm-${group.id}`,
-        data: { groupId: group.id, messageId: message.id },
-      }).catch((err) => console.error("Push dispatch error on DM:", err.message));
-
-      // Save in user_notifications for in-app alert & topbar bell badge
       if (partnerUserId) {
-        pool.query(
-          `INSERT INTO user_notifications (user_id, actor_user_id, type, category, title, message, link, priority)
-           VALUES ($1, $2, 'CHAT_DM', 'CHAT', $3, $4, $5, 'HIGH')`,
-          [
-            partnerUserId,
-            currentUser.id,
-            `💬 Personal message from ${senderName}`,
-            preview,
-            `/team-chat`,
-          ]
-        ).catch((err) => console.error("DB notification insert error on DM:", err.message));
+        await notifyUser(partnerUserId, {
+          title: `💬 Personal message from ${senderName}`,
+          body: preview,
+          url: `/employee/team-chat?groupId=${group.id}`,
+          tag: `chat-dm-${group.id}`,
+          type: "CHAT_DM",
+          actorUserId: currentUser.id,
+          priority: "HIGH",
+          data: { groupId: group.id, messageId: message.id },
+        });
       }
     }
   } else {
@@ -305,61 +293,40 @@ export const sendChatMessageService = async (groupId, payload = {}, currentUser)
         }));
       offAlerts = [...offAlerts, ...groupOffAlerts];
 
-      // Dispatch WebPush for mentions
-      sendPushToEmployeesService(effectiveMentionedIds, {
-        title: `💬 ${senderName} mentioned you in #${groupName}`,
-        body: preview,
-        url: `/employee/team-chat?groupId=${group.id}`,
-        tag: `chat-mention-${groupId}`,
-        data: { groupId, messageId: message.id },
-      }).catch((err) => console.error("Push dispatch error on chat mention:", err.message));
-
-      // Save in user_notifications
-      otherMembers.forEach((m) => {
-        if (mentionedSet.has(Number(m.employee_id)) && m.user_id) {
-          pool.query(
-            `INSERT INTO user_notifications (user_id, actor_user_id, type, category, title, message, link, priority)
-             VALUES ($1, $2, 'CHAT_MENTION', 'CHAT', $3, $4, $5, 'URGENT')`,
-            [
-              m.user_id,
-              currentUser.id,
-              `💬 Mentioned by ${senderName} in #${groupName}`,
-              preview,
-              `/team-chat`,
-            ]
-          ).catch((err) => console.error("DB notification insert error on mention:", err.message));
-        }
-      });
+      const mentionedMembers = otherMembers.filter(
+        (member) => mentionedSet.has(Number(member.employee_id)) && member.user_id
+      );
+      await Promise.all(mentionedMembers.map((member) =>
+        notifyUser(member.user_id, {
+          title: `💬 ${senderName} mentioned you in #${groupName}`,
+          body: preview,
+          url: `/employee/team-chat?groupId=${group.id}`,
+          tag: `chat-mention-${groupId}`,
+          type: "CHAT_MENTION",
+          actorUserId: currentUser.id,
+          priority: "URGENT",
+          data: { groupId, messageId: message.id },
+        })
+      ));
     }
 
     // B. Handle General Group Discussion for other members
     const nonMentionedMembers = otherMembers.filter((m) => !mentionedSet.has(Number(m.employee_id)));
     if (nonMentionedMembers.length > 0) {
-      const nonMentionedEmployeeIds = nonMentionedMembers.map((m) => m.employee_id);
-
-      sendPushToEmployeesService(nonMentionedEmployeeIds, {
-        title: `💬 #${groupName}: ${senderName}`,
-        body: preview,
-        url: `/employee/team-chat?groupId=${group.id}`,
-        tag: `chat-group-${group.id}`,
-        data: { groupId: group.id, messageId: message.id },
-      }).catch((err) => console.error("Push dispatch error on group chat:", err.message));
-
-      nonMentionedMembers.forEach((m) => {
-        if (m.user_id) {
-          pool.query(
-            `INSERT INTO user_notifications (user_id, actor_user_id, type, category, title, message, link, priority)
-             VALUES ($1, $2, 'CHAT_MESSAGE', 'CHAT', $3, $4, $5, 'HIGH')`,
-            [
-              m.user_id,
-              currentUser.id,
-              `💬 #${groupName}: ${senderName}`,
-              preview,
-              `/team-chat`,
-            ]
-          ).catch((err) => console.error("DB notification insert error on group message:", err.message));
-        }
-      });
+      await Promise.all(nonMentionedMembers
+        .filter((member) => member.user_id)
+        .map((member) =>
+          notifyUser(member.user_id, {
+            title: `Group message from ${senderName}`,
+            body: preview,
+            url: `/employee/team-chat?groupId=${group.id}`,
+            tag: `chat-group-${group.id}`,
+            type: "CHAT_MESSAGE",
+            actorUserId: currentUser.id,
+            priority: "HIGH",
+            data: { groupId, messageId: message.id },
+          })
+        ));
     }
   }
 

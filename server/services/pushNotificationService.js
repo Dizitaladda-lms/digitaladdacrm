@@ -7,16 +7,19 @@ const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@dizitaladda.com";
 
 let isVapidConfigured = false;
+let vapidConfigurationError = null;
 if (vapidPublicKey && vapidPrivateKey) {
   try {
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
     isVapidConfigured = true;
     logger.info("WebPush VAPID configured successfully");
   } catch (err) {
-    logger.error("Failed to configure WebPush VAPID details:", err.message);
+    vapidConfigurationError = err.message;
+    logger.error(`Failed to configure WebPush VAPID details: ${err.message}`);
   }
 } else {
-  logger.warn("WebPush VAPID keys not fully provided in environment.");
+  vapidConfigurationError = "VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must both be configured.";
+  logger.error(vapidConfigurationError);
 }
 
 /**
@@ -81,12 +84,12 @@ export const removeSubscriptionService = async (endpoint) => {
  */
 export const sendPushToUsersService = async (userIds, payload = {}) => {
   if (!isVapidConfigured) {
-    logger.warn("Cannot send push notification: VAPID not configured");
-    return { sent: 0, failed: 0 };
+    logger.error(`Cannot send push notification: ${vapidConfigurationError || "VAPID is not configured."}`);
+    return { configured: false, subscriptions: 0, sent: 0, failed: 0, error: "VAPID_NOT_CONFIGURED" };
   }
 
   const idList = Array.isArray(userIds) ? userIds.map(Number).filter(Boolean) : [Number(userIds)].filter(Boolean);
-  if (idList.length === 0) return { sent: 0, failed: 0 };
+  if (idList.length === 0) return { configured: true, subscriptions: 0, sent: 0, failed: 0 };
 
   try {
     const { rows: subscriptions } = await pool.query(
@@ -96,10 +99,6 @@ export const sendPushToUsersService = async (userIds, payload = {}) => {
       [idList]
     );
 
-    if (subscriptions.length === 0) {
-      return { sent: 0, failed: 0 };
-    }
-
     const notificationPayload = JSON.stringify({
       title: payload.title || "Dizital Adda CRM",
       body: payload.body || "You have a new notification.",
@@ -107,6 +106,7 @@ export const sendPushToUsersService = async (userIds, payload = {}) => {
       badge: payload.badge || "/pwa-icon-192.png",
       url: payload.url || "/",
       tag: payload.tag || "crm-general-alert",
+      type: payload.type || "GENERAL",
       data: payload.data || {},
       timestamp: Date.now(),
     });
@@ -114,7 +114,7 @@ export const sendPushToUsersService = async (userIds, payload = {}) => {
     let sent = 0;
     let failed = 0;
 
-    await Promise.allSettled(
+    const settled = await Promise.allSettled(
       subscriptions.map(async (sub) => {
         const pushSubscription = {
           endpoint: sub.endpoint,
@@ -132,20 +132,34 @@ export const sendPushToUsersService = async (userIds, payload = {}) => {
           sent++;
         } catch (err) {
           failed++;
-          logger.warn(`Push delivery failed for user ${sub.user_id}: ${err.message}`);
+          const endpointLabel = `${sub.endpoint.slice(0, 96)}${sub.endpoint.length > 96 ? "..." : ""}`;
+          logger.warn(
+            `Push delivery failed for user ${sub.user_id}, endpoint ${endpointLabel}, status ${err.statusCode || "unknown"}: ${err.message}`
+          );
 
-          // If subscription has expired or is unsubscribed (404 Not Found or 410 Gone)
           if (err.statusCode === 404 || err.statusCode === 410) {
-            await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [sub.endpoint]).catch(() => {});
+            try {
+              await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [sub.endpoint]);
+            } catch (cleanupError) {
+              logger.error(
+                `Failed to remove expired push subscription ${endpointLabel}: ${cleanupError.message}`
+              );
+            }
           }
         }
       })
     );
 
-    return { sent, failed };
+    settled.forEach((result) => {
+      if (result.status === "rejected") {
+        logger.error(`Unexpected push dispatch failure: ${result.reason?.message || result.reason}`);
+      }
+    });
+
+    return { configured: true, subscriptions: subscriptions.length, sent, failed };
   } catch (error) {
-    logger.error("Error in sendPushToUsersService:", error.message);
-    return { sent: 0, failed: 0, error: error.message };
+    logger.error(`Error in sendPushToUsersService: ${error.message}`);
+    return { configured: true, subscriptions: 0, sent: 0, failed: 1, error: error.message };
   }
 };
 
@@ -166,7 +180,7 @@ export const sendPushToEmployeesService = async (employeeIds, payload = {}) => {
     const userIds = rows.map((r) => r.user_id);
     return await sendPushToUsersService(userIds, payload);
   } catch (err) {
-    logger.error("Error resolving employee user IDs for push:", err.message);
-    return { sent: 0, failed: 0 };
+    logger.error(`Error resolving employee user IDs for push: ${err.message}`);
+    return { configured: isVapidConfigured, subscriptions: 0, sent: 0, failed: 1, error: err.message };
   }
 };
