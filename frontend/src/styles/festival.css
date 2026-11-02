@@ -8,7 +8,7 @@
 .diwali-theme {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 61;
   overflow: hidden;
   pointer-events: none;
 }
@@ -29,7 +29,7 @@
 
 .diwali-string-lights {
   position: fixed;
-  z-index: 50;
+  z-index: 61;
   inset: 0 0 auto;
   height: 55px;
 }
@@ -68,13 +68,21 @@
 
 .diwali-toran {
   position: fixed;
-  z-index: 50;
+  z-index: 61;
   top: 43px;
   left: 0;
   width: 100%;
-  height: 76px;
-  transform-origin: top center;
-  animation: diwali-toran-sway 5s ease-in-out infinite alternate;
+  height: var(--toran-height, 174px);
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 5px 5px rgba(49, 26, 13, 0.3));
+}
+
+.diwali-toran__swag,
+.diwali-toran__junction {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: diwali-toran-sway var(--swag-duration, 4.8s) ease-in-out var(--swag-delay) infinite alternate;
 }
 
 .diwali-petals {
@@ -264,8 +272,8 @@
 }
 
 @keyframes diwali-toran-sway {
-  from { transform: rotate(-0.3deg); }
-  to { transform: rotate(0.3deg); }
+  from { transform: rotate(-1.1deg); }
+  to { transform: rotate(1.1deg); }
 }
 
 @keyframes diwali-petal-fall {
@@ -300,7 +308,8 @@
   }
 
   .diwali-toran {
-    height: 54px;
+    top: 41px;
+    height: var(--toran-height, 132px);
   }
 
   .diwali-greeting {
