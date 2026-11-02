@@ -14,13 +14,14 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { addLeadFeedback } from "../../../services/leadFeedbackService";
+import useFireworks from "../../../hooks/useFireworks";
 
 const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
-  if (!isOpen || !followup) return null;
+  const fireWorks = useFireworks();
 
-  const leadId = followup.lead_id || followup.id;
-  const leadName = followup.lead_name || followup.full_name || "Student Lead";
-  const courseName = followup.interested_course || followup.course_name || "Digital Marketing";
+  const leadId = followup?.lead_id || followup?.id;
+  const leadName = followup?.lead_name || followup?.full_name || "Student Lead";
+  const courseName = followup?.interested_course || followup?.course_name || "Digital Marketing";
 
   // Selected Status Outcome (one of the 5 standard project statuses)
   const [selectedStatus, setSelectedStatus] = useState("FOLLOW_UP");
@@ -34,7 +35,7 @@ const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
   };
 
   const [nextFollowupAt, setNextFollowupAt] = useState(getDefaultTomorrowDate());
-  const [channel, setChannel] = useState(followup.followup_type || "CALL");
+  const [channel, setChannel] = useState(followup?.followup_type || "CALL");
 
   // Enrollment / Admission fields
   const [enrollCourse, setEnrollCourse] = useState(courseName);
@@ -53,6 +54,8 @@ const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
   // General remarks
   const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  if (!isOpen || !followup) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -95,6 +98,7 @@ const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
       await addLeadFeedback(leadId, payload);
 
       if (selectedStatus === "ENROLLED") {
+        fireWorks();
         toast.success(`🎉 ${leadName} enrolled! Admission record created with fee details.`);
       } else if (selectedStatus === "FOLLOW_UP") {
         toast.success(`📅 Next callback scheduled for ${new Date(nextFollowupAt).toLocaleString("en-IN")}!`);

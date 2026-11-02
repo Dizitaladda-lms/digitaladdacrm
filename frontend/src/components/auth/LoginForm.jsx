@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
 import { useAuth } from "../../context/AuthContext";
+import useFireworks from "../../hooks/useFireworks";
 import { IS_MAINTENANCE_MODE } from "../../config/maintenanceConfig";
 import "./auth.css";
 
@@ -62,6 +63,7 @@ const LoginForm = () => {
   const navigate = useNavigate();
 
   const { user, loading: authLoading, login } = useAuth();
+  const fireWorks = useFireworks();
 
   const [loading, setLoading] = useState(false);
 
@@ -108,6 +110,7 @@ const LoginForm = () => {
       });
 
       if (response?.success) {
+        fireWorks();
         toast.success("Welcome Back 👋");
 
         const loggedInUser = response?.data?.user || response?.user;

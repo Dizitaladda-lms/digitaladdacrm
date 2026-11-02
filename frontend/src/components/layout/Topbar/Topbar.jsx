@@ -2,6 +2,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import SearchBox from "./SearchBox";
 import UserMenu from "./UserMenu";
 import { useAuth } from "../../../context/AuthContext";
+import FestivalToggle from "../../festival/FestivalToggle";
 
 const Topbar = ({ isSidebarOpen = true, onMenuClick }) => {
   const { user } = useAuth();
@@ -48,6 +49,7 @@ const Topbar = ({ isSidebarOpen = true, onMenuClick }) => {
         <div className="hidden sm:block">
           <SearchBox />
         </div>
+        <FestivalToggle />
         <UserMenu />
       </div>
     </header>

@@ -1,5 +1,18 @@
 # React + Vite
 
+## Diwali festival mode
+
+Festival mode defaults to `auto` and is active from **2026-11-01 through
+2026-11-10 (IST)**. Update the ISO dates in `src/config/festivalConfig.js` for
+the next Diwali period. Set `VITE_FESTIVAL_MODE` to `diwali`, `off`, or `auto`
+to force the mode on, force it off, or use the configured date range. In `auto`
+mode, the diya toggle cycles between automatic, on, and off. The selected
+preference is stored in `dizitaladda_festival_pref`.
+
+Animations are suppressed for reduced-motion preferences and low-power
+devices. Festival decorations are hidden when printing and remain below modal
+layers.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

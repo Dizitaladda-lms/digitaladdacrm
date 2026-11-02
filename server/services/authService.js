@@ -372,7 +372,10 @@ export const loginUserService = async (
   });
 
   return {
-    user,
+    user: {
+      ...user,
+      must_change_password: Boolean(user.must_change_password),
+    },
     accessToken,
     refreshToken,
   };

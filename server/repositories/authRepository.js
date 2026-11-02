@@ -132,6 +132,7 @@ export const findUsersByIdentifierWithPasswordRepository = async (identifier) =>
       u.is_active,
       u.is_deleted,
       u.email_verified,
+      COALESCE(u.must_change_password, FALSE) AS must_change_password,
       u.last_login,
       u.failed_login_attempts,
       u.lockout_until,
@@ -199,6 +200,7 @@ export const findUserByIdRepository = async (id) => {
       u.is_active,
       u.is_deleted,
       u.email_verified,
+      COALESCE(u.must_change_password, FALSE) AS must_change_password,
       u.last_login,
       u.created_at,
       u.updated_at,
@@ -294,6 +296,8 @@ export const updatePasswordRepository = async (
     UPDATE users
     SET
       password = $1,
+      must_change_password = FALSE,
+      password_changed_at = CURRENT_TIMESTAMP,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = $2
       AND is_deleted = FALSE
@@ -304,6 +308,7 @@ export const updatePasswordRepository = async (
       role,
       is_active,
       email_verified,
+      must_change_password,
       last_login,
       created_at,
       updated_at;

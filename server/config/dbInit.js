@@ -35,6 +35,7 @@ export async function initDatabaseSchema() {
           is_active       BOOLEAN NOT NULL DEFAULT TRUE,
           is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,
           email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+          must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
           last_login      TIMESTAMPTZ,
           created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -255,13 +256,8 @@ export async function initDatabaseSchema() {
         );
       `);
 
-      // Seed initial Admin & Counsellor accounts (clean generic seeds)
+      // Seed reference data (departments & lead sources - no default users/credentials in production)
       await pool.query(`
-        INSERT INTO users (id, full_name, email, password, role, is_active, is_deleted, email_verified) VALUES
-          (1, 'System Administrator', 'admin@dizitaladda.com', '$2b$10$FdjvHaE0Zin7vtvsbFuLWuRVF7TZJjnKmwuDl/XTc16F6gC9aphoe', 'ADMIN', TRUE, FALSE, TRUE),
-          (2, 'Admissions Counsellor', 'counsellor@dizitaladda.com', '$2b$10$0CkPoAU.v8LSO3eRVpvtaO8L6WVMGe9oY/q2z9KVUQ5zU62ahZaxK', 'COUNSELLOR', TRUE, FALSE, TRUE)
-        ON CONFLICT (id) DO NOTHING;
-
         INSERT INTO departments (id, department_name, description, status)
         VALUES (1, 'Admissions & Sales', 'Admissions & Student Counselling', TRUE)
         ON CONFLICT (id) DO NOTHING;
@@ -271,12 +267,6 @@ export async function initDatabaseSchema() {
           ('Sales', 'Sales, lead follow-up, counselling and admissions conversion', TRUE),
           ('Operations', 'Daily business operations, coordination and service delivery', TRUE)
         ON CONFLICT (department_name) DO NOTHING;
-
-        INSERT INTO employees (id, user_id, employee_code, full_name, email, mobile, department_id, designation, role, status)
-        VALUES 
-          (1, 1, 'EMP000001', 'System Administrator', 'admin@dizitaladda.com', '9876543200', 1, 'Director', 'ADMIN', 'ACTIVE'),
-          (2, 2, 'EMP000002', 'Admissions Counsellor', 'counsellor@dizitaladda.com', '9876543201', 1, 'Senior Counsellor', 'COUNSELLOR', 'ACTIVE')
-        ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO lead_sources (name, description, is_active) VALUES
           ('Website', 'Captured via website form', TRUE),
@@ -340,7 +330,7 @@ export async function initDatabaseSchema() {
       CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs (user_id);
       `);
 
-      console.log("✅ Core database tables and seed users initialized successfully.");
+      console.log("✅ Core database tables and reference data initialized successfully.");
     }
 
     // Ensure background push subscriptions exist even when SQL migrations are not run at startup.
@@ -360,6 +350,7 @@ export async function initDatabaseSchema() {
     await pool.query(`
       ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS reports_to BIGINT REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS department_id BIGINT REFERENCES departments(id) ON DELETE SET NULL;
+      ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
       ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_role_check;
       ALTER TABLE IF EXISTS users ADD CONSTRAINT users_role_check CHECK (
         UPPER(role) IN (
@@ -548,8 +539,8 @@ export async function initDatabaseSchema() {
     // Ensure sequences align
     try {
       await pool.query(`
-        SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1), true);
-        SELECT setval(pg_get_serial_sequence('employees', 'id'), COALESCE((SELECT MAX(id) FROM employees), 1), true);
+        SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1), (SELECT MAX(id) IS NOT NULL FROM users));
+        SELECT setval(pg_get_serial_sequence('employees', 'id'), COALESCE((SELECT MAX(id) FROM employees), 1), (SELECT MAX(id) IS NOT NULL FROM employees));
       `);
     } catch {}
 

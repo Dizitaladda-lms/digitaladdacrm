@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ProfileMenu from "../profile/ProfileMenu";
+import FestivalToggle from "../festival/FestivalToggle";
 
 const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
   const { user } = useAuth();
@@ -61,6 +62,7 @@ const EmployeeTopbar = ({ isSidebarOpen = true, onMenuClick }) => {
       </div>
 
       <div className="topbar-right">
+        <FestivalToggle />
         <div className="topbar-date">
           <Calendar size={14} />
           <span>{today}</span>

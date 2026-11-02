@@ -1,0 +1,9 @@
+# Semgrep ignore file
+node_modules/
+dist/
+build/
+coverage/
+.git/
+
+# Dummy hash for constant-time missing user timing attack mitigation (not a credential)
+server/utils/passwordUtils.js

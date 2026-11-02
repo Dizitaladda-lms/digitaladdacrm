@@ -39,6 +39,8 @@ const VERIFICATION_PEPPERS = [...new Set([PEPPER, ...PREVIOUS_PEPPERS, DEFAULT_F
 const TARGET_BCRYPT_ROUNDS = 12;
 
 // Precomputed cost-12 dummy hash for constant-time missing-user defense
+// Intentional dummy hash for constant-time login; not a credential.
+// nosemgrep: generic.secrets.security.detected-bcrypt-hash
 const DUMMY_BCRYPT_HASH = '$2b$12$NqWbXJtG3zHkF1x4M7.J8ec5Yd2L8p7Q1v4T6s9W0r3Y5u7I9o2Pa';
 
 export const isBcryptHash = (value) =>

@@ -14,17 +14,16 @@ const errorHandler = (
   });
 
   if (err instanceof ApiError) {
-
-    return res.status(err.statusCode).json({
-
+    const response = {
       success: false,
-
       statusCode: err.statusCode,
-
       message: err.message,
+    };
+    if (err.code) {
+      response.code = err.code;
+    }
 
-    });
-
+    return res.status(err.statusCode).json(response);
   }
 
   return res.status(500).json({

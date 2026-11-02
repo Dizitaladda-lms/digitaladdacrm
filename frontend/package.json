@@ -13,6 +13,7 @@
     "@simplewebauthn/browser": "^14.0.0",
     "@tailwindcss/vite": "^4.3.2",
     "axios": "^1.18.1",
+    "canvas-confetti": "1.9.3",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",

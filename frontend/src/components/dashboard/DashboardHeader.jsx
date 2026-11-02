@@ -1,9 +1,14 @@
 import "../../styles/Dashboard/DashboardHeader.css";
+import { PartyPopper } from "lucide-react";
+import useFireworks from "../../hooks/useFireworks";
+import { useTheme } from "../../context/ThemeContext";
 
 const DashboardHeader = ({
   loading,
   onRefresh,
 }) => {
+  const fireWorks = useFireworks();
+  const { festivalActive } = useTheme();
 
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -73,8 +78,13 @@ const DashboardHeader = ({
         >
 
           {loading ? "Refreshing..." : "Refresh"}
-
         </button>
+        {festivalActive && (
+          <button className="diwali-celebrate" type="button" onClick={fireWorks}>
+            <PartyPopper size={16} />
+            Celebrate 🎆
+          </button>
+        )}
 
       </div>
 

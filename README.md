@@ -39,6 +39,31 @@ npm install
 
 ---
 
+## Creating the Initial Administrator
+
+No default user accounts or hardcoded credentials are created in production. To provision the initial administrator account, run:
+
+```sh
+# Interactive prompt
+npm run create:admin
+
+# Or non-interactive via CLI arguments / environment variables:
+ADMIN_EMAIL="admin@yourdomain.com" ADMIN_PASSWORD="SecurePassword#2026" npm run create:admin
+# or
+npm run create:admin -- --email admin@yourdomain.com --password "SecurePassword#2026" --name "System Administrator"
+```
+
+**Password Requirements:**
+- Minimum 12 characters
+- At least one uppercase letter (`A-Z`)
+- At least one lowercase letter (`a-z`)
+- At least one number (`0-9`)
+- At least one symbol (`!@#$%^&*...`)
+
+*Note:* Newly provisioned admin accounts are marked with `must_change_password = TRUE`. The user will be required to update their password upon first logging into the CRM before other routes can be accessed.
+
+---
+
 ## Development
 
 npm run dev

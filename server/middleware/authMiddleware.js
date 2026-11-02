@@ -125,6 +125,32 @@ const authMiddleware = async (req, res, next) => {
     setDeviceCookie(res, deviceId);
 
     /**
+     * Enforce Password Change Requirement
+     * If must_change_password is TRUE, forbid all routes except password-change and logout.
+     */
+    if (user.must_change_password) {
+      const path = (req.path || "").toLowerCase();
+      const originalUrl = (req.originalUrl || "").toLowerCase();
+      const isAllowedEndpoint =
+        path.endsWith("/change-password") ||
+        originalUrl.includes("/change-password") ||
+        path.endsWith("/logout") ||
+        originalUrl.includes("/logout") ||
+        path.endsWith("/logout-all") ||
+        originalUrl.includes("/logout-all");
+
+      if (!isAllowedEndpoint) {
+        return next(
+          new ApiError(
+            HTTP_STATUS.FORBIDDEN,
+            "Password change required before accessing the system.",
+            "PASSWORD_CHANGE_REQUIRED"
+          )
+        );
+      }
+    }
+
+    /**
      * Attach Safe User Object
      */
     req.user = {
@@ -134,6 +160,7 @@ const authMiddleware = async (req, res, next) => {
       email: user.email,
       role: user.role,
       lead_overview_read_only: Boolean(user.lead_overview_read_only),
+      must_change_password: Boolean(user.must_change_password),
     };
 
     next();
