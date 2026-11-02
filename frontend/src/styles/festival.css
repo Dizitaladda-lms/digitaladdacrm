@@ -238,13 +238,24 @@
 }
 
 .diwali-countdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
   color: #7a1030;
   background: #fff6e5;
   border: 1px solid #ffc83d;
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 12px;
+  border-radius: 9px;
+  padding: 0 12px;
+  font-size: 12.5px;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.diwali-countdown__time {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 @keyframes diwali-bulb-glow {

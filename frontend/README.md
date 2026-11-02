@@ -3,8 +3,9 @@
 ## Diwali festival mode
 
 Festival mode defaults to `auto` and is active from **2026-11-01 through
-2026-11-10 (IST)**. Update the ISO dates in `src/config/festivalConfig.js` for
-the next Diwali period. Set `VITE_FESTIVAL_MODE` to `diwali`, `off`, or `auto`
+2026-11-10 (IST)**, with the countdown targeting **2026-11-08**. Update the ISO
+dates in `src/config/festivalConfig.js` for the next Diwali period. Set
+`VITE_FESTIVAL_MODE` to `diwali`, `off`, or `auto`
 to force the mode on, force it off, or use the configured date range. In `auto`
 mode, the diya toggle cycles between automatic, on, and off. The selected
 preference is stored in `dizitaladda_festival_pref`.

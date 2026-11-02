@@ -6,6 +6,8 @@ export const DIWALI_DATE_RANGE = Object.freeze({
   end: "2026-11-10",
 });
 
+export const DIWALI_DATE = "2026-11-08";
+
 const requestedMode = import.meta.env.VITE_FESTIVAL_MODE || "auto";
 export const FESTIVAL_MODE = ["diwali", "off", "auto"].includes(requestedMode)
   ? requestedMode
@@ -26,3 +28,5 @@ export const isFestivalActive = (now = new Date()) => {
   const currentDate = getDateInFestivalTimeZone(now);
   return currentDate >= DIWALI_DATE_RANGE.start && currentDate <= DIWALI_DATE_RANGE.end;
 };
+
+export const getDiwaliStartTime = () => new Date(`${DIWALI_DATE}T00:00:00+05:30`);
