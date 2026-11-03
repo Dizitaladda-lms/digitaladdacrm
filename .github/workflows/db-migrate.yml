@@ -1,4 +1,4 @@
-name: Production database migration
+name: DB Migrate
 
 on:
   workflow_dispatch:
@@ -8,22 +8,22 @@ permissions:
 
 jobs:
   migrate:
-    name: Apply production migrations
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Set up Node.js
-        uses: actions/setup-node@1e60f620b9541d1d2c68d64baf5dd039a0f4e3a9
+      - uses: actions/checkout@v4
         with:
-          node-version: "22"
+          persist-credentials: false
 
-      - name: Install migration dependencies
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install server deps
         run: npm ci --ignore-scripts --prefix server
 
-      - name: Apply migrations
-        run: npm run db:migrate --prefix server
+      - name: Run migrations
+        run: npm run db:migrate
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DB_SSL: "true"

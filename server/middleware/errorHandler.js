@@ -8,6 +8,8 @@ const errorHandler = (
   next
 ) => {
 
+  console.error("API ERROR:", req.method, req.path, err.code, err.message);
+
   errorLogger({
     error: err,
     req,
