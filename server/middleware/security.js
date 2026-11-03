@@ -3,6 +3,7 @@ import compression from "compression";
 import cors from "cors";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import { isAllowedOrigin } from "../utils/requestOrigin.js";
 
 /**
  * =====================================================
@@ -35,14 +36,10 @@ export const loggerMiddleware = morgan("combined");
  */
 
 export const corsMiddleware = cors({
-
-  origin:
-    process.env.NODE_ENV === "production"
-      ? process.env.CLIENT_URL
-      : "*",
-
+  origin: (origin, callback) => {
+    callback(null, origin && isAllowedOrigin(origin) ? origin : false);
+  },
   credentials: true,
-
   methods: [
     "GET",
     "POST",
@@ -55,7 +52,6 @@ export const corsMiddleware = cors({
     "Content-Type",
     "Authorization",
   ],
-
 });
 
 /**

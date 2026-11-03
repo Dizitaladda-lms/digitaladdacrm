@@ -39,28 +39,17 @@ import requestId from "./middleware/requestId.js";
 import requestLogger from "./middleware/requestLogger.js";
 import notFound from "./middleware/notFound.js";
 import errorHandler from "./middleware/errorHandler.js";
+import {
+  getRequestOrigin,
+  isAllowedOrigin,
+  isSignedWebhookPath,
+} from "./utils/requestOrigin.js";
 
 const app = express();
 
 // Render/Vercel deploy behind one trusted reverse proxy. This lets rate limits
 // use the real client IP instead of treating every request as the proxy.
 app.set("trust proxy", 1);
-
-const localOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
-const allowedMainWebsitesRegex = /^(https?:\/\/)?([a-z0-9-]+\.)*(nidads\.com|nipage\.com|nigape\.com|iidad\.com|dizitaladda\.com|vercel\.app)(:\d+)?$/i;
-const explicitOrigins = [process.env.CLIENT_URL || "", process.env.ALLOWED_ORIGINS || ""]
-  .join(",")
-  .split(",")
-  .map((origin) => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
-const isOriginAllowed = (origin) => {
-  if (!origin) return false;
-  if (process.env.NODE_ENV !== "production" && localOriginRegex.test(origin)) return true;
-  if (explicitOrigins.includes(origin.replace(/\/$/, ""))) return true;
-  if (allowedMainWebsitesRegex.test(origin)) return true;
-  return false;
-};
 
 /**
  * Environment Validation
@@ -72,12 +61,9 @@ validateEnv();
  */
 app.use(cors((req, callback) => {
   const origin = req.header("Origin");
-  const isAllowed = isOriginAllowed(origin);
-  const isPublicLeadRoute = req.path.startsWith("/api/public") || req.url.startsWith("/api/public");
-
-  if (!origin || isAllowed || isPublicLeadRoute) {
+  if (origin && isAllowedOrigin(origin)) {
     return callback(null, {
-      origin: origin || true,
+      origin,
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: [
@@ -87,12 +73,10 @@ app.use(cors((req, callback) => {
         "Accept",
         "X-Device-Id",
         "X-Device-Name",
-        "X-Refresh-Token",
       ],
     });
   }
 
-  // Gracefully reject unauthorized origins without throwing 500
   return callback(null, { origin: false });
 }));
 
@@ -131,10 +115,16 @@ app.use((req, res, next) => {
     return next();
   }
   const unsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(req.method);
-  const hasAuthCookie = Boolean(req.cookies?.accessToken || req.cookies?.refreshToken);
-  const origin = req.get("Origin");
-  if (unsafeMethod && hasAuthCookie && origin && origin !== "null" && !isOriginAllowed(origin)) {
-    return res.status(403).json({ success: false, message: "Untrusted request origin." });
+  if (!unsafeMethod || isSignedWebhookPath(req.path)) {
+    return next();
+  }
+
+  const origin = getRequestOrigin(req);
+  if (!isAllowedOrigin(origin)) {
+    return res.status(403).json({
+      success: false,
+      message: "A trusted Origin or Referer is required.",
+    });
   }
   next();
 });

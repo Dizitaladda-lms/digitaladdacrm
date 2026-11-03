@@ -159,6 +159,68 @@ dedicated overview endpoint; lead details and all lead mutations remain blocked.
 
 ---
 
+## Authentication security
+
+The browser stores access and refresh credentials only in HttpOnly cookies.
+`COOKIE_SECURE` defaults to false in development and is always true in
+production; `COOKIE_SAMESITE` defaults to `lax`. The access cookie uses `/`,
+while the refresh cookie is scoped to `/api/auth`. Cookie names can be changed
+with `ACCESS_TOKEN_COOKIE_NAME` and `REFRESH_TOKEN_COOKIE_NAME`; optionally set
+`COOKIE_DOMAIN` when the deployment needs a shared parent domain.
+
+Set `CLIENT_URL` and comma-separated `ALLOWED_ORIGINS` to exact frontend
+origins. Credentialed CORS and unsafe cookie-authenticated requests use this
+allow-list. Do not use wildcard origins. `AUTH_ALLOW_BEARER=false` disables
+legacy Bearer authentication; enable it only temporarily during a controlled
+client migration. Deployments must apply the refresh-token rotation migration
+before deploying the application.
+
+Local development example (replace the credentials with a test account):
+
+```sh
+curl -i -c cookies.txt -H "Origin: http://localhost:5173" \
+  -H "Content-Type: application/json" \
+  --data '{"email":"user@example.com","password":"replace-me"}' \
+  http://localhost:5000/api/auth/login
+
+curl -i -b cookies.txt -c cookies.txt \
+  -H "Origin: http://localhost:5173" \
+  -X POST http://localhost:5000/api/auth/refresh-token
+
+curl -i -b cookies.txt -H "Origin: http://localhost:5173" \
+  -X POST http://localhost:5000/api/auth/logout
+
+# This origin is rejected for login, refresh, logout, and cookie-authenticated writes.
+curl -i -H "Origin: https://untrusted.example" \
+  -H "Content-Type: application/json" \
+  --data '{}' http://localhost:5000/api/auth/login
+```
+
+---
+
+## Database migrations
+
+Run database migrations manually **before** deploying an application release:
+in GitHub Actions, open **Production database migration**, select **Run
+workflow**, and confirm the protected `production` environment approval. The
+workflow is manual-only and reads `DATABASE_URL` from that GitHub Environment's
+secret. Configure required reviewers for the `production` Environment in the
+GitHub repository settings; the workflow targets that environment but cannot
+configure its reviewers itself.
+
+The Render manifest currently defines the `dizitaladda-crm-api` production web
+service, whose start command also runs migrations. This is limited to that
+Render service and will run on every service start/redeploy. Do not use that
+command for preview or pull-request services: if one is added, give it an
+isolated database and remove automatic migrations. Automatic startup migrations
+can race with the manual workflow or application instances and can make a
+failed deployment harder to roll back.
+
+Vercel builds do not run migrations. Keep the Vercel Preview environment's
+`DATABASE_URL` pointed at a separate Neon branch, never the production database.
+
+---
+
 ## License
 
 Private Project

@@ -63,6 +63,7 @@ export const findRefreshTokenRepository = async (token, client = pool) => {
     FROM refresh_tokens
     WHERE token = $1
       AND expires_at > CURRENT_TIMESTAMP
+      AND revoked_at IS NULL
     LIMIT 1
     FOR UPDATE;
   `;
@@ -76,25 +77,39 @@ export const findRefreshTokenRepository = async (token, client = pool) => {
 
 };
 
+export const findRotatedRefreshTokenRepository = async (token, client) => {
+  const result = await client.query(
+    `SELECT id, user_id, expires_at
+     FROM refresh_tokens
+     WHERE token = $1
+       AND rotated_at IS NOT NULL
+       AND expires_at > CURRENT_TIMESTAMP
+     LIMIT 1
+     FOR UPDATE;`,
+    [hashToken(token)]
+  );
+  return result.rows[0];
+};
+
 /**
- * =====================================================
- * Delete Refresh Token
- * =====================================================
+ * Revoke a refresh token while retaining rotation history until its expiry.
  */
 export const deleteRefreshTokenRepository = async (
   client,
-  token
+  token,
+  rotated = false
 ) => {
-
   const query = `
-    DELETE FROM refresh_tokens
+    UPDATE refresh_tokens
+    SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP),
+        rotated_at = CASE WHEN $2 THEN CURRENT_TIMESTAMP ELSE rotated_at END
     WHERE token = $1
     RETURNING *;
   `;
 
   const result = await client.query(
     query,
-    [hashToken(token)]
+    [hashToken(token), rotated]
   );
 
   return result.rows[0];
@@ -113,8 +128,10 @@ async (
 ) => {
 
   const query = `
-    DELETE FROM refresh_tokens
-    WHERE user_id = $1;
+    UPDATE refresh_tokens
+    SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+    WHERE user_id = $1
+      AND revoked_at IS NULL;
   `;
 
   await client.query(
@@ -160,6 +177,7 @@ async (userId) => {
       expires_at
     FROM refresh_tokens
     WHERE user_id = $1
+      AND revoked_at IS NULL
     ORDER BY created_at DESC;
   `;
 
@@ -174,7 +192,9 @@ async (userId) => {
 
 export const revokeDeviceRefreshTokensRepository = async (client, userId, deviceId) => {
   await client.query(
-    `DELETE FROM refresh_tokens WHERE user_id = $1 AND device_id = $2;`,
+    `UPDATE refresh_tokens
+     SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+     WHERE user_id = $1 AND device_id = $2 AND revoked_at IS NULL;`,
     [userId, deviceId]
   );
 };

@@ -13,7 +13,7 @@ const test = baseTest.skipIf(!runIntegrationTest);
 
 const adminEmail = `val.admin.${Date.now()}@example.com`;
 const ADMIN = { full_name: 'Val Admin', email: adminEmail, password: 'IntegrationPassphrase2026!', role: 'ADMIN' };
-let adminToken;
+let adminCookie;
 
 beforeAll(async () => {
   if (!runIntegrationTest) return;
@@ -25,7 +25,9 @@ beforeAll(async () => {
     .set('X-Device-Id', TEST_DEVICE_ID)
     .send({ email: ADMIN.email, password: ADMIN.password })
     .expect(200);
-  adminToken = a.body.data.accessToken;
+  adminCookie = (a.headers["set-cookie"] || [])
+    .find((cookie) => cookie.startsWith("accessToken="))
+    ?.split(";")[0];
 });
 
 test('POST /api/leads validation: invalid mobile and platform', async () => {
@@ -34,7 +36,7 @@ test('POST /api/leads validation: invalid mobile and platform', async () => {
   const res = await request(app)
     .post(API_LEADS)
     .set('X-Device-Id', TEST_DEVICE_ID)
-    .set('Authorization', `Bearer ${adminToken}`)
+    .set("Cookie", [adminCookie])
     .send(payload)
     .expect(400);
 

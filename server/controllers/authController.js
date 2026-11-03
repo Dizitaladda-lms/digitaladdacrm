@@ -27,8 +27,11 @@ import {
 } from "../services/authService.js";
 
 import pool from "../config/db.js";
-import ms from "ms";
 import crypto from "crypto";
+import {
+  clearAuthCookies,
+  setAuthCookies,
+} from "../utils/authCookies.js";
 import {
   DEVICE_ID_PATTERN,
   getDeviceName,
@@ -44,61 +47,6 @@ const resolveSafeDeviceId = (req) => {
   const seed = `${req.get?.("user-agent") || ""}|${req.ip || "local"}`;
   const hex = crypto.createHash("sha256").update(seed).digest("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-};
-
-const ACCESS_TOKEN_MAX_AGE_MS = ms(process.env.JWT_EXPIRES_IN || "12h");
-const REFRESH_TOKEN_MAX_AGE_MS = ms(process.env.JWT_REFRESH_EXPIRES_IN || "30d");
-
-const getCookieOptions = (req = null) => {
-  const isSecure =
-    process.env.NODE_ENV === "production" ||
-    Boolean(process.env.VERCEL) ||
-    req?.secure ||
-    req?.get?.("x-forwarded-proto") === "https";
-
-  const origin = String(req?.get?.("origin") || "").trim();
-  const host = String(req?.get?.("x-forwarded-host") || req?.get?.("host") || "").trim();
-  let isCrossSite = false;
-  if (origin && host) {
-    try {
-      const originHost = new URL(origin).host.toLowerCase();
-      const targetHost = host.toLowerCase();
-      if (originHost !== targetHost && !originHost.endsWith(".dizitaladda.com")) {
-        isCrossSite = true;
-      }
-    } catch {
-      isCrossSite = false;
-    }
-  }
-
-  return {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: isSecure && isCrossSite ? "none" : "lax",
-  };
-};
-
-const setAuthCookies = (res, accessToken, refreshToken, req = null) => {
-  const baseCookieOptions = getCookieOptions(req);
-  res.cookie("accessToken", accessToken, {
-    ...baseCookieOptions,
-    maxAge: ACCESS_TOKEN_MAX_AGE_MS,
-    path: "/",
-  });
-
-  res.cookie("refreshToken", refreshToken, {
-    ...baseCookieOptions,
-    maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-    path: "/",
-  });
-};
-
-const clearAuthCookies = (res, req = null) => {
-  const baseCookieOptions = getCookieOptions(req);
-  res.clearCookie("accessToken", { ...baseCookieOptions, path: "/" });
-  res.clearCookie("refreshToken", { ...baseCookieOptions, path: "/" });
-  res.clearCookie("refreshToken", { ...baseCookieOptions, path: "/api/auth" });
-  res.clearCookie("deviceId", { ...baseCookieOptions, path: "/" });
 };
 
 /**
@@ -139,7 +87,7 @@ export const login = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
   });
 
-  setAuthCookies(res, result.accessToken, result.refreshToken, req);
+  setAuthCookies(res, result.accessToken, result.refreshToken);
   setDeviceCookie(res, deviceId);
 
   return res.status(200).json(
@@ -147,8 +95,6 @@ export const login = asyncHandler(async (req, res) => {
       200,
       {
         user: result.user,
-        accessToken: result.accessToken,
-        deviceId,
       },
       "Login successful."
     )
@@ -219,16 +165,8 @@ export const resetPassword = asyncHandler(async (req, res) => {
 });
 
 const getRefreshToken = (req) => {
-  if (req.cookies?.refreshToken) return req.cookies.refreshToken;
-  if (req.headers?.cookie) {
-    const match = req.headers.cookie.match(/(?:^|[;,]\s*)refreshToken=([^;,]+)/);
-    if (match) return decodeURIComponent(match[1]);
-  }
-  const bodyToken = req.body?.refreshToken || req.get?.("x-refresh-token");
-  if (typeof bodyToken === "string" && bodyToken.trim()) {
-    return bodyToken.trim();
-  }
-  return null;
+  const cookieName = process.env.REFRESH_TOKEN_COOKIE_NAME?.trim() || "refreshToken";
+  return req.cookies?.[cookieName] || null;
 };
 
 /**
@@ -261,7 +199,15 @@ export const refreshToken = asyncHandler(async (req, res) => {
     );
     await client.query("COMMIT");
 
-    setAuthCookies(res, result.accessToken, result.refreshToken, req);
+    if (result.reuseDetected) {
+      clearAuthCookies(res);
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token reuse detected. Please sign in again.",
+      });
+    }
+
+    setAuthCookies(res, result.accessToken, result.refreshToken);
     setDeviceCookie(res, deviceId);
 
     return res.status(200).json(
@@ -269,7 +215,6 @@ export const refreshToken = asyncHandler(async (req, res) => {
         200,
         {
           success: true,
-          accessToken: result.accessToken,
           deviceId,
         },
         "Access token refreshed successfully."
@@ -297,14 +242,14 @@ export const logout = asyncHandler(async (req, res) => {
     const result = await logoutUserService(refreshTokenCookie, client, deviceId);
     await client.query("COMMIT");
 
-    clearAuthCookies(res, req);
+    clearAuthCookies(res);
 
     return res
       .status(200)
       .json(new ApiResponse(200, result, "Logout successful."));
   } catch (error) {
     await client.query("ROLLBACK");
-    clearAuthCookies(res, req);
+    clearAuthCookies(res);
     throw error;
   } finally {
     client.release();

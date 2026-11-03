@@ -1,16 +1,10 @@
-import axiosInstance, { clearStoredAuthTokens, setStoredAuthTokens } from "../api/axiosInstance";
+import axiosInstance from "../api/axiosInstance";
 
 export const loginUser = async (credentials) => {
-  clearStoredAuthTokens();
-
   let lastError;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const response = await axiosInstance.post("/auth/login", credentials);
-      const payload = response.data?.data || response.data || {};
-      if (payload.accessToken || payload.refreshToken) {
-        setStoredAuthTokens(payload.accessToken, payload.refreshToken);
-      }
       return response.data;
     } catch (error) {
       lastError = error;

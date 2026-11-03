@@ -14,6 +14,9 @@ import {
   getDeviceType,
   setDeviceCookie,
 } from "../utils/deviceBinding.js";
+import { ACCESS_TOKEN_COOKIE_NAME } from "../utils/authCookies.js";
+
+const allowBearerTokens = process.env.AUTH_ALLOW_BEARER === "true";
 
 const resolveSafeDeviceId = (req) => {
   const headerId = String(req.get?.("x-device-id") || "").trim();
@@ -37,18 +40,10 @@ const authMiddleware = async (req, res, next) => {
     let token = null;
 
     // 1. Check httpOnly Cookie (`accessToken`)
-    if (req.cookies?.accessToken) {
-      token = req.cookies.accessToken;
-    } else if (req.headers.cookie) {
-      // Fallback manual parsing if cookie-parser missed it
-      const match = req.headers.cookie.match(/(?:^|;\s*)accessToken=([^;]+)/);
-      if (match) {
-        token = decodeURIComponent(match[1]);
-      }
-    }
+    token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME] || null;
 
     // 2. Fallback to Authorization Header ("Bearer <token>")
-    if (!token) {
+    if (!token && allowBearerTokens) {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.split(" ")[1];

@@ -26,6 +26,7 @@ import {
 
 import {
   findRefreshTokenRepository,
+  findRotatedRefreshTokenRepository,
   createRefreshTokenRepository,
   deleteRefreshTokenRepository,
 } from "../repositories/refreshTokenRepository.js";
@@ -859,6 +860,14 @@ async (
     );
 
   if (!storedToken) {
+    const rotatedToken = await findRotatedRefreshTokenRepository(
+      refreshToken,
+      client
+    );
+    if (rotatedToken) {
+      await deleteAllRefreshTokensRepository(client, rotatedToken.user_id);
+      return { reuseDetected: true };
+    }
     throw new ApiError(
       401,
       "Invalid refresh token."
@@ -881,10 +890,8 @@ async (
     throw new ApiError(401, "This account cannot refresh its session.");
   }
 
-  // Rotation is single-use: invalidate the presented token before issuing its
-  // replacement. Keeping a grace window here allows a stolen/old cookie to be
-  // replayed and breaks the refresh-token rotation security contract.
-  await deleteRefreshTokenRepository(client, refreshToken);
+  // Retain the revoked token's hash until expiry so a replay can revoke all sessions.
+  await deleteRefreshTokenRepository(client, refreshToken, true);
 
   // Update device slot non-blockingly outside transaction so it cannot abort refresh
   findApprovedUserDeviceRepository(user.id, device.deviceId)

@@ -19,7 +19,7 @@ const ADMIN_USER = {
   role: 'ADMIN',
 };
 
-let accessToken;
+let accessCookie;
 let campaignId;
 
 beforeAll(async () => {
@@ -38,8 +38,10 @@ beforeAll(async () => {
     .send({ email: ADMIN_USER.email, password: ADMIN_USER.password })
     .expect(200);
 
-  accessToken = login.body.data.accessToken;
-  assert.ok(accessToken);
+  accessCookie = (login.headers["set-cookie"] || [])
+    .find((cookie) => cookie.startsWith("accessToken="))
+    ?.split(";")[0];
+  assert.ok(accessCookie);
 });
 
 test('POST /api/campaigns (ADMIN) creates a campaign', async () => {
@@ -53,7 +55,7 @@ test('POST /api/campaigns (ADMIN) creates a campaign', async () => {
   const res = await request(app)
     .post(API_CAMPAIGNS)
     .set('X-Device-Id', TEST_DEVICE_ID)
-    .set('Authorization', `Bearer ${accessToken}`)
+    .set("Cookie", [accessCookie])
     .send(payload)
     .expect(201);
 
@@ -67,7 +69,7 @@ test('GET /api/campaigns returns list including created campaign', async () => {
   const res = await request(app)
     .get(API_CAMPAIGNS)
     .set('X-Device-Id', TEST_DEVICE_ID)
-    .set('Authorization', `Bearer ${accessToken}`)
+    .set("Cookie", [accessCookie])
     .expect(200);
 
   assert.equal(res.body.success, true);
@@ -81,7 +83,7 @@ test('GET /api/campaigns/:id returns the campaign', async () => {
   const res = await request(app)
     .get(`${API_CAMPAIGNS}/${campaignId}`)
     .set('X-Device-Id', TEST_DEVICE_ID)
-    .set('Authorization', `Bearer ${accessToken}`)
+    .set("Cookie", [accessCookie])
     .expect(200);
 
   assert.equal(res.body.success, true);
@@ -93,7 +95,7 @@ test('PUT /api/campaigns/:id updates the campaign (ADMIN)', async () => {
   const res = await request(app)
     .put(`${API_CAMPAIGNS}/${campaignId}`)
     .set('X-Device-Id', TEST_DEVICE_ID)
-    .set('Authorization', `Bearer ${accessToken}`)
+    .set("Cookie", [accessCookie])
     .send({ campaign_name: 'Updated Campaign' })
     .expect(200);
 
@@ -106,7 +108,7 @@ test('DELETE /api/campaigns/:id deletes the campaign (ADMIN)', async () => {
   const res = await request(app)
     .delete(`${API_CAMPAIGNS}/${campaignId}`)
     .set('X-Device-Id', TEST_DEVICE_ID)
-    .set('Authorization', `Bearer ${accessToken}`)
+    .set("Cookie", [accessCookie])
     .expect(200);
 
   assert.equal(res.body.success, true);

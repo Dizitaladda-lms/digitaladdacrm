@@ -18,6 +18,36 @@ const login = (credentials) =>
     .set("X-Device-Id", testDeviceId)
     .send(credentials);
 
+describe("Cookie auth origin protection", () => {
+  it("rejects untrusted and missing origins on auth lifecycle routes", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
+    try {
+      const untrusted = await request(app)
+        .post("/api/auth/login")
+        .set("Origin", "https://untrusted.example")
+        .send({});
+      expect(untrusted.status).toBe(403);
+      expect(untrusted.headers["access-control-allow-origin"]).toBeUndefined();
+
+      const missing = await request(app)
+        .post("/api/auth/refresh-token")
+        .send({});
+      expect(missing.status).toBe(403);
+
+      const trusted = await request(app)
+        .post("/api/auth/login")
+        .set("Origin", "http://localhost:5173")
+        .send({});
+      expect(trusted.status).not.toBe(403);
+      expect(trusted.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+      expect(trusted.headers["access-control-allow-credentials"]).toBe("true");
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+});
+
 describeAuth("Auth: login", () => {
   beforeEach(async () => {
     await resetAuthTables();
@@ -41,11 +71,14 @@ describeAuth("Auth: login", () => {
     // Refresh token must be in cookies, never in the JSON body — this is the
     // whole point of the P0-1 migration.
     expect(res.body.data.refreshToken).toBeUndefined();
+    expect(res.body.data.accessToken).toBeUndefined();
 
     const cookies = res.headers["set-cookie"];
     expect(cookies).toBeDefined();
     expect(cookies.some((c) => c.startsWith("accessToken="))).toBe(true);
     expect(cookies.some((c) => c.startsWith("refreshToken="))).toBe(true);
+    expect(cookies.find((c) => c.startsWith("accessToken="))).toMatch(/;\s*Path=\//i);
+    expect(cookies.find((c) => c.startsWith("refreshToken="))).toMatch(/;\s*Path=\/api\/auth/i);
     expect(cookies.some((c) => c.toLowerCase().includes("httponly"))).toBe(true);
     expect(cookies.every((c) => /max-age=\d+/i.test(c))).toBe(true);
   });
@@ -143,6 +176,7 @@ describeAuth("Auth: refresh token rotation", () => {
       .set("Cookie", loginCookies);
 
     expect(refreshRes.status).toBe(200);
+    expect(refreshRes.body.data.accessToken).toBeUndefined();
     expect(refreshRes.body.data.refreshToken).toBeUndefined();
     const refreshedCookies = refreshRes.headers["set-cookie"];
     expect(refreshedCookies).toBeDefined();
@@ -157,12 +191,40 @@ describeAuth("Auth: refresh token rotation", () => {
       .set("Cookie", loginCookies);
 
     expect(reuseRes.status).toBe(401);
+    const currentRefreshCookie = refreshedCookies.find((cookie) =>
+      cookie.startsWith("refreshToken=")
+    ).split(";")[0];
+    const revokedSessionRes = await request(app)
+      .post("/api/auth/refresh-token")
+      .set("X-Device-Id", testDeviceId)
+      .set("Cookie", [currentRefreshCookie]);
+    expect(revokedSessionRes.status).toBe(401);
   });
 
   it("rejects a refresh attempt with no refresh cookie", async () => {
     const res = await request(app)
       .post("/api/auth/refresh-token")
       .set("X-Device-Id", testDeviceId);
+    expect(res.status).toBe(401);
+  });
+
+  it("does not accept a refresh token from the request body", async () => {
+    const testUser = await createTestUser({
+      email: "refresh-body@test.com",
+      role: ROLES.COUNSELLOR,
+    });
+    const loginRes = await login({
+      email: testUser.email,
+      password: testUser.plaintextPassword,
+    });
+    const refreshCookie = loginRes.headers["set-cookie"].find((cookie) =>
+      cookie.startsWith("refreshToken=")
+    ).split(";")[0];
+
+    const res = await request(app)
+      .post("/api/auth/refresh-token")
+      .set("X-Device-Id", testDeviceId)
+      .send({ refreshToken: refreshCookie.split("=")[1] });
     expect(res.status).toBe(401);
   });
 });
