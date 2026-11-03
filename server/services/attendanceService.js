@@ -1088,6 +1088,38 @@ export const getHRAttendanceReportsService = async (filters, currentUser) => {
     throw new ApiError(403, "You are not authorized to view HR attendance reports.");
   }
 
+  if (filters.employee_id !== undefined && filters.employee_id !== "") {
+    const employeeId = Number(filters.employee_id);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      throw new ApiError(400, "A valid employee ID is required.");
+    }
+
+    const isValidDate = (value) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+      const parsed = new Date(`${value}T00:00:00.000Z`);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    };
+
+    if (!isValidDate(filters.date_from) || !isValidDate(filters.date_to)) {
+      throw new ApiError(400, "Valid start and end dates are required in YYYY-MM-DD format.");
+    }
+    if (filters.date_from > filters.date_to) {
+      throw new ApiError(400, "The start date must be on or before the end date.");
+    }
+
+    const todayIst = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    if (filters.date_to > todayIst) {
+      throw new ApiError(400, "The end date cannot be in the future.");
+    }
+
+    filters = { ...filters, employee_id: employeeId };
+  }
+
   const reportsData = await getHRAttendanceReportsRepository(filters);
   const isSuperAdmin = currentUser.role === "SUPER_ADMIN";
 
@@ -1467,4 +1499,3 @@ export const getEmployeeAttendanceQuotaSummaryService = async (employeeId, targe
 
   return await getEmployeeAttendanceQuotaSummaryRepository(employeeId, targetDate);
 };
-

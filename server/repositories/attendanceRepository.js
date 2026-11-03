@@ -599,7 +599,85 @@ export const getHRAttendanceReportsRepository = async (filters = {}) => {
     status,
     date_from,
     date_to,
+    employee_id,
   } = filters;
+
+  if (employee_id) {
+    const values = [Number(employee_id), date_from, date_to];
+    const result = await pool.query(
+      `
+        SELECT
+          COALESCE(a.id, 0) AS id,
+          e.id AS employee_id,
+          report_dates.report_date::date AS date,
+          a.check_in_time,
+          a.check_out_time,
+          a.ip_address,
+          COALESCE(a.is_office_wifi, false) AS is_office_wifi,
+          COALESCE(
+            wm.work_mode,
+            CASE
+              WHEN a.verification_method = 'WFH'
+                OR a.check_in_location ILIKE '%Work From Home%'
+              THEN 'WFH'
+              ELSE 'OFFICE'
+            END
+          ) AS work_mode,
+          COALESCE(a.status, 'ABSENT') AS status,
+          a.check_in_lat,
+          a.check_in_lng,
+          a.check_in_location,
+          a.check_out_lat,
+          a.check_out_lng,
+          a.check_out_location,
+          e.full_name AS employee_name,
+          e.employee_code,
+          e.designation,
+          e.role,
+          COALESCE(e.shift_timing_type, 'DEFAULT') AS shift_timing_type,
+          COALESCE(e.shift_start_time, '10:00') AS shift_start_time,
+          COALESCE(e.shift_end_time, '18:00') AS shift_end_time,
+          e.custom_shift_timings,
+          d.department_name,
+          ROUND(
+            CASE
+              WHEN a.check_out_time IS NOT NULL THEN
+                COALESCE(
+                  NULLIF(a.total_hours, 0.00),
+                  (EXTRACT(EPOCH FROM (a.check_out_time - a.check_in_time)) / 3600.0)::numeric
+                )
+              WHEN a.check_in_time IS NOT NULL AND report_dates.report_date::date = CURRENT_DATE THEN
+                GREATEST(
+                  0.00,
+                  (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.check_in_time)) / 3600.0)::numeric
+                )
+              WHEN a.check_in_time IS NOT NULL THEN COALESCE(NULLIF(a.total_hours, 0.00), 0.00)
+              ELSE 0.00
+            END,
+            2
+          ) AS live_hours
+        FROM generate_series($2::date, $3::date, INTERVAL '1 day') AS report_dates(report_date)
+        JOIN employees e ON e.id = $1 AND e.is_deleted = FALSE
+        LEFT JOIN departments d ON d.id = e.department_id
+        LEFT JOIN daily_attendance a
+          ON a.employee_id = e.id AND a.date = report_dates.report_date::date
+        LEFT JOIN daily_employee_work_modes wm
+          ON wm.employee_id = e.id AND wm.work_date = report_dates.report_date::date
+        ORDER BY report_dates.report_date DESC;
+      `,
+      values
+    );
+
+    return {
+      attendance: result.rows,
+      pagination: {
+        page: 1,
+        limit: result.rows.length,
+        totalRecords: result.rows.length,
+        totalPages: 1,
+      },
+    };
+  }
 
   const values = [];
   let index = 1;

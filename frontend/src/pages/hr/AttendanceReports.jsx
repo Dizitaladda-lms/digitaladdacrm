@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Calendar,
   Clock,
@@ -33,6 +33,21 @@ import { getEmployees } from "../../services/employeeService";
 import HRAttendanceEditModal from "../../components/attendance/HRAttendanceEditModal";
 import { calculateLateArrival } from "../../utils/shiftTiming";
 
+const getIstDateValue = (date = new Date()) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+
+const shiftDateValue = (dateValue, offsetDays) => {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+};
+
 const AttendanceReports = () => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
@@ -55,6 +70,13 @@ const AttendanceReports = () => {
   const [editingRecord, setEditingRecord] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [defaultModalWorkMode, setDefaultModalWorkMode] = useState("OFFICE");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [employeeDateTo, setEmployeeDateTo] = useState(() => getIstDateValue());
+  const [employeeDateFrom, setEmployeeDateFrom] = useState(() =>
+    shiftDateValue(getIstDateValue(), -29)
+  );
+  const [employeeAttendance, setEmployeeAttendance] = useState([]);
+  const [employeeAttendanceLoading, setEmployeeAttendanceLoading] = useState(false);
 
   const fetchPendingApprovals = async () => {
     try {
@@ -151,10 +173,43 @@ const AttendanceReports = () => {
     }
   };
 
+  const fetchEmployeeAttendance = useCallback(async () => {
+    if (!selectedEmployeeId || !employeeDateFrom || !employeeDateTo) {
+      setEmployeeAttendance([]);
+      return;
+    }
+
+    try {
+      setEmployeeAttendanceLoading(true);
+      const res = await getHRAttendanceReports({
+        employee_id: selectedEmployeeId,
+        date_from: employeeDateFrom,
+        date_to: employeeDateTo,
+      });
+      setEmployeeAttendance(res?.data?.attendance || []);
+    } catch (err) {
+      console.error("Failed to fetch selected employee attendance:", err);
+      toast.error(err.response?.data?.message || "Could not load employee attendance.");
+      setEmployeeAttendance([]);
+    } finally {
+      setEmployeeAttendanceLoading(false);
+    }
+  }, [selectedEmployeeId, employeeDateFrom, employeeDateTo]);
+
   useEffect(() => {
     fetchReports();
     fetchPendingApprovals();
   }, [searchTerm, statusFilter, dateFrom, dateTo, pagination.page]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) fetchEmployeeAttendance();
+    });
+    return () => {
+      active = false;
+    };
+  }, [fetchEmployeeAttendance]);
 
   useEffect(() => {
     let active = true;
@@ -1005,6 +1060,239 @@ const AttendanceReports = () => {
         </div>
       </div>
 
+      <section
+        aria-labelledby="employee-attendance-history-heading"
+        style={{
+          background: "#ffffff",
+          borderRadius: "12px",
+          border: "1px solid #e2e8f0",
+          marginBottom: "24px",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: "18px 20px", borderBottom: "1px solid #e2e8f0" }}>
+          <h2
+            id="employee-attendance-history-heading"
+            style={{ margin: 0, color: "#0f172a", fontSize: "18px" }}
+          >
+            Individual employee attendance
+          </h2>
+          <p style={{ margin: "5px 0 0", color: "#64748b", fontSize: "13px" }}>
+            Select an employee to review and edit each day. Dates without an attendance record are shown as Absent.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "end",
+            flexWrap: "wrap",
+            padding: "16px 20px",
+          }}
+        >
+          <label style={{ flex: "1 1 280px", color: "#334155", fontSize: "12px", fontWeight: 700 }}>
+            Employee
+            <select
+              value={selectedEmployeeId}
+              onChange={(event) => setSelectedEmployeeId(event.target.value)}
+              disabled={employeesLoading}
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: "6px",
+                padding: "10px 12px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: "#fff",
+                color: "#0f172a",
+                fontSize: "14px",
+              }}
+            >
+              <option value="">
+                {employeesLoading ? "Loading employees..." : "Select an employee"}
+              </option>
+              {employees.map((employee) => {
+                const employeeId = employee.employee_id || employee.id;
+                return (
+                  <option key={employeeId} value={employeeId}>
+                    {employee.employee_name || employee.full_name}
+                    {employee.employee_code ? ` (${employee.employee_code})` : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+
+          <label style={{ color: "#334155", fontSize: "12px", fontWeight: 700 }}>
+            From
+            <input
+              type="date"
+              value={employeeDateFrom}
+              max={employeeDateTo || getIstDateValue()}
+              onChange={(event) => setEmployeeDateFrom(event.target.value)}
+              style={{
+                display: "block",
+                marginTop: "6px",
+                padding: "9px 10px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                fontSize: "13px",
+              }}
+            />
+          </label>
+
+          <label style={{ color: "#334155", fontSize: "12px", fontWeight: 700 }}>
+            To
+            <input
+              type="date"
+              value={employeeDateTo}
+              min={employeeDateFrom || undefined}
+              max={getIstDateValue()}
+              onChange={(event) => setEmployeeDateTo(event.target.value)}
+              style={{
+                display: "block",
+                marginTop: "6px",
+                padding: "9px 10px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                fontSize: "13px",
+              }}
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={() => {
+              const employee = employees.find(
+                (item) => String(item.employee_id || item.id) === selectedEmployeeId
+              );
+              setEditingRecord({
+                employee_id: Number(selectedEmployeeId),
+                employee_name: employee?.employee_name || employee?.full_name,
+                employee_code: employee?.employee_code,
+                department_name: employee?.department_name,
+                date: employeeDateTo,
+              });
+              setDefaultModalWorkMode("OFFICE");
+              setShowEditModal(true);
+            }}
+            disabled={!selectedEmployeeId}
+            style={{
+              padding: "10px 14px",
+              border: 0,
+              borderRadius: "8px",
+              background: selectedEmployeeId ? "#10b981" : "#cbd5e1",
+              color: "#fff",
+              fontWeight: 700,
+              cursor: selectedEmployeeId ? "pointer" : "not-allowed",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <PlusCircle size={15} /> Mark attendance
+          </button>
+        </div>
+
+        {selectedEmployeeId && (
+          <div style={{ borderTop: "1px solid #e2e8f0", overflowX: "auto" }}>
+            {employeeAttendanceLoading ? (
+              <div style={{ padding: "28px", textAlign: "center", color: "#64748b" }}>
+                <RefreshCw size={22} className="spin" /> Loading selected employee attendance...
+              </div>
+            ) : employeeAttendance.length === 0 ? (
+              <div style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
+                No attendance dates found in this range.
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", color: "#475569" }}>
+                    <th style={{ padding: "11px 16px" }}>Date</th>
+                    <th style={{ padding: "11px 16px" }}>Check-in</th>
+                    <th style={{ padding: "11px 16px" }}>Check-out</th>
+                    <th style={{ padding: "11px 16px" }}>Hours</th>
+                    <th style={{ padding: "11px 16px" }}>Status</th>
+                    <th style={{ padding: "11px 16px", textAlign: "right" }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employeeAttendance.map((record) => {
+                    const status = String(record.status || "ABSENT").toUpperCase();
+                    const isAbsent = status === "ABSENT" || status === "NOT_CHECKED_IN";
+                    return (
+                      <tr key={`${record.employee_id}-${String(record.date).slice(0, 10)}`} style={{ borderTop: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "11px 16px", color: "#0f172a", fontWeight: 600 }}>
+                          {String(record.date).slice(0, 10)}
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
+                          {record.check_in_time
+                            ? new Date(record.check_in_time).toLocaleTimeString("en-IN", {
+                                timeZone: "Asia/Kolkata",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "--"}
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
+                          {record.check_out_time
+                            ? new Date(record.check_out_time).toLocaleTimeString("en-IN", {
+                                timeZone: "Asia/Kolkata",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "--"}
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
+                          {Number(record.live_hours || 0).toFixed(2)}
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "4px 8px",
+                              borderRadius: "999px",
+                              background: isAbsent ? "#fee2e2" : "#dcfce7",
+                              color: isAbsent ? "#b91c1c" : "#15803d",
+                              fontWeight: 700,
+                              fontSize: "11px",
+                            }}
+                          >
+                            {isAbsent ? "ABSENT" : status.replaceAll("_", " ")}
+                          </span>
+                        </td>
+                        <td style={{ padding: "11px 16px", textAlign: "right" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingRecord({ ...record, raw_attendance_status: status });
+                              setDefaultModalWorkMode(record.work_mode || "OFFICE");
+                              setShowEditModal(true);
+                            }}
+                            style={{
+                              padding: "6px 10px",
+                              border: "1px solid #bfdbfe",
+                              borderRadius: "7px",
+                              background: "#eff6ff",
+                              color: "#1d4ed8",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* Attendance Log Table */}
       <div style={{ background: "#ffffff", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
         {loading ? (
@@ -1365,7 +1653,10 @@ const AttendanceReports = () => {
           setShowEditModal(false);
           setEditingRecord(null);
         }}
-        onSaved={fetchReports}
+        onSaved={async () => {
+          await fetchReports();
+          await fetchEmployeeAttendance();
+        }}
         initialRecord={editingRecord}
         employeesList={employees}
         employeesLoading={employeesLoading}

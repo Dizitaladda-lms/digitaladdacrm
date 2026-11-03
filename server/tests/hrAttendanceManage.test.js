@@ -4,10 +4,12 @@ const {
   mockFindEmployeeById,
   mockUpsertEmployeeAttendance,
   mockGetEmployeeAttendanceQuotaSummary,
+  mockGetHRAttendanceReports,
 } = vi.hoisted(() => ({
   mockFindEmployeeById: vi.fn(),
   mockUpsertEmployeeAttendance: vi.fn(),
   mockGetEmployeeAttendanceQuotaSummary: vi.fn(),
+  mockGetHRAttendanceReports: vi.fn(),
 }));
 
 vi.mock("../repositories/attendanceRepository.js", () => ({
@@ -28,7 +30,7 @@ vi.mock("../repositories/attendanceRepository.js", () => ({
   updateAttendanceCheckOutRepository: vi.fn(),
   autoCheckOutOpenAttendancesRepository: vi.fn(),
   getMyAttendanceHistoryRepository: vi.fn(),
-  getHRAttendanceReportsRepository: vi.fn(),
+  getHRAttendanceReportsRepository: mockGetHRAttendanceReports,
   findEmployeeByIdForAttendanceRepository: mockFindEmployeeById,
   upsertEmployeeAttendanceByHRRepository: mockUpsertEmployeeAttendance,
   getEmployeeAttendanceQuotaSummaryRepository: mockGetEmployeeAttendanceQuotaSummary,
@@ -39,9 +41,45 @@ vi.mock("../repositories/employeeRepository.js", () => ({
 }));
 
 import {
+  getHRAttendanceReportsService,
   upsertEmployeeAttendanceByHRService,
   getEmployeeAttendanceQuotaSummaryService,
 } from "../services/attendanceService.js";
+
+describe("HR employee attendance history service", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("loads the selected employee's requested date range", async () => {
+    mockGetHRAttendanceReports.mockResolvedValue({
+      attendance: [{ employee_id: 25, date: "2026-10-12", status: "ABSENT" }],
+      pagination: { page: 1, totalPages: 1, totalRecords: 1 },
+    });
+
+    const result = await getHRAttendanceReportsService(
+      { employee_id: "25", date_from: "2026-10-01", date_to: "2026-10-30" },
+      { role: "HR" }
+    );
+
+    expect(result.attendance[0].status).toBe("ABSENT");
+    expect(mockGetHRAttendanceReports).toHaveBeenCalledWith({
+      employee_id: 25,
+      date_from: "2026-10-01",
+      date_to: "2026-10-30",
+    });
+  });
+
+  it("rejects invalid employee history date ranges", async () => {
+    await expect(
+      getHRAttendanceReportsService(
+        { employee_id: "25", date_from: "2026-02-31", date_to: "2026-03-01" },
+        { role: "HR" }
+      )
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockGetHRAttendanceReports).not.toHaveBeenCalled();
+  });
+});
 
 describe("HR Attendance Mark & Edit Time Service (upsertEmployeeAttendanceByHRService)", () => {
   beforeEach(() => {
