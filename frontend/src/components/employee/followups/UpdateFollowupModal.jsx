@@ -14,11 +14,8 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { addLeadFeedback } from "../../../services/leadFeedbackService";
-import useFireworks from "../../../hooks/useFireworks";
 
 const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
-  const fireWorks = useFireworks();
-
   const leadId = followup?.lead_id || followup?.id;
   const leadName = followup?.lead_name || followup?.full_name || "Student Lead";
   const courseName = followup?.interested_course || followup?.course_name || "Digital Marketing";
@@ -98,7 +95,6 @@ const UpdateFollowupModal = ({ followup, isOpen, onClose, onSuccess }) => {
       await addLeadFeedback(leadId, payload);
 
       if (selectedStatus === "ENROLLED") {
-        fireWorks();
         toast.success(`🎉 ${leadName} enrolled! Admission record created with fee details.`);
       } else if (selectedStatus === "FOLLOW_UP") {
         toast.success(`📅 Next callback scheduled for ${new Date(nextFollowupAt).toLocaleString("en-IN")}!`);

@@ -8,7 +8,6 @@ import App from "./App";
 import "./index.css";
 
 import { AuthProvider } from "./context/AuthContext";
-import { ThemeProvider } from "./context/ThemeContext";
 
 registerSW({
   immediate: true,
@@ -55,16 +54,14 @@ window.addEventListener("error", (event) => {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <Toaster
-            position="top-right"
-            containerStyle={{ top: 72, right: 20, zIndex: 99999 }}
-            gutter={10}
-          />
-          <App />
-        </AuthProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <Toaster
+          position="top-right"
+          containerStyle={{ top: 72, right: 20, zIndex: 99999 }}
+          gutter={10}
+        />
+        <App />
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
