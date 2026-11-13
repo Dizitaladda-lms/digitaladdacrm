@@ -239,13 +239,15 @@ const normalizePublicLeadPayload = (req, res, next) => {
       req.body.remarks = extraDetails.join(" | ");
     }
 
-    // 2. Source normalization: `ads.*` is always a landing page and `www.*`
-    // is always a main website. This deliberately takes precedence over a
-    // source field sent by the form, so reporting stays consistent.
+    // 2. Source normalization: preserve the server-assigned website brand
+    // source; otherwise classify `ads.*` as landing pages and `www.*` as
+    // main website enquiries.
     const upperSource = rawSource.toUpperCase().replace(/\s+/g, "_");
 
     if (isAgency) {
       req.body.source = "AGENCY_WEBSITE";
+    } else if (["NIDADS.COM", "NIGAPE.COM"].includes(upperSource)) {
+      req.body.source = upperSource.toLowerCase();
     } else if (websiteSourceByHost) {
       req.body.source = websiteSourceByHost;
     } else if (

@@ -33,6 +33,8 @@ export const capturePublicLeadValidator = [
         "META",
         "GOOGLE",
         "WEBSITE",
+        "NIDADS.COM",
+        "NIGAPE.COM",
         "MAIN_WEBSITE",
         "MAIN WEBSITE",
         "LANDING_PAGE",
