@@ -3,13 +3,21 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+const serviceWorkerBuildId = new Date().toISOString().replace(/\D/g, "");
+
 export default defineConfig({
+  define: {
+    __SW_BUILD_ID__: JSON.stringify(serviceWorkerBuildId),
+  },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       // Apply new deployed builds automatically without an in-app update prompt.
       registerType: "autoUpdate",
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
       injectRegister: "auto",
       includeAssets: ["favicon.png", "favicon.svg"],
       manifest: {
@@ -40,21 +48,9 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
-        cleanupOutdatedCaches: true,
-        // Include app shell and hashed bundles so each deploy creates an
-        // updated worker that can be applied automatically.
+      injectManifest: {
         globPatterns: ["**/*.{html,js,css,ico,png,svg}"],
-        // A browser refresh, an installed-PWA relaunch, or a push notification
-        // can open a client-side route directly (for example
-        // /employee/assigned-work). Serve the React app shell so BrowserRouter
-        // can resolve that route instead of showing the host's 404 page.
-        // API and auth requests must still reach their server endpoints.
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/auth(?:\/|$)/],
-        importScripts: ["push-sw.js"],
+        globIgnores: ["push-sw.js"],
       },
     }),
   ],
