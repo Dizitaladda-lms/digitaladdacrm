@@ -18,7 +18,7 @@ services:
       - key: CLIENT_URL
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://www.nidads.com,https://www.nigape.com,http://localhost:3000
+        value: https://www.nidads.com,https://nidads.com,https://www.nigape.com,https://nigape.com,http://localhost:3000
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN

@@ -1,6 +1,13 @@
 const localDevOrigin = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
+const trustedWebsiteOrigins = [
+  "https://www.nidads.com",
+  "https://nidads.com",
+  "https://www.nigape.com",
+  "https://nigape.com",
+];
 
 const getConfiguredOrigins = () => [
+  ...trustedWebsiteOrigins,
   process.env.CLIENT_URL || "",
   ...(process.env.ALLOWED_ORIGINS || "").split(","),
 ]
